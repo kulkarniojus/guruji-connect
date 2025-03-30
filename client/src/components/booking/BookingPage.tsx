@@ -16,7 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Clock, MapPin, User, ArrowRight, CreditCard, Calendar as CalendarIcon2, Check } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, User, ArrowRight, CreditCard, Calendar as CalendarIcon2, Check, UserX } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import PaymentPage from '@/components/payments/PaymentPage';
 
@@ -74,7 +74,7 @@ export default function BookingPage() {
   ];
 
   // Selected puja details
-  const selectedPuja = pujas?.find(p => p.id.toString() === selectedPujaId);
+  const selectedPuja = pujas && Array.isArray(pujas) ? pujas.find(p => p.id.toString() === selectedPujaId) : null;
 
   // Calculate booking amount based on type and consultation type
   const calculateAmount = () => {
@@ -508,18 +508,34 @@ export default function BookingPage() {
                     <div className="flex justify-between">
                       <span className="text-neutral-600">Service Type:</span>
                       <span className="font-medium">
-                        {bookingType === 'online' ? 'Online Puja' : 'Consultation'}
+                        {bookingType === 'offline' ? 'Offline Puja' : 
+                         bookingType === 'online' ? 'Online Puja' : 'Consultation'}
                         {bookingType === 'consultation' && ` (${consultationType === 'auto_select' ? 'Auto-select' : 'Immediate'})`}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-neutral-600">Puja:</span>
-                      <span className="font-medium">{selectedPuja?.name}</span>
+                      <span className="font-medium">{selectedPuja?.name || 'Not selected'}</span>
                     </div>
+                    
+                    {bookingType === 'offline' && (
+                      <div className="flex justify-between">
+                        <span className="text-neutral-600">City:</span>
+                        <span className="font-medium">{selectedCity ? cities.find(c => c.value === selectedCity)?.label || selectedCity : 'Not selected'}</span>
+                      </div>
+                    )}
+                    
+                    {bookingType === 'offline' && (
+                      <div className="flex justify-between">
+                        <span className="text-neutral-600">Address:</span>
+                        <span className="font-medium">{address || 'Not provided'}</span>
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between">
                       <span className="text-neutral-600">Date & Time:</span>
                       <span className="font-medium">
-                        {selectedDate ? format(selectedDate, 'PPP') : ''} at {selectedTime}
+                        {selectedDate ? format(selectedDate, 'PPP') : 'Not selected'} {selectedTime ? `at ${selectedTime}` : ''}
                       </span>
                     </div>
                     <Separator />
