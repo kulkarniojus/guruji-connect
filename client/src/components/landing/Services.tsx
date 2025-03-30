@@ -10,25 +10,37 @@ const services = [
     id: 'online-puja',
     title: 'Online Puja Booking',
     description: 'Book pujas online from the comfort of your home and participate virtually in real-time',
-    image: 'https://images.unsplash.com/photo-1584721901817-1823f3b8ad3d?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    image: 'https://images.unsplash.com/photo-1561387809-9644d0c24144?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
   },
   {
     id: 'online-consultation',
     title: 'Online Consultation',
     description: 'Get expert guidance from verified pandits via video call for astrological or spiritual advice',
-    image: 'https://images.unsplash.com/photo-1595503240812-7286dafaddc1?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    image: 'https://images.unsplash.com/photo-1542856391-010fb87dcfed?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
   },
   {
     id: 'brahmin-booking',
     title: 'Brahmin Booking',
     description: 'Book experienced Brahmins for various religious ceremonies at your home or preferred location',
-    image: 'https://images.unsplash.com/photo-1594661387748-3d7c037a0a91?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    image: 'https://images.unsplash.com/photo-1557031751-30f159e4ac6c?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
   },
   {
     id: 'special-occasions',
     title: 'Special Occasions',
     description: 'Book for special occasions like Varsha shradha, Kumarika, Vat Savitri puja, Mangalagaur, and more',
-    image: 'https://images.unsplash.com/photo-1617473346681-58383870ca6a?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    image: 'https://images.unsplash.com/photo-1590177600178-8444b586eccc?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+  },
+  {
+    id: 'satyanarayan-puja',
+    title: 'Satyanarayan Puja',
+    description: 'A sacred ritual dedicated to Lord Vishnu that brings prosperity, well-being and spiritual growth',
+    image: 'https://images.unsplash.com/photo-1555400038-63f5ba517a47?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+  },
+  {
+    id: 'griha-pravesh',
+    title: 'Griha Pravesh',
+    description: 'Traditional housewarming ceremony to bless your new home with positive energy and divine protection',
+    image: 'https://images.unsplash.com/photo-1593003070128-3a0c7f2e83a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
   },
 ];
 
