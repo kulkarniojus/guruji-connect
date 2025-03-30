@@ -1,0 +1,285 @@
+Requirement Document
+Open application
+- It should redirect to Landing page for customer and guruji login with restricted
+access.
+- For Admin It should redirect to the login page.
+Login
+- Login using a mobile number with OTP verification.
+- If the user is not registered with the app then redirect to the registration page.
+- First Name (*)
+- Last Name (*)
+- Email (*)
+- Mobile number (*)
+- Age (*)
+- Gender (*)
+- Password (*)
+- Registration type (Customer, Guruji) (*)
+- Adhar no. (Optional)
+- Caste (Optional)
+- Terms and conditions (*) (Customer and Guruji will have separate T&amp;C
+will be there depending on the registration type. T&amp;C should open in
+new sub popup and text should be configurable and not should be in
+DB )
+Dashboard
+components
+- Header ( header tabs should be like trello header, like Application Name, dropdown
+and common search, etc)
+- login / register
+- If already logged in then show profile option
+- logo
+- Name of application
+- blogs
+- List of Pujas tab with their descriptions
+- Notifications (bell icon)
+- Personalised offers and all for customer
+- Search
+- City
+- puja name
+- religion
+- Date &amp; Time
+
+- Services (should be in carousel in browser or in phone it should come side by side in one
+line two blocks and down another 2 blocks after that show all option should be there to
+open all services blocks with their photos)
+- Online puja booking
+- Online consultation
+- All kind of brahmin booking
+- bhagwat geetha reading
+- Varsha shradha jevan brahmans
+- kumarika
+- Savashna
+- Vat savitri puja
+- Mangalagaur
+- etc
+- Popular events
+- Training
+- Insurance
+- Gifts
+- etc
+- Include learning video (ex guide, tour of application for all services which we provide)
+- Additional contents
+- Marketing contents
+- Newly launched Items
+- Puja details
+- Footer
+- About us
+- Locations
+Chatbot
+- Chatbot should be available for any queries
+- Once any request came in chatbot it should trigger an email to particular role (like
+customer care role) and the message should go on whatsapp to live agent support (need
+more input from implementation team on how we can achieve this)
+Booking Page
+components
+On click of search, page should be redirected to booking page
+- Option to select destination address
+- By default it should show current address
+- Payment Tab - booking fees
+- Promotion code (configurable by admin)
+- Book - Button
+- Map
+- It should display destination address
+- It should display guruji symbol located nearby
+
+- Accepted Guruji&#39;s Name
+- On selecting destination address it should update prices in payment tab &amp; on click of
+book button it should send a request in pool and trigger email and sms to both customer
+and guruji
+- for customer it should show - “Booking is in progress” on screen
+- Guruji will receive - New booking request in their inbox
+- Simultaneously Admin should be able to see to whom the request is sent in pool
+so if no one is accepting then Admin should be able to call Guruji and ask them to
+accept
+- Once Guruji Accepted the request it should be get removed from pool and other Guruji&#39;s
+will not b able to see the request
+- Once it is accepted by Guruji Customer will get notification that your puja is confirmed
+with additional message that if you need puja stuffs then click here.
+Note - Guruji will be able to see the puja name, payment amount (after deducting
+20 percent), location in small popup
+On Booking
+- Customer has to pay either full or partial payment of 50 percent prior booking
+- On click of book it will redirect to payment portal where customer has to pay money and
+once payment confirmed then it will redirect to map and request will go to pool for guruji&#39;s
+- if incase of any failure, deducted money should go back to customer&#39;s acc and only on
+payment confirmation we have to allow customer for booking
+On Guruji side
+- If Guruji is not accepting a request which is trigged within 10 km range then it should
+increase range till 15 to 20 km for search after particular time
+- This time and km range setting should be configured somewhere so owner or super
+admin should be able to change it any point of time
+- If Guruji has cancelled before 24 hrs then it should be free cancellation
+- If Guruji has cancelled within 24 hrs then there should be penalty charged to Guruji.
+- If Guruji Fail to pay penalty then app should give facility to block automatically and there
+should be an additional option to block &amp; unblock it manually as well
+- Guruji should get alert multiple times as a reminder for him for booked puja
+- Address and phone no. should be sent to guruji 4 hrs before or the time should be
+calculated as per booking time period of Puja
+- for ex. if puja is booked 5 days before then guruji should be able to get address before
+4 hr or 5 hrs
+- this above time should be configurable somewhere in portal
+- if puja is booked on urgent basis then address should be sent immediately or there
+should be some algorithm to calculate this time period for such immediate cases ( need
+ask startup how they can develop this algo on time and availability basis, there should be
+some percent basis calculation)
+On Customer Side
+
+- If customer cancelled before acceptance from guruji then customer will get his money
+back immediately
+- if customer has cancelled before 48 hrs then also customer will get full refund
+- if customer cancelled request within 48 hrs then 50 % payment will be charged to
+customer.
+- in case of failure app should automatically block the customer and there should be a
+facility for manual block and unblock.
+- Once the payment is done from customer then automatically he should get unlock on
+portal
+- There should be a link in for pending payment in customer profile section and if some
+one is blocked then one popup should come for those customer with blocked message
+and pending payment or the reason of block.
+When Booking In-Progress or Confirmed
+- Customer should be able to see notification on his dashboard
+- And booking card he should be able to see in his profile where he can cancel or modify
+his booking
+- Customer should be able to redirect to his booking card from notification, from dashboard
+popup or from actual card in profile.
+Terms &amp; Conditions
+- Add all terms &amp; conditions
+- If anything wrong company will not be responsible for anything
+- Agreement with Guruji &amp; Customer
+- Admin should be able to update terms and condition pdf it should not be hardcoded.
+
+Online Puja booking
+- On click of online puja booking application should redirect to another page where the
+same set of dropdown and inputs will be taken and on click of search it will redirect to
+destination page where it will show price and availability of online guruji.
+- There should be some check in db where some guruji&#39;s we can register for online puja
+and another check for online consultation as well.
+Online Consultation
+- On click of Online consultation application should redirect to another page where multiple
+consultation options will be displayed to the customer.
+- select own Guruji
+- Auto select by app as per best available Guruji
+- Immediate consultation
+On click of Select own Guruji
+- It should redirect to a page/popup where search box, date, type of consultation options
+will be displayed.
+- Once all filters selected customer can click on book button which will redirect to the
+payment page
+- once payment completed it will redirect to the same booking in progress page.
+
+- once all filters selected it should go to payment page and then application should behave
+in a same way as per normal booking.
+On click of Auto select by app as per best available Guruji
+- It should redirect to another page/popup where it will take input as date, type of
+consultation, and book button will be there to book consultation
+- Once all filters selected customer can click on book button which will redirect to the
+payment page
+- once payment completed it will redirect to the same booking in progress page.
+- once all filters selected it should go to payment page and then application should behave
+in a same way as per normal booking.
+Immediate consultation
+- On immediate consultation the payment price will be 3 times more than the actual price
+and it will follow the same auto selected flow.
+- if incase application not able to book guruji in 3 hrs then full money will be refunded to
+customer immediately.
+- for ex. after payment it will redirect to booking In progress page and Guruji&#39;s which fit in
+that criteria will get notification for online consultation.
+- online consultation will be for anything like marriage date, muhurta, any puja suggestion,
+etc
+- (Assuming there will be separate tables maintained for online puja and online
+consultation which will mapped with parent Guruji table)
+Note - For Online Puja or Online consultation Zoom link will be shared only before 1
+hr of booking timing (this 1 hr should be configurable outside/inside application for
+admin)
+Customer My profile
+- My profile
+- Customer photo, name, ph no., other details
+- No. Of Puja Booked
+- Facility to request same Guruji
+- Search own Guruji by name or no.
+- Payment Option (for complete payment)
+- All bookings (separate tab)
+- If customer trying to book another puja it should check if any pending payment and then
+only it should allow.
+- If customer want to book same Guruji it should redirect to one popup or screen where he
+ll select date and puja and on click of search it should go to Destination page.
+- if payment is not done for older puja it should highlight on dashboard as a alert
+- Roughly it should looks like as per attached image
+- pending payment option should come if customer has not completed the payment.
+- In this page customer should be able to see all his current and older bookings.. current or
+last booking should be highlighted one as per image attached and other cards will come
+on click of all bookings tab.
+- Customer should be able to see online consultation and online puja cards as well.
+
+Guruji My profile
+- Guruji &quot;My profile&quot; will be similar to customer profile.
+- Few additional things will be there in Guruji profile.
+- Update Guruji’s google calendar with puja time.
+Admin
+- Admin should be able to track all this activities of all region wise customer
+- Admin should get notification
+- delay in payment
+- Booking status
+- cancellation status
+- Fraud or something unexpected happened
+- List of all Guruji&#39;s with search option
+- Admin should be able to update terms &amp; condition contents
+- Admin should be able to update Marketing contents.
+- Admin should be able to update offers, promotions, etc
+- Admin should be able to see Guruji and customer&#39;s report on dashboard with their
+achievements.
+- for ex.
+- It should display list of guruji&#39;s with important details
+- Name
+- number
+- number of puja&#39;s completed
+- number of puja&#39;s completed in current month
+- How much he earned till now from our site
+- Eligible for git&#39;s (this column should be highlighted in some highlighter)
+- Ratings
+- Admin should be able to configure target puja&#39;s for guruji somewhere in property file or
+somewhere in content management or in application.
+- Admin should be able to see one page with search option of all listed guruji&#39;s and their
+groups with on load pagination.
+Guruji&#39;s
+- Group of guruji&#39;s will be registered to the portal
+- when request will go in pool that time depends on puja, request will go to guruji group,
+only admin of that group should be able to accept the request.
+- Registration of guruji&#39;s will happen on basis of group and individual. (all guruji&#39;s will be
+registered as individual and which all groups they are part of).
+Guruji Registration
+- For Admin and Super Admin, Owner will have access to open employee, Guruji, and
+User registration access
+- Also there will be separate role should be created for sales guys who can take guruji&#39;s
+registration
+- On click of Guruji it will redirect to list of Guruji&#39;s where Add, Edit and Delete option will be
+displayed
+
+- Todo operations should be there for any entry level masters (like employee, guruji, users,
+etc)
+Verification of valid and Trusted Guruji
+Guruji
+- Once Guruji reached to the destination there should be some online verification
+- for example guruji will send his photo and destination photo or he has to send photo with
+Yajman, some kind of online validation should be there.
+Customer
+- There should be some verification for valid customer as well.
+On Puja Date &amp; completion of puja
+- There should be one complete button for both customer and guruji in my card section
+which will enabled once the puja timing is started.
+- for both Customer and Guruji one small popup should be displayed on the puja date or
+from last 24 hrs
+- If Guruji or customer has multiple puja&#39;s then Guruji should be able to see all those Puja&#39;s
+in popup with timing.
+- On completion of puja Guruji and customer both has to click on complete button then
+only money will be transferred immediately to Guruji.
+- If any one of this has not clicked on completed then there should be some access to
+admin who should be able to do it manually on request of Guruji and customer
+Rating
+- Customer should be able to give rating to every guruji and Guruji also should be able to
+give rating to the customer.
+- Once Puja is booked customer and Guruji both Should be able to see each other rating.
+Payment
+Failure
+- Application should be able to initiate refund immediately for any failure or any
+cancellation or any unsuccessful transaction.
+- Also there should be some option to admin to handle payment refund manually
