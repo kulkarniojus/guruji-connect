@@ -124,7 +124,9 @@ export function ServiceAvailabilityCalendar({ serviceId, gurujiId, city }: Servi
   };
 
   // Create a date cell renderer that shows availability information
-  const CustomDay = ({ day, isSelected, isOutsideMonth }: { day: Date, isSelected: boolean, isOutsideMonth: boolean }) => {
+  const CustomDay = (props: any) => {
+    const { date: day, selected: isSelected, outside: isOutsideMonth } = props;
+    
     if (!availabilityData || isOutsideMonth) {
       return (
         <div className={cn(
@@ -144,8 +146,8 @@ export function ServiceAvailabilityCalendar({ serviceId, gurujiId, city }: Servi
     });
 
     // Calculate availability metrics
-    const hasAvailability = dayData && dayData.slots.some(slot => slot.available);
-    const availableCount = dayData ? dayData.slots.filter(slot => slot.available).length : 0;
+    const hasAvailability = dayData && dayData.slots.some((slot: TimeSlot) => slot.available);
+    const availableCount = dayData ? dayData.slots.filter((slot: TimeSlot) => slot.available).length : 0;
     const totalCount = dayData ? dayData.slots.length : 0;
     const availabilityPercentage = totalCount > 0 ? Math.round((availableCount / totalCount) * 100) : 0;
 

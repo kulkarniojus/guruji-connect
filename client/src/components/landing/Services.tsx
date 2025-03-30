@@ -10,7 +10,7 @@ const services = [
     id: 'online-puja',
     title: 'Online Puja Booking',
     description: 'Book pujas online from the comfort of your home and participate virtually in real-time',
-    image: 'https://images.unsplash.com/photo-1561387809-9644d0c24144?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    image: '/images/puja_ceremony.svg',
   },
   {
     id: 'online-consultation',
@@ -37,10 +37,10 @@ const services = [
     image: 'https://images.unsplash.com/photo-1555400038-63f5ba517a47?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
   },
   {
-    id: 'griha-pravesh',
-    title: 'Griha Pravesh',
-    description: 'Traditional housewarming ceremony to bless your new home with positive energy and divine protection',
-    image: 'https://images.unsplash.com/photo-1593003070128-3a0c7f2e83a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    id: 'traditional-puja',
+    title: 'Traditional Puja Ceremony',
+    description: 'Experience authentic Hindu rituals performed by trained priests following ancient Vedic traditions',
+    image: '/images/puja_ceremony.svg',
   },
 ];
 
@@ -98,10 +98,10 @@ export default function Services() {
                   <h3 className="font-semibold text-lg text-neutral-900 font-poppins">{service.title}</h3>
                   <p className="mt-2 text-neutral-600 text-sm">{service.description}</p>
                   <Link href={`/services/${service.id}`}>
-                    <a className="mt-4 inline-flex items-center text-primary hover:text-primary-700">
+                    <div className="mt-4 inline-flex items-center text-primary hover:text-primary-700 cursor-pointer">
                       Learn more
                       <ChevronRight className="h-5 w-5 ml-1" />
-                    </a>
+                    </div>
                   </Link>
                 </CardContent>
               </Card>
