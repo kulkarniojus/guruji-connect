@@ -1,216 +1,273 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { addDays, format, parse, startOfWeek, getDay, isSameDay, isAfter, isBefore, setHours, setMinutes } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
-import { cn } from '@/lib/utils';
-import { format, isSameDay } from 'date-fns';
-import type { CalendarProps } from '@/components/ui/calendar';
-
-interface Availability {
-  date: Date;
-  slots: {
-    time: string;
-    isAvailable: boolean;
-  }[];
-  type: 'high' | 'medium' | 'low' | 'none';
-}
+import { useToast } from '@/hooks/use-toast';
 
 interface ServiceAvailabilityCalendarProps {
-  gurujiId?: number;
-  pujaId?: number;
-  onSelectDate?: (date: Date, availability: Availability) => void;
+  serviceId: number | null;
+  gurujiId: number | null;
 }
 
-export function ServiceAvailabilityCalendar({ 
-  gurujiId, 
-  pujaId, 
-  onSelectDate 
-}: ServiceAvailabilityCalendarProps) {
+interface TimeSlot {
+  id: number;
+  startTime: string;
+  endTime: string;
+  available: boolean;
+  gurujiId?: number;
+  gurujiName?: string;
+}
+
+interface DayAvailability {
+  date: string;
+  slots: TimeSlot[];
+}
+
+export function ServiceAvailabilityCalendar({ serviceId, gurujiId }: ServiceAvailabilityCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  
-  // Fetch availability data based on gurujiId and pujaId
-  const { data: availabilityData = [], isLoading } = useQuery({
-    queryKey: ['availability', gurujiId, pujaId],
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const { toast } = useToast();
+
+  // Fetch availability data
+  const { data: availabilityData, isLoading } = useQuery({
+    queryKey: ['availability', serviceId, gurujiId, selectedDate],
     queryFn: async () => {
-      try {
-        const response = await apiRequest(
-          'GET',
-          `/api/availability?${gurujiId ? `gurujiId=${gurujiId}` : ''}${pujaId ? `&pujaId=${pujaId}` : ''}`
-        );
-        const data = await response.json();
-        
-        // Convert string dates to Date objects
-        return data.map((item: any) => ({
-          ...item,
-          date: new Date(item.date)
-        }));
-      } catch (error) {
-        console.error('Failed to fetch availability data:', error);
-        return [];
+      // Construct the query parameters
+      const params = new URLSearchParams();
+      if (serviceId) params.append('pujaId', serviceId.toString());
+      if (gurujiId) params.append('gurujiId', gurujiId.toString());
+      if (selectedDate) params.append('date', format(selectedDate, 'yyyy-MM-dd'));
+
+      const response = await fetch(`/api/availability?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch availability data');
       }
+      return response.json();
     },
-    enabled: !!(gurujiId || pujaId)
+    enabled: !!selectedDate
   });
 
-  // Mock data in case real data is not available (for preview)
-  const mockAvailabilityData = React.useMemo(() => {
-    const today = new Date();
-    const nextMonth = new Date(today);
-    nextMonth.setMonth(today.getMonth() + 1);
-    
-    const mockData: Availability[] = [];
-    
-    // Generate mock data for the next 30 days
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      
-      // Random availability type
-      const types: ('high' | 'medium' | 'low' | 'none')[] = ['high', 'medium', 'low', 'none'];
-      const randomType = types[Math.floor(Math.random() * types.length)];
-      
-      // Generate random time slots
-      const slots = [];
-      const startHour = 8; // 8 AM
-      const endHour = 20; // 8 PM
-      
-      for (let hour = startHour; hour < endHour; hour++) {
-        // 30-minute increments
-        for (let minute of [0, 30]) {
-          const isAvailable = Math.random() > 0.3; // 70% chance of being available
-          slots.push({
-            time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-            isAvailable
-          });
-        }
+  // Update available slots when data changes
+  useEffect(() => {
+    if (availabilityData && selectedDate) {
+      // Find the day's availability
+      const dayData = availabilityData.find((day: DayAvailability) => {
+        const dayDate = parse(day.date, 'yyyy-MM-dd', new Date());
+        return isSameDay(dayDate, selectedDate);
+      });
+
+      if (dayData) {
+        setAvailableSlots(dayData.slots);
+      } else {
+        setAvailableSlots([]);
       }
+    }
+  }, [availabilityData, selectedDate]);
+
+  // Function to handle date selection
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+    }
+  };
+
+  // Function to handle booking a slot
+  const handleBookSlot = (slot: TimeSlot) => {
+    if (!slot.available) {
+      toast({
+        title: "Slot not available",
+        description: "This time slot is already booked.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Redirect to booking page with pre-filled data
+    const bookingParams = new URLSearchParams();
+    if (serviceId) bookingParams.append('serviceId', serviceId.toString());
+    if (gurujiId) bookingParams.append('gurujiId', gurujiId.toString());
+    if (selectedDate) bookingParams.append('date', format(selectedDate, 'yyyy-MM-dd'));
+    bookingParams.append('startTime', slot.startTime);
+    bookingParams.append('endTime', slot.endTime);
+
+    window.location.href = `/booking?${bookingParams.toString()}`;
+  };
+
+  // Custom day renderer for the calendar
+  const renderCalendarDay = (day: Date, modifiers: any) => {
+    if (!availabilityData) return null;
+
+    // Find the day's availability
+    const dayData = availabilityData.find((a) => {
+      const dayDate = parse(a.date, 'yyyy-MM-dd', new Date());
+      return isSameDay(dayDate, day);
+    });
+
+    const hasAvailability = dayData && dayData.slots.some(slot => slot.available);
+    
+    // Calculate slot summary
+    let availableCount = 0;
+    let totalCount = 0;
+    
+    if (dayData) {
+      totalCount = dayData.slots.length;
+      availableCount = dayData.slots.filter(slot => slot.available).length;
+    }
+
+    return (
+      <div className={`
+        relative w-full h-full p-2
+        ${modifiers.selected ? 'bg-primary text-primary-foreground' : ''}
+        ${hasAvailability ? 'font-medium' : 'text-muted-foreground'}
+      `}>
+        <span>{format(day, 'd')}</span>
+        {hasAvailability && (
+          <div className="absolute bottom-1 right-1 w-2 h-2 bg-green-500 rounded-full" />
+        )}
+        {totalCount > 0 && (
+          <div className="absolute bottom-1 left-1">
+            <span className="text-[0.6rem]">{availableCount}/{totalCount}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // This is a simplified way to generate dummy time slots for a day
+  // when not using real data
+  const generateDummyTimeSlots = (date: Date) => {
+    const isToday = isSameDay(date, new Date());
+    const isWeekend = [0, 6].includes(getDay(date));
+    const slots: TimeSlot[] = [];
+    
+    // More slots available on weekends
+    const startHour = 8;
+    const endHour = isWeekend ? 20 : 18;
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      const isAfternoon = hour >= 12;
+      const available = Math.random() > 0.3; // 70% chance of being available
       
-      mockData.push({
-        date,
-        slots,
-        type: randomType
+      slots.push({
+        id: hour,
+        startTime: `${hour}:00`,
+        endTime: `${hour + 1}:00`,
+        available: isToday ? hour > new Date().getHours() && available : available,
+        gurujiId: available ? undefined : Math.floor(Math.random() * 5) + 1,
+        gurujiName: available ? undefined : `Guruji ${Math.floor(Math.random() * 5) + 1}`
       });
     }
     
-    return mockData;
-  }, []);
+    return slots;
+  };
 
-  // Use real data if available, otherwise use mock data
-  const availability = availabilityData.length > 0 ? availabilityData : mockAvailabilityData;
+  // When no data is loaded, generate dummy slots for display
+  const renderTimeSlots = () => {
+    if (!selectedDate) return null;
 
-  // Handle date selection
-  const handleSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date);
-      
-      const selectedAvailability = availability.find(a => 
-        isSameDay(new Date(a.date), date)
+    // If loading, show skeletons
+    if (isLoading) {
+      return (
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {Array(6).fill(0).map((_, index) => (
+            <Skeleton key={index} className="h-16 w-full" />
+          ))}
+        </div>
       );
-      
-      if (selectedAvailability && onSelectDate) {
-        onSelectDate(date, selectedAvailability);
-      }
     }
-  };
 
-  // Determine color for date cells based on availability
-  const getDayClassName = (date: Date) => {
-    const dayAvailability = availability.find(a => isSameDay(new Date(a.date), date));
-    
-    if (!dayAvailability) return '';
-    
-    switch (dayAvailability.type) {
-      case 'high':
-        return 'bg-green-100 text-green-900 hover:bg-green-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-900 hover:bg-yellow-200';
-      case 'low':
-        return 'bg-orange-100 text-orange-900 hover:bg-orange-200';
-      case 'none':
-        return 'bg-red-100 text-red-900 hover:bg-red-200';
-      default:
-        return '';
+    // Get slots based on selected date
+    const slots = availabilityData ? availableSlots : generateDummyTimeSlots(selectedDate);
+
+    if (slots.length === 0) {
+      return (
+        <div className="mt-4 text-center p-4">
+          <p className="text-muted-foreground">No time slots available for the selected date.</p>
+        </div>
+      );
     }
-  };
 
-  // Get selected day availability
-  const selectedDayAvailability = selectedDate 
-    ? availability.find(a => isSameDay(new Date(a.date), selectedDate))
-    : undefined;
+    return (
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        {slots.map((slot, index) => (
+          <Card 
+            key={index}
+            className={`
+              ${slot.available ? 'border-green-200 hover:border-green-300' : 'border-gray-200 bg-gray-50'}
+            `}
+          >
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">{slot.startTime} - {slot.endTime}</span>
+                {slot.available ? (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    Available
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                    Booked
+                  </Badge>
+                )}
+              </div>
+              {slot.gurujiName && (
+                <p className="text-sm text-muted-foreground mt-1">Reserved by: {slot.gurujiName}</p>
+              )}
+              <div className="mt-3">
+                <Button 
+                  variant={slot.available ? "default" : "outline"}
+                  size="sm"
+                  className="w-full"
+                  disabled={!slot.available}
+                  onClick={() => handleBookSlot(slot)}
+                >
+                  {slot.available ? "Book Now" : "Unavailable"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <Card className="max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="text-center">Service Availability Calendar</CardTitle>
-        <div className="flex justify-center space-x-4 text-sm">
-          <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-green-500 mr-1"></span>
-            <span>High</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-yellow-500 mr-1"></span>
-            <span>Medium</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-orange-500 mr-1"></span>
-            <span>Low</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-red-500 mr-1"></span>
-            <span>None</span>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <TooltipProvider>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="md:w-1/2">
+          <h3 className="text-lg font-medium mb-4">Select Date</h3>
           <Calendar
             mode="single"
             selected={selectedDate}
-            onSelect={handleSelect}
+            onSelect={handleDateSelect}
             className="rounded-md border"
-            modifiers={{
-              highlighted: availability.map(a => new Date(a.date))
-            }}
-            modifiersClassNames={{
-              highlighted: "highlighted-day"
-            }}
-            // Custom rendering is used for illustrating availability
-            // This will be replaced by a proper implementation using DayPicker's modifiers
-            footer={
-              <div className="mt-2 text-xs text-center text-muted-foreground">
-                {isLoading ? 'Loading availability...' : 'Click a date to see available slots'}
-              </div>
+            disabled={date => 
+              isBefore(date, startOfWeek(new Date())) || // Disable past dates
+              isAfter(date, addDays(new Date(), 90))    // Only allow booking up to 90 days in advance
             }
           />
-        </TooltipProvider>
-
-        {selectedDayAvailability && (
-          <div className="mt-4">
-            <h3 className="font-medium text-sm mb-2">
-              Available Time Slots for {selectedDate && format(selectedDate, 'MMMM d, yyyy')}
-            </h3>
-            <div className="grid grid-cols-3 gap-2">
-              {selectedDayAvailability.slots.map((slot, index) => (
-                <Badge
-                  key={index}
-                  variant={slot.isAvailable ? 'outline' : 'secondary'}
-                  className={cn(
-                    "cursor-pointer text-center py-1",
-                    slot.isAvailable 
-                      ? "hover:bg-primary hover:text-primary-foreground" 
-                      : "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  {slot.time}
-                </Badge>
-              ))}
+        </div>
+        
+        <div className="md:w-1/2">
+          <h3 className="text-lg font-medium mb-4">Available Time Slots</h3>
+          <div className="bg-white rounded-md border p-4">
+            <div className="mb-2">
+              <h4 className="font-medium">
+                {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select a date'}
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                {serviceId ? "For selected service" : "For all services"}
+                {gurujiId ? " and selected Guruji" : ""}
+              </p>
             </div>
+            
+            {renderTimeSlots()}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </div>
   );
 }

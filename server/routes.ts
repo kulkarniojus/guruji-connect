@@ -795,65 +795,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Register payment routes
-  registerPaymentRoutes(app);
-  
-  // API endpoint for calendar availability
   app.get("/api/availability", async (req: Request, res: Response) => {
     try {
-      const gurujiId = req.query.gurujiId ? Number(req.query.gurujiId) : undefined;
-      const pujaId = req.query.pujaId ? Number(req.query.pujaId) : undefined;
+      // Get query parameters
+      const { date, gurujiId, pujaId } = req.query;
       
-      // For now, generating mock data as this will later be connected to real data
-      const today = new Date();
-      const availability = [];
+      // Generate dates for a month range
+      const dates = [];
+      const baseDate = date ? new Date(date as string) : new Date();
+      const startDate = new Date(baseDate);
+      startDate.setDate(1); // Start from the first day of the month
       
-      // Generate availability for the next 30 days
-      for (let i = 0; i < 30; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
+      const endDate = new Date(baseDate);
+      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setDate(0); // Last day of the month
+      
+      // Generate availability data for each day in the month
+      for (let i = 0; i < endDate.getDate(); i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(i + 1);
         
-        // Random availability type
-        const types = ['high', 'medium', 'low', 'none'];
-        const randomType = types[Math.floor(Math.random() * types.length)];
+        const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+        const dayOfMonth = currentDate.getDate();
         
-        // Generate time slots
+        // Generate different availability patterns for different days
         const slots = [];
-        const startHour = 8; // 8 AM
-        const endHour = 20; // 8 PM
+        const startHour = 8;
+        const endHour = isWeekend ? 20 : 18;
         
         for (let hour = startHour; hour < endHour; hour++) {
-          // 30-minute increments
-          for (let minute of [0, 30]) {
-            // More complex availability logic can be implemented here
-            // For example, based on gurujiId, pujaId, day of week, etc.
-            let isAvailable = Math.random() > 0.3; // 70% chance of being available
-            
-            // Make weekends less available
-            if (date.getDay() === 0 || date.getDay() === 6) {
-              isAvailable = Math.random() > 0.6;
-            }
-            
-            slots.push({
-              time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-              isAvailable
-            });
+          // More availability on weekends, less on busy days
+          let available = true;
+          
+          // Some logic to vary availability
+          if ((dayOfMonth % 3 === 0 && hour % 2 === 0) || 
+              (dayOfMonth % 7 === 0 && hour > 15) || 
+              (dayOfMonth % 5 === 0 && hour < 12)) {
+            available = false;
           }
+          
+          // If guruji ID is specified, make it more likely that slots are booked
+          if (gurujiId && parseInt(gurujiId as string) > 0 && Math.random() > 0.7) {
+            available = false;
+          }
+          
+          slots.push({
+            id: hour,
+            startTime: `${hour}:00`,
+            endTime: `${hour + 1}:00`,
+            available,
+            gurujiId: available ? undefined : Math.floor(Math.random() * 5) + 1,
+            gurujiName: available ? undefined : `Guruji ${Math.floor(Math.random() * 5) + 1}`
+          });
         }
         
-        availability.push({
-          date: date.toISOString().split('T')[0],
-          slots,
-          type: randomType
+        dates.push({
+          date: currentDate.toISOString().split('T')[0],
+          slots
         });
       }
       
-      res.json(availability);
-    } catch (error) {
-      console.error('Error fetching availability:', error);
-      res.status(500).json({ message: "Error fetching availability" });
+      res.json(dates);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
+
+  // Register payment routes
+  registerPaymentRoutes(app);
+  
+
   
   // Create HTTP server
   const httpServer = createServer(app);

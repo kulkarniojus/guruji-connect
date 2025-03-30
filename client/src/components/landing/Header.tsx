@@ -12,13 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import LoginModal from '../auth/LoginModal';
 import RegisterModal from '../auth/RegisterModal';
-import { useAuth } from '@/context/AuthContext';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
-  const { user, logout } = useAuth();
+  // Temporarily disable authentication features
+  const user = null;
+  const logout = () => {};
 
   const handleLoginClick = () => {
     setLoginModalOpen(true);
@@ -49,8 +50,8 @@ export default function Header() {
             <nav className="hidden md:flex space-x-8">
               <Link href="/" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Home</Link>
               <Link href="/services" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Services</Link>
+              <Link href="/availability" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Availability</Link>
               <Link href="/about" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">About Us</Link>
-              <Link href="/blog" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Blog</Link>
               <Link href="/contact" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Contact</Link>
             </nav>
 
@@ -147,6 +148,7 @@ export default function Header() {
         )}
       </header>
 
+      {/* Temporarily disabled - auth components need fixing 
       <LoginModal 
         isOpen={loginModalOpen} 
         onClose={() => setLoginModalOpen(false)} 
@@ -164,6 +166,7 @@ export default function Header() {
           setLoginModalOpen(true);
         }}
       />
+      */}
     </>
   );
 }
