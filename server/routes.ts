@@ -798,7 +798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/availability", async (req: Request, res: Response) => {
     try {
       // Get query parameters
-      const { date, gurujiId, pujaId } = req.query;
+      const { date, gurujiId, pujaId, city } = req.query;
       
       // Generate dates for a month range
       const dates = [];
@@ -809,54 +809,223 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endDate = new Date(baseDate);
       endDate.setMonth(endDate.getMonth() + 1);
       endDate.setDate(0); // Last day of the month
+
+      // Use the storage interface to get guruji users
+      const allUsers = await Promise.all(
+        Array.from({ length: 10 }, (_, i) => storage.getUser(i + 1))
+      );
+      const users = allUsers.filter(user => user && user.role === 'guruji');
+      
+      // Generate a consistent city based on user ID
+      const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Pune', 'Chennai'];
+      const getCityForUser = (userId: number) => cities[userId % cities.length];
+      
+      // Augment the User type to include required properties for the guruji profile
+      interface GurujiWithProfile {
+        id: number;
+        userId: number;
+        user: {
+          id: number;
+          firstName: string;
+          lastName: string;
+          email: string;
+          role: string;
+        };
+        description: string;
+        city: string;
+        experience: number;
+        rating: number;
+        totalReviews: number;
+        pricePerHour: number;
+        isVerified: boolean;
+        isAvailable: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+      }
+      
+      // Simulated guruji profiles
+      let availableGurujis: GurujiWithProfile[] = users
+        .filter((user): user is NonNullable<typeof user> => user !== undefined) // Filter out undefined users
+        .map(user => {
+          // Since we don't have city in the User schema, assign based on user ID
+          const city = getCityForUser(user.id);
+          
+          return {
+            id: user.id,
+            userId: user.id,
+            user: {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              role: user.role
+            },
+            description: "Experienced guruji specializing in traditional ceremonies",
+            city, // Assigned city
+            experience: Math.floor(Math.random() * 20) + 5,
+            rating: (Math.random() * 2) + 3, // Rating between 3 and 5
+            totalReviews: Math.floor(Math.random() * 100),
+            pricePerHour: 1000 + (Math.floor(Math.random() * 2000)),
+            isVerified: true,
+            isAvailable: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        });
+      
+      // Filter gurujis based on criteria
+      if (pujaId) {
+        // In a real app, we would filter gurujis who can perform this type of puja
+        availableGurujis = availableGurujis.filter(guruji => 
+          // For demonstration, filter randomly but consistently
+          (guruji.id % parseInt(pujaId as string)) !== 0
+        );
+      }
+      
+      if (city) {
+        // Filter gurujis by city
+        availableGurujis = availableGurujis.filter(guruji => 
+          guruji.city.toLowerCase() === (city as string).toLowerCase()
+        );
+      }
+      
+      if (gurujiId) {
+        // If specific guruji is requested, only include that one
+        availableGurujis = availableGurujis.filter(guruji => 
+          guruji.id === parseInt(gurujiId as string)
+        );
+      }
+      
+      // If no gurujis match the criteria, return a couple of default ones
+      if (availableGurujis.length === 0) {
+        // Create some fallback gurujis if none match the criteria
+        const defaultGuruji1: GurujiWithProfile = {
+          id: 1001,
+          userId: 1001,
+          user: {
+            id: 1001,
+            firstName: "Amit",
+            lastName: "Sharma",
+            role: "guruji",
+            email: "amit.sharma@example.com"
+          },
+          description: "Expert in traditional Hindu ceremonies",
+          city: "Mumbai",
+          experience: 15,
+          rating: 4.8,
+          totalReviews: 120,
+          pricePerHour: 1500,
+          isVerified: true,
+          isAvailable: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        const defaultGuruji2: GurujiWithProfile = {
+          id: 1002,
+          userId: 1002,
+          user: {
+            id: 1002,
+            firstName: "Raj",
+            lastName: "Verma",
+            role: "guruji",
+            email: "raj.verma@example.com"
+          },
+          description: "Specializes in family ceremonies and consultations",
+          city: "Delhi",
+          experience: 20,
+          rating: 4.9,
+          totalReviews: 150,
+          pricePerHour: 1800,
+          isVerified: true,
+          isAvailable: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        availableGurujis = [defaultGuruji1, defaultGuruji2];
+      }
       
       // Generate availability data for each day in the month
       for (let i = 0; i < endDate.getDate(); i++) {
         const currentDate = new Date(startDate);
         currentDate.setDate(i + 1);
         
+        // Skip past dates
+        if (currentDate < new Date(new Date().setHours(0, 0, 0, 0))) {
+          continue;
+        }
+        
         const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
         const dayOfMonth = currentDate.getDate();
+        const dayOfWeek = currentDate.getDay();
         
-        // Generate different availability patterns for different days
+        // Generate consistent availability patterns based on date
         const slots = [];
         const startHour = 8;
         const endHour = isWeekend ? 20 : 18;
         
+        // Check for existing bookings on this date
+        // In a real app, we would query the database for actual bookings
+        const dateString = currentDate.toISOString().split('T')[0];
+        const existingBookings = []; // This would be fetched from DB in a real app
+        
         for (let hour = startHour; hour < endHour; hour++) {
-          // More availability on weekends, less on busy days
-          let available = true;
+          // Determine slot availability based on consistent patterns
+          // Using a deterministic algorithm so the same slots are consistently available/unavailable
+          const hourSeed = hour + dayOfMonth + dayOfWeek;
+          const slotAvailability = (hourSeed % 4 !== 0);
           
-          // Some logic to vary availability
-          if ((dayOfMonth % 3 === 0 && hour % 2 === 0) || 
-              (dayOfMonth % 7 === 0 && hour > 15) || 
-              (dayOfMonth % 5 === 0 && hour < 12)) {
-            available = false;
-          }
+          // Reduced availability during peak hours (morning and evening pujas)
+          const isPeakHour = (hour >= 8 && hour <= 10) || (hour >= 16 && hour <= 18);
+          const peakHourAvailability = isPeakHour ? (hourSeed % 3 !== 0) : true;
           
-          // If guruji ID is specified, make it more likely that slots are booked
-          if (gurujiId && parseInt(gurujiId as string) > 0 && Math.random() > 0.7) {
-            available = false;
+          // Higher availability on weekends
+          const weekendAvailability = isWeekend ? (hourSeed % 5 !== 0) : true;
+          
+          // Combined availability factors
+          let available = slotAvailability && peakHourAvailability && weekendAvailability;
+          
+          // Format time properly with AM/PM
+          const timeFormat = (h: number): string => {
+            const hour12 = h % 12 || 12;
+            const amPm = h < 12 ? 'AM' : 'PM';
+            return `${hour12}:00 ${amPm}`;
+          };
+          
+          // If slot is unavailable, assign a guruji
+          let assignedGurujiId = undefined;
+          let assignedGurujiName = undefined;
+          
+          if (!available && availableGurujis.length > 0) {
+            const gurujiIndex = (hour + dayOfMonth) % availableGurujis.length;
+            const assignedGuruji = availableGurujis[gurujiIndex];
+            assignedGurujiId = assignedGuruji.id;
+            assignedGurujiName = `${assignedGuruji.user.firstName} ${assignedGuruji.user.lastName}`;
           }
           
           slots.push({
             id: hour,
-            startTime: `${hour}:00`,
-            endTime: `${hour + 1}:00`,
+            startTime: timeFormat(hour),
+            endTime: timeFormat(hour + 1),
             available,
-            gurujiId: available ? undefined : Math.floor(Math.random() * 5) + 1,
-            gurujiName: available ? undefined : `Guruji ${Math.floor(Math.random() * 5) + 1}`
+            gurujiId: available ? undefined : assignedGurujiId,
+            gurujiName: available ? undefined : assignedGurujiName
           });
         }
         
-        dates.push({
-          date: currentDate.toISOString().split('T')[0],
-          slots
-        });
+        // Only include days with at least one available slot
+        if (slots.some(slot => slot.available)) {
+          dates.push({
+            date: dateString,
+            slots
+          });
+        }
       }
       
       res.json(dates);
     } catch (error: any) {
+      console.error("Availability error:", error);
       res.status(500).json({ message: error.message });
     }
   });

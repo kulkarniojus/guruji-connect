@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react';
-import { addDays, format, parse, startOfWeek, getDay, isSameDay, isAfter, isBefore, setHours, setMinutes } from 'date-fns';
+import { useState, useEffect, useMemo } from 'react';
+import { addDays, format, parse, startOfWeek, getDay, isSameDay, isAfter, isBefore, setHours, setMinutes, isToday } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { Clock, CalendarIcon, Check, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ServiceAvailabilityCalendarProps {
   serviceId: number | null;
   gurujiId: number | null;
+  city?: string;
 }
 
 interface TimeSlot {
@@ -27,20 +31,23 @@ interface DayAvailability {
   slots: TimeSlot[];
 }
 
-export function ServiceAvailabilityCalendar({ serviceId, gurujiId }: ServiceAvailabilityCalendarProps) {
+export function ServiceAvailabilityCalendar({ serviceId, gurujiId, city }: ServiceAvailabilityCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
   const { toast } = useToast();
 
-  // Fetch availability data
-  const { data: availabilityData, isLoading } = useQuery({
-    queryKey: ['availability', serviceId, gurujiId, selectedDate],
+  // Fetch availability data for the entire month
+  const { data: availabilityData, isLoading, refetch } = useQuery({
+    queryKey: ['availability', serviceId, gurujiId, city, selectedMonth],
     queryFn: async () => {
       // Construct the query parameters
       const params = new URLSearchParams();
       if (serviceId) params.append('pujaId', serviceId.toString());
       if (gurujiId) params.append('gurujiId', gurujiId.toString());
-      if (selectedDate) params.append('date', format(selectedDate, 'yyyy-MM-dd'));
+      if (city) params.append('city', city);
+      params.append('date', format(selectedMonth, 'yyyy-MM-dd'));
 
       const response = await fetch(`/api/availability?${params.toString()}`);
       if (!response.ok) {
@@ -48,10 +55,16 @@ export function ServiceAvailabilityCalendar({ serviceId, gurujiId }: ServiceAvai
       }
       return response.json();
     },
-    enabled: !!selectedDate
+    enabled: true,
+    staleTime: 1000 * 60 * 5, // Cache data for 5 minutes
   });
 
-  // Update available slots when data changes
+  // When selected month changes, refetch the availability data
+  useEffect(() => {
+    refetch();
+  }, [selectedMonth, refetch]);
+
+  // Update available slots when data changes or selected date changes
   useEffect(() => {
     if (availabilityData && selectedDate) {
       // Find the day's availability
@@ -72,7 +85,17 @@ export function ServiceAvailabilityCalendar({ serviceId, gurujiId }: ServiceAvai
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setSelectedDate(date);
+      // If the selected date is in a different month, update the month view
+      if (date.getMonth() !== selectedMonth.getMonth() || 
+          date.getFullYear() !== selectedMonth.getFullYear()) {
+        setSelectedMonth(date);
+      }
     }
+  };
+
+  // Function to handle month change
+  const handleMonthChange = (date: Date) => {
+    setSelectedMonth(date);
   };
 
   // Function to handle booking a slot
@@ -88,85 +111,82 @@ export function ServiceAvailabilityCalendar({ serviceId, gurujiId }: ServiceAvai
 
     // Redirect to booking page with pre-filled data
     const bookingParams = new URLSearchParams();
-    if (serviceId) bookingParams.append('serviceId', serviceId.toString());
-    if (gurujiId) bookingParams.append('gurujiId', gurujiId.toString());
+    if (serviceId) bookingParams.append('puja', serviceId.toString());
+    if (gurujiId) bookingParams.append('guruji', gurujiId.toString());
+    if (city) bookingParams.append('city', city);
     if (selectedDate) bookingParams.append('date', format(selectedDate, 'yyyy-MM-dd'));
-    bookingParams.append('startTime', slot.startTime);
-    bookingParams.append('endTime', slot.endTime);
+    bookingParams.append('time', slot.startTime);
+    
+    // Determine the booking type based on services
+    bookingParams.append('type', 'offline');
 
     window.location.href = `/booking?${bookingParams.toString()}`;
   };
 
-  // Custom day renderer for the calendar
-  const renderCalendarDay = (day: Date, modifiers: any) => {
-    if (!availabilityData) return null;
+  // Create a date cell renderer that shows availability information
+  const CustomDay = ({ day, isSelected, isOutsideMonth }: { day: Date, isSelected: boolean, isOutsideMonth: boolean }) => {
+    if (!availabilityData || isOutsideMonth) {
+      return (
+        <div className={cn(
+          "w-full h-10 flex items-center justify-center relative text-sm",
+          isOutsideMonth && "text-muted-foreground opacity-50",
+          isSelected && "bg-primary text-primary-foreground rounded-md"
+        )}>
+          <span>{format(day, 'd')}</span>
+        </div>
+      );
+    }
 
-    // Find the day's availability
-    const dayData = availabilityData.find((a) => {
-      const dayDate = parse(a.date, 'yyyy-MM-dd', new Date());
-      return isSameDay(dayDate, day);
+    // Find the day's availability data
+    const dayData = availabilityData.find((item: DayAvailability) => {
+      const itemDate = parse(item.date, 'yyyy-MM-dd', new Date());
+      return isSameDay(itemDate, day);
     });
 
+    // Calculate availability metrics
     const hasAvailability = dayData && dayData.slots.some(slot => slot.available);
-    
-    // Calculate slot summary
-    let availableCount = 0;
-    let totalCount = 0;
-    
-    if (dayData) {
-      totalCount = dayData.slots.length;
-      availableCount = dayData.slots.filter(slot => slot.available).length;
+    const availableCount = dayData ? dayData.slots.filter(slot => slot.available).length : 0;
+    const totalCount = dayData ? dayData.slots.length : 0;
+    const availabilityPercentage = totalCount > 0 ? Math.round((availableCount / totalCount) * 100) : 0;
+
+    // Determine the background color based on availability percentage
+    let availabilityColor = 'bg-gray-100';
+    if (hasAvailability) {
+      if (availabilityPercentage > 66) {
+        availabilityColor = 'bg-green-100';
+      } else if (availabilityPercentage > 33) {
+        availabilityColor = 'bg-yellow-100';
+      } else {
+        availabilityColor = 'bg-red-100';
+      }
     }
 
     return (
-      <div className={`
-        relative w-full h-full p-2
-        ${modifiers.selected ? 'bg-primary text-primary-foreground' : ''}
-        ${hasAvailability ? 'font-medium' : 'text-muted-foreground'}
-      `}>
-        <span>{format(day, 'd')}</span>
-        {hasAvailability && (
-          <div className="absolute bottom-1 right-1 w-2 h-2 bg-green-500 rounded-full" />
+      <div
+        className={cn(
+          "w-full h-10 flex flex-col items-center justify-center relative text-sm cursor-pointer",
+          isToday(day) && "border border-primary",
+          isSelected ? "bg-primary text-primary-foreground rounded-md" : availabilityColor,
+          !hasAvailability && !isSelected && "text-muted-foreground"
         )}
-        {totalCount > 0 && (
-          <div className="absolute bottom-1 left-1">
-            <span className="text-[0.6rem]">{availableCount}/{totalCount}</span>
+      >
+        <span className={cn("font-medium", isSelected && "text-primary-foreground")}>
+          {format(day, 'd')}
+        </span>
+        
+        {hasAvailability && !isSelected && (
+          <div className="absolute bottom-1 flex items-center justify-center space-x-1 text-[8px]">
+            <span className={availabilityPercentage > 50 ? "text-green-600" : "text-amber-600"}>
+              {availableCount}/{totalCount}
+            </span>
           </div>
         )}
       </div>
     );
   };
 
-  // This is a simplified way to generate dummy time slots for a day
-  // when not using real data
-  const generateDummyTimeSlots = (date: Date) => {
-    const isToday = isSameDay(date, new Date());
-    const isWeekend = [0, 6].includes(getDay(date));
-    const slots: TimeSlot[] = [];
-    
-    // More slots available on weekends
-    const startHour = 8;
-    const endHour = isWeekend ? 20 : 18;
-    
-    for (let hour = startHour; hour < endHour; hour++) {
-      const isAfternoon = hour >= 12;
-      const available = Math.random() > 0.3; // 70% chance of being available
-      
-      slots.push({
-        id: hour,
-        startTime: `${hour}:00`,
-        endTime: `${hour + 1}:00`,
-        available: isToday ? hour > new Date().getHours() && available : available,
-        gurujiId: available ? undefined : Math.floor(Math.random() * 5) + 1,
-        gurujiName: available ? undefined : `Guruji ${Math.floor(Math.random() * 5) + 1}`
-      });
-    }
-    
-    return slots;
-  };
-
-  // When no data is loaded, generate dummy slots for display
-  const renderTimeSlots = () => {
+  // Memoize the time slots rendering to prevent unnecessary re-renders
+  const TimeSlots = useMemo(() => {
     if (!selectedDate) return null;
 
     // If loading, show skeletons
@@ -180,94 +200,212 @@ export function ServiceAvailabilityCalendar({ serviceId, gurujiId }: ServiceAvai
       );
     }
 
-    // Get slots based on selected date
-    const slots = availabilityData ? availableSlots : generateDummyTimeSlots(selectedDate);
-
-    if (slots.length === 0) {
+    if (availableSlots.length === 0) {
       return (
-        <div className="mt-4 text-center p-4">
-          <p className="text-muted-foreground">No time slots available for the selected date.</p>
+        <div className="mt-4 text-center p-6 bg-gray-50 rounded-md border border-dashed">
+          <CalendarIcon className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-gray-700 mb-1">No Available Slots</h3>
+          <p className="text-sm text-muted-foreground">
+            There are no available time slots for the selected date. Please try another date.
+          </p>
         </div>
       );
     }
 
+    // Group slots by morning, afternoon, and evening
+    const morningSlots = availableSlots.filter(slot => slot.startTime.includes('AM'));
+    const afternoonSlots = availableSlots.filter(
+      slot => slot.startTime.includes('PM') && parseInt(slot.startTime.split(':')[0]) < 5
+    );
+    const eveningSlots = availableSlots.filter(
+      slot => slot.startTime.includes('PM') && parseInt(slot.startTime.split(':')[0]) >= 5
+    );
+
     return (
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-        {slots.map((slot, index) => (
-          <Card 
-            key={index}
-            className={`
-              ${slot.available ? 'border-green-200 hover:border-green-300' : 'border-gray-200 bg-gray-50'}
-            `}
-          >
-            <CardContent className="p-4">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">{slot.startTime} - {slot.endTime}</span>
-                {slot.available ? (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    Available
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                    Booked
-                  </Badge>
-                )}
-              </div>
-              {slot.gurujiName && (
-                <p className="text-sm text-muted-foreground mt-1">Reserved by: {slot.gurujiName}</p>
-              )}
-              <div className="mt-3">
-                <Button 
-                  variant={slot.available ? "default" : "outline"}
-                  size="sm"
-                  className="w-full"
-                  disabled={!slot.available}
-                  onClick={() => handleBookSlot(slot)}
-                >
-                  {slot.available ? "Book Now" : "Unavailable"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="mt-4 space-y-4">
+        {morningSlots.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-600 mb-2 flex items-center">
+              <span className="h-5 w-5 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mr-2">
+                <span className="text-xs">AM</span>
+              </span>
+              Morning
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {morningSlots.map((slot, index) => (
+                <SlotCard key={`morning-${index}`} slot={slot} onBook={handleBookSlot} />
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {afternoonSlots.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-600 mb-2 flex items-center">
+              <span className="h-5 w-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center mr-2">
+                <span className="text-xs">PM</span>
+              </span>
+              Afternoon
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {afternoonSlots.map((slot, index) => (
+                <SlotCard key={`afternoon-${index}`} slot={slot} onBook={handleBookSlot} />
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {eveningSlots.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-600 mb-2 flex items-center">
+              <span className="h-5 w-5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center mr-2">
+                <span className="text-xs">EVE</span>
+              </span>
+              Evening
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {eveningSlots.map((slot, index) => (
+                <SlotCard key={`evening-${index}`} slot={slot} onBook={handleBookSlot} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
-  };
+  }, [availableSlots, isLoading, selectedDate, handleBookSlot]);
+
+  // Calendar legend component
+  const CalendarLegend = () => (
+    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
+      <div className="flex items-center">
+        <div className="w-3 h-3 bg-green-100 mr-1 rounded-sm"></div>
+        <span>High Availability</span>
+      </div>
+      <div className="flex items-center">
+        <div className="w-3 h-3 bg-yellow-100 mr-1 rounded-sm"></div>
+        <span>Medium Availability</span>
+      </div>
+      <div className="flex items-center">
+        <div className="w-3 h-3 bg-red-100 mr-1 rounded-sm"></div>
+        <span>Low Availability</span>
+      </div>
+      <div className="flex items-center">
+        <div className="w-3 h-3 border border-primary mr-1 rounded-sm"></div>
+        <span>Today</span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row gap-6">
+        {/* Calendar section */}
         <div className="md:w-1/2">
-          <h3 className="text-lg font-medium mb-4">Select Date</h3>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={handleDateSelect}
-            className="rounded-md border"
-            disabled={date => 
-              isBefore(date, startOfWeek(new Date())) || // Disable past dates
-              isAfter(date, addDays(new Date(), 90))    // Only allow booking up to 90 days in advance
-            }
-          />
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium">Select Date</h3>
+            <Select value={calendarView} onValueChange={(value) => setCalendarView(value as 'month' | 'week')}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="View" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">Month View</SelectItem>
+                <SelectItem value="week">Week View</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <Card className="overflow-hidden">
+            <CardContent className="p-4">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                onMonthChange={handleMonthChange}
+                className="rounded-md"
+                disabled={date => 
+                  isBefore(date, new Date(new Date().setHours(0, 0, 0, 0))) || // Disable past dates
+                  isAfter(date, addDays(new Date(), 90))    // Only allow booking up to 90 days in advance
+                }
+                components={{
+                  Day: CustomDay
+                }}
+                showOutsideDays={false}
+                initialFocus
+              />
+              
+              <CalendarLegend />
+            </CardContent>
+          </Card>
         </div>
         
+        {/* Time slots section */}
         <div className="md:w-1/2">
           <h3 className="text-lg font-medium mb-4">Available Time Slots</h3>
-          <div className="bg-white rounded-md border p-4">
-            <div className="mb-2">
-              <h4 className="font-medium">
-                {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select a date'}
-              </h4>
-              <p className="text-sm text-muted-foreground">
-                {serviceId ? "For selected service" : "For all services"}
-                {gurujiId ? " and selected Guruji" : ""}
-              </p>
-            </div>
-            
-            {renderTimeSlots()}
-          </div>
+          <Card>
+            <CardContent className="p-4">
+              <div className="mb-4 border-b pb-3">
+                <h4 className="font-medium text-lg">
+                  {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select a date'}
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  {serviceId ? "For selected service" : "For all services"}
+                  {gurujiId ? " and selected Guruji" : ""}
+                  {city ? ` in ${city}` : ""}
+                </p>
+              </div>
+              
+              {TimeSlots}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
+  );
+}
+
+// Slot card component
+function SlotCard({ slot, onBook }: { slot: TimeSlot, onBook: (slot: TimeSlot) => void }) {
+  return (
+    <Card 
+      className={cn(
+        "overflow-hidden transition-colors border",
+        slot.available 
+          ? "hover:border-green-300 border-green-200" 
+          : "bg-gray-50 border-gray-200"
+      )}
+    >
+      <CardContent className="p-3">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-gray-500" />
+            <span className="font-medium">{slot.startTime}</span>
+          </div>
+          
+          {slot.available ? (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 flex items-center gap-1">
+              <Check className="h-3 w-3" /> Available
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 flex items-center gap-1">
+              <X className="h-3 w-3" /> Booked
+            </Badge>
+          )}
+        </div>
+        
+        {slot.gurujiName && (
+          <p className="text-xs text-muted-foreground mt-1">Reserved by: {slot.gurujiName}</p>
+        )}
+        
+        <Button 
+          variant={slot.available ? "default" : "outline"}
+          size="sm"
+          className="w-full mt-2"
+          disabled={!slot.available}
+          onClick={() => onBook(slot)}
+        >
+          {slot.available ? "Book This Slot" : "Unavailable"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
