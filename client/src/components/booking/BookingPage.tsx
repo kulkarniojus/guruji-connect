@@ -26,8 +26,16 @@ export default function BookingPage() {
   const searchParams = new URLSearchParams(window.location.search);
   const initialType = searchParams.get('type') || 'offline';
   const initialPujaId = searchParams.get('puja') || '';
-  const initialCity = searchParams.get('city') || '';
+  const initialCity = searchParams.get('city') || 'mumbai'; // Default to Mumbai if not specified
   const initialDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : undefined;
+  
+  // Log search parameters for debugging
+  console.log('Search params:', { 
+    type: initialType, 
+    puja: initialPujaId, 
+    city: initialCity, 
+    date: initialDate 
+  });
 
   // State for the booking form
   const [activeStep, setActiveStep] = useState<number>(1);
@@ -518,12 +526,14 @@ export default function BookingPage() {
                       <span className="font-medium">{selectedPuja?.name || 'Not selected'}</span>
                     </div>
                     
-                    {bookingType === 'offline' && (
-                      <div className="flex justify-between">
-                        <span className="text-neutral-600">City:</span>
-                        <span className="font-medium">{selectedCity ? cities.find(c => c.value === selectedCity)?.label || selectedCity : 'Not selected'}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span className="text-neutral-600">City:</span>
+                      <span className="font-medium" data-testid="selected-city">
+                        {selectedCity 
+                          ? cities.find(c => c.value === selectedCity)?.label || selectedCity 
+                          : 'Not selected'}
+                      </span>
+                    </div>
                     
                     {bookingType === 'offline' && (
                       <div className="flex justify-between">
