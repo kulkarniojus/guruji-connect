@@ -91,7 +91,7 @@ export function MobileBookingPage({ initialPujaId: propPujaId, initialPujaName: 
   };
   
   const isNextDisabled = () => {
-    if (currentStep === 'service' && !selectedService) return true;
+    if (currentStep === 'service' && !selectedService && !selectedPuja) return true;
     if (currentStep === 'guruji' && !selectedGuruji) return true;
     if (currentStep === 'date' && (!selectedDate || !selectedTime)) return true;
     return false;
@@ -128,9 +128,41 @@ export function MobileBookingPage({ initialPujaId: propPujaId, initialPujaName: 
     }
   }, [initialPujaId]);
 
-  // Get the selected puja from fetched data
+  // Get the selected puja from fetched data with better debugging
+  console.log('DEBUG: Puja selection', { 
+    selectedService, 
+    initialPujaId, 
+    pujas: pujas?.map(p => ({ id: p.id, name: p.name })),
+    pujasType: typeof pujas,
+    isArray: Array.isArray(pujas),
+    selectedPujaId: selectedService ? selectedService.toString() : initialPujaId
+  });
+  
+  // Check if pujas is an array and find the matching puja by id or name/slug
   const selectedPuja = pujas && Array.isArray(pujas) ? 
-    pujas.find(p => p.id.toString() === (selectedService ? selectedService.toString() : initialPujaId)) : null;
+    pujas.find(p => {
+      // Try matching by ID first
+      if (selectedService) {
+        return p.id === selectedService;
+      }
+      
+      // If no selectedService, try matching by ID in initialPujaId (if it's a number)
+      if (initialPujaId && !isNaN(Number(initialPujaId))) {
+        return p.id === Number(initialPujaId);
+      }
+      
+      // Finally, try matching by name converted to slug format
+      if (initialPujaId) {
+        const slug = initialPujaId.toLowerCase().replace(/\s+/g, '-');
+        const pujaSlug = p.name.toLowerCase().replace(/\s+/g, '-');
+        return pujaSlug === slug;
+      }
+      
+      return false;
+    }) : null;
+  
+  // Log the result for debugging
+  console.log('DEBUG: Selected puja result:', selectedPuja ? { id: selectedPuja.id, name: selectedPuja.name } : 'Not found');
 
   // Get selected guruji data
   const selectedGurujiData = selectedGuruji && fetchedGurujis && Array.isArray(fetchedGurujis) ? 

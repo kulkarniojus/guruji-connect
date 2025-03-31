@@ -88,8 +88,22 @@ export default function BookingPage({ initialPujaId: propPujaId, initialPujaName
     { value: 'chennai', label: 'Chennai' }
   ];
 
-  // Selected puja details
-  const selectedPuja = pujas && Array.isArray(pujas) ? pujas.find(p => p.id.toString() === selectedPujaId) : null;
+  // Selected puja details with improved matching for both ID and name/slug
+  const selectedPuja = pujas && Array.isArray(pujas) ? 
+    pujas.find(p => {
+      // Try to match by ID first
+      if (p.id.toString() === selectedPujaId) {
+        return true;
+      }
+      
+      // If no direct ID match, try to match by name converted to slug format
+      const slug = selectedPujaId.toLowerCase().replace(/\s+/g, '-');
+      const pujaSlug = p.name.toLowerCase().replace(/\s+/g, '-');
+      return pujaSlug === slug;
+    }) : null;
+    
+  // Log for debugging
+  console.log('DEBUG BookingPage: Selected puja', selectedPuja ? { id: selectedPuja.id, name: selectedPuja.name } : 'Not found');
 
   // Calculate booking amount based on type and consultation type
   const calculateAmount = () => {
