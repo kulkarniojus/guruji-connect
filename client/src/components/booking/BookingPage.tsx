@@ -61,9 +61,9 @@ export default function BookingPage() {
     queryKey: ['/api/pujas'],
   });
 
-  // Fetch available gurujis based on criteria
+  // Fetch available gurujis based on criteria with 15km radius
   const { data: gurujis, isLoading: isGurujiLoading } = useQuery({
-    queryKey: ['/api/gurujis', { city: selectedCity, pujaId: selectedPujaId }],
+    queryKey: ['/api/gurujis', { city: selectedCity, pujaId: selectedPujaId, radius: 15 }],
     enabled: !!selectedCity && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
   });
 
@@ -328,32 +328,30 @@ export default function BookingPage() {
             <Separator className="my-6" />
             
             <div>
-              <Label className="mb-2 block">Select Puja</Label>
+              <Label className="mb-2 block">Selected Puja</Label>
               {isPujasLoading ? (
                 <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  {pujas?.map((puja) => (
-                    <div 
-                      key={puja.id}
-                      className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors ${
-                        selectedPujaId === puja.id.toString() ? 'border-primary bg-primary-50' : ''
-                      }`}
-                      onClick={() => setSelectedPujaId(puja.id.toString())}
-                    >
-                      <div className="flex justify-between">
-                        <h3 className="font-medium">{puja.name}</h3>
-                        <span className="font-medium text-primary">₹{puja.price}</span>
-                      </div>
-                      <p className="text-sm text-neutral-600 mt-1">{puja.description}</p>
-                      <div className="flex items-center mt-2 text-xs text-neutral-500">
-                        <Clock className="h-3 w-3 mr-1" />
-                        <span>{puja.duration} minutes</span>
-                      </div>
+              ) : selectedPuja ? (
+                <div className="mt-2">
+                  <div 
+                    className="border rounded-lg p-4 border-primary bg-primary-50"
+                  >
+                    <div className="flex justify-between">
+                      <h3 className="font-medium">{selectedPuja.name}</h3>
+                      <span className="font-medium text-primary">₹{selectedPuja.price}</span>
                     </div>
-                  ))}
+                    <p className="text-sm text-neutral-600 mt-1">{selectedPuja.description}</p>
+                    <div className="flex items-center mt-2 text-xs text-neutral-500">
+                      <Clock className="h-3 w-3 mr-1" />
+                      <span>{selectedPuja.duration} minutes</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2 p-4 border border-amber-200 bg-amber-50 rounded-lg">
+                  <p className="text-amber-800">No puja is selected. Please go back to the dashboard and select a puja.</p>
                 </div>
               )}
             </div>

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -28,22 +29,23 @@ export function MobileBookingPage() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
   
-  // Mock data for service selection
-  const services = [
-    { id: 1, name: 'Satyanarayan Puja', price: 2100, duration: '2 hours', type: 'spiritual' },
-    { id: 2, name: 'Griha Pravesh', price: 3500, duration: '3 hours', type: 'ceremony' },
-    { id: 3, name: 'Vastu Shanti', price: 1800, duration: '1.5 hours', type: 'spiritual' },
-    { id: 4, name: 'Ganesh Puja', price: 1500, duration: '1 hour', type: 'ceremony' },
-    { id: 5, name: 'Navagraha Shanti', price: 2800, duration: '2.5 hours', type: 'spiritual' }
-  ];
+  // Parse query parameters for pre-selected puja
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialPujaId = searchParams.get('puja') || '';
+  const initialPujaName = searchParams.get('pujaName') || '';
+  const initialCity = searchParams.get('city') || 'mumbai';
+  const initialDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : undefined;
   
-  // Mock data for Guruji selection
-  const gurujis = [
-    { id: 1, name: 'Pandit Ramesh Shastri', experience: 15, rating: 4.9, price: 2500, location: 'Mumbai', specialty: 'Vastu', availability: true },
-    { id: 2, name: 'Pandit Suresh Joshi', experience: 20, rating: 4.8, price: 3000, location: 'Delhi', specialty: 'Vedic', availability: true },
-    { id: 3, name: 'Pandit Kailash Trivedi', experience: 12, rating: 4.7, price: 2200, location: 'Pune', specialty: 'Jyotish', availability: false },
-    { id: 4, name: 'Acharya Vishal Sharma', experience: 18, rating: 4.9, price: 2800, location: 'Bangalore', specialty: 'Tantra', availability: true }
-  ];
+  // Use the query API to fetch data
+  const { data: pujas, isLoading: isPujasLoading } = useQuery({
+    queryKey: ['/api/pujas'],
+  });
+  
+  // Fetch nearby gurujis within 15km radius when needed
+  const { data: fetchedGurujis, isLoading: isGurujiLoading } = useQuery({
+    queryKey: ['/api/gurujis', { city: initialCity, pujaId: initialPujaId, radius: 15 }],
+    enabled: currentStep === 'guruji',
+  });
   
   const [selectedService, setSelectedService] = useState<number | null>(null);
   const [selectedGuruji, setSelectedGuruji] = useState<number | null>(null);
@@ -108,8 +110,20 @@ export function MobileBookingPage() {
     }
   };
   
-  const selectedServiceData = selectedService ? services.find(s => s.id === selectedService) : null;
-  const selectedGurujiData = selectedGuruji ? gurujis.find(g => g.id === selectedGuruji) : null;
+  // Set the selected service from URL params when component initializes
+  useEffect(() => {
+    if (initialPujaId) {
+      setSelectedService(parseInt(initialPujaId));
+    }
+  }, [initialPujaId]);
+
+  // Get the selected puja from fetched data
+  const selectedPuja = pujas && Array.isArray(pujas) ? 
+    pujas.find(p => p.id.toString() === (selectedService ? selectedService.toString() : initialPujaId)) : null;
+
+  // Get selected guruji data
+  const selectedGurujiData = selectedGuruji && fetchedGurujis && Array.isArray(fetchedGurujis) ? 
+    fetchedGurujis.find(g => g.id === selectedGuruji) : null;
   
   return (
     <div className="min-h-screen bg-neutral-50 pb-16">
@@ -149,29 +163,42 @@ export function MobileBookingPage() {
         {/* Service selection step */}
         {currentStep === 'service' && (
           <div className="space-y-4">
-            <p className="text-neutral-600 mb-4">Select the service you need:</p>
+            <div className="bg-primary-50 p-4 rounded-lg mb-4">
+              <h3 className="font-medium text-primary">Selected Service from Dashboard</h3>
+              <p className="text-sm text-primary-700 mt-1">{initialPujaName}</p>
+              {initialCity && (
+                <p className="text-xs text-primary-600 mt-1">Location: {initialCity}</p>
+              )}
+            </div>
+            
+            <p className="text-neutral-600 mb-4">Your selected puja:</p>
             
             <div className="space-y-3">
-              {services.map(service => (
+              {isPujasLoading ? (
+                <div className="p-8 flex justify-center">
+                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+                </div>
+              ) : selectedPuja ? (
                 <Card 
-                  key={service.id}
-                  className={`cursor-pointer transition-all hover:border-primary ${selectedService === service.id ? 'border-primary ring-2 ring-primary-50' : ''}`}
-                  onClick={() => setSelectedService(service.id)}
+                  className="border-primary ring-2 ring-primary-50"
                 >
                   <CardContent className="p-4 flex justify-between items-center">
                     <div>
-                      <h3 className="font-medium">{service.name}</h3>
+                      <h3 className="font-medium">{selectedPuja.name}</h3>
                       <div className="text-sm text-neutral-500">
-                        <span>{service.duration}</span> • 
-                        <span className="ml-1 capitalize">{service.type}</span>
+                        <span>{selectedPuja.duration} minutes</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium text-primary">₹{service.price}</div>
+                      <div className="font-medium text-primary">₹{selectedPuja.price}</div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                <div className="text-center p-6 border border-amber-200 bg-amber-50 rounded-lg">
+                  <p className="text-amber-800">No puja selected. Please go back to the dashboard and select a puja.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -182,49 +209,60 @@ export function MobileBookingPage() {
             <div className="flex items-center space-x-2 bg-primary-50 text-primary p-3 rounded-lg mb-4">
               <div>
                 <p className="font-medium">Selected Service</p>
-                <p className="text-sm">{selectedServiceData?.name} • ₹{selectedServiceData?.price}</p>
+                <p className="text-sm">{selectedPuja?.name} • ₹{selectedPuja?.price}</p>
               </div>
             </div>
             
-            <p className="text-neutral-600 mb-2">Choose a Guruji for your service:</p>
+            <p className="text-neutral-600 mb-2">Choose a Guruji for your service within 15km:</p>
             
             <div className="space-y-3">
-              {gurujis.map(guruji => (
-                <Card 
-                  key={guruji.id}
-                  className={`cursor-pointer transition-all hover:border-primary ${selectedGuruji === guruji.id ? 'border-primary ring-2 ring-primary-50' : ''} ${!guruji.availability ? 'opacity-60' : ''}`}
-                  onClick={() => guruji.availability && setSelectedGuruji(guruji.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <Avatar className="h-12 w-12 border">
-                        <AvatarFallback className="bg-primary-100 text-primary-800">
-                          {guruji.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-medium">{guruji.name}</h3>
-                        <div className="text-sm text-neutral-500">
-                          {guruji.experience} years exp • {guruji.rating} ★
+              {isGurujiLoading ? (
+                <div className="p-8 flex justify-center">
+                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+                </div>
+              ) : fetchedGurujis && Array.isArray(fetchedGurujis) && fetchedGurujis.length > 0 ? (
+                fetchedGurujis.map(guruji => (
+                  <Card 
+                    key={guruji.id}
+                    className={`cursor-pointer transition-all hover:border-primary ${selectedGuruji === guruji.id ? 'border-primary ring-2 ring-primary-50' : ''} ${!guruji.isAvailable ? 'opacity-60' : ''}`}
+                    onClick={() => guruji.isAvailable && setSelectedGuruji(guruji.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <Avatar className="h-12 w-12 border">
+                          <AvatarFallback className="bg-primary-100 text-primary-800">
+                            {guruji.firstName ? guruji.firstName[0] : ''}
+                            {guruji.lastName ? guruji.lastName[0] : ''}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-medium">Pandit {guruji.firstName} {guruji.lastName}</h3>
+                          <div className="text-sm text-neutral-500">
+                            {guruji.experience || '5'} years exp • {guruji.rating || '4.5'} ★
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center mt-2">
-                      <div className="flex items-center text-sm text-neutral-500">
-                        <MapPin className="h-3.5 w-3.5 mr-1" />
-                        {guruji.location}
+                      
+                      <div className="flex justify-between items-center mt-2">
+                        <div className="flex items-center text-sm text-neutral-500">
+                          <MapPin className="h-3.5 w-3.5 mr-1" />
+                          {guruji.city || initialCity}
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium text-primary">₹{guruji.pricePerHour}</div>
+                          {!guruji.isAvailable && (
+                            <Badge variant="outline" className="text-xs mt-1">Not Available</Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-medium text-primary">₹{guruji.price}</div>
-                        {!guruji.availability && (
-                          <Badge variant="outline" className="text-xs mt-1">Not Available</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center p-6 border border-amber-200 bg-amber-50 rounded-lg">
+                  <p className="text-amber-800">No Gurujis available within 15km for your selected service. Try a different service or location.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -236,7 +274,7 @@ export function MobileBookingPage() {
               <div>
                 <p className="font-medium">Selected Service & Guruji</p>
                 <p className="text-sm">
-                  {selectedServiceData?.name} with {selectedGurujiData?.name}
+                  {selectedPuja?.name} with {selectedGurujiData?.name || 'selected Guruji'}
                 </p>
               </div>
             </div>
@@ -292,7 +330,7 @@ export function MobileBookingPage() {
               <div>
                 <p className="font-medium">Booking Summary</p>
                 <p className="text-sm">
-                  {selectedServiceData?.name} with {selectedGurujiData?.name}
+                  {selectedPuja?.name} with {selectedGurujiData ? `Pandit ${selectedGurujiData.firstName} ${selectedGurujiData.lastName}` : 'selected Guruji'}
                 </p>
                 <p className="text-sm">
                   {selectedDate && new Date(selectedDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} at {selectedTime}
@@ -335,12 +373,12 @@ export function MobileBookingPage() {
               <h3 className="font-medium mb-2">Booking Summary</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span>Service Fee ({selectedServiceData?.name})</span>
-                  <span>₹{selectedServiceData?.price}</span>
+                  <span>Service Fee ({selectedPuja?.name})</span>
+                  <span>₹{selectedPuja?.price}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Guruji Fee ({selectedGurujiData?.name})</span>
-                  <span>₹{selectedGurujiData?.price}</span>
+                  <span>Guruji Fee ({selectedGurujiData ? `Pandit ${selectedGurujiData.firstName} ${selectedGurujiData.lastName}` : 'Selected Guruji'})</span>
+                  <span>₹{selectedGurujiData?.pricePerHour || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Platform Fee</span>
@@ -348,7 +386,7 @@ export function MobileBookingPage() {
                 </div>
                 <div className="flex justify-between font-medium pt-2 border-t">
                   <span>Total Amount</span>
-                  <span>₹{(selectedServiceData?.price || 0) + (selectedGurujiData?.price || 0) + 299}</span>
+                  <span>₹{(selectedPuja?.price || 0) + (selectedGurujiData?.pricePerHour || 0) + 299}</span>
                 </div>
               </div>
             </div>
@@ -429,11 +467,11 @@ export function MobileBookingPage() {
               <CardContent className="space-y-2">
                 <div>
                   <p className="text-sm text-neutral-500">Service</p>
-                  <p className="font-medium">{selectedServiceData?.name}</p>
+                  <p className="font-medium">{selectedPuja?.name}</p>
                 </div>
                 <div>
                   <p className="text-sm text-neutral-500">Guruji</p>
-                  <p className="font-medium">{selectedGurujiData?.name}</p>
+                  <p className="font-medium">{selectedGurujiData ? `Pandit ${selectedGurujiData.firstName} ${selectedGurujiData.lastName}` : 'Selected Guruji'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-neutral-500">Date & Time</p>
@@ -449,7 +487,7 @@ export function MobileBookingPage() {
               <CardFooter className="border-t bg-white">
                 <div className="w-full flex justify-between items-center">
                   <span className="text-sm text-neutral-500">Total Amount</span>
-                  <span className="font-medium">₹{(selectedServiceData?.price || 0) + (selectedGurujiData?.price || 0) + 299}</span>
+                  <span className="font-medium">₹{(selectedPuja?.price || 0) + (selectedGurujiData?.pricePerHour || 0) + 299}</span>
                 </div>
               </CardFooter>
             </Card>
