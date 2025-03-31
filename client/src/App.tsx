@@ -6,6 +6,7 @@ import Dashboard from "@/pages/Dashboard";
 import Booking from "@/pages/Booking";
 import Profile from "@/pages/Profile";
 import AdminLogin from "@/pages/AdminLogin";
+import PujaDetails from "@/pages/PujaDetails";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/availability" component={AvailabilityPage} />
       <Route path="/chat" component={Chat} />
       <Route path="/notifications" component={Notifications} />
+      <Route path="/puja/:id" component={PujaDetails} />
       <Route component={NotFound} />
     </Switch>
   );

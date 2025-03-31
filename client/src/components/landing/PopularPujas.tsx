@@ -61,15 +61,26 @@ export default function PopularPujas() {
                     <Star className="h-5 w-5 text-yellow-400 fill-current" />
                     <span className="ml-1 text-sm text-neutral-600">{puja.rating} ({puja.bookings}+ bookings)</span>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    className="inline-flex items-center px-3 py-1 border border-primary text-sm font-medium rounded text-primary bg-white hover:bg-primary-50"
-                    asChild
-                  >
-                    <Link href={`/booking?puja=${puja.id}`}>
-                      <a>Book Now</a>
-                    </Link>
-                  </Button>
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="ghost" 
+                      className="inline-flex items-center px-3 py-1 text-sm font-medium rounded text-primary hover:bg-primary-50"
+                      asChild
+                    >
+                      <Link href={`/puja/${puja.id}`}>
+                        <a>View Details</a>
+                      </Link>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="inline-flex items-center px-3 py-1 border border-primary text-sm font-medium rounded text-primary bg-white hover:bg-primary-50"
+                      asChild
+                    >
+                      <Link href={`/booking?puja=${puja.id}`}>
+                        <a>Book Now</a>
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
