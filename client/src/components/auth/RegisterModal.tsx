@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -56,7 +55,12 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function RegisterModal({ isOpen, onClose, onLoginClick }: RegisterModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { register } = useAuth();
+  
+  // Mock register function for testing
+  const register = async (data: RegisterFormValues) => {
+    console.log('Registering user:', data);
+    return true;
+  };
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -68,7 +72,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
       age: undefined,
       gender: undefined,
       password: '',
-      registrationType: undefined,
+      registrationType: 'customer', // Default to customer registration
       aadhar: '',
       caste: '',
       terms: false

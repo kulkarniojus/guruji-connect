@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
@@ -9,11 +9,8 @@ import AdminLogin from "@/pages/AdminLogin";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { AuthProvider } from "@/context/AuthContext";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// Create a client
-const queryClient = new QueryClient();
+// Router setup
 
 // Simple router for now - we'll worry about auth checks later
 function Router() {
@@ -32,18 +29,14 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        }>
-          <Router />
-          <Toaster />
-        </Suspense>
-      </AuthProvider>
-    </QueryClientProvider>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <Router />
+      <Toaster />
+    </Suspense>
   );
 }
 

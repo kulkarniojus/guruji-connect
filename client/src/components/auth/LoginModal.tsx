@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
 // Note: There's a known issue with the InputOTP component types that we'll address in a future update
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/otp-input';
 import { Loader2 } from 'lucide-react';
@@ -27,7 +26,17 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { sendOtp, login } = useAuth();
+  
+  // Mock auth function for testing
+  const sendOtp = async (mobile: string) => {
+    console.log('Sending OTP to', mobile);
+    return true;
+  };
+  
+  const login = async (mobile: string, otp: string) => {
+    console.log('Logging in with', mobile, otp);
+    return true;
+  };
 
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow digits
