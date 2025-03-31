@@ -37,24 +37,24 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold text-lg mb-4 font-poppins">Services</h3>
             <ul className="space-y-2">
-              <li><Link href="/services/online-puja"><a className="text-neutral-400 hover:text-white">Online Puja Booking</a></Link></li>
-              <li><Link href="/services/online-consultation"><a className="text-neutral-400 hover:text-white">Online Consultation</a></Link></li>
-              <li><Link href="/services/brahmin-booking"><a className="text-neutral-400 hover:text-white">Brahmin Booking</a></Link></li>
-              <li><Link href="/services/special-occasions"><a className="text-neutral-400 hover:text-white">Special Occasions</a></Link></li>
-              <li><Link href="/services/training"><a className="text-neutral-400 hover:text-white">Training</a></Link></li>
-              <li><Link href="/services/gifts"><a className="text-neutral-400 hover:text-white">Gifts</a></Link></li>
+              <li><Link href="/services/online-puja" className="text-neutral-400 hover:text-white">Online Puja Booking</Link></li>
+              <li><Link href="/services/online-consultation" className="text-neutral-400 hover:text-white">Online Consultation</Link></li>
+              <li><Link href="/services/brahmin-booking" className="text-neutral-400 hover:text-white">Brahmin Booking</Link></li>
+              <li><Link href="/services/special-occasions" className="text-neutral-400 hover:text-white">Special Occasions</Link></li>
+              <li><Link href="/services/training" className="text-neutral-400 hover:text-white">Training</Link></li>
+              <li><Link href="/services/gifts" className="text-neutral-400 hover:text-white">Gifts</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 className="font-semibold text-lg mb-4 font-poppins">Quick Links</h3>
             <ul className="space-y-2">
-              <li><Link href="/about"><a className="text-neutral-400 hover:text-white">About Us</a></Link></li>
-              <li><Link href="/blog"><a className="text-neutral-400 hover:text-white">Blog</a></Link></li>
-              <li><Link href="/faq"><a className="text-neutral-400 hover:text-white">FAQs</a></Link></li>
-              <li><Link href="/privacy-policy"><a className="text-neutral-400 hover:text-white">Privacy Policy</a></Link></li>
-              <li><Link href="/terms"><a className="text-neutral-400 hover:text-white">Terms & Conditions</a></Link></li>
-              <li><Link href="/contact"><a className="text-neutral-400 hover:text-white">Contact Us</a></Link></li>
+              <li><Link href="/about" className="text-neutral-400 hover:text-white">About Us</Link></li>
+              <li><Link href="/blog" className="text-neutral-400 hover:text-white">Blog</Link></li>
+              <li><Link href="/faq" className="text-neutral-400 hover:text-white">FAQs</Link></li>
+              <li><Link href="/privacy-policy" className="text-neutral-400 hover:text-white">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="text-neutral-400 hover:text-white">Terms & Conditions</Link></li>
+              <li><Link href="/contact" className="text-neutral-400 hover:text-white">Contact Us</Link></li>
             </ul>
           </div>
 

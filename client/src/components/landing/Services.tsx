@@ -97,11 +97,9 @@ export default function Services() {
                 <CardContent className="p-4">
                   <h3 className="font-semibold text-lg text-neutral-900 font-poppins">{service.title}</h3>
                   <p className="mt-2 text-neutral-600 text-sm">{service.description}</p>
-                  <Link href={`/services/${service.id}`}>
-                    <div className="mt-4 inline-flex items-center text-primary hover:text-primary-700 cursor-pointer">
-                      Learn more
-                      <ChevronRight className="h-5 w-5 ml-1" />
-                    </div>
+                  <Link href={`/services/${service.id}`} className="mt-4 inline-flex items-center text-primary hover:text-primary-700 cursor-pointer">
+                    Learn more
+                    <ChevronRight className="h-5 w-5 ml-1" />
                   </Link>
                 </CardContent>
               </Card>

@@ -9,6 +9,11 @@ import AdminLogin from "@/pages/AdminLogin";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import { AuthProvider } from "@/context/AuthContext";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// Create a client
+const queryClient = new QueryClient();
 
 // Simple router for now - we'll worry about auth checks later
 function Router() {
@@ -27,14 +32,18 @@ function Router() {
 
 function App() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    }>
-      <Router />
-      <Toaster />
-    </Suspense>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        }>
+          <Router />
+          <Toaster />
+        </Suspense>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

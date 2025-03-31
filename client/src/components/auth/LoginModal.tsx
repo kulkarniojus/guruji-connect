@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-// Temporary disable authentication
-// import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+// Note: There's a known issue with the InputOTP component types that we'll address in a future update
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/otp-input';
 import { Loader2 } from 'lucide-react';
 
@@ -27,9 +27,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  // Temporarily mock auth functions
-  const sendOtp = async () => true;
-  const login = async () => true;
+  const { sendOtp, login } = useAuth();
 
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow digits
@@ -152,7 +150,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-lg font-medium text-neutral-900 font-poppins">
-            Login to PujaConnect
+            Login to GurujiConnect
           </DialogTitle>
         </DialogHeader>
         
@@ -200,12 +198,12 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
                   className="gap-2 justify-center"
                 >
                   <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
+                    <InputOTPSlot />
+                    <InputOTPSlot />
+                    <InputOTPSlot />
+                    <InputOTPSlot />
+                    <InputOTPSlot />
+                    <InputOTPSlot />
                   </InputOTPGroup>
                 </InputOTP>
                 <p className="mt-2 text-sm text-neutral-500">

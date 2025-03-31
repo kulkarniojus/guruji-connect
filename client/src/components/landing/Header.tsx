@@ -12,14 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import LoginModal from '../auth/LoginModal';
 import RegisterModal from '../auth/RegisterModal';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
-  // Temporarily disable authentication features
-  const user: any = null;
-  const logout = () => {};
+  // Enable authentication features
+  const { user, logout } = useAuth();
 
   const handleLoginClick = () => {
     setLoginModalOpen(true);
@@ -148,7 +148,7 @@ export default function Header() {
         )}
       </header>
 
-      {/* Temporarily disabled - auth components need fixing 
+      {/* Auth modals */}
       <LoginModal 
         isOpen={loginModalOpen} 
         onClose={() => setLoginModalOpen(false)} 
@@ -166,7 +166,6 @@ export default function Header() {
           setLoginModalOpen(true);
         }}
       />
-      */}
     </>
   );
 }

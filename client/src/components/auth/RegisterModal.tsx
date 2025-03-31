@@ -46,8 +46,8 @@ const registerSchema = z.object({
   }),
   aadhar: z.string().optional(),
   caste: z.string().optional(),
-  terms: z.literal(true, {
-    errorMap: () => ({ message: 'You must accept the terms and conditions' }),
+  terms: z.boolean().refine(val => val === true, {
+    message: 'You must accept the terms and conditions',
   }),
 });
 
@@ -71,7 +71,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
       registrationType: undefined,
       aadhar: '',
       caste: '',
-      terms: false,
+      terms: false
     },
   });
 
@@ -113,7 +113,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-lg font-medium text-neutral-900 font-poppins">
-            Register with PujaConnect
+            Register with GurujiConnect
           </DialogTitle>
         </DialogHeader>
         
