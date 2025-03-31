@@ -42,12 +42,16 @@ export const pujas = pgTable("pujas", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  price: integer("price").notNull(),
-  imageUrl: text("image_url"),
+  basePrice: integer("basePrice").notNull(),
+  price: integer("price"),
+  imageUrl: text("imageUrl"),
+  items: text("items").array(),
+  isPopular: boolean("isPopular").notNull().default(false),
+  isActive: boolean("isActive").notNull().default(true),
   type: pujaTypeEnum("type").notNull(),
   duration: integer("duration").notNull(), // in minutes
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
 });
 
 // Guruji profile table
