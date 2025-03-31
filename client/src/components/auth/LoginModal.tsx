@@ -191,21 +191,22 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
                 Enter OTP
               </Label>
               <div className="mt-1">
-                <InputOTP
-                  maxLength={6}
-                  value={otp}
-                  onChange={(value) => setOtp(value)}
-                  className="gap-2 justify-center"
-                >
-                  <InputOTPGroup>
-                    <InputOTPSlot />
-                    <InputOTPSlot />
-                    <InputOTPSlot />
-                    <InputOTPSlot />
-                    <InputOTPSlot />
-                    <InputOTPSlot />
-                  </InputOTPGroup>
-                </InputOTP>
+                <div className="flex gap-2 justify-center">
+                  <Input
+                    type="text"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => {
+                      // Only allow digits and max 6 characters
+                      const value = e.target.value.replace(/\D/g, '');
+                      if (value.length <= 6) {
+                        setOtp(value);
+                      }
+                    }}
+                    className="text-center"
+                    placeholder="Enter 6-digit OTP"
+                  />
+                </div>
                 <p className="mt-2 text-sm text-neutral-500">
                   Didn't receive the OTP?{" "}
                   <Button
