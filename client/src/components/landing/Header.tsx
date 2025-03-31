@@ -18,7 +18,7 @@ export default function Header() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   // Temporarily disable authentication features
-  const user = null;
+  const user: any = null;
   const logout = () => {};
 
   const handleLoginClick = () => {
@@ -43,7 +43,7 @@ export default function Header() {
                   </svg>
                 </div>
               </div>
-              <span className="text-xl font-bold text-neutral-900 font-poppins">PujaConnect</span>
+              <span className="text-xl font-bold text-neutral-900 font-poppins">GurujiConnect</span>
             </Link>
 
             {/* Navigation */}

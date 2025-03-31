@@ -14,8 +14,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <Helmet>
-        <title>PujaConnect - Book Online and Offline Pujas</title>
-        <meta name="description" content="Connect with verified Pandits for your spiritual needs. Book online or in-person puja services, consultations, and more with expert Gurujis all over India." />
+        <title>GurujiConnect - Book Online and Offline Pujas</title>
+        <meta name="description" content="Connect with verified Gurujis for your spiritual needs. Book online or in-person puja services, consultations, and more with expert Gurujis all over India." />
       </Helmet>
 
       <Header />

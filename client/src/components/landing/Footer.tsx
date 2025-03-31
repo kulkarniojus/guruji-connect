@@ -15,9 +15,9 @@ export default function Footer() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <span className="text-xl font-bold font-poppins">PujaConnect</span>
+              <span className="text-xl font-bold font-poppins">GurujiConnect</span>
             </div>
-            <p className="text-neutral-400 mb-4">Connect with verified Pandits for your religious and spiritual needs. Book pujas, consultations, and more.</p>
+            <p className="text-neutral-400 mb-4">Connect with verified Gurujis for your religious and spiritual needs. Book pujas, consultations, and more.</p>
             <div className="flex space-x-4">
               <a href="#" className="text-white hover:text-primary">
                 <Facebook className="h-5 w-5" />
@@ -67,7 +67,7 @@ export default function Footer() {
               </div>
               <div className="flex items-center">
                 <Mail className="h-5 w-5 text-neutral-400 mr-2" />
-                <span className="text-neutral-400">support@pujaconnect.com</span>
+                <span className="text-neutral-400">support@gurujiconnect.com</span>
               </div>
               <div className="flex items-center">
                 <Phone className="h-5 w-5 text-neutral-400 mr-2" />
@@ -91,7 +91,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-neutral-700 text-center">
-          <p className="text-neutral-400">&copy; {new Date().getFullYear()} PujaConnect. All rights reserved.</p>
+          <p className="text-neutral-400">&copy; {new Date().getFullYear()} GurujiConnect. All rights reserved.</p>
         </div>
       </div>
     </footer>
