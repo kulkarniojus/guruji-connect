@@ -70,11 +70,11 @@ export default function Services() {
   };
 
   return (
-    <section className="py-12 bg-white">
+    <section className="py-8 md:py-12 bg-white">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 font-poppins">Our Services</h2>
-          <p className="mt-2 text-lg text-neutral-600">Connect with experienced Gurujis for various puja services</p>
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="text-xl md:text-3xl font-bold text-neutral-900 font-poppins">Our Services</h2>
+          <p className="mt-2 text-sm md:text-lg text-neutral-600">Connect with experienced Gurujis for various puja services</p>
         </div>
 
         <div className="relative">
@@ -87,26 +87,26 @@ export default function Services() {
             {services.map((service) => (
               <Card 
                 key={service.id}
-                className="bg-neutral-50 rounded-lg shadow-sm overflow-hidden w-72 hover:shadow-md transition-shadow duration-300 flex-shrink-0 snap-start"
+                className="bg-neutral-50 rounded-lg shadow-sm overflow-hidden w-64 md:w-72 hover:shadow-md transition-shadow duration-300 flex-shrink-0 snap-start"
               >
                 <img 
                   src={service.image} 
                   alt={service.title} 
-                  className="w-full h-40 object-cover" 
+                  className="w-full h-32 md:h-40 object-cover" 
                 />
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-lg text-neutral-900 font-poppins">{service.title}</h3>
-                  <p className="mt-2 text-neutral-600 text-sm">{service.description}</p>
-                  <Link href={`/services/${service.id}`} className="mt-4 inline-flex items-center text-primary hover:text-primary-700 cursor-pointer">
+                <CardContent className="p-3 md:p-4">
+                  <h3 className="font-semibold text-base md:text-lg text-neutral-900 font-poppins">{service.title}</h3>
+                  <p className="mt-1 md:mt-2 text-neutral-600 text-xs md:text-sm">{service.description}</p>
+                  <Link href={`/services/${service.id}`} className="mt-2 md:mt-4 inline-flex items-center text-primary hover:text-primary-700 cursor-pointer text-sm">
                     Learn more
-                    <ChevronRight className="h-5 w-5 ml-1" />
+                    <ChevronRight className="h-4 w-4 ml-1" />
                   </Link>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {/* Navigation buttons */}
+          {/* Navigation buttons - shown only on desktop */}
           <Button 
             variant="outline" 
             size="icon" 
@@ -126,8 +126,23 @@ export default function Services() {
           </Button>
         </div>
         
-        <div className="text-center mt-8">
-          <Button asChild className="px-5 py-3">
+        {/* Dot indicators for mobile */}
+        <div className="flex justify-center space-x-2 mt-4 md:hidden">
+          {[0, 1, 2, 3, 4, 5].map((index) => (
+            <button 
+              key={index}
+              className={`h-2 w-2 rounded-full ${index === Math.floor(scrollPosition / 300) ? 'bg-primary' : 'bg-neutral-300'}`}
+              onClick={() => {
+                if (carouselRef.current) {
+                  carouselRef.current.scrollTo({ left: index * 300, behavior: 'smooth' });
+                }
+              }}
+            />
+          ))}
+        </div>
+        
+        <div className="text-center mt-6 md:mt-8">
+          <Button asChild className="px-4 py-2 md:px-5 md:py-3 text-sm md:text-base">
             <Link href="/services">View All Services</Link>
           </Button>
         </div>

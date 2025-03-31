@@ -7,8 +7,12 @@ import Booking from "@/pages/Booking";
 import Profile from "@/pages/Profile";
 import AdminLogin from "@/pages/AdminLogin";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
-import { Suspense } from "react";
+import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
+
+// Lazy-loaded components
+const Chat = lazy(() => import('@/pages/Chat'));
+const Notifications = lazy(() => import('@/pages/Notifications'));
 
 // Router setup
 
@@ -22,6 +26,8 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/availability" component={AvailabilityPage} />
+      <Route path="/chat" component={Chat} />
+      <Route path="/notifications" component={Notifications} />
       <Route component={NotFound} />
     </Switch>
   );

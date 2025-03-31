@@ -4,14 +4,17 @@ import { useLocation } from 'wouter';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import BookingPage from '@/components/booking/BookingPage';
+import { MobileBookingPage } from '@/components/booking/MobileBookingPage';
 import { useToast } from '@/hooks/use-toast';
 import LoginModal from '@/components/auth/LoginModal';
 import { useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function Booking() {
   // Temporarily disabled auth check to fix the error
   const user = null;
   const isLoading = false;
+  const isMobile = useIsMobile();
   
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -34,17 +37,18 @@ export default function Booking() {
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Helmet>
-        <title>Book a Puja | PujaConnect</title>
+        <title>Book a Puja | GurujiConnect</title>
         <meta name="description" content="Book a puja or consultation with verified Gurujis" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Helmet>
 
-      <Header />
+      {!isMobile && <Header />}
       
       <main className="flex-grow">
-        <BookingPage />
+        {isMobile ? <MobileBookingPage /> : <BookingPage />}
       </main>
       
-      <Footer />
+      {!isMobile && <Footer />}
 
       <LoginModal 
         isOpen={loginModalOpen} 

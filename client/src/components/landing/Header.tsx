@@ -125,28 +125,42 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden" id="mobile-menu">
-            <div className="px-2 pt-2 pb-3 space-y-1">
+        {/* Mobile menu - slide in from top with animation */}
+        <div 
+          className={`md:hidden absolute top-16 left-0 right-0 bg-white shadow-lg transform transition-transform duration-200 ease-in-out z-50 ${
+            mobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
+          }`}
+        >
+          <div className="px-4 py-3 space-y-3 divide-y divide-gray-100">
+            <div className="space-y-2">
               <Link href="/" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Home</Link>
               <Link href="/services" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Services</Link>
+              <Link href="/availability" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Availability</Link>
               <Link href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">About Us</Link>
-              <Link href="/blog" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Blog</Link>
               <Link href="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Contact</Link>
-              <div className="relative py-2">
+            </div>
+            
+            <div className="pt-3 space-y-3">
+              <div className="relative">
                 <Input 
                   type="text" 
                   placeholder="Search pujas, services..." 
                   className="w-full pl-10 pr-4 py-2 rounded-lg bg-neutral-100"
                 />
-                <div className="absolute left-3 top-4.5">
+                <div className="absolute left-3 top-2.5">
                   <Search className="h-5 w-5 text-neutral-500" />
                 </div>
               </div>
+              
+              {!user && (
+                <div className="flex flex-col space-y-2 pt-2">
+                  <Button variant="outline" className="w-full" onClick={handleLoginClick}>Login</Button>
+                  <Button variant="default" className="w-full" onClick={handleRegisterClick}>Register</Button>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </header>
 
       {/* Auth modals */}
