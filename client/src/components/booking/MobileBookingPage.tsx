@@ -25,20 +25,31 @@ import { Badge } from '@/components/ui/badge';
 
 type BookingStep = 'service' | 'guruji' | 'date' | 'details' | 'payment' | 'confirmation';
 
-export function MobileBookingPage() {
+type MobileBookingPageProps = {
+  initialPujaId?: string | null;
+  initialPujaName?: string;
+}
+
+export function MobileBookingPage({ initialPujaId: propPujaId, initialPujaName: propPujaName }: MobileBookingPageProps = {}) {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
   
-  // Parse query parameters for pre-selected puja
+  // Parse query parameters for pre-selected puja if not provided via props
   const searchParams = new URLSearchParams(window.location.search);
-  const initialPujaId = searchParams.get('puja') || '';
-  const initialPujaName = searchParams.get('pujaName') || '';
+  const initialPujaId = propPujaId || searchParams.get('puja') || '';
+  const initialPujaName = propPujaName || searchParams.get('pujaName') || '';
   const initialCity = searchParams.get('city') || 'mumbai';
   const initialDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : undefined;
   
-  // Use the query API to fetch data
+  // Use the query API to fetch all pujas (just to get more details about the selected puja)
   const { data: pujas, isLoading: isPujasLoading } = useQuery({
     queryKey: ['/api/pujas'],
+  });
+  
+  // Separately fetch the single selected puja for more details if we have an ID
+  const { data: selectedPujaDetails, isLoading: isSelectedPujaLoading } = useQuery({
+    queryKey: ['/api/pujas', initialPujaId],
+    enabled: !!initialPujaId
   });
   
   // Fetch nearby gurujis within 15km radius when needed
@@ -164,14 +175,14 @@ export function MobileBookingPage() {
         {currentStep === 'service' && (
           <div className="space-y-4">
             <div className="bg-primary-50 p-4 rounded-lg mb-4">
-              <h3 className="font-medium text-primary">Selected Service from Dashboard</h3>
-              <p className="text-sm text-primary-700 mt-1">{initialPujaName}</p>
+              <h3 className="font-medium text-primary">Selected Service</h3>
+              {initialPujaName && (
+                <p className="text-sm text-primary-700 mt-1">{initialPujaName}</p>
+              )}
               {initialCity && (
                 <p className="text-xs text-primary-600 mt-1">Location: {initialCity}</p>
               )}
             </div>
-            
-            <p className="text-neutral-600 mb-4">Your selected puja:</p>
             
             <div className="space-y-3">
               {isPujasLoading ? (
@@ -182,17 +193,26 @@ export function MobileBookingPage() {
                 <Card 
                   className="border-primary ring-2 ring-primary-50"
                 >
-                  <CardContent className="p-4 flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">{selectedPuja.name}</h3>
-                      <div className="text-sm text-neutral-500">
-                        <span>{selectedPuja.duration} minutes</span>
-                      </div>
+                  <CardHeader>
+                    <CardTitle>{selectedPuja.name}</CardTitle>
+                    <CardDescription>
+                      Duration: {selectedPuja.duration} minutes
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-0">
+                    <p className="text-sm text-neutral-700">
+                      {selectedPuja.description || "Traditional puja conducted by professional Gurujis. Includes all necessary materials and rituals."}
+                    </p>
+                  </CardContent>
+                  <CardFooter className="flex justify-between items-center pt-4">
+                    <div className="text-sm text-neutral-500">
+                      <Clock className="h-4 w-4 inline mr-1" />
+                      {selectedPuja.duration} minutes
                     </div>
                     <div className="text-right">
-                      <div className="font-medium text-primary">₹{selectedPuja.price}</div>
+                      <div className="font-medium text-primary text-lg">₹{selectedPuja.price}</div>
                     </div>
-                  </CardContent>
+                  </CardFooter>
                 </Card>
               ) : (
                 <div className="text-center p-6 border border-amber-200 bg-amber-50 rounded-lg">

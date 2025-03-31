@@ -21,12 +21,17 @@ import { Loader2 } from 'lucide-react';
 import PaymentPage from '@/components/payments/PaymentPage';
 
 // This component handles different booking types: offline, online puja, and consultation
-export default function BookingPage() {
+type BookingPageProps = {
+  initialPujaId?: string | null;
+  initialPujaName?: string;
+}
+
+export default function BookingPage({ initialPujaId: propPujaId, initialPujaName: propPujaName }: BookingPageProps = {}) {
   // Parse query parameters
   const searchParams = new URLSearchParams(window.location.search);
   const initialType = searchParams.get('type') || 'offline';
-  const initialPujaId = searchParams.get('puja') || '';
-  const initialPujaName = searchParams.get('pujaName') || '';
+  const initialPujaId = propPujaId || searchParams.get('puja') || '';
+  const initialPujaName = propPujaName || searchParams.get('pujaName') || '';
   const initialCity = searchParams.get('city') || 'mumbai'; // Default to Mumbai if not specified
   const initialDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : undefined;
   
