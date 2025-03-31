@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 const cities = [
   { value: 'mumbai', label: 'Mumbai' },
@@ -29,13 +30,48 @@ export default function MobileHero() {
   const [city, setCity] = useState<string>('');
   const [puja, setPuja] = useState<string>('');
   const [date, setDate] = useState<Date | undefined>(undefined);
+  const { toast } = useToast();
 
   const handleSearch = () => {
+    // Validate mandatory fields
+    if (!city) {
+      toast({
+        title: "City is required",
+        description: "Please select a city to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!puja) {
+      toast({
+        title: "Puja name is required",
+        description: "Please select a puja to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!date) {
+      toast({
+        title: "Date is required",
+        description: "Please select a date to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Build query parameters
     const params = new URLSearchParams();
-    if (city) params.append('city', city);
-    if (puja) params.append('puja', puja);
-    if (date) params.append('date', date.toISOString());
+    params.append('city', city);
+    params.append('puja', puja);
+    params.append('date', date.toISOString());
+    
+    // Find puja label to pass along
+    const selectedPuja = pujas.find(p => p.value === puja);
+    if (selectedPuja) {
+      params.append('pujaName', selectedPuja.label);
+    }
 
     // Redirect to booking page with query params
     setLocation(`/booking?${params.toString()}`);

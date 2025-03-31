@@ -26,13 +26,15 @@ export default function BookingPage() {
   const searchParams = new URLSearchParams(window.location.search);
   const initialType = searchParams.get('type') || 'offline';
   const initialPujaId = searchParams.get('puja') || '';
+  const initialPujaName = searchParams.get('pujaName') || '';
   const initialCity = searchParams.get('city') || 'mumbai'; // Default to Mumbai if not specified
   const initialDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : undefined;
   
   // Log search parameters for debugging
   console.log('Search params:', { 
     type: initialType, 
-    puja: initialPujaId, 
+    puja: initialPujaId,
+    pujaName: initialPujaName,
     city: initialCity, 
     date: initialDate 
   });
@@ -228,6 +230,15 @@ export default function BookingPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2 font-poppins">Book Your Service</h1>
         <p className="text-neutral-600">Complete the steps below to book your puja or consultation</p>
+        
+        {/* Display the selected puja name if available */}
+        {initialPujaName && (
+          <div className="mt-4 p-4 bg-primary-50 border border-primary-200 rounded-lg">
+            <h2 className="text-xl font-semibold text-primary-700">
+              Selected Service: <span className="font-bold">{initialPujaName}</span>
+            </h2>
+          </div>
+        )}
       </div>
 
       {/* Progress steps */}
