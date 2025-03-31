@@ -76,7 +76,7 @@ export default function PopularPujas() {
                       className="inline-flex items-center px-3 py-1 border border-primary text-sm font-medium rounded text-primary bg-white hover:bg-primary-50"
                       asChild
                     >
-                      <Link href={`/booking?puja=${puja.id}&pujaName=${encodeURIComponent(puja.name)}`}>
+                      <Link href={`/booking?puja=${puja.id}`}>
                         <a>Book Now</a>
                       </Link>
                     </Button>
