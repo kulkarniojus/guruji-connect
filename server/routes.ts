@@ -12,6 +12,7 @@ import MemoryStore from "memorystore";
 import { fromZodError } from "zod-validation-error";
 import { registerPaymentRoutes } from "./routes/payment";
 import chatbotRoutes from "./routes/chatbot";
+import { analyticsRouter } from "./routes/analytics";
 
 // Extend session type to include userId and userRole
 declare module 'express-session' {
@@ -971,6 +972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register chatbot routes
   app.use('/api/chatbot', chatbotRoutes);
+  app.use('/api/analytics', analyticsRouter);
   
   // Create HTTP server
   const httpServer = createServer(app);

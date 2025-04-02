@@ -3,11 +3,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { Redirect } from 'wouter';
 import ChatbotDashboard from '@/components/chatbot/ChatbotDashboard';
-import { Loader2 } from 'lucide-react';
+import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState('chatbot');
+  const [activeTab, setActiveTab] = useState('analytics');
 
   if (isLoading) {
     return (
@@ -33,11 +34,27 @@ export default function AdminDashboard() {
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4 mb-8">
-          <TabsTrigger value="chatbot">WhatsApp ChatBot</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="bookings">Bookings</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center justify-center">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="chatbot" className="flex items-center justify-center">
+            <MessageCircle className="h-4 w-4 mr-2" />
+            WhatsApp ChatBot
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center justify-center">
+            <Users className="h-4 w-4 mr-2" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="bookings" className="flex items-center justify-center">
+            <Calendar className="h-4 w-4 mr-2" />
+            Bookings
+          </TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="analytics">
+          <AnalyticsDashboard />
+        </TabsContent>
         
         <TabsContent value="chatbot">
           <ChatbotDashboard />
@@ -52,12 +69,6 @@ export default function AdminDashboard() {
         <TabsContent value="bookings">
           <div className="p-6 border rounded-lg text-center">
             <p className="text-muted-foreground">Booking management dashboard will appear here</p>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="reports">
-          <div className="p-6 border rounded-lg text-center">
-            <p className="text-muted-foreground">Reports and analytics will appear here</p>
           </div>
         </TabsContent>
       </Tabs>

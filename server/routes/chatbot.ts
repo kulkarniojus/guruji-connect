@@ -1,511 +1,385 @@
-import { Request, Response, Router } from 'express';
-import { z } from 'zod';
-import { ZodError } from 'zod';
-import { fromZodError } from 'zod-validation-error';
-import { db } from '../db';
-import { eq, and, desc } from 'drizzle-orm';
-import {
-  chatbotTemplates,
-  chatbotTrainingData,
-  whatsappUsers,
-  whatsappConversations,
-  whatsappMessages,
-  insertChatbotTemplateSchema,
-  insertChatbotTrainingDataSchema,
-} from '@shared/schema';
-import { 
-  initWhatsAppClient, 
-  sendTemplateMessage, 
-  initDefaultTemplates 
-} from '../services/whatsapp';
+import express, { Request, Response } from 'express';
+import { NlpManager } from 'node-nlp';
+import { storage } from '../storage';
 
-const router = Router();
+const router = express.Router();
 
 // Middleware to check if user is admin
 const isAdmin = (req: Request, res: Response, next: Function) => {
-  if (req.session.userRole !== 'admin') {
-    return res.status(403).json({ message: 'Forbidden: Admin access required' });
+  const session = req.session as any;
+  
+  if (!session.userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
+  
+  if (session.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden - Admin access required' });
+  }
+  
   next();
 };
 
-// Initialize WhatsApp client and default templates
-let initialized = false;
-const initialize = async () => {
-  if (!initialized) {
-    try {
-      await initDefaultTemplates();
-      await initWhatsAppClient();
-      initialized = true;
-      console.log('WhatsApp integration initialized');
-    } catch (error) {
-      console.error('Failed to initialize WhatsApp integration:', error);
-    }
-  }
-};
-
-// Initialize on server start
-initialize();
-
-// Get all chatbot templates
+// Template management endpoints
 router.get('/templates', isAdmin, async (req: Request, res: Response) => {
   try {
-    const templates = await db.query.chatbotTemplates.findMany({
-      orderBy: desc(chatbotTemplates.updatedAt)
-    });
-    
+    const templates = await storage.getChatbotTemplates();
     res.json(templates);
-  } catch (error) {
-    console.error('Error fetching templates:', error);
-    res.status(500).json({ message: 'Failed to fetch templates' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Create new template
 router.post('/templates', isAdmin, async (req: Request, res: Response) => {
   try {
-    const templateData = insertChatbotTemplateSchema.parse(req.body);
+    const { name, content, isActive } = req.body;
     
-    const [template] = await db.insert(chatbotTemplates).values({
-      ...templateData,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }).returning();
+    if (!name || !content) {
+      return res.status(400).json({ error: 'Name and content are required' });
+    }
+    
+    const template = await storage.createChatbotTemplate({
+      name,
+      content,
+      isActive: isActive !== undefined ? isActive : true
+    });
     
     res.status(201).json(template);
-  } catch (error) {
-    console.error('Error creating template:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
-    }
-    res.status(500).json({ message: 'Failed to create template' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Update template
 router.put('/templates/:id', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
+    const id = parseInt(req.params.id);
     
-    // Check if template exists
-    const existingTemplate = await db.query.chatbotTemplates.findFirst({
-      where: eq(chatbotTemplates.id, id)
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid template ID' });
+    }
+    
+    const { name, content, isActive } = req.body;
+    
+    if (!name || !content) {
+      return res.status(400).json({ error: 'Name and content are required' });
+    }
+    
+    const template = await storage.updateChatbotTemplate(id, {
+      name,
+      content,
+      isActive
     });
     
-    if (!existingTemplate) {
-      return res.status(404).json({ message: 'Template not found' });
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
     }
     
-    // Update template
-    const [updatedTemplate] = await db.update(chatbotTemplates)
-      .set({
-        ...req.body,
-        updatedAt: new Date()
-      })
-      .where(eq(chatbotTemplates.id, id))
-      .returning();
-    
-    res.json(updatedTemplate);
-  } catch (error) {
-    console.error('Error updating template:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
-    }
-    res.status(500).json({ message: 'Failed to update template' });
+    res.json(template);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Delete template
 router.delete('/templates/:id', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
+    const id = parseInt(req.params.id);
     
-    // Check if template exists
-    const existingTemplate = await db.query.chatbotTemplates.findFirst({
-      where: eq(chatbotTemplates.id, id)
-    });
-    
-    if (!existingTemplate) {
-      return res.status(404).json({ message: 'Template not found' });
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid template ID' });
     }
     
-    // Delete template
-    await db.delete(chatbotTemplates).where(eq(chatbotTemplates.id, id));
+    const success = await storage.deleteChatbotTemplate(id);
     
-    res.json({ message: 'Template deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting template:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
+    if (!success) {
+      return res.status(404).json({ error: 'Template not found' });
     }
-    res.status(500).json({ message: 'Failed to delete template' });
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Get all training data
+// Training data management endpoints
 router.get('/training-data', isAdmin, async (req: Request, res: Response) => {
   try {
-    const trainingData = await db.query.chatbotTrainingData.findMany({
-      orderBy: desc(chatbotTrainingData.updatedAt)
-    });
-    
+    const trainingData = await storage.getChatbotTrainingData();
     res.json(trainingData);
-  } catch (error) {
-    console.error('Error fetching training data:', error);
-    res.status(500).json({ message: 'Failed to fetch training data' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Create new training data
 router.post('/training-data', isAdmin, async (req: Request, res: Response) => {
   try {
-    const trainingDataItem = insertChatbotTrainingDataSchema.parse(req.body);
+    const { intent, utterances, responses, entities } = req.body;
     
-    const [newTrainingData] = await db.insert(chatbotTrainingData).values({
-      ...trainingDataItem,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }).returning();
-    
-    res.status(201).json(newTrainingData);
-  } catch (error) {
-    console.error('Error creating training data:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
+    if (!intent || !utterances || !responses) {
+      return res.status(400).json({ error: 'Intent, utterances, and responses are required' });
     }
-    res.status(500).json({ message: 'Failed to create training data' });
+    
+    if (!Array.isArray(utterances) || !Array.isArray(responses)) {
+      return res.status(400).json({ error: 'Utterances and responses must be arrays' });
+    }
+    
+    const trainingData = await storage.createChatbotTrainingData({
+      intent,
+      utterances,
+      responses,
+      entities: entities || {}
+    });
+    
+    res.status(201).json(trainingData);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Update training data
 router.put('/training-data/:id', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
+    const id = parseInt(req.params.id);
     
-    // Check if training data exists
-    const existingTrainingData = await db.query.chatbotTrainingData.findFirst({
-      where: eq(chatbotTrainingData.id, id)
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid training data ID' });
+    }
+    
+    const { intent, utterances, responses, entities } = req.body;
+    
+    if (!intent || !utterances || !responses) {
+      return res.status(400).json({ error: 'Intent, utterances, and responses are required' });
+    }
+    
+    if (!Array.isArray(utterances) || !Array.isArray(responses)) {
+      return res.status(400).json({ error: 'Utterances and responses must be arrays' });
+    }
+    
+    const trainingData = await storage.updateChatbotTrainingData(id, {
+      intent,
+      utterances,
+      responses,
+      entities: entities || {}
     });
     
-    if (!existingTrainingData) {
-      return res.status(404).json({ message: 'Training data not found' });
+    if (!trainingData) {
+      return res.status(404).json({ error: 'Training data not found' });
     }
     
-    // Update training data
-    const [updatedTrainingData] = await db.update(chatbotTrainingData)
-      .set({
-        ...req.body,
-        updatedAt: new Date()
-      })
-      .where(eq(chatbotTrainingData.id, id))
-      .returning();
-    
-    res.json(updatedTrainingData);
-  } catch (error) {
-    console.error('Error updating training data:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
-    }
-    res.status(500).json({ message: 'Failed to update training data' });
+    res.json(trainingData);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Delete training data
 router.delete('/training-data/:id', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
+    const id = parseInt(req.params.id);
     
-    // Check if training data exists
-    const existingTrainingData = await db.query.chatbotTrainingData.findFirst({
-      where: eq(chatbotTrainingData.id, id)
-    });
-    
-    if (!existingTrainingData) {
-      return res.status(404).json({ message: 'Training data not found' });
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid training data ID' });
     }
     
-    // Delete training data
-    await db.delete(chatbotTrainingData).where(eq(chatbotTrainingData.id, id));
+    const success = await storage.deleteChatbotTrainingData(id);
     
-    res.json({ message: 'Training data deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting training data:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
+    if (!success) {
+      return res.status(404).json({ error: 'Training data not found' });
     }
-    res.status(500).json({ message: 'Failed to delete training data' });
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Train NLP model
+// Train the model
 router.post('/train', isAdmin, async (req: Request, res: Response) => {
   try {
-    // This would typically call a function to train the model
-    // For now, we'll just simulate a successful response
+    const trainingData = await storage.getChatbotTrainingData();
     
-    res.json({ message: 'Model training initiated' });
-  } catch (error) {
-    console.error('Error training model:', error);
-    res.status(500).json({ message: 'Failed to train model' });
-  }
-});
-
-// Get WhatsApp conversations
-router.get('/conversations', isAdmin, async (req: Request, res: Response) => {
-  try {
-    const conversations = await db.query.whatsappConversations.findMany({
-      with: {
-        whatsappUser: {
-          with: {
-            user: true
+    if (!trainingData || trainingData.length === 0) {
+      return res.status(400).json({ error: 'No training data available' });
+    }
+    
+    const nlpManager = new NlpManager({ languages: ['en'], forceNER: true });
+    
+    // Add all the training data
+    for (const data of trainingData) {
+      // Add utterances for intent
+      for (const utterance of data.utterances) {
+        nlpManager.addDocument('en', utterance, data.intent);
+      }
+      
+      // Add entity texts if available
+      if (data.entities) {
+        for (const [entityName, values] of Object.entries(data.entities)) {
+          for (const value of values) {
+            nlpManager.addNamedEntityText(entityName, value, ['en'], [value]);
           }
-        },
-        messages: {
-          orderBy: desc(whatsappMessages.createdAt),
-          limit: 50
-        }
-      },
-      orderBy: desc(whatsappConversations.lastMessageAt)
-    });
-    
-    res.json(conversations);
-  } catch (error) {
-    console.error('Error fetching conversations:', error);
-    res.status(500).json({ message: 'Failed to fetch conversations' });
-  }
-});
-
-// Get specific conversation and its messages
-router.get('/conversations/:id', isAdmin, async (req: Request, res: Response) => {
-  try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
-    
-    const conversation = await db.query.whatsappConversations.findFirst({
-      where: eq(whatsappConversations.id, id),
-      with: {
-        whatsappUser: {
-          with: {
-            user: true
-          }
-        },
-        messages: {
-          orderBy: desc(whatsappMessages.createdAt)
         }
       }
-    });
+      
+      // Add responses for intent
+      for (const response of data.responses) {
+        nlpManager.addAnswer('en', data.intent, response);
+      }
+    }
+    
+    // Train the model
+    await nlpManager.train();
+    
+    // Save the model (you might want to save it to a specific location)
+    await nlpManager.save('chatbot-model.nlp');
+    
+    res.json({ success: true, message: 'Model trained successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Conversation management endpoints
+router.get('/conversations', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const conversations = await storage.getChatbotConversations();
+    res.json(conversations);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/conversations/:id', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID' });
+    }
+    
+    const conversation = await storage.getChatbotConversation(id);
     
     if (!conversation) {
-      return res.status(404).json({ message: 'Conversation not found' });
+      return res.status(404).json({ error: 'Conversation not found' });
     }
     
     res.json(conversation);
-  } catch (error) {
-    console.error('Error fetching conversation:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
-    }
-    res.status(500).json({ message: 'Failed to fetch conversation' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Send a reply to a conversation
 router.post('/conversations/:id/reply', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
-    const { message } = z.object({ message: z.string().min(1) }).parse(req.body);
+    const id = parseInt(req.params.id);
     
-    // Get conversation with WhatsApp user
-    const conversation = await db.query.whatsappConversations.findFirst({
-      where: eq(whatsappConversations.id, id),
-      with: {
-        whatsappUser: true
-      }
-    });
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID' });
+    }
+    
+    const { text } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({ error: 'Reply text is required' });
+    }
+    
+    const conversation = await storage.getChatbotConversation(id);
     
     if (!conversation) {
-      return res.status(404).json({ message: 'Conversation not found' });
+      return res.status(404).json({ error: 'Conversation not found' });
     }
     
-    // Send message via WhatsApp
-    const waNumber = conversation.whatsappUser.whatsappNumber;
-    const success = await sendTemplateMessage(waNumber, 'custom_message', { message });
+    // Add the admin message to the conversation
+    const message = await storage.addChatbotMessage({
+      conversationId: id,
+      text,
+      fromUser: false
+    });
     
-    if (!success) {
-      return res.status(500).json({ message: 'Failed to send WhatsApp message' });
-    }
+    // Send the message via WhatsApp service
+    // (This would typically be handled by your WhatsApp service)
+    // whatsappService.sendMessage(conversation.whatsappNumber, text);
     
-    // Save message to database
-    const [savedMessage] = await db.insert(whatsappMessages).values({
-      conversationId: conversation.id,
-      direction: 'outbound',
-      messageContent: message,
-      isDelivered: true,
-      isRead: false,
-      createdAt: new Date()
-    }).returning();
-    
-    // Update conversation last message time
-    await db.update(whatsappConversations)
-      .set({ lastMessageAt: new Date() })
-      .where(eq(whatsappConversations.id, conversation.id));
-    
-    res.status(201).json(savedMessage);
-  } catch (error) {
-    console.error('Error sending reply:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
-    }
-    res.status(500).json({ message: 'Failed to send reply' });
+    res.json(message);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Mark conversation as active/inactive
 router.put('/conversations/:id/status', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
-    const { isActive } = z.object({ isActive: z.boolean() }).parse(req.body);
+    const id = parseInt(req.params.id);
     
-    // Check if conversation exists
-    const conversation = await db.query.whatsappConversations.findFirst({
-      where: eq(whatsappConversations.id, id)
-    });
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID' });
+    }
+    
+    const { status } = req.body;
+    
+    if (!status || !['active', 'closed'].includes(status)) {
+      return res.status(400).json({ error: 'Valid status (active or closed) is required' });
+    }
+    
+    const conversation = await storage.updateChatbotConversationStatus(id, status as 'active' | 'closed');
     
     if (!conversation) {
-      return res.status(404).json({ message: 'Conversation not found' });
+      return res.status(404).json({ error: 'Conversation not found' });
     }
     
-    // Update conversation status
-    const [updatedConversation] = await db.update(whatsappConversations)
-      .set({ isActive })
-      .where(eq(whatsappConversations.id, id))
-      .returning();
-    
-    res.json(updatedConversation);
-  } catch (error) {
-    console.error('Error updating conversation status:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
-    }
-    res.status(500).json({ message: 'Failed to update conversation status' });
+    res.json(conversation);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Get WhatsApp users
+// User management endpoints
 router.get('/users', isAdmin, async (req: Request, res: Response) => {
   try {
-    const waUsers = await db.query.whatsappUsers.findMany({
-      with: {
-        user: true
-      },
-      orderBy: desc(whatsappUsers.lastInteractionAt)
-    });
-    
-    res.json(waUsers);
-  } catch (error) {
-    console.error('Error fetching WhatsApp users:', error);
-    res.status(500).json({ message: 'Failed to fetch WhatsApp users' });
+    const users = await storage.getChatbotUsers();
+    res.json(users);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Link WhatsApp user to system user
 router.put('/users/:id/link', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
-    const { userId } = z.object({ userId: z.number() }).parse(req.body);
+    const id = parseInt(req.params.id);
     
-    // Check if WhatsApp user exists
-    const waUser = await db.query.whatsappUsers.findFirst({
-      where: eq(whatsappUsers.id, id)
-    });
-    
-    if (!waUser) {
-      return res.status(404).json({ message: 'WhatsApp user not found' });
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
     }
     
-    // Update WhatsApp user
-    const [updatedUser] = await db.update(whatsappUsers)
-      .set({ 
-        userId,
-        isVerified: true,
-        updatedAt: new Date()
-      })
-      .where(eq(whatsappUsers.id, id))
-      .returning();
+    const { whatsappNumber } = req.body;
     
-    res.json(updatedUser);
-  } catch (error) {
-    console.error('Error linking WhatsApp user:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
+    if (!whatsappNumber) {
+      return res.status(400).json({ error: 'WhatsApp number is required' });
     }
-    res.status(500).json({ message: 'Failed to link WhatsApp user' });
+    
+    const user = await storage.linkUserWhatsapp(id, whatsappNumber);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Opt out WhatsApp user
 router.put('/users/:id/opt-out', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
+    const id = parseInt(req.params.id);
     
-    // Check if WhatsApp user exists
-    const waUser = await db.query.whatsappUsers.findFirst({
-      where: eq(whatsappUsers.id, id)
-    });
-    
-    if (!waUser) {
-      return res.status(404).json({ message: 'WhatsApp user not found' });
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
     }
     
-    // Update WhatsApp user
-    const [updatedUser] = await db.update(whatsappUsers)
-      .set({ 
-        isOptedIn: false,
-        updatedAt: new Date()
-      })
-      .where(eq(whatsappUsers.id, id))
-      .returning();
+    const user = await storage.optOutUserWhatsapp(id);
     
-    res.json(updatedUser);
-  } catch (error) {
-    console.error('Error opting out WhatsApp user:', error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: fromZodError(error),
-      });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
-    res.status(500).json({ message: 'Failed to opt out WhatsApp user' });
+    
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 

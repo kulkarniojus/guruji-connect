@@ -6,7 +6,12 @@ import {
   type Booking, type InsertBooking,
   type Payment, type InsertPayment,
   type Review, type InsertReview,
-  type Notification, type InsertNotification
+  type Notification, type InsertNotification,
+  type ChatbotTemplate, type InsertChatbotTemplate,
+  type ChatbotTrainingData, type InsertChatbotTrainingData,
+  type WhatsappUser, type InsertWhatsappUser,
+  type WhatsappConversation, type InsertWhatsappConversation,
+  type WhatsappMessage, type InsertWhatsappMessage
 } from "@shared/schema";
 import { pool } from './db';
 import { hash, compare } from 'bcrypt';
@@ -989,6 +994,379 @@ export class DBStorage implements IStorage {
       userId: row.user_id,
       title: row.title,
       message: row.message,
+      isRead: row.is_read,
+      createdAt: row.created_at
+    };
+  }
+
+  // Chatbot Template Management
+  async getChatbotTemplates(): Promise<ChatbotTemplate[]> {
+    const result = await pool.query(`SELECT * FROM chatbot_templates`);
+    return result.rows.map(row => this.mapChatbotTemplateFromDb(row));
+  }
+  
+  async createChatbotTemplate(templateData: InsertChatbotTemplate): Promise<ChatbotTemplate> {
+    const result = await pool.query(
+      `INSERT INTO chatbot_templates (
+        name, content, is_active, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5)
+      RETURNING *`,
+      [
+        templateData.name,
+        templateData.content,
+        true, // is_active
+        new Date(),
+        new Date()
+      ]
+    );
+    
+    return this.mapChatbotTemplateFromDb(result.rows[0]);
+  }
+  
+  async updateChatbotTemplate(id: number, templateData: Partial<ChatbotTemplate>): Promise<ChatbotTemplate | undefined> {
+    // Build SQL for updating only the fields that were provided
+    const updateFields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+    
+    if (templateData.name !== undefined) {
+      updateFields.push(`name = $${paramIndex++}`);
+      values.push(templateData.name);
+    }
+    
+    if (templateData.content !== undefined) {
+      updateFields.push(`content = $${paramIndex++}`);
+      values.push(templateData.content);
+    }
+    
+    if (templateData.isActive !== undefined) {
+      updateFields.push(`is_active = $${paramIndex++}`);
+      values.push(templateData.isActive);
+    }
+    
+    // Always update the updatedAt field
+    updateFields.push(`updated_at = $${paramIndex++}`);
+    values.push(new Date());
+    
+    // Add the template ID to the WHERE clause
+    values.push(id);
+    
+    if (updateFields.length === 0) return undefined;
+    
+    const result = await pool.query(
+      `UPDATE chatbot_templates SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
+    
+    if (result.rows.length === 0) return undefined;
+    
+    return this.mapChatbotTemplateFromDb(result.rows[0]);
+  }
+  
+  async deleteChatbotTemplate(id: number): Promise<boolean> {
+    const result = await pool.query(
+      `DELETE FROM chatbot_templates WHERE id = $1`,
+      [id]
+    );
+    
+    return result.rowCount > 0;
+  }
+  
+  // ChatBot Training Data Management
+  async getChatbotTrainingData(): Promise<ChatbotTrainingData[]> {
+    const result = await pool.query(`SELECT * FROM chatbot_training_data`);
+    return result.rows.map(row => this.mapChatbotTrainingDataFromDb(row));
+  }
+  
+  async createChatbotTrainingData(data: InsertChatbotTrainingData): Promise<ChatbotTrainingData> {
+    const result = await pool.query(
+      `INSERT INTO chatbot_training_data (
+        intent, utterances, responses, entities, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+      [
+        data.intent,
+        data.utterances,
+        data.responses,
+        data.entities || null,
+        new Date(),
+        new Date()
+      ]
+    );
+    
+    return this.mapChatbotTrainingDataFromDb(result.rows[0]);
+  }
+  
+  async updateChatbotTrainingData(id: number, data: Partial<ChatbotTrainingData>): Promise<ChatbotTrainingData | undefined> {
+    // Build SQL for updating only the fields that were provided
+    const updateFields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+    
+    if (data.intent !== undefined) {
+      updateFields.push(`intent = $${paramIndex++}`);
+      values.push(data.intent);
+    }
+    
+    if (data.utterances !== undefined) {
+      updateFields.push(`utterances = $${paramIndex++}`);
+      values.push(data.utterances);
+    }
+    
+    if (data.responses !== undefined) {
+      updateFields.push(`responses = $${paramIndex++}`);
+      values.push(data.responses);
+    }
+    
+    if (data.entities !== undefined) {
+      updateFields.push(`entities = $${paramIndex++}`);
+      values.push(data.entities);
+    }
+    
+    // Always update the updatedAt field
+    updateFields.push(`updated_at = $${paramIndex++}`);
+    values.push(new Date());
+    
+    // Add the training data ID to the WHERE clause
+    values.push(id);
+    
+    if (updateFields.length === 0) return undefined;
+    
+    const result = await pool.query(
+      `UPDATE chatbot_training_data SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
+    
+    if (result.rows.length === 0) return undefined;
+    
+    return this.mapChatbotTrainingDataFromDb(result.rows[0]);
+  }
+  
+  async deleteChatbotTrainingData(id: number): Promise<boolean> {
+    const result = await pool.query(
+      `DELETE FROM chatbot_training_data WHERE id = $1`,
+      [id]
+    );
+    
+    return result.rowCount > 0;
+  }
+  
+  // WhatsApp User Management
+  async getChatbotUsers(): Promise<WhatsappUser[]> {
+    const result = await pool.query(`SELECT * FROM whatsapp_users`);
+    return result.rows.map(row => this.mapWhatsappUserFromDb(row));
+  }
+  
+  async getChatbotUserByWhatsappNumber(whatsappNumber: string): Promise<WhatsappUser | undefined> {
+    const result = await pool.query(
+      `SELECT * FROM whatsapp_users WHERE whatsapp_number = $1`,
+      [whatsappNumber]
+    );
+    
+    if (result.rows.length === 0) return undefined;
+    
+    return this.mapWhatsappUserFromDb(result.rows[0]);
+  }
+  
+  async linkUserWhatsapp(userId: number, whatsappNumber: string): Promise<WhatsappUser | undefined> {
+    // Check if the user already has a WhatsApp link
+    const existingResult = await pool.query(
+      `SELECT * FROM whatsapp_users WHERE whatsapp_number = $1`,
+      [whatsappNumber]
+    );
+    
+    if (existingResult.rows.length > 0) {
+      // Update the existing record
+      const result = await pool.query(
+        `UPDATE whatsapp_users 
+         SET user_id = $1, is_verified = true, is_opted_in = true, last_interaction_at = $2, updated_at = $3
+         WHERE whatsapp_number = $4
+         RETURNING *`,
+        [userId, new Date(), new Date(), whatsappNumber]
+      );
+      
+      return this.mapWhatsappUserFromDb(result.rows[0]);
+    } else {
+      // Create a new record
+      const result = await pool.query(
+        `INSERT INTO whatsapp_users (
+          user_id, whatsapp_number, is_verified, is_opted_in, last_interaction_at, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *`,
+        [
+          userId,
+          whatsappNumber,
+          true, // is_verified
+          true, // is_opted_in
+          new Date(), // last_interaction_at
+          new Date(), // created_at
+          new Date() // updated_at
+        ]
+      );
+      
+      return this.mapWhatsappUserFromDb(result.rows[0]);
+    }
+  }
+  
+  async optOutUserWhatsapp(userId: number): Promise<WhatsappUser | undefined> {
+    const result = await pool.query(
+      `UPDATE whatsapp_users 
+       SET is_opted_in = false, updated_at = $1
+       WHERE user_id = $2
+       RETURNING *`,
+      [new Date(), userId]
+    );
+    
+    if (result.rows.length === 0) return undefined;
+    
+    return this.mapWhatsappUserFromDb(result.rows[0]);
+  }
+  
+  // WhatsApp Conversation Management
+  async getChatbotConversations(): Promise<WhatsappConversation[]> {
+    const result = await pool.query(`SELECT * FROM whatsapp_conversations`);
+    return result.rows.map(row => this.mapWhatsappConversationFromDb(row));
+  }
+  
+  async getChatbotConversation(id: number): Promise<WhatsappConversation | undefined> {
+    const result = await pool.query(
+      `SELECT * FROM whatsapp_conversations WHERE id = $1`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) return undefined;
+    
+    return this.mapWhatsappConversationFromDb(result.rows[0]);
+  }
+  
+  async createChatbotConversation(data: InsertWhatsappConversation): Promise<WhatsappConversation> {
+    const result = await pool.query(
+      `INSERT INTO whatsapp_conversations (
+        user_id, whatsapp_number, is_active, last_message_at, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+      [
+        data.userId,
+        data.whatsappNumber,
+        true, // is_active
+        new Date(), // last_message_at
+        new Date(), // created_at
+        new Date() // updated_at
+      ]
+    );
+    
+    return this.mapWhatsappConversationFromDb(result.rows[0]);
+  }
+  
+  async updateChatbotConversationStatus(id: number, status: 'active' | 'closed'): Promise<WhatsappConversation | undefined> {
+    const result = await pool.query(
+      `UPDATE whatsapp_conversations 
+       SET is_active = $1, updated_at = $2
+       WHERE id = $3
+       RETURNING *`,
+      [status === 'active', new Date(), id]
+    );
+    
+    if (result.rows.length === 0) return undefined;
+    
+    return this.mapWhatsappConversationFromDb(result.rows[0]);
+  }
+  
+  // WhatsApp Message Management
+  async getChatbotMessages(conversationId: number): Promise<WhatsappMessage[]> {
+    const result = await pool.query(
+      `SELECT * FROM whatsapp_messages 
+       WHERE conversation_id = $1
+       ORDER BY created_at ASC`,
+      [conversationId]
+    );
+    
+    return result.rows.map(row => this.mapWhatsappMessageFromDb(row));
+  }
+  
+  async addChatbotMessage(messageData: InsertWhatsappMessage): Promise<WhatsappMessage> {
+    const result = await pool.query(
+      `INSERT INTO whatsapp_messages (
+        conversation_id, content, direction, is_delivered, is_read, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+      [
+        messageData.conversationId,
+        messageData.content,
+        messageData.direction,
+        messageData.direction === 'outbound', // is_delivered
+        false, // is_read
+        new Date() // created_at
+      ]
+    );
+    
+    // Update the conversation's lastMessageAt timestamp
+    await pool.query(
+      `UPDATE whatsapp_conversations 
+       SET last_message_at = $1, updated_at = $2
+       WHERE id = $3`,
+      [new Date(), new Date(), messageData.conversationId]
+    );
+    
+    return this.mapWhatsappMessageFromDb(result.rows[0]);
+  }
+  
+  // Mappers for chatbot-related entities
+  private mapChatbotTemplateFromDb(row: any): ChatbotTemplate {
+    return {
+      id: row.id,
+      name: row.name,
+      content: row.content,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+  
+  private mapChatbotTrainingDataFromDb(row: any): ChatbotTrainingData {
+    return {
+      id: row.id,
+      intent: row.intent,
+      utterances: row.utterances,
+      responses: row.responses,
+      entities: row.entities,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+  
+  private mapWhatsappUserFromDb(row: any): WhatsappUser {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      whatsappNumber: row.whatsapp_number,
+      isVerified: row.is_verified,
+      isOptedIn: row.is_opted_in,
+      lastInteractionAt: row.last_interaction_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+  
+  private mapWhatsappConversationFromDb(row: any): WhatsappConversation {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      whatsappNumber: row.whatsapp_number,
+      isActive: row.is_active,
+      lastMessageAt: row.last_message_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+  
+  private mapWhatsappMessageFromDb(row: any): WhatsappMessage {
+    return {
+      id: row.id,
+      conversationId: row.conversation_id,
+      content: row.content,
+      direction: row.direction,
+      isDelivered: row.is_delivered,
       isRead: row.is_read,
       createdAt: row.created_at
     };

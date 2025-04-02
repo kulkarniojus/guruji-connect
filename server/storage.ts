@@ -4,7 +4,12 @@ import {
   payments, Payment, InsertPayment, reviews, Review, InsertReview,
   gurujiProfiles, GurujiProfile, InsertGurujiProfile,
   notifications, Notification, InsertNotification,
-  contents, promotionCodes
+  contents, promotionCodes,
+  chatbotTemplates, ChatbotTemplate, InsertChatbotTemplate,
+  chatbotTrainingData, ChatbotTrainingData, InsertChatbotTrainingData,
+  whatsappUsers, WhatsappUser, InsertWhatsappUser,
+  whatsappConversations, WhatsappConversation, InsertWhatsappConversation,
+  whatsappMessages, WhatsappMessage, InsertWhatsappMessage
 } from "@shared/schema";
 import { eq, and, like, or, lt, gt, gte, desc, inArray } from "drizzle-orm";
 import { genSalt, hash, compare } from "bcrypt";
@@ -20,6 +25,7 @@ export interface IStorage {
   unblockUser(id: number): Promise<boolean>;
   verifyPassword(userId: number, password: string): Promise<boolean>;
   changePassword(userId: number, newPassword: string): Promise<boolean>;
+  getAllUsers(): Promise<User[]>; // For analytics
 
   // OTP Management
   createOtp(otp: InsertOtp): Promise<Otp>;
@@ -41,6 +47,7 @@ export interface IStorage {
   createGurujiProfile(profile: InsertGurujiProfile): Promise<GurujiProfile>;
   updateGurujiProfile(id: number, profile: Partial<GurujiProfile>): Promise<GurujiProfile | undefined>;
   getNearbyGurujis(city: string, pujaId?: number, radius?: number): Promise<GurujiProfile[]>;
+  getAllGurujiProfiles(): Promise<GurujiProfile[]>; // For analytics
 
   // Booking Management
   getBooking(id: number): Promise<Booking | undefined>;
@@ -49,27 +56,59 @@ export interface IStorage {
   createBooking(booking: InsertBooking): Promise<Booking>;
   updateBookingStatus(id: number, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'): Promise<Booking | undefined>;
   assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined>;
+  getAllBookings(): Promise<Booking[]>; // For analytics
 
   // Payment Management
   getPayment(id: number): Promise<Payment | undefined>;
   getPaymentsByBookingId(bookingId: number): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
   updatePaymentStatus(id: number, status: 'unpaid' | 'partial' | 'paid' | 'refunded'): Promise<Payment | undefined>;
+  getAllPayments(): Promise<Payment[]>; // For analytics
 
   // Review Management
   getReview(id: number): Promise<Review | undefined>;
   getReviewsByGurujiId(gurujiId: number): Promise<Review[]>;
   createReview(review: InsertReview): Promise<Review>;
+  getAllReviews(): Promise<Review[]>; // For analytics
 
   // Notification Management
   getNotifications(userId: number): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: number): Promise<boolean>;
   deleteNotification(id: number): Promise<boolean>;
+  getAllNotifications(): Promise<Notification[]>; // For analytics
 
   // Content Management
   getContent(key: string): Promise<any | undefined>;
   updateContent(key: string, title: string, content: string): Promise<any | undefined>;
+  
+  // ChatBot Management
+  getChatbotTemplates(): Promise<ChatbotTemplate[]>;
+  createChatbotTemplate(template: InsertChatbotTemplate): Promise<ChatbotTemplate>;
+  updateChatbotTemplate(id: number, template: Partial<ChatbotTemplate>): Promise<ChatbotTemplate | undefined>;
+  deleteChatbotTemplate(id: number): Promise<boolean>;
+  
+  // ChatBot Training Data
+  getChatbotTrainingData(): Promise<ChatbotTrainingData[]>;
+  createChatbotTrainingData(data: InsertChatbotTrainingData): Promise<ChatbotTrainingData>;
+  updateChatbotTrainingData(id: number, data: Partial<ChatbotTrainingData>): Promise<ChatbotTrainingData | undefined>;
+  deleteChatbotTrainingData(id: number): Promise<boolean>;
+  
+  // WhatsApp User Management
+  getChatbotUsers(): Promise<WhatsappUser[]>;
+  getChatbotUserByWhatsappNumber(whatsappNumber: string): Promise<WhatsappUser | undefined>;
+  linkUserWhatsapp(userId: number, whatsappNumber: string): Promise<WhatsappUser | undefined>;
+  optOutUserWhatsapp(userId: number): Promise<WhatsappUser | undefined>;
+  
+  // WhatsApp Conversation Management
+  getChatbotConversations(): Promise<WhatsappConversation[]>;
+  getChatbotConversation(id: number): Promise<WhatsappConversation | undefined>;
+  createChatbotConversation(data: InsertWhatsappConversation): Promise<WhatsappConversation>;
+  updateChatbotConversationStatus(id: number, status: 'active' | 'closed'): Promise<WhatsappConversation | undefined>;
+  
+  // WhatsApp Message Management
+  getChatbotMessages(conversationId: number): Promise<WhatsappMessage[]>;
+  addChatbotMessage(message: InsertWhatsappMessage): Promise<WhatsappMessage>;
 }
 
 export class MemStorage implements IStorage {
@@ -82,6 +121,11 @@ export class MemStorage implements IStorage {
   private reviews: Map<number, Review>;
   private notifications: Map<number, Notification>;
   private contents: Map<string, any>; // For configurable content like T&C
+  private chatbotTemplates: Map<number, ChatbotTemplate>;
+  private chatbotTrainingData: Map<number, ChatbotTrainingData>;
+  private whatsappUsers: Map<number, WhatsappUser>;
+  private whatsappConversations: Map<number, WhatsappConversation>;
+  private whatsappMessages: Map<number, WhatsappMessage>;
   private userIdCounter: number;
   private otpIdCounter: number;
   private pujaIdCounter: number;
@@ -90,6 +134,11 @@ export class MemStorage implements IStorage {
   private paymentIdCounter: number;
   private reviewIdCounter: number;
   private notificationIdCounter: number;
+  private chatbotTemplateIdCounter: number;
+  private chatbotTrainingDataIdCounter: number;
+  private whatsappUserIdCounter: number;
+  private whatsappConversationIdCounter: number;
+  private whatsappMessageIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -101,6 +150,11 @@ export class MemStorage implements IStorage {
     this.reviews = new Map();
     this.notifications = new Map();
     this.contents = new Map();
+    this.chatbotTemplates = new Map();
+    this.chatbotTrainingData = new Map();
+    this.whatsappUsers = new Map();
+    this.whatsappConversations = new Map();
+    this.whatsappMessages = new Map();
     this.userIdCounter = 1;
     this.otpIdCounter = 1;
     this.pujaIdCounter = 1;
@@ -109,6 +163,11 @@ export class MemStorage implements IStorage {
     this.paymentIdCounter = 1;
     this.reviewIdCounter = 1;
     this.notificationIdCounter = 1;
+    this.chatbotTemplateIdCounter = 1;
+    this.chatbotTrainingDataIdCounter = 1;
+    this.whatsappUserIdCounter = 1;
+    this.whatsappConversationIdCounter = 1;
+    this.whatsappMessageIdCounter = 1;
 
     // Initialize with some default content
     this.contents.set('customer_terms', {
@@ -266,6 +325,10 @@ export class MemStorage implements IStorage {
     user.updatedAt = new Date();
     this.users.set(userId, user);
     return true;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
   }
 
   async createOtp(otpData: InsertOtp): Promise<Otp> {
@@ -566,6 +629,195 @@ export class MemStorage implements IStorage {
     
     this.contents.set(key, updatedContent);
     return updatedContent;
+  }
+
+  // ChatBot Template Management
+  async getChatbotTemplates(): Promise<ChatbotTemplate[]> {
+    return Array.from(this.chatbotTemplates.values());
+  }
+
+  async createChatbotTemplate(templateData: InsertChatbotTemplate): Promise<ChatbotTemplate> {
+    const template: ChatbotTemplate = {
+      ...templateData,
+      id: this.chatbotTemplateIdCounter++,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.chatbotTemplates.set(template.id, template);
+    return template;
+  }
+
+  async updateChatbotTemplate(id: number, templateData: Partial<ChatbotTemplate>): Promise<ChatbotTemplate | undefined> {
+    const template = this.chatbotTemplates.get(id);
+    if (!template) return undefined;
+
+    const updatedTemplate = { ...template, ...templateData, updatedAt: new Date() };
+    this.chatbotTemplates.set(id, updatedTemplate);
+    return updatedTemplate;
+  }
+
+  async deleteChatbotTemplate(id: number): Promise<boolean> {
+    return this.chatbotTemplates.delete(id);
+  }
+
+  // ChatBot Training Data Management
+  async getChatbotTrainingData(): Promise<ChatbotTrainingData[]> {
+    return Array.from(this.chatbotTrainingData.values());
+  }
+
+  async createChatbotTrainingData(data: InsertChatbotTrainingData): Promise<ChatbotTrainingData> {
+    const trainingData: ChatbotTrainingData = {
+      ...data,
+      id: this.chatbotTrainingDataIdCounter++,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.chatbotTrainingData.set(trainingData.id, trainingData);
+    return trainingData;
+  }
+
+  async updateChatbotTrainingData(id: number, data: Partial<ChatbotTrainingData>): Promise<ChatbotTrainingData | undefined> {
+    const trainingData = this.chatbotTrainingData.get(id);
+    if (!trainingData) return undefined;
+
+    const updatedTrainingData = { ...trainingData, ...data, updatedAt: new Date() };
+    this.chatbotTrainingData.set(id, updatedTrainingData);
+    return updatedTrainingData;
+  }
+
+  async deleteChatbotTrainingData(id: number): Promise<boolean> {
+    return this.chatbotTrainingData.delete(id);
+  }
+
+  // WhatsApp User Management
+  async getChatbotUsers(): Promise<WhatsappUser[]> {
+    return Array.from(this.whatsappUsers.values());
+  }
+
+  async getChatbotUserByWhatsappNumber(whatsappNumber: string): Promise<WhatsappUser | undefined> {
+    return Array.from(this.whatsappUsers.values()).find(
+      (user) => user.whatsappNumber === whatsappNumber
+    );
+  }
+
+  async linkUserWhatsapp(userId: number, whatsappNumber: string): Promise<WhatsappUser | undefined> {
+    const existingUser = await this.getChatbotUserByWhatsappNumber(whatsappNumber);
+    
+    if (existingUser) {
+      // Update the existing user
+      const updatedUser: WhatsappUser = {
+        ...existingUser,
+        userId,
+        isVerified: true,
+        isOptedIn: true,
+        lastInteractionAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      this.whatsappUsers.set(existingUser.id, updatedUser);
+      return updatedUser;
+    } else {
+      // Create a new WhatsApp user
+      const newUser: WhatsappUser = {
+        id: this.whatsappUserIdCounter++,
+        userId,
+        whatsappNumber,
+        isVerified: true,
+        isOptedIn: true,
+        lastInteractionAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      this.whatsappUsers.set(newUser.id, newUser);
+      return newUser;
+    }
+  }
+
+  async optOutUserWhatsapp(userId: number): Promise<WhatsappUser | undefined> {
+    const whatsappUser = Array.from(this.whatsappUsers.values()).find(
+      (user) => user.userId === userId
+    );
+    
+    if (!whatsappUser) return undefined;
+    
+    const updatedUser: WhatsappUser = {
+      ...whatsappUser,
+      isOptedIn: false,
+      updatedAt: new Date(),
+    };
+    
+    this.whatsappUsers.set(whatsappUser.id, updatedUser);
+    return updatedUser;
+  }
+
+  // WhatsApp Conversation Management
+  async getChatbotConversations(): Promise<WhatsappConversation[]> {
+    return Array.from(this.whatsappConversations.values());
+  }
+
+  async getChatbotConversation(id: number): Promise<WhatsappConversation | undefined> {
+    return this.whatsappConversations.get(id);
+  }
+
+  async createChatbotConversation(data: InsertWhatsappConversation): Promise<WhatsappConversation> {
+    const conversation: WhatsappConversation = {
+      ...data,
+      id: this.whatsappConversationIdCounter++,
+      isActive: true,
+      lastMessageAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.whatsappConversations.set(conversation.id, conversation);
+    return conversation;
+  }
+
+  async updateChatbotConversationStatus(id: number, status: 'active' | 'closed'): Promise<WhatsappConversation | undefined> {
+    const conversation = this.whatsappConversations.get(id);
+    if (!conversation) return undefined;
+
+    const updatedConversation: WhatsappConversation = {
+      ...conversation,
+      isActive: status === 'active',
+      updatedAt: new Date(),
+    };
+
+    this.whatsappConversations.set(id, updatedConversation);
+    return updatedConversation;
+  }
+
+  // WhatsApp Message Management
+  async getChatbotMessages(conversationId: number): Promise<WhatsappMessage[]> {
+    return Array.from(this.whatsappMessages.values())
+      .filter(message => message.conversationId === conversationId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async addChatbotMessage(messageData: InsertWhatsappMessage): Promise<WhatsappMessage> {
+    const message: WhatsappMessage = {
+      ...messageData,
+      id: this.whatsappMessageIdCounter++,
+      isDelivered: messageData.direction === 'outbound', // Mark outbound messages as delivered
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    this.whatsappMessages.set(message.id, message);
+    
+    // Update the conversation's lastMessageAt timestamp
+    const conversation = this.whatsappConversations.get(message.conversationId);
+    if (conversation) {
+      conversation.lastMessageAt = new Date();
+      conversation.updatedAt = new Date();
+      this.whatsappConversations.set(conversation.id, conversation);
+    }
+    
+    return message;
   }
 }
 

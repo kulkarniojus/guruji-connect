@@ -1,927 +1,1213 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+import React, { useState, useEffect } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from '@/components/ui/tabs';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from '@/components/ui/dialog';
+import { 
+  Form, 
+  FormControl, 
+  FormDescription, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from '@/components/ui/form';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { Loader2, Save, PlusCircle, Trash, Edit, RefreshCw } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Loader2, MessageSquare, BookText, Send, Trash2, Edit, Plus, RotateCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 
-const INTENT_TYPES = [
-  'greeting',
-  'booking_inquiry',
-  'puja_information',
-  'guruji_availability',
-  'payment_issue',
-  'cancel_booking',
-  'reschedule_booking',
-  'general_inquiry',
-  'technical_support',
-  'other'
-];
-
-type Template = {
+// Define TypeScript interfaces for our data
+interface Template {
   id: number;
   name: string;
-  description: string;
   content: string;
-  intent: string;
-  variables: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-};
+}
 
-type TrainingData = {
+interface TrainingData {
   id: number;
-  text: string;
   intent: string;
-  entities: Record<string, any>;
+  utterances: string[];
+  responses: string[];
+  entities?: {
+    [key: string]: string[];
+  };
   createdAt: string;
   updatedAt: string;
-};
+}
 
-type Conversation = {
+interface Conversation {
   id: number;
-  whatsappUserId: number;
-  whatsappUser: {
+  userId: number;
+  whatsappNumber: string;
+  status: 'active' | 'closed';
+  messages: {
     id: number;
-    whatsappNumber: string;
-    userId: number | null;
-    user: { firstName: string; lastName: string } | null;
-  };
-  isActive: boolean;
-  lastMessageAt: string;
-  messages: Message[];
-};
-
-type Message = {
-  id: number;
-  direction: 'inbound' | 'outbound';
-  messageContent: string;
-  mediaUrl: string | null;
-  intent: string | null;
+    text: string;
+    fromUser: boolean;
+    timestamp: string;
+  }[];
   createdAt: string;
-};
+  updatedAt: string;
+}
 
-export default function ChatbotDashboard() {
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  mobile: string;
+  whatsappOptIn: boolean;
+  whatsappLinked: boolean;
+}
+
+// Form schemas
+const templateSchema = z.object({
+  name: z.string().min(3, "Name must be at least 3 characters"),
+  content: z.string().min(10, "Content must be at least 10 characters"),
+  isActive: z.boolean().default(true)
+});
+
+const trainingDataSchema = z.object({
+  intent: z.string().min(2, "Intent must be at least 2 characters"),
+  utterances: z.string().min(5, "Utterances must be at least 5 characters"),
+  responses: z.string().min(5, "Responses must be at least 5 characters"),
+  entities: z.string().optional()
+});
+
+const ChatbotDashboard: React.FC = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('conversations');
-
-  return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">WhatsApp ChatBot Management</h1>
-      
-      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 mb-8">
-          <TabsTrigger value="conversations">
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Conversations
-          </TabsTrigger>
-          <TabsTrigger value="templates">
-            <BookText className="mr-2 h-4 w-4" />
-            Message Templates
-          </TabsTrigger>
-          <TabsTrigger value="training">
-            <RotateCw className="mr-2 h-4 w-4" />
-            Training Data
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="conversations" className="space-y-4">
-          <ConversationsTab />
-        </TabsContent>
-        
-        <TabsContent value="templates" className="space-y-4">
-          <TemplatesTab />
-        </TabsContent>
-        
-        <TabsContent value="training" className="space-y-4">
-          <TrainingDataTab />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-function ConversationsTab() {
-  const { data: conversations, isLoading } = useQuery({
-    queryKey: ['/api/chatbot/conversations'],
-    retry: false
-  });
-
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("templates");
+  
+  // Template state
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  
+  // Training data state
+  const [isTrainingDialogOpen, setIsTrainingDialogOpen] = useState(false);
+  const [selectedTrainingData, setSelectedTrainingData] = useState<TrainingData | null>(null);
+  
+  // Conversation state
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
-  const [replyText, setReplyText] = useState('');
-
-  const sendReplyMutation = useMutation({
-    mutationFn: async ({ conversationId, message }: { conversationId: number, message: string }) => {
-      const response = await apiRequest('POST', `/api/chatbot/conversations/${conversationId}/reply`, { message });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({ title: 'Message sent successfully' });
-      setReplyText('');
-      queryClient.invalidateQueries({ queryKey: ['/api/chatbot/conversations'] });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to send message', 
-        description: error.message,
-        variant: 'destructive'
-      });
+  const [replyText, setReplyText] = useState("");
+  
+  // Forms setup
+  const templateForm = useForm<z.infer<typeof templateSchema>>({
+    resolver: zodResolver(templateSchema),
+    defaultValues: {
+      name: "",
+      content: "",
+      isActive: true
     }
   });
-
-  const handleSendReply = (conversationId: number) => {
-    if (!replyText.trim()) return;
-    sendReplyMutation.mutate({ conversationId, message: replyText });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!conversations || conversations.length === 0) {
-    return (
-      <Card>
-        <CardContent className="pt-6 text-center">
-          <p className="text-muted-foreground">No WhatsApp conversations found.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-240px)]">
-      {/* Conversations List */}
-      <div className="col-span-1 border rounded-lg overflow-auto">
-        <div className="p-3 border-b bg-muted font-medium">Recent Conversations</div>
-        <div className="divide-y">
-          {conversations.map((convo: Conversation) => (
-            <div
-              key={convo.id}
-              className={`p-3 cursor-pointer hover:bg-muted transition-colors ${
-                selectedConversation === convo.id ? 'bg-muted' : ''
-              }`}
-              onClick={() => setSelectedConversation(convo.id)}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium">
-                    {convo.whatsappUser.user 
-                      ? `${convo.whatsappUser.user.firstName} ${convo.whatsappUser.user.lastName}`
-                      : convo.whatsappUser.whatsappNumber}
-                  </h3>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {convo.messages && convo.messages.length > 0 
-                      ? convo.messages[0].messageContent 
-                      : 'No messages'}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(convo.lastMessageAt).toLocaleDateString()}
-                  </span>
-                  {convo.isActive && (
-                    <Badge variant="outline" className="mt-1">Active</Badge>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Message View */}
-      <div className="col-span-2 border rounded-lg flex flex-col">
-        {selectedConversation ? (
-          <>
-            <div className="p-3 border-b bg-muted font-medium">
-              {conversations.find((c: Conversation) => c.id === selectedConversation)?.whatsappUser.whatsappNumber}
-            </div>
-            
-            <div className="flex-1 overflow-auto p-4 space-y-4">
-              {conversations
-                .find((c: Conversation) => c.id === selectedConversation)
-                ?.messages.map((msg: Message) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${
-                      msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-lg p-3 ${
-                        msg.direction === 'outbound'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      }`}
-                    >
-                      <p>{msg.messageContent}</p>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-xs opacity-70">
-                          {new Date(msg.createdAt).toLocaleTimeString()}
-                        </span>
-                        {msg.intent && (
-                          <Badge
-                            variant={msg.direction === 'outbound' ? 'outline' : 'secondary'}
-                            className="text-xs ml-2"
-                          >
-                            {msg.intent}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-            
-            <div className="p-3 border-t">
-              <div className="flex space-x-2">
-                <Input
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendReply(selectedConversation);
-                    }
-                  }}
-                />
-                <Button
-                  onClick={() => handleSendReply(selectedConversation)}
-                  disabled={sendReplyMutation.isPending}
-                >
-                  {sendReplyMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Select a conversation to view messages
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TemplatesTab() {
-  const { data: templates, isLoading } = useQuery({
+  
+  const trainingForm = useForm<z.infer<typeof trainingDataSchema>>({
+    resolver: zodResolver(trainingDataSchema),
+    defaultValues: {
+      intent: "",
+      utterances: "",
+      responses: "",
+      entities: ""
+    }
+  });
+  
+  // Queries
+  const { 
+    data: templates, 
+    isLoading: isLoadingTemplates
+  } = useQuery<Template[]>({
     queryKey: ['/api/chatbot/templates'],
-    retry: false
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/chatbot/templates');
+      return response.json();
+    }
   });
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<Partial<Template> | null>(null);
-
+  
+  const { 
+    data: trainingData, 
+    isLoading: isLoadingTrainingData
+  } = useQuery<TrainingData[]>({
+    queryKey: ['/api/chatbot/training-data'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/chatbot/training-data');
+      return response.json();
+    }
+  });
+  
+  const { 
+    data: conversations, 
+    isLoading: isLoadingConversations
+  } = useQuery<Conversation[]>({
+    queryKey: ['/api/chatbot/conversations'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/chatbot/conversations');
+      return response.json();
+    }
+  });
+  
+  const { 
+    data: selectedConversationData,
+    isLoading: isLoadingConversationData,
+    refetch: refetchConversation
+  } = useQuery<Conversation>({
+    queryKey: ['/api/chatbot/conversations', selectedConversation],
+    queryFn: async () => {
+      if (!selectedConversation) throw new Error("No conversation selected");
+      const response = await apiRequest('GET', `/api/chatbot/conversations/${selectedConversation}`);
+      return response.json();
+    },
+    enabled: !!selectedConversation
+  });
+  
+  const { 
+    data: chatbotUsers, 
+    isLoading: isLoadingUsers
+  } = useQuery<User[]>({
+    queryKey: ['/api/chatbot/users'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/chatbot/users');
+      return response.json();
+    }
+  });
+  
+  // Mutations
   const createTemplateMutation = useMutation({
-    mutationFn: async (template: Omit<Template, 'id' | 'createdAt' | 'updatedAt'>) => {
-      const response = await apiRequest('POST', '/api/chatbot/templates', template);
+    mutationFn: async (templateData: z.infer<typeof templateSchema>) => {
+      const response = await apiRequest('POST', '/api/chatbot/templates', templateData);
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Template created successfully' });
-      setIsEditing(false);
-      setEditingTemplate(null);
       queryClient.invalidateQueries({ queryKey: ['/api/chatbot/templates'] });
+      toast({
+        title: "Template created",
+        description: "The template has been created successfully"
+      });
+      templateForm.reset();
+      setIsTemplateDialogOpen(false);
     },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to create template', 
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating template",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive"
       });
     }
   });
-
+  
   const updateTemplateMutation = useMutation({
-    mutationFn: async (template: Partial<Template> & { id: number }) => {
-      const response = await apiRequest('PUT', `/api/chatbot/templates/${template.id}`, template);
+    mutationFn: async ({ id, data }: { id: number, data: z.infer<typeof templateSchema> }) => {
+      const response = await apiRequest('PUT', `/api/chatbot/templates/${id}`, data);
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Template updated successfully' });
-      setIsEditing(false);
-      setEditingTemplate(null);
       queryClient.invalidateQueries({ queryKey: ['/api/chatbot/templates'] });
+      toast({
+        title: "Template updated",
+        description: "The template has been updated successfully"
+      });
+      templateForm.reset();
+      setIsTemplateDialogOpen(false);
+      setSelectedTemplate(null);
     },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to update template', 
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating template",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive"
       });
     }
   });
-
+  
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await apiRequest('DELETE', `/api/chatbot/templates/${id}`);
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Template deleted successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/chatbot/templates'] });
+      toast({
+        title: "Template deleted",
+        description: "The template has been deleted successfully"
+      });
     },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to delete template', 
+    onError: (error: Error) => {
+      toast({
+        title: "Error deleting template",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive"
       });
     }
   });
-
-  const toggleTemplateStatusMutation = useMutation({
-    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
-      const response = await apiRequest('PUT', `/api/chatbot/templates/${id}`, { isActive });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/chatbot/templates'] });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to update template status', 
-        description: error.message,
-        variant: 'destructive'
-      });
-    }
-  });
-
-  const handleSaveTemplate = () => {
-    if (!editingTemplate) return;
-    
-    // Split variables by comma and trim
-    const variables = editingTemplate.variables 
-      ? (typeof editingTemplate.variables === 'string' 
-          ? editingTemplate.variables.split(',').map(v => v.trim())
-          : editingTemplate.variables)
-      : [];
-    
-    const templateData = {
-      ...editingTemplate,
-      variables
-    };
-    
-    if (editingTemplate.id) {
-      updateTemplateMutation.mutate(templateData as Template);
-    } else {
-      createTemplateMutation.mutate(templateData as Omit<Template, 'id' | 'createdAt' | 'updatedAt'>);
-    }
-  };
-
-  const handleDeleteTemplate = (id: number) => {
-    if (confirm('Are you sure you want to delete this template?')) {
-      deleteTemplateMutation.mutate(id);
-    }
-  };
-
-  const handleEditTemplate = (template: Template) => {
-    setEditingTemplate({
-      ...template,
-      variables: template.variables.join(', ')
-    });
-    setIsEditing(true);
-  };
-
-  const handleToggleStatus = (id: number, currentStatus: boolean) => {
-    toggleTemplateStatusMutation.mutate({
-      id,
-      isActive: !currentStatus
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Message Templates</h2>
-        {!isEditing && (
-          <Button onClick={() => {
-            setEditingTemplate({
-              name: '',
-              description: '',
-              content: '',
-              intent: 'greeting',
-              variables: '',
-              isActive: true
-            });
-            setIsEditing(true);
-          }}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Template
-          </Button>
-        )}
-      </div>
-
-      {isEditing ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingTemplate?.id ? 'Edit Template' : 'Create Template'}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Template Name</Label>
-                <Input
-                  id="name"
-                  value={editingTemplate?.name || ''}
-                  onChange={(e) => setEditingTemplate({ ...editingTemplate!, name: e.target.value })}
-                  placeholder="e.g., booking_confirmation"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="intent">Intent</Label>
-                <Select
-                  value={editingTemplate?.intent || 'greeting'}
-                  onValueChange={(value) => setEditingTemplate({ ...editingTemplate!, intent: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select intent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INTENT_TYPES.map((intent) => (
-                      <SelectItem key={intent} value={intent}>
-                        {intent.replace('_', ' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                value={editingTemplate?.description || ''}
-                onChange={(e) => setEditingTemplate({ ...editingTemplate!, description: e.target.value })}
-                placeholder="Short description of when this template is used"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="content">Message Content</Label>
-              <Textarea
-                id="content"
-                value={editingTemplate?.content || ''}
-                onChange={(e) => setEditingTemplate({ ...editingTemplate!, content: e.target.value })}
-                placeholder="Hello {firstName}, thank you for your inquiry about {pujaName}..."
-                rows={5}
-              />
-              <p className="text-xs text-muted-foreground">
-                Use {'{variable}'} placeholders for dynamic content
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="variables">Variables (comma separated)</Label>
-              <Input
-                id="variables"
-                value={editingTemplate?.variables || ''}
-                onChange={(e) => setEditingTemplate({ ...editingTemplate!, variables: e.target.value })}
-                placeholder="firstName, lastName, pujaName"
-              />
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isActive"
-                checked={editingTemplate?.isActive}
-                onCheckedChange={(checked) => setEditingTemplate({ ...editingTemplate!, isActive: checked })}
-              />
-              <Label htmlFor="isActive">Active</Label>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={() => {
-              setIsEditing(false);
-              setEditingTemplate(null);
-            }}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSaveTemplate}
-              disabled={
-                createTemplateMutation.isPending || 
-                updateTemplateMutation.isPending ||
-                !editingTemplate?.name ||
-                !editingTemplate?.content
-              }
-            >
-              {(createTemplateMutation.isPending || updateTemplateMutation.isPending) ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Save Template
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {templates && templates.length > 0 ? (
-            templates.map((template: Template) => (
-              <Card key={template.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{template.name}</CardTitle>
-                      <CardDescription>{template.description}</CardDescription>
-                    </div>
-                    <Badge variant={template.isActive ? 'default' : 'outline'}>
-                      {template.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pb-2">
-                  <div className="bg-muted rounded-md p-3 text-sm">
-                    <p>{template.content}</p>
-                  </div>
-                  <div className="mt-3">
-                    <h4 className="text-sm font-medium">Variables:</h4>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {template.variables.map((variable) => (
-                        <Badge key={variable} variant="outline">{variable}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <Badge variant="secondary">{template.intent}</Badge>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <div className="flex items-center">
-                    <Switch
-                      id={`template-status-${template.id}`}
-                      checked={template.isActive}
-                      onCheckedChange={() => handleToggleStatus(template.id, template.isActive)}
-                    />
-                    <Label htmlFor={`template-status-${template.id}`} className="ml-2">
-                      {template.isActive ? 'Active' : 'Inactive'}
-                    </Label>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleEditTemplate(template)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleDeleteTemplate(template.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardFooter>
-              </Card>
-            ))
-          ) : (
-            <div className="col-span-2 text-center p-8 border rounded-lg">
-              <p className="text-muted-foreground">No templates found. Create one to get started.</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TrainingDataTab() {
-  const { data: trainingData, isLoading } = useQuery({
-    queryKey: ['/api/chatbot/training-data'],
-    retry: false
-  });
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingData, setEditingData] = useState<Partial<TrainingData> | null>(null);
-
+  
   const createTrainingDataMutation = useMutation({
-    mutationFn: async (data: Omit<TrainingData, 'id' | 'createdAt' | 'updatedAt'>) => {
-      const response = await apiRequest('POST', '/api/chatbot/training-data', data);
+    mutationFn: async (trainingData: z.infer<typeof trainingDataSchema>) => {
+      // Transform string data to arrays
+      const formattedData = {
+        intent: trainingData.intent,
+        utterances: trainingData.utterances.split('\n').map(v => v.trim()).filter(v => v),
+        responses: trainingData.responses.split('\n').map(v => v.trim()).filter(v => v),
+        entities: trainingData.entities 
+          ? JSON.parse(trainingData.entities)
+          : {}
+      };
+      
+      const response = await apiRequest('POST', '/api/chatbot/training-data', formattedData);
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Training data added successfully' });
-      setIsEditing(false);
-      setEditingData(null);
       queryClient.invalidateQueries({ queryKey: ['/api/chatbot/training-data'] });
+      toast({
+        title: "Training data created",
+        description: "The training data has been created successfully"
+      });
+      trainingForm.reset();
+      setIsTrainingDialogOpen(false);
     },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to add training data', 
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating training data",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive"
       });
     }
   });
-
+  
   const updateTrainingDataMutation = useMutation({
-    mutationFn: async (data: Partial<TrainingData> & { id: number }) => {
-      const response = await apiRequest('PUT', `/api/chatbot/training-data/${data.id}`, data);
+    mutationFn: async ({ id, data }: { id: number, data: z.infer<typeof trainingDataSchema> }) => {
+      // Transform string data to arrays
+      const formattedData = {
+        intent: data.intent,
+        utterances: data.utterances.split('\n').map(v => v.trim()).filter(v => v),
+        responses: data.responses.split('\n').map(v => v.trim()).filter(v => v),
+        entities: data.entities 
+          ? JSON.parse(data.entities)
+          : {}
+      };
+      
+      const response = await apiRequest('PUT', `/api/chatbot/training-data/${id}`, formattedData);
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Training data updated successfully' });
-      setIsEditing(false);
-      setEditingData(null);
       queryClient.invalidateQueries({ queryKey: ['/api/chatbot/training-data'] });
+      toast({
+        title: "Training data updated",
+        description: "The training data has been updated successfully"
+      });
+      trainingForm.reset();
+      setIsTrainingDialogOpen(false);
+      setSelectedTrainingData(null);
     },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to update training data', 
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating training data",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive"
       });
     }
   });
-
+  
   const deleteTrainingDataMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await apiRequest('DELETE', `/api/chatbot/training-data/${id}`);
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Training data deleted successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/chatbot/training-data'] });
+      toast({
+        title: "Training data deleted",
+        description: "The training data has been deleted successfully"
+      });
     },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to delete training data', 
+    onError: (error: Error) => {
+      toast({
+        title: "Error deleting training data",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive"
       });
     }
   });
-
+  
   const trainModelMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('POST', '/api/chatbot/train');
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Model trained successfully' });
+      toast({
+        title: "Model trained",
+        description: "The chatbot model has been trained successfully"
+      });
     },
-    onError: (error: any) => {
-      toast({ 
-        title: 'Failed to train model', 
+    onError: (error: Error) => {
+      toast({
+        title: "Error training model",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive"
       });
     }
   });
-
-  const handleSaveTrainingData = () => {
-    if (!editingData) return;
-    
-    // Parse entities JSON string
-    let parsedEntities = {};
-    if (typeof editingData.entities === 'string') {
-      try {
-        parsedEntities = JSON.parse(editingData.entities || '{}');
-      } catch (error) {
-        toast({ 
-          title: 'Invalid entities JSON', 
-          description: 'Please ensure the entities field contains valid JSON',
-          variant: 'destructive'
-        });
-        return;
-      }
-    } else {
-      parsedEntities = editingData.entities || {};
+  
+  const sendReplyMutation = useMutation({
+    mutationFn: async ({ conversationId, text }: { conversationId: number, text: string }) => {
+      const response = await apiRequest('POST', `/api/chatbot/conversations/${conversationId}/reply`, { text });
+      return response.json();
+    },
+    onSuccess: () => {
+      setReplyText("");
+      refetchConversation();
+      toast({
+        title: "Reply sent",
+        description: "Your reply has been sent successfully"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error sending reply",
+        description: error.message,
+        variant: "destructive"
+      });
     }
-    
-    const trainingDataItem = {
-      ...editingData,
-      entities: parsedEntities
-    };
-    
-    if (editingData.id) {
-      updateTrainingDataMutation.mutate(trainingDataItem as TrainingData);
+  });
+  
+  const updateConversationStatusMutation = useMutation({
+    mutationFn: async ({ conversationId, status }: { conversationId: number, status: 'active' | 'closed' }) => {
+      const response = await apiRequest('PUT', `/api/chatbot/conversations/${conversationId}/status`, { status });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/chatbot/conversations'] });
+      refetchConversation();
+      toast({
+        title: "Status updated",
+        description: "The conversation status has been updated successfully"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating status",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  const linkWhatsappMutation = useMutation({
+    mutationFn: async ({ userId, whatsappNumber }: { userId: number, whatsappNumber: string }) => {
+      const response = await apiRequest('PUT', `/api/chatbot/users/${userId}/link`, { whatsappNumber });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/chatbot/users'] });
+      toast({
+        title: "WhatsApp linked",
+        description: "The WhatsApp number has been linked successfully"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error linking WhatsApp",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  const optOutWhatsappMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest('PUT', `/api/chatbot/users/${userId}/opt-out`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/chatbot/users'] });
+      toast({
+        title: "Opt-out successful",
+        description: "User has been opted out from WhatsApp messages"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error opting out",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Handle form submissions
+  const handleTemplateSubmit = (data: z.infer<typeof templateSchema>) => {
+    if (selectedTemplate) {
+      updateTemplateMutation.mutate({ id: selectedTemplate.id, data });
     } else {
-      createTrainingDataMutation.mutate(trainingDataItem as Omit<TrainingData, 'id' | 'createdAt' | 'updatedAt'>);
+      createTemplateMutation.mutate(data);
     }
   };
-
-  const handleDeleteTrainingData = (id: number) => {
-    if (confirm('Are you sure you want to delete this training data?')) {
-      deleteTrainingDataMutation.mutate(id);
+  
+  const handleTrainingDataSubmit = (data: z.infer<typeof trainingDataSchema>) => {
+    if (selectedTrainingData) {
+      updateTrainingDataMutation.mutate({ id: selectedTrainingData.id, data });
+    } else {
+      createTrainingDataMutation.mutate(data);
     }
   };
-
-  const handleEditTrainingData = (data: TrainingData) => {
-    setEditingData({
-      ...data,
-      entities: typeof data.entities === 'object' 
-        ? JSON.stringify(data.entities, null, 2) 
-        : data.entities
+  
+  const handleEditTemplate = (template: Template) => {
+    setSelectedTemplate(template);
+    templateForm.reset({
+      name: template.name,
+      content: template.content,
+      isActive: template.isActive
     });
-    setIsEditing(true);
+    setIsTemplateDialogOpen(true);
   };
-
-  const handleTrainModel = () => {
-    if (confirm('Are you sure you want to train the model? This may take a few minutes.')) {
-      trainModelMutation.mutate();
-    }
+  
+  const handleEditTrainingData = (data: TrainingData) => {
+    setSelectedTrainingData(data);
+    trainingForm.reset({
+      intent: data.intent,
+      utterances: data.utterances.join('\n'),
+      responses: data.responses.join('\n'),
+      entities: data.entities ? JSON.stringify(data.entities, null, 2) : undefined
+    });
+    setIsTrainingDialogOpen(true);
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+  
+  const handleCloseTemplateDialog = () => {
+    templateForm.reset();
+    setSelectedTemplate(null);
+    setIsTemplateDialogOpen(false);
+  };
+  
+  const handleCloseTrainingDialog = () => {
+    trainingForm.reset();
+    setSelectedTrainingData(null);
+    setIsTrainingDialogOpen(false);
+  };
+  
+  const handleReplySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedConversation || !replyText.trim()) return;
+    
+    sendReplyMutation.mutate({
+      conversationId: selectedConversation,
+      text: replyText
+    });
+  };
+  
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Training Data</h2>
-        <div className="flex space-x-2">
-          {!isEditing && (
-            <Button onClick={() => {
-              setEditingData({
-                text: '',
-                intent: 'greeting',
-                entities: '{}'
-              });
-              setIsEditing(true);
-            }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Training Data
-            </Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">WhatsApp ChatBot Management</h2>
+        
+        <Button 
+          onClick={() => trainModelMutation.mutate()}
+          disabled={trainModelMutation.isPending}
+        >
+          {trainModelMutation.isPending ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Training...</>
+          ) : (
+            <><RefreshCw className="mr-2 h-4 w-4" /> Train Model</>
           )}
-          <Button onClick={handleTrainModel} disabled={trainModelMutation.isPending}>
-            {trainModelMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCw className="mr-2 h-4 w-4" />
-            )}
-            Train Model
-          </Button>
-        </div>
+        </Button>
       </div>
-
-      {isEditing ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingData?.id ? 'Edit Training Data' : 'Add Training Data'}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="text">Training Text</Label>
-              <Textarea
-                id="text"
-                value={editingData?.text || ''}
-                onChange={(e) => setEditingData({ ...editingData!, text: e.target.value })}
-                placeholder="e.g., I want to book a puja for tomorrow"
-                rows={3}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="intent">Intent</Label>
-              <Select
-                value={editingData?.intent || 'greeting'}
-                onValueChange={(value) => setEditingData({ ...editingData!, intent: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select intent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INTENT_TYPES.map((intent) => (
-                    <SelectItem key={intent} value={intent}>
-                      {intent.replace('_', ' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="entities">Entities (JSON)</Label>
-              <Textarea
-                id="entities"
-                value={typeof editingData?.entities === 'string' 
-                  ? editingData.entities 
-                  : JSON.stringify(editingData?.entities || {}, null, 2)}
-                onChange={(e) => setEditingData({ ...editingData!, entities: e.target.value })}
-                placeholder='{
-  "puja_type": "satyanarayan",
-  "date": "tomorrow"
-}'
-                rows={5}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter entities as a JSON object or leave empty
-              </p>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={() => {
-              setIsEditing(false);
-              setEditingData(null);
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="templates">Message Templates</TabsTrigger>
+          <TabsTrigger value="training">Training Data</TabsTrigger>
+          <TabsTrigger value="conversations">Conversations</TabsTrigger>
+          <TabsTrigger value="users">WhatsApp Users</TabsTrigger>
+        </TabsList>
+        
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => {
+              templateForm.reset();
+              setSelectedTemplate(null);
+              setIsTemplateDialogOpen(true);
             }}>
-              Cancel
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Template
             </Button>
-            <Button 
-              onClick={handleSaveTrainingData}
-              disabled={
-                createTrainingDataMutation.isPending || 
-                updateTrainingDataMutation.isPending ||
-                !editingData?.text ||
-                !editingData?.intent
-              }
-            >
-              {(createTrainingDataMutation.isPending || updateTrainingDataMutation.isPending) ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Save Training Data
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Message Templates</CardTitle>
+              <CardDescription>
+                Define templates for automated WhatsApp messages
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingTemplates ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : templates && templates.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Content</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {templates.map((template) => (
+                      <TableRow key={template.id}>
+                        <TableCell className="font-medium">{template.name}</TableCell>
+                        <TableCell className="max-w-md truncate">{template.content}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            template.isActive 
+                              ? "bg-green-100 text-green-800" 
+                              : "bg-gray-100 text-gray-800"
+                          }`}>
+                            {template.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditTemplate(template)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this template?")) {
+                                deleteTemplateMutation.mutate(template.id);
+                              }
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No templates found. Create your first template to get started.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Template Dialog */}
+          <Dialog open={isTemplateDialogOpen} onOpenChange={handleCloseTemplateDialog}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedTemplate ? "Edit Template" : "Create Template"}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedTemplate 
+                    ? "Update the template details below"
+                    : "Fill in the template details below"
+                  }
+                </DialogDescription>
+              </DialogHeader>
+              
+              <Form {...templateForm}>
+                <form onSubmit={templateForm.handleSubmit(handleTemplateSubmit)} className="space-y-6">
+                  <FormField
+                    control={templateForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Template Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Booking Confirmation" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          A descriptive name for the template
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={templateForm.control}
+                    name="content"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Template Content</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Enter the template content with placeholders like {{name}}" 
+                            className="min-h-[150px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Use {{placeholders}} for dynamic content
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={templateForm.control}
+                    name="isActive"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                            className="h-4 w-4"
+                          />
+                        </FormControl>
+                        <FormLabel>Active</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter>
+                    <Button type="submit" disabled={
+                      createTemplateMutation.isPending || updateTemplateMutation.isPending
+                    }>
+                      {createTemplateMutation.isPending || updateTemplateMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                      ) : (
+                        <><Save className="mr-2 h-4 w-4" /> Save Template</>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+        
+        {/* Training Data Tab */}
+        <TabsContent value="training" className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => {
+              trainingForm.reset();
+              setSelectedTrainingData(null);
+              setIsTrainingDialogOpen(true);
+            }}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Training Data
             </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {trainingData && trainingData.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {trainingData.map((data: TrainingData) => (
-                <Card key={data.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex justify-between items-start">
-                      <p className="flex-1">{data.text}</p>
-                      <Badge className="ml-4">{data.intent}</Badge>
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>NLP Training Data</CardTitle>
+              <CardDescription>
+                Define intents, utterances, and responses for the chatbot
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingTrainingData ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : trainingData && trainingData.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Intent</TableHead>
+                      <TableHead>Utterances</TableHead>
+                      <TableHead>Responses</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {trainingData.map((data) => (
+                      <TableRow key={data.id}>
+                        <TableCell className="font-medium">{data.intent}</TableCell>
+                        <TableCell>
+                          <div className="max-h-20 overflow-y-auto">
+                            <ul className="list-disc list-inside">
+                              {data.utterances.slice(0, 3).map((utterance, idx) => (
+                                <li key={idx} className="text-sm">{utterance}</li>
+                              ))}
+                              {data.utterances.length > 3 && (
+                                <li className="text-xs text-muted-foreground">
+                                  +{data.utterances.length - 3} more
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-h-20 overflow-y-auto">
+                            <ul className="list-disc list-inside">
+                              {data.responses.slice(0, 3).map((response, idx) => (
+                                <li key={idx} className="text-sm">{response}</li>
+                              ))}
+                              {data.responses.length > 3 && (
+                                <li className="text-xs text-muted-foreground">
+                                  +{data.responses.length - 3} more
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditTrainingData(data)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this training data?")) {
+                                deleteTrainingDataMutation.mutate(data.id);
+                              }
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No training data found. Add your first intent to get started.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Training Data Dialog */}
+          <Dialog open={isTrainingDialogOpen} onOpenChange={handleCloseTrainingDialog}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedTrainingData ? "Edit Training Data" : "Add Training Data"}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedTrainingData 
+                    ? "Update the intent, utterances, and responses"
+                    : "Add a new intent with example utterances and responses"
+                  }
+                </DialogDescription>
+              </DialogHeader>
+              
+              <Form {...trainingForm}>
+                <form onSubmit={trainingForm.handleSubmit(handleTrainingDataSubmit)} className="space-y-6">
+                  <FormField
+                    control={trainingForm.control}
+                    name="intent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Intent Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. greeting, booking_inquiry" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          A unique identifier for this intent
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={trainingForm.control}
+                    name="utterances"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Utterances</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Enter one example per line, e.g.:\nHello\nHi there\nGood morning" 
+                            className="min-h-[120px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Enter example phrases users might say (one per line)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={trainingForm.control}
+                    name="responses"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Responses</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Enter one response per line, e.g.:\nHello! How can I help you?\nGreetings! What can I do for you today?" 
+                            className="min-h-[120px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Enter possible bot responses (one per line)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={trainingForm.control}
+                    name="entities"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Entities (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder='Enter as JSON, e.g.:\n{\n  "puja_type": ["havan", "katha"],\n  "location": ["delhi", "mumbai"]\n}' 
+                            className="min-h-[120px] font-mono text-sm"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Enter entities in JSON format (advanced)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter>
+                    <Button type="submit" disabled={
+                      createTrainingDataMutation.isPending || updateTrainingDataMutation.isPending
+                    }>
+                      {createTrainingDataMutation.isPending || updateTrainingDataMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                      ) : (
+                        <><Save className="mr-2 h-4 w-4" /> Save Training Data</>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+        
+        {/* Conversations Tab */}
+        <TabsContent value="conversations" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Active Conversations</CardTitle>
+                  <CardDescription>
+                    Recent WhatsApp conversations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingConversations ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : conversations && conversations.length > 0 ? (
+                    <div className="space-y-2">
+                      {conversations.map((conversation) => (
+                        <div 
+                          key={conversation.id} 
+                          className={`p-3 rounded-md cursor-pointer transition-colors ${
+                            selectedConversation === conversation.id
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-muted"
+                          }`}
+                          onClick={() => setSelectedConversation(conversation.id)}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="font-medium">+{conversation.whatsappNumber}</div>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              conversation.status === 'active'
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}>
+                              {conversation.status}
+                            </span>
+                          </div>
+                          <div className="text-sm opacity-80 truncate">
+                            {conversation.messages && conversation.messages.length > 0
+                              ? conversation.messages[conversation.messages.length - 1].text
+                              : "No messages"}
+                          </div>
+                          <div className="text-xs mt-1 opacity-70">
+                            {new Date(conversation.updatedAt).toLocaleString()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No active conversations.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="md:col-span-2">
+              <Card className="h-full flex flex-col">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>
+                        {selectedConversationData 
+                          ? `Chat with +${selectedConversationData.whatsappNumber}`
+                          : "Conversation"
+                        }
+                      </CardTitle>
+                      <CardDescription>
+                        {selectedConversationData 
+                          ? `Status: ${selectedConversationData.status}`
+                          : "Select a conversation to view"
+                        }
+                      </CardDescription>
                     </div>
                     
-                    {Object.keys(data.entities || {}).length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium">Entities:</p>
-                        <div className="bg-muted rounded-md p-2 mt-1">
-                          <pre className="text-xs overflow-auto">
-                            {JSON.stringify(data.entities, null, 2)}
-                          </pre>
-                        </div>
+                    {selectedConversationData && (
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newStatus = selectedConversationData.status === 'active' ? 'closed' : 'active';
+                            updateConversationStatusMutation.mutate({
+                              conversationId: selectedConversationData.id,
+                              status: newStatus
+                            });
+                          }}
+                          disabled={updateConversationStatusMutation.isPending}
+                        >
+                          {updateConversationStatusMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            selectedConversationData.status === 'active' ? 'Close Chat' : 'Reopen Chat'
+                          )}
+                        </Button>
                       </div>
                     )}
-                    
-                    <div className="flex justify-end mt-3 space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditTrainingData(data)}
-                      >
-                        <Edit className="mr-1 h-3 w-3" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteTrainingData(data.id)}
-                      >
-                        <Trash2 className="mr-1 h-3 w-3" />
-                        Delete
-                      </Button>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="flex-grow overflow-hidden flex flex-col min-h-[400px]">
+                  {isLoadingConversationData ? (
+                    <div className="flex justify-center items-center flex-grow">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  ) : !selectedConversation ? (
+                    <div className="flex justify-center items-center flex-grow text-muted-foreground">
+                      Select a conversation from the list
+                    </div>
+                  ) : selectedConversationData ? (
+                    <div className="flex flex-col space-y-4 overflow-y-auto flex-grow mb-4">
+                      {selectedConversationData.messages.map((message) => (
+                        <div 
+                          key={message.id}
+                          className={`max-w-[80%] p-3 rounded-lg ${
+                            message.fromUser
+                              ? "bg-muted self-start rounded-tl-none"
+                              : "bg-primary text-primary-foreground self-end rounded-tr-none"
+                          }`}
+                        >
+                          <div className="text-sm">{message.text}</div>
+                          <div className="text-xs mt-1 opacity-70 text-right">
+                            {new Date(message.timestamp).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex justify-center items-center flex-grow text-muted-foreground">
+                      Error loading conversation
+                    </div>
+                  )}
+                  
+                  {selectedConversationData && selectedConversationData.status === 'active' && (
+                    <form onSubmit={handleReplySubmit} className="mt-auto flex gap-2">
+                      <Input
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Type your message..."
+                        disabled={sendReplyMutation.isPending}
+                      />
+                      <Button 
+                        type="submit" 
+                        disabled={!replyText.trim() || sendReplyMutation.isPending}
+                      >
+                        {sendReplyMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Send"
+                        )}
+                      </Button>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          ) : (
-            <div className="text-center p-8 border rounded-lg">
-              <p className="text-muted-foreground">No training data found. Add examples to train the chatbot.</p>
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        </TabsContent>
+        
+        {/* Users Tab */}
+        <TabsContent value="users" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>WhatsApp Users</CardTitle>
+              <CardDescription>
+                Manage users with WhatsApp integration
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingUsers ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : chatbotUsers && chatbotUsers.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Mobile</TableHead>
+                      <TableHead>WhatsApp Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {chatbotUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">
+                          {user.firstName} {user.lastName}
+                        </TableCell>
+                        <TableCell>{user.mobile}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            user.whatsappLinked
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}>
+                            {user.whatsappLinked ? "Linked" : "Not Linked"}
+                          </span>
+                          {" "}
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            user.whatsappOptIn
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-red-100 text-red-800"
+                          }`}>
+                            {user.whatsappOptIn ? "Opted In" : "Opted Out"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              const number = prompt("Enter WhatsApp number (with country code)", user.mobile);
+                              if (number) {
+                                linkWhatsappMutation.mutate({
+                                  userId: user.id,
+                                  whatsappNumber: number
+                                });
+                              }
+                            }}
+                            disabled={linkWhatsappMutation.isPending}
+                          >
+                            {linkWhatsappMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              "Link WhatsApp"
+                            )}
+                          </Button>
+                          
+                          {user.whatsappOptIn && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                if (confirm("Are you sure you want to opt this user out of WhatsApp messages?")) {
+                                  optOutWhatsappMutation.mutate(user.id);
+                                }
+                              }}
+                              disabled={optOutWhatsappMutation.isPending}
+                            >
+                              {optOutWhatsappMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                "Opt Out"
+                              )}
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No users found with WhatsApp information.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
+};
+
+export default ChatbotDashboard;

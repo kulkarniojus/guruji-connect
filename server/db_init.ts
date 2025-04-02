@@ -162,9 +162,118 @@ async function migrateSchema() {
       END $$;
     `);
     
+    // Check if chatbot tables should be initialized
+    await initializeChatbotTables();
+    
     console.log('Schema migrations completed successfully');
   } catch (error) {
     console.error('Error during schema migration:', error);
     throw error;
+  }
+}
+
+/**
+ * Initialize chatbot related tables if they don't exist
+ */
+async function initializeChatbotTables() {
+  try {
+    // Check if chatbot-related tables have data
+    const existingTemplates = await pool.query('SELECT * FROM chatbot_templates LIMIT 1');
+    
+    if (existingTemplates.rows.length === 0) {
+      console.log('Initializing chatbot templates and training data...');
+      
+      // Insert default chatbot templates
+      const defaultTemplates = [
+        {
+          name: 'Welcome Message',
+          description: 'Initial greeting to users',
+          content: 'Hello {{name}}! Welcome to GurujiConnect. How can I assist you today? You can ask about pujas, bookings, or finding a guruji.',
+          intent: 'greeting',
+          variables: ['name'],
+          isActive: true
+        },
+        {
+          name: 'Booking Information',
+          description: 'Information about booking process',
+          content: 'To book a puja, please visit our website or app, select the puja type, city, and preferred date. You can then choose a guruji based on ratings and availability.',
+          intent: 'booking_inquiry',
+          variables: null,
+          isActive: true
+        },
+        {
+          name: 'Puja Information',
+          description: 'Information about available pujas',
+          content: 'We offer various types of pujas including {{puja_type}}. The price starts from ₹{{price}}. Would you like more details about specific pujas?',
+          intent: 'puja_information',
+          variables: ['puja_type', 'price'],
+          isActive: true
+        }
+      ];
+      
+      for (const template of defaultTemplates) {
+        await pool.query(
+          `INSERT INTO chatbot_templates (
+            name, description, content, intent, variables, is_active, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            template.name,
+            template.description,
+            template.content,
+            template.intent,
+            template.variables,
+            template.isActive,
+            new Date(),
+            new Date()
+          ]
+        );
+      }
+      
+      // Insert default training data
+      const defaultTrainingData = [
+        // Greeting intent
+        { text: 'Hello', intent: 'greeting' },
+        { text: 'Hi there', intent: 'greeting' },
+        { text: 'Good morning', intent: 'greeting' },
+        { text: 'Hey', intent: 'greeting' },
+        { text: 'Greetings', intent: 'greeting' },
+        
+        // Booking inquiry intent
+        { text: 'How can I book a puja?', intent: 'booking_inquiry' },
+        { text: 'I want to schedule a puja', intent: 'booking_inquiry' },
+        { text: 'What is the booking process?', intent: 'booking_inquiry' },
+        { text: 'Can I book a puja for tomorrow?', intent: 'booking_inquiry' },
+        { text: 'How to book a guruji?', intent: 'booking_inquiry' },
+        
+        // Puja information intent
+        { text: 'What types of pujas do you offer?', intent: 'puja_information' },
+        { text: 'Tell me about Satyanarayan puja', intent: 'puja_information', entities: { pujas: ['Satyanarayan'] } },
+        { text: 'How much does Griha Pravesh puja cost?', intent: 'puja_information', entities: { pujas: ['Griha Pravesh'] } },
+        { text: 'What is included in Ganapati puja?', intent: 'puja_information', entities: { pujas: ['Ganapati'] } },
+        { text: 'I need information about pujas', intent: 'puja_information' }
+      ];
+      
+      for (const data of defaultTrainingData) {
+        await pool.query(
+          `INSERT INTO chatbot_training_data (
+            text, intent, entities, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5)`,
+          [
+            data.text,
+            data.intent,
+            data.entities ? JSON.stringify(data.entities) : null,
+            new Date(),
+            new Date()
+          ]
+        );
+      }
+      
+      console.log('Chatbot tables initialized with default data');
+    } else {
+      console.log('Chatbot tables already have data, skipping initialization');
+    }
+  } catch (error) {
+    console.error('Error initializing chatbot tables:', error);
+    // Don't throw here, just log the error and continue
   }
 }
