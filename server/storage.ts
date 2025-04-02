@@ -461,6 +461,10 @@ export class MemStorage implements IStorage {
         !profile.isBlocked
     );
   }
+  
+  async getAllGurujiProfiles(): Promise<GurujiProfile[]> {
+    return Array.from(this.gurujiProfiles.values());
+  }
 
   async getBooking(id: number): Promise<Booking | undefined> {
     return this.bookings.get(id);
@@ -511,6 +515,10 @@ export class MemStorage implements IStorage {
     this.bookings.set(bookingId, booking);
     return booking;
   }
+  
+  async getAllBookings(): Promise<Booking[]> {
+    return Array.from(this.bookings.values());
+  }
 
   async getPayment(id: number): Promise<Payment | undefined> {
     return this.payments.get(id);
@@ -543,6 +551,10 @@ export class MemStorage implements IStorage {
     payment.updatedAt = new Date();
     this.payments.set(id, payment);
     return payment;
+  }
+  
+  async getAllPayments(): Promise<Payment[]> {
+    return Array.from(this.payments.values());
   }
 
   async getReview(id: number): Promise<Review | undefined> {
@@ -580,6 +592,10 @@ export class MemStorage implements IStorage {
 
     return review;
   }
+  
+  async getAllReviews(): Promise<Review[]> {
+    return Array.from(this.reviews.values());
+  }
 
   async getNotifications(userId: number): Promise<Notification[]> {
     return Array.from(this.notifications.values())
@@ -610,6 +626,10 @@ export class MemStorage implements IStorage {
 
   async deleteNotification(id: number): Promise<boolean> {
     return this.notifications.delete(id);
+  }
+  
+  async getAllNotifications(): Promise<Notification[]> {
+    return Array.from(this.notifications.values());
   }
 
   async getContent(key: string): Promise<any | undefined> {

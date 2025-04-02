@@ -1371,6 +1371,37 @@ export class DBStorage implements IStorage {
       createdAt: row.created_at
     };
   }
+
+  // Analytics-related methods for admin dashboard
+  async getAllUsers(): Promise<User[]> {
+    const result = await pool.query(`SELECT * FROM users`);
+    return result.rows.map(row => this.mapUserFromDb(row));
+  }
+
+  async getAllGurujiProfiles(): Promise<GurujiProfile[]> {
+    const result = await pool.query(`SELECT * FROM guruji_profiles`);
+    return result.rows.map(row => this.mapGurujiProfileFromDb(row));
+  }
+
+  async getAllBookings(): Promise<Booking[]> {
+    const result = await pool.query(`SELECT * FROM bookings`);
+    return result.rows.map(row => this.mapBookingFromDb(row));
+  }
+
+  async getAllPayments(): Promise<Payment[]> {
+    const result = await pool.query(`SELECT * FROM payments`);
+    return result.rows.map(row => this.mapPaymentFromDb(row));
+  }
+
+  async getAllReviews(): Promise<Review[]> {
+    const result = await pool.query(`SELECT * FROM reviews`);
+    return result.rows.map(row => this.mapReviewFromDb(row));
+  }
+
+  async getAllNotifications(): Promise<Notification[]> {
+    const result = await pool.query(`SELECT * FROM notifications`);
+    return result.rows.map(row => this.mapNotificationFromDb(row));
+  }
 }
 
 export const dbStorage = new DBStorage();
