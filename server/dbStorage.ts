@@ -11,7 +11,9 @@ import {
   type ChatbotTrainingData, type InsertChatbotTrainingData,
   type WhatsappUser, type InsertWhatsappUser,
   type WhatsappConversation, type InsertWhatsappConversation,
-  type WhatsappMessage, type InsertWhatsappMessage
+  type WhatsappMessage, type InsertWhatsappMessage,
+  type UserJourney, type InsertUserJourney,
+  type UserJourneyItem, type InsertUserJourneyItem
 } from "@shared/schema";
 import { pool } from './db';
 import { hash, compare } from 'bcrypt';
@@ -1403,5 +1405,409 @@ export class DBStorage implements IStorage {
     return result.rows.map(row => this.mapNotificationFromDb(row));
   }
 }
+
+  // User Journey Management
+  async getUserJourney(id: number): Promise<UserJourney | undefined> {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM user_journeys WHERE id = $1`,
+        [id]
+      );
+      
+      if (result.rows.length === 0) return undefined;
+      
+      return this.mapUserJourneyFromDb(result.rows[0]);
+    } catch (error) {
+      console.error('Error in getUserJourney:', error);
+      return undefined;
+    }
+  }
+
+  async getUserJourneyByUserId(userId: number): Promise<UserJourney[]> {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM user_journeys WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      );
+      
+      return result.rows.map(row => this.mapUserJourneyFromDb(row));
+    } catch (error) {
+      console.error('Error in getUserJourneyByUserId:', error);
+      return [];
+    }
+  }
+
+  async createUserJourney(journey: InsertUserJourney): Promise<UserJourney> {
+    try {
+      const result = await pool.query(
+        `INSERT INTO user_journeys (
+          user_id, title, description, stage, total_pujas, 
+          completed_pujas, goals, achievements, next_recommendation, 
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING *`,
+        [
+          journey.userId,
+          journey.title,
+          journey.description || null,
+          journey.stage || 'beginner',
+          journey.totalPujas || 0,
+          journey.completedPujas || 0,
+          journey.goals || null,
+          journey.achievements || null,
+          journey.nextRecommendation || null,
+          new Date(),
+          new Date()
+        ]
+      );
+      
+      return this.mapUserJourneyFromDb(result.rows[0]);
+    } catch (error) {
+      console.error('Error in createUserJourney:', error);
+      throw error;
+    }
+  }
+
+  async updateUserJourney(id: number, journey: Partial<UserJourney>): Promise<UserJourney | undefined> {
+    try {
+      const existingJourney = await this.getUserJourney(id);
+      if (!existingJourney) return undefined;
+      
+      // Build SQL for updating only the fields that were provided
+      const updateFields: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+      
+      if (journey.title !== undefined) {
+        updateFields.push(`title = $${paramIndex++}`);
+        values.push(journey.title);
+      }
+      
+      if (journey.description !== undefined) {
+        updateFields.push(`description = $${paramIndex++}`);
+        values.push(journey.description);
+      }
+      
+      if (journey.stage !== undefined) {
+        updateFields.push(`stage = $${paramIndex++}`);
+        values.push(journey.stage);
+      }
+      
+      if (journey.totalPujas !== undefined) {
+        updateFields.push(`total_pujas = $${paramIndex++}`);
+        values.push(journey.totalPujas);
+      }
+      
+      if (journey.completedPujas !== undefined) {
+        updateFields.push(`completed_pujas = $${paramIndex++}`);
+        values.push(journey.completedPujas);
+      }
+      
+      if (journey.goals !== undefined) {
+        updateFields.push(`goals = $${paramIndex++}`);
+        values.push(journey.goals);
+      }
+      
+      if (journey.achievements !== undefined) {
+        updateFields.push(`achievements = $${paramIndex++}`);
+        values.push(journey.achievements);
+      }
+      
+      if (journey.nextRecommendation !== undefined) {
+        updateFields.push(`next_recommendation = $${paramIndex++}`);
+        values.push(journey.nextRecommendation);
+      }
+      
+      // Always update the updatedAt field
+      updateFields.push(`updated_at = $${paramIndex++}`);
+      values.push(new Date());
+      
+      // Add the journey ID to the WHERE clause
+      values.push(id);
+      
+      const result = await pool.query(
+        `UPDATE user_journeys SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+      );
+      
+      if (result.rows.length === 0) return undefined;
+      
+      return this.mapUserJourneyFromDb(result.rows[0]);
+    } catch (error) {
+      console.error('Error in updateUserJourney:', error);
+      return undefined;
+    }
+  }
+
+  async updateUserJourneyProgress(journeyId: number, completedPujas: number): Promise<UserJourney | undefined> {
+    try {
+      const result = await pool.query(
+        `UPDATE user_journeys 
+         SET completed_pujas = $1, updated_at = $2
+         WHERE id = $3
+         RETURNING *`,
+        [completedPujas, new Date(), journeyId]
+      );
+      
+      if (result.rows.length === 0) return undefined;
+      
+      return this.mapUserJourneyFromDb(result.rows[0]);
+    } catch (error) {
+      console.error('Error in updateUserJourneyProgress:', error);
+      return undefined;
+    }
+  }
+
+  async deleteUserJourney(id: number): Promise<boolean> {
+    try {
+      // First delete all items associated with this journey
+      await pool.query(
+        `DELETE FROM user_journey_items WHERE journey_id = $1`,
+        [id]
+      );
+      
+      // Then delete the journey
+      const result = await pool.query(
+        `DELETE FROM user_journeys WHERE id = $1`,
+        [id]
+      );
+      
+      return result.rowCount && result.rowCount > 0;
+    } catch (error) {
+      console.error('Error in deleteUserJourney:', error);
+      return false;
+    }
+  }
+
+  // User Journey Items Management
+  async getUserJourneyItem(id: number): Promise<UserJourneyItem | undefined> {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM user_journey_items WHERE id = $1`,
+        [id]
+      );
+      
+      if (result.rows.length === 0) return undefined;
+      
+      return this.mapUserJourneyItemFromDb(result.rows[0]);
+    } catch (error) {
+      console.error('Error in getUserJourneyItem:', error);
+      return undefined;
+    }
+  }
+
+  async getUserJourneyItemsByJourneyId(journeyId: number): Promise<UserJourneyItem[]> {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM user_journey_items 
+         WHERE journey_id = $1
+         ORDER BY sequence ASC`,
+        [journeyId]
+      );
+      
+      return result.rows.map(row => this.mapUserJourneyItemFromDb(row));
+    } catch (error) {
+      console.error('Error in getUserJourneyItemsByJourneyId:', error);
+      return [];
+    }
+  }
+
+  async createUserJourneyItem(item: InsertUserJourneyItem): Promise<UserJourneyItem> {
+    try {
+      // Check if the journey exists
+      const journey = await this.getUserJourney(item.journeyId);
+      if (!journey) {
+        throw new Error(`Journey with ID ${item.journeyId} not found`);
+      }
+      
+      const result = await pool.query(
+        `INSERT INTO user_journey_items (
+          journey_id, puja_id, booking_id, title, description,
+          is_completed, completed_at, reflection, sequence,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING *`,
+        [
+          item.journeyId,
+          item.pujaId || null,
+          item.bookingId || null,
+          item.title,
+          item.description || null,
+          item.isCompleted || false,
+          item.completedAt || null,
+          item.reflection || null,
+          item.sequence,
+          new Date(),
+          new Date()
+        ]
+      );
+      
+      return this.mapUserJourneyItemFromDb(result.rows[0]);
+    } catch (error) {
+      console.error('Error in createUserJourneyItem:', error);
+      throw error;
+    }
+  }
+
+  async updateUserJourneyItem(id: number, item: Partial<UserJourneyItem>): Promise<UserJourneyItem | undefined> {
+    try {
+      const existingItem = await this.getUserJourneyItem(id);
+      if (!existingItem) return undefined;
+      
+      // Build SQL for updating only the fields that were provided
+      const updateFields: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+      
+      if (item.pujaId !== undefined) {
+        updateFields.push(`puja_id = $${paramIndex++}`);
+        values.push(item.pujaId);
+      }
+      
+      if (item.bookingId !== undefined) {
+        updateFields.push(`booking_id = $${paramIndex++}`);
+        values.push(item.bookingId);
+      }
+      
+      if (item.title !== undefined) {
+        updateFields.push(`title = $${paramIndex++}`);
+        values.push(item.title);
+      }
+      
+      if (item.description !== undefined) {
+        updateFields.push(`description = $${paramIndex++}`);
+        values.push(item.description);
+      }
+      
+      if (item.isCompleted !== undefined) {
+        updateFields.push(`is_completed = $${paramIndex++}`);
+        values.push(item.isCompleted);
+      }
+      
+      if (item.completedAt !== undefined) {
+        updateFields.push(`completed_at = $${paramIndex++}`);
+        values.push(item.completedAt);
+      }
+      
+      if (item.reflection !== undefined) {
+        updateFields.push(`reflection = $${paramIndex++}`);
+        values.push(item.reflection);
+      }
+      
+      if (item.sequence !== undefined) {
+        updateFields.push(`sequence = $${paramIndex++}`);
+        values.push(item.sequence);
+      }
+      
+      // Always update the updatedAt field
+      updateFields.push(`updated_at = $${paramIndex++}`);
+      values.push(new Date());
+      
+      // Add the item ID to the WHERE clause
+      values.push(id);
+      
+      const result = await pool.query(
+        `UPDATE user_journey_items SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+      );
+      
+      if (result.rows.length === 0) return undefined;
+      
+      return this.mapUserJourneyItemFromDb(result.rows[0]);
+    } catch (error) {
+      console.error('Error in updateUserJourneyItem:', error);
+      return undefined;
+    }
+  }
+
+  async markUserJourneyItemComplete(id: number, reflection?: string): Promise<UserJourneyItem | undefined> {
+    try {
+      const result = await pool.query(
+        `UPDATE user_journey_items 
+         SET is_completed = true, 
+             completed_at = $1, 
+             reflection = $2,
+             updated_at = $3
+         WHERE id = $4
+         RETURNING *`,
+        [new Date(), reflection || null, new Date(), id]
+      );
+      
+      if (result.rows.length === 0) return undefined;
+      
+      const updatedItem = this.mapUserJourneyItemFromDb(result.rows[0]);
+      
+      // Update the journey's completed pujas count
+      const journeyItems = await this.getUserJourneyItemsByJourneyId(updatedItem.journeyId);
+      const completedCount = journeyItems.filter(item => item.isCompleted).length;
+      
+      await this.updateUserJourneyProgress(updatedItem.journeyId, completedCount);
+      
+      return updatedItem;
+    } catch (error) {
+      console.error('Error in markUserJourneyItemComplete:', error);
+      return undefined;
+    }
+  }
+
+  async deleteUserJourneyItem(id: number): Promise<boolean> {
+    try {
+      const item = await this.getUserJourneyItem(id);
+      if (!item) return false;
+      
+      const result = await pool.query(
+        `DELETE FROM user_journey_items WHERE id = $1`,
+        [id]
+      );
+      
+      if (result.rowCount && result.rowCount > 0) {
+        // Update the journey's completed pujas count
+        const journeyItems = await this.getUserJourneyItemsByJourneyId(item.journeyId);
+        const completedCount = journeyItems.filter(item => item.isCompleted).length;
+        await this.updateUserJourneyProgress(item.journeyId, completedCount);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error in deleteUserJourneyItem:', error);
+      return false;
+    }
+  }
+
+  // Mapping functions for journey entities
+  private mapUserJourneyFromDb(row: any): UserJourney {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      title: row.title,
+      description: row.description,
+      stage: row.stage,
+      totalPujas: row.total_pujas,
+      completedPujas: row.completed_pujas,
+      goals: row.goals,
+      achievements: row.achievements,
+      nextRecommendation: row.next_recommendation,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
+  private mapUserJourneyItemFromDb(row: any): UserJourneyItem {
+    return {
+      id: row.id,
+      journeyId: row.journey_id,
+      pujaId: row.puja_id,
+      bookingId: row.booking_id,
+      title: row.title,
+      description: row.description,
+      isCompleted: row.is_completed,
+      completedAt: row.completed_at,
+      reflection: row.reflection,
+      sequence: row.sequence,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
 
 export const dbStorage = new DBStorage();

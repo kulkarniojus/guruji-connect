@@ -17,6 +17,7 @@ const Chat = lazy(() => import('@/pages/Chat'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
 const VideoCall = lazy(() => import('@/pages/VideoCall'));
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
+const SpiritualJourney = lazy(() => import('@/pages/SpiritualJourney'));
 
 // Router setup
 
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/availability" component={AvailabilityPage} />
       <Route path="/chat" component={Chat} />
       <Route path="/notifications" component={Notifications} />
+      <Route path="/spiritual-journey" component={SpiritualJourney} />
       <Route path="/puja/:id" component={PujaDetails} />
       <Route path="/video-call/:id" component={VideoCall} />
       <Route component={NotFound} />
