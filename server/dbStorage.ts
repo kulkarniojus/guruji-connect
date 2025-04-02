@@ -302,7 +302,7 @@ export class DBStorage implements IStorage {
       `INSERT INTO pujas (
         name, description, "basePrice", type, duration, items, 
         "imageUrl", "isPopular", "isActive", price, created_at, updated_at
-      ) VALUES (, , , , , , , , , 0, 1, 2)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
         pujaData.name,
@@ -314,7 +314,7 @@ export class DBStorage implements IStorage {
         pujaData.imageUrl || null,
         pujaData.isPopular || false,
         pujaData.isActive || true,
-        pujaData.basePrice, // Setting price equal to basePrice
+        pujaData.price || pujaData.basePrice, // Use price if provided, otherwise basePrice
         new Date(),
         new Date()
       ]
@@ -447,7 +447,7 @@ export class DBStorage implements IStorage {
         radius, languages, availability, certificate, "imageUrl",
         "isConsultation", "isAvailable", rating, "totalReviews",
         created_at, updated_at
-      ) VALUES (, , , , , , , , , 0, 1, 2, 3, 4, 5, 6)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`,
       [
         profileData.userId,
@@ -626,7 +626,7 @@ export class DBStorage implements IStorage {
         customer_id, guruji_id, puja_id, address, city, date,
         time, status, type, duration, amount, consultation_type,
         notes, created_at, updated_at
-      ) VALUES (, , , , , , , , , 0, 1, 2, 3, 4, 5)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *`,
       [
         bookingData.customerId,
@@ -699,7 +699,7 @@ export class DBStorage implements IStorage {
       `INSERT INTO payments (
         booking_id, amount, status, transaction_id, payment_method,
         created_at, updated_at
-      ) VALUES (, , , , , , )
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
       [
         paymentData.bookingId,
@@ -751,7 +751,7 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `INSERT INTO reviews (
         customer_id, guruji_id, booking_id, rating, review, created_at
-      ) VALUES (, , , , , )
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
       [
         reviewData.customerId,
@@ -774,7 +774,7 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `SELECT AVG(rating) as avg_rating, COUNT(*) as count
        FROM reviews
-       WHERE guruji_id = `,
+       WHERE guruji_id = $1`,
       [gurujiId]
     );
     
@@ -783,8 +783,8 @@ export class DBStorage implements IStorage {
       
       await pool.query(
         `UPDATE guruji_profiles
-         SET rating = , "totalReviews" = , updated_at = 
-         WHERE id = `,
+         SET rating = $1, "totalReviews" = $2, updated_at = $3
+         WHERE id = $4`,
         [parseFloat(avg_rating) || 0, parseInt(count) || 0, new Date(), gurujiId]
       );
     }
@@ -794,7 +794,7 @@ export class DBStorage implements IStorage {
   async getNotifications(userId: number): Promise<Notification[]> {
     const result = await pool.query(
       `SELECT * FROM notifications 
-       WHERE user_id =  
+       WHERE user_id = $1
        ORDER BY is_read ASC, created_at DESC`,
       [userId]
     );
@@ -806,7 +806,7 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `INSERT INTO notifications (
         user_id, title, message, is_read, created_at
-      ) VALUES (, , , , )
+      ) VALUES ($1, $2, $3, $4, $5)
       RETURNING *`,
       [
         notificationData.userId,
@@ -822,7 +822,7 @@ export class DBStorage implements IStorage {
   
   async markNotificationAsRead(id: number): Promise<boolean> {
     const result = await pool.query(
-      `UPDATE notifications SET is_read = true WHERE id = `,
+      `UPDATE notifications SET is_read = true WHERE id = $1`,
       [id]
     );
     
@@ -831,7 +831,7 @@ export class DBStorage implements IStorage {
   
   async deleteNotification(id: number): Promise<boolean> {
     const result = await pool.query(
-      `DELETE FROM notifications WHERE id = `,
+      `DELETE FROM notifications WHERE id = $1`,
       [id]
     );
     
@@ -841,7 +841,7 @@ export class DBStorage implements IStorage {
   // Content Management
   async getContent(key: string): Promise<any | undefined> {
     const result = await pool.query(
-      `SELECT * FROM contents WHERE key = `,
+      `SELECT * FROM contents WHERE key = $1`,
       [key]
     );
     
@@ -857,7 +857,7 @@ export class DBStorage implements IStorage {
     if (existingContent) {
       // Update existing content
       const result = await pool.query(
-        `UPDATE contents SET title = , content =  WHERE key =  RETURNING *`,
+        `UPDATE contents SET title = $1, content = $2 WHERE key = $3 RETURNING *`,
         [title, content, key]
       );
       
@@ -865,7 +865,7 @@ export class DBStorage implements IStorage {
     } else {
       // Create new content
       const result = await pool.query(
-        `INSERT INTO contents (key, title, content) VALUES (, , ) RETURNING *`,
+        `INSERT INTO contents (key, title, content) VALUES ($1, $2, $3) RETURNING *`,
         [key, title, content]
       );
       
