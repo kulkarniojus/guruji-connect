@@ -1,3 +1,4 @@
+import "./lib/global-polyfill"; // Must be first import
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";

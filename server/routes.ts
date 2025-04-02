@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import { Server as SocketServer } from "socket.io";
 import { storage } from "./storage";
 import { z } from "zod";
 import { ZodError } from "zod";
@@ -967,10 +968,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register payment routes
   registerPaymentRoutes(app);
   
-
-  
   // Create HTTP server
   const httpServer = createServer(app);
+  
+  // Initialize Socket.io
+  const io = new SocketServer(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+    },
+  });
+  
+  // Video conference API endpoints
+  app.post("/api/video-conference", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      
+      const { bookingId } = z.object({
+        bookingId: z.number(),
+      }).parse(req.body);
+
+      // Get the booking
+      const booking = await storage.getBooking(bookingId);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
+      // Verify user is associated with this booking (either customer or guruji)
+      const isCustomer = booking.customerId === userId;
+      
+      let isGuruji = false;
+      if (req.session.userRole === "guruji") {
+        const gurujiProfile = await storage.getGurujiProfileByUserId(userId);
+        isGuruji = gurujiProfile?.id === booking.gurujiId;
+      }
+      
+      if (!isCustomer && !isGuruji) {
+        return res.status(403).json({ message: "You are not authorized to start this call" });
+      }
+      
+      // Generate a unique room ID using the booking ID
+      const roomId = `booking-${bookingId}-${Date.now()}`;
+      
+      // Return the room ID
+      res.json({ roomId, callerId: userId, calleeId: isCustomer ? booking.gurujiId : booking.customerId });
+    } catch (error) {
+      console.error("Error creating video conference:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: fromZodError(error),
+        });
+      }
+      res.status(500).json({ message: "Failed to create video conference" });
+    }
+  });
+
+  app.get("/api/video-conference/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { id } = z.object({
+        id: z.string(),
+      }).parse(req.params);
+      
+      // Extract booking ID from the room ID format "booking-{bookingId}-{timestamp}"
+      const matches = id.match(/^booking-(\d+)-/);
+      
+      if (!matches || !matches[1]) {
+        return res.status(400).json({ message: "Invalid video conference ID" });
+      }
+      
+      const bookingId = parseInt(matches[1]);
+      
+      // Get the booking
+      const booking = await storage.getBooking(bookingId);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
+      // Return the call participants
+      res.json({
+        roomId: id,
+        callerId: booking.customerId,
+        calleeId: booking.gurujiId,
+        booking
+      });
+    } catch (error) {
+      console.error("Error fetching video conference:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: fromZodError(error),
+        });
+      }
+      res.status(500).json({ message: "Failed to fetch video conference" });
+    }
+  });
+
+  // Socket.io connection handling
+  io.on("connection", (socket) => {
+    console.log("User connected:", socket.id);
+    
+    // When a user joins a room
+    socket.on("join-room", (roomId, userId) => {
+      console.log(`User ${userId} joined room: ${roomId}`);
+      socket.join(roomId);
+      // Notify other users in the room
+      socket.to(roomId).emit("user-connected", userId);
+      
+      // Handle disconnect
+      socket.on("disconnect", () => {
+        console.log(`User ${userId} disconnected from room: ${roomId}`);
+        socket.to(roomId).emit("user-disconnected", userId);
+      });
+    });
+    
+    // Handle video call signaling
+    socket.on("callUser", ({ userToCall, signalData, from }) => {
+      console.log(`Call from ${from} to user: ${userToCall}`);
+      
+      // Get caller info for display purposes
+      const caller = {
+        id: socket.id,
+        name: "Caller" // In a real app, fetch user name from DB
+      };
+      
+      io.to(userToCall).emit("incomingCall", { signal: signalData, caller });
+    });
+    
+    socket.on("answerCall", ({ signal, to }) => {
+      console.log(`Call answered by ${socket.id} to: ${to}`);
+      io.to(to).emit("callAccepted", signal);
+    });
+    
+    socket.on("rejectCall", ({ to }) => {
+      console.log(`Call rejected by ${socket.id}`);
+      io.to(to).emit("callRejected");
+    });
+    
+    socket.on("endCall", ({ to }) => {
+      console.log(`Call ended by ${socket.id}`);
+      if (to) {
+        io.to(to).emit("callEnded");
+      }
+    });
+    
+    socket.on("reject-call", ({ roomId, to }) => {
+      console.log(`Call rejected in room: ${roomId}`);
+      io.to(to).emit("call-rejected");
+    });
+    
+    // Handle stream toggling
+    socket.on("toggle-audio", ({ roomId, enabled }) => {
+      socket.to(roomId).emit("user-toggle-audio", { userId: socket.id, enabled });
+    });
+    
+    socket.on("toggle-video", ({ roomId, enabled }) => {
+      socket.to(roomId).emit("user-toggle-video", { userId: socket.id, enabled });
+    });
+  });
+  
+  // The video conference API routes are already defined above
 
   // Return the server instance
   return httpServer;

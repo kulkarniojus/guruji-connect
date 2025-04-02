@@ -10,10 +10,12 @@ import PujaDetails from "@/pages/PujaDetails";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
+import { VideoConferenceProvider } from "@/context/VideoConferenceContext";
 
 // Lazy-loaded components
 const Chat = lazy(() => import('@/pages/Chat'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
+const VideoCall = lazy(() => import('@/pages/VideoCall'));
 
 // Router setup
 
@@ -30,6 +32,7 @@ function Router() {
       <Route path="/chat" component={Chat} />
       <Route path="/notifications" component={Notifications} />
       <Route path="/puja/:id" component={PujaDetails} />
+      <Route path="/video-call/:id" component={VideoCall} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -37,14 +40,16 @@ function Router() {
 
 function App() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    }>
-      <Router />
-      <Toaster />
-    </Suspense>
+    <VideoConferenceProvider>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }>
+        <Router />
+        <Toaster />
+      </Suspense>
+    </VideoConferenceProvider>
   );
 }
 

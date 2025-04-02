@@ -8,6 +8,7 @@ export const bookingStatusEnum = pgEnum('booking_status', ['pending', 'confirmed
 export const paymentStatusEnum = pgEnum('payment_status', ['unpaid', 'partial', 'paid', 'refunded']);
 export const pujaTypeEnum = pgEnum('puja_type', ['offline', 'online']);
 export const consultationType = pgEnum('consultation_type', ['own_guruji', 'auto_select', 'immediate']);
+export const videoSessionStatusEnum = pgEnum('video_session_status', ['scheduled', 'in_progress', 'completed', 'cancelled', 'missed']);
 
 // User table
 export const users = pgTable("users", {
@@ -205,6 +206,22 @@ export const chatMessages = pgTable("chat_messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Video conference sessions table
+export const videoConferences = pgTable("video_conferences", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").notNull().references(() => bookings.id),
+  roomId: text("room_id").notNull(),
+  status: videoSessionStatusEnum("status").notNull().default('scheduled'),
+  scheduledStartTime: timestamp("scheduled_start_time").notNull(),
+  actualStartTime: timestamp("actual_start_time"),
+  endTime: timestamp("end_time"),
+  duration: integer("duration"), // in minutes, calculated after session ends
+  gurujiId: integer("guruji_id").notNull().references(() => gurujiProfiles.id),
+  customerId: integer("customer_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Create Zod schemas for insertion
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -258,6 +275,16 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
+export const insertVideoConferenceSchema = createInsertSchema(videoConferences).omit({
+  id: true,
+  status: true,
+  actualStartTime: true,
+  endTime: true,
+  duration: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Define types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -282,3 +309,6 @@ export type InsertReview = z.infer<typeof insertReviewSchema>;
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export type VideoConference = typeof videoConferences.$inferSelect;
+export type InsertVideoConference = z.infer<typeof insertVideoConferenceSchema>;
