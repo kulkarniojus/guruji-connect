@@ -4,7 +4,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { Redirect } from 'wouter';
 import ChatbotDashboard from '@/components/chatbot/ChatbotDashboard';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar } from 'lucide-react';
+import PujaManagementTab from '@/components/admin/PujaManagementTab';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
@@ -23,7 +24,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 mb-8">
+        <TabsList className="grid w-full grid-cols-5 mb-8">
           <TabsTrigger value="analytics" className="flex items-center justify-center">
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
@@ -39,6 +40,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="bookings" className="flex items-center justify-center">
             <Calendar className="h-4 w-4 mr-2" />
             Bookings
+          </TabsTrigger>
+          <TabsTrigger value="pujas" className="flex items-center justify-center">
+            <Package2 className="h-4 w-4 mr-2" />
+            Puja Management
           </TabsTrigger>
         </TabsList>
         
@@ -60,6 +65,10 @@ export default function AdminDashboard() {
           <div className="p-6 border rounded-lg text-center">
             <p className="text-muted-foreground">Booking management dashboard will appear here</p>
           </div>
+        </TabsContent>
+
+        <TabsContent value="pujas">
+          <PujaManagementTab />
         </TabsContent>
       </Tabs>
     </div>
