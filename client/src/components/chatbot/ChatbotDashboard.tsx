@@ -689,7 +689,7 @@ const ChatbotDashboard: React.FC = () => {
                           />
                         </FormControl>
                         <FormDescription>
-                          Use {{placeholders}} for dynamic content
+                          Use {"{{"} placeholders {"}}"}  for dynamic content
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
