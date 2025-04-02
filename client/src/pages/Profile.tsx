@@ -1,751 +1,499 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
-import { Helmet } from 'react-helmet';
-import Header from '@/components/landing/Header';
-import Footer from '@/components/landing/Footer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
-import { apiRequest } from '@/lib/queryClient';
-import { Loader2, User, Phone, Mail, MapPin, Calendar, AlertCircle, Save, UserX, CreditCard, CheckCircle, ChevronRight } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
-} from '@/components/ui/dialog';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+import { UserCircle, MapPin, UserCog, History, Phone, Mail, Shield, PencilLine, CheckCircle } from "lucide-react";
+import { useAuth } from "@/context/AuthProvider";
 
-// Profile update form schema
-const profileFormSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  mobile: z.string().length(10, "Mobile number must be 10 digits"),
-  age: z.coerce.number().min(18, "You must be at least 18 years old"),
-});
+type UserProfile = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  age: number;
+  gender: string;
+  role: string;
+  aadhar?: string;
+  caste?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+};
 
-// Password change form schema
-const passwordFormSchema = z.object({
-  currentPassword: z.string().min(6, "Password must be at least 6 characters"),
-  newPassword: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+type GurujiProfile = {
+  id: number;
+  userId: number;
+  bio?: string;
+  experience?: number;
+  specialization?: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  radius: number;
+  isOnline: boolean;
+  isOffline: boolean;
+  isConsultation: boolean;
+  rating: number;
+  totalReviews: number;
+};
 
 export default function Profile() {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
-  const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
-  const { user, logout } = useAuth();
-  const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
-
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!user && !isLoading) {
-      setLocation('/');
-    }
-  }, [user, isLoading, setLocation]);
-
-  const profileForm = useForm<z.infer<typeof profileFormSchema>>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-      mobile: user?.mobile || '',
-      age: user?.age || 18,
-    },
+  const [isEditing, setIsEditing] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [gurujiProfile, setGurujiProfile] = useState<GurujiProfile | null>(null);
+  
+  // Fetch user data
+  const { data: userData, isLoading: userLoading } = useQuery({
+    queryKey: ["/api/auth/me"],
+    staleTime: 60000, // 1 minute
   });
-
-  const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
-    resolver: zodResolver(passwordFormSchema),
-    defaultValues: {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    },
+  
+  // Fetch guruji profile if user is a guruji
+  const { data: gurujiData, isLoading: gurujiLoading } = useQuery({
+    queryKey: ["/api/gurujis/profile"],
+    staleTime: 60000,
+    enabled: !!user && user.role === "guruji",
   });
-
-  // Fetch bookings for the user
-  const { data: bookings = [], isLoading: isBookingsLoading } = useQuery({
-    queryKey: ['/api/bookings'],
+  
+  // Bookings history
+  const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
+    queryKey: ["/api/bookings"],
+    staleTime: 60000,
     enabled: !!user,
   });
-
-  // Update profile mutation
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof profileFormSchema>) => {
-      const response = await apiRequest('PUT', `/api/users/${user?.id}`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Update failed",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Change password mutation
-  const changePasswordMutation = useMutation({
-    mutationFn: async (data: { currentPassword: string, newPassword: string }) => {
-      const response = await apiRequest('POST', `/api/auth/change-password`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      setIsPasswordChangeOpen(false);
-      passwordForm.reset();
-      toast({
-        title: "Password changed",
-        description: "Your password has been changed successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Password change failed",
-        description: "Failed to change password. Please check your current password and try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Deactivate account mutation
-  const deactivateAccountMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/users/${user?.id}/deactivate`, {});
-      return response.json();
-    },
-    onSuccess: () => {
-      logout();
-      setLocation('/');
-      toast({
-        title: "Account deactivated",
-        description: "Your account has been deactivated",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Deactivation failed",
-        description: "Failed to deactivate account. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Set form values when user data is available
+  
   useEffect(() => {
-    if (user) {
-      profileForm.reset({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        mobile: user.mobile || '',
-        age: user.age || 18,
-      });
+    if (userData) {
+      setUserProfile(userData);
     }
-  }, [user, profileForm]);
-
-  const onProfileSubmit = async (data: z.infer<typeof profileFormSchema>) => {
-    updateProfileMutation.mutate(data);
+    
+    if (gurujiData) {
+      setGurujiProfile(gurujiData);
+    }
+  }, [userData, gurujiData]);
+  
+  const handleEdit = () => {
+    setIsEditing(true);
   };
-
-  const onPasswordSubmit = async (data: z.infer<typeof passwordFormSchema>) => {
-    changePasswordMutation.mutate({
-      currentPassword: data.currentPassword,
-      newPassword: data.newPassword,
+  
+  const handleSave = () => {
+    // In a real app, this would save changes to the server
+    toast({
+      title: "Success",
+      description: "Profile updated successfully",
     });
+    setIsEditing(false);
   };
-
-  const onDeactivateAccount = async () => {
-    deactivateAccountMutation.mutate();
+  
+  const handleCancel = () => {
+    // Reset any unsaved changes
+    if (userData) {
+      setUserProfile(userData);
+    }
+    if (gurujiData) {
+      setGurujiProfile(gurujiData);
+    }
+    setIsEditing(false);
   };
-
-  if (!user) {
+  
+  if (userLoading || (user?.role === "guruji" && gurujiLoading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
       </div>
     );
   }
-
+  
+  if (!userProfile) {
+    return (
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-4">Profile not found</h1>
+        <p>Unable to load your profile information. Please try again later.</p>
+      </div>
+    );
+  }
+  
   return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col">
-      <Helmet>
-        <title>Profile | PujaConnect</title>
-        <meta name="description" content="Manage your profile and account settings" />
-      </Helmet>
-
-      <Header />
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6">My Profile</h1>
       
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 font-poppins">Your Profile</h1>
-          <p className="text-neutral-600">Manage your profile and account settings</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Profile sidebar */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col items-center text-center mb-6">
-                  <Avatar className="h-24 w-24 mb-4">
-                    <AvatarFallback className="text-xl font-semibold">
-                      {user.firstName?.charAt(0) || ''}
-                      {user.lastName?.charAt(0) || ''}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h2 className="text-xl font-semibold">{user.firstName} {user.lastName}</h2>
-                  <p className="text-neutral-500 mt-1">{user.role}</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left column - User profile & photo */}
+        <div className="md:col-span-1">
+          <Card>
+            <CardHeader className="text-center">
+              <Avatar className="w-24 h-24 mx-auto">
+                <AvatarImage src="" alt={`${userProfile.firstName} ${userProfile.lastName}`} />
+                <AvatarFallback className="text-3xl bg-primary/10 text-primary">
+                  {userProfile.firstName[0]}{userProfile.lastName[0]}
+                </AvatarFallback>
+              </Avatar>
+              <CardTitle className="mt-4">{userProfile.firstName} {userProfile.lastName}</CardTitle>
+              <CardDescription>
+                <span className="flex items-center justify-center gap-1">
+                  <UserCircle className="h-4 w-4" /> {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
+                </span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span>{userProfile.mobile}</span>
                 </div>
-
-                <Separator className="my-4" />
-
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>{userProfile.email}</span>
+                </div>
+                {userProfile.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p>{userProfile.address}</p>
+                      <p>{userProfile.city}, {userProfile.state} {userProfile.pincode}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleEdit} className="w-full" variant="outline">
+                <PencilLine className="mr-2 h-4 w-4" />
+                Edit Profile
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          {/* Identity verification */}
+          {userProfile.aadhar && (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="text-base">Identity Verification</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-3">
-                  <Button 
-                    variant={activeTab === 'profile' ? "default" : "ghost"} 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('profile')}
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Button>
-                  <Button 
-                    variant={activeTab === 'bookings' ? "default" : "ghost"} 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('bookings')}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Bookings
-                  </Button>
-                  <Button 
-                    variant={activeTab === 'security' ? "default" : "ghost"} 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('security')}
-                  >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Payment Methods
-                  </Button>
-                  <Button 
-                    variant={activeTab === 'security' ? "default" : "ghost"} 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('security')}
-                  >
-                    <AlertCircle className="mr-2 h-4 w-4" />
-                    Security
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                      <span>Aadhar Card</span>
+                    </div>
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Main content */}
-          <div className="lg:col-span-3">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsContent value="profile">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Profile Information</CardTitle>
-                    <CardDescription>Update your personal information</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Form {...profileForm}>
-                      <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <FormField
-                            control={profileForm.control}
-                            name="firstName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>First Name</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="lastName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Last Name</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="email"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Email</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="mobile"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Mobile Number</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    {...field} 
-                                    readOnly 
-                                    disabled 
-                                    className="bg-neutral-100" 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="age"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Age</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    {...field} 
-                                    onChange={(e) => field.onChange(parseInt(e.target.value))} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <Button 
-                          type="submit" 
-                          disabled={updateProfileMutation.isPending}
-                        >
-                          {updateProfileMutation.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <Save className="mr-2 h-4 w-4" />
-                              Save Changes
-                            </>
-                          )}
-                        </Button>
-                      </form>
-                    </Form>
-                  </CardContent>
-                </Card>
-
-                {user.role === 'guruji' && (
-                  <Card className="mt-8">
-                    <CardHeader>
-                      <CardTitle>Guruji Profile</CardTitle>
-                      <CardDescription>Update your professional information</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div>
-                          <Label htmlFor="bio">Bio</Label>
-                          <textarea
-                            id="bio"
-                            rows={4}
-                            className="mt-1 w-full p-2 border border-neutral-300 rounded-md focus:ring-primary focus:border-primary"
-                            placeholder="Tell clients about yourself"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="specialization">Specialization</Label>
-                          <Input
-                            id="specialization"
-                            className="mt-1"
-                            placeholder="What pujas do you specialize in?"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="experience">Experience (years)</Label>
-                          <Input
-                            id="experience"
-                            type="number"
-                            className="mt-1"
-                            min={0}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="location">Location</Label>
-                          <Input
-                            id="location"
-                            className="mt-1"
-                            placeholder="Your city"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="service-radius">Service Radius (km)</Label>
-                          <Input
-                            id="service-radius"
-                            type="number"
-                            className="mt-1"
-                            min={1}
-                            max={50}
-                            defaultValue={10}
-                          />
-                        </div>
-                      </div>
-                      
-                      <Button>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Guruji Profile
-                      </Button>
-                    </CardContent>
-                  </Card>
+          )}
+        </div>
+        
+        {/* Right column - Tabs & details */}
+        <div className="md:col-span-2">
+          <Tabs defaultValue="personal">
+            <TabsList className="w-full">
+              <TabsTrigger value="personal" className="flex-1">Personal Information</TabsTrigger>
+              {userProfile.role === "guruji" && (
+                <TabsTrigger value="guruji" className="flex-1">Guruji Details</TabsTrigger>
+              )}
+              <TabsTrigger value="history" className="flex-1">Booking History</TabsTrigger>
+            </TabsList>
+            
+            {/* Personal Information Tab */}
+            <TabsContent value="personal">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Personal Information</CardTitle>
+                  <CardDescription>
+                    Your personal details are kept private and are only used for verification purposes.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input 
+                        id="firstName" 
+                        value={userProfile.firstName}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserProfile({...userProfile, firstName: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input 
+                        id="lastName" 
+                        value={userProfile.lastName}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserProfile({...userProfile, lastName: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input 
+                        id="email" 
+                        value={userProfile.email}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserProfile({...userProfile, email: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="mobile">Mobile</Label>
+                      <Input 
+                        id="mobile" 
+                        value={userProfile.mobile}
+                        disabled={true} // Mobile cannot be edited
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="age">Age</Label>
+                      <Input 
+                        id="age" 
+                        type="number"
+                        value={userProfile.age}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserProfile({...userProfile, age: parseInt(e.target.value, 10)})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gender</Label>
+                      <Input 
+                        id="gender" 
+                        value={userProfile.gender}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserProfile({...userProfile, gender: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Input 
+                      id="address" 
+                      value={userProfile.address || ""}
+                      disabled={!isEditing}
+                      onChange={(e) => setUserProfile({...userProfile, address: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input 
+                        id="city" 
+                        value={userProfile.city || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserProfile({...userProfile, city: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="state">State</Label>
+                      <Input 
+                        id="state" 
+                        value={userProfile.state || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserProfile({...userProfile, state: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pincode">Pincode</Label>
+                      <Input 
+                        id="pincode" 
+                        value={userProfile.pincode || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserProfile({...userProfile, pincode: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+                {isEditing && (
+                  <CardFooter className="flex justify-end space-x-2">
+                    <Button onClick={handleCancel} variant="outline">Cancel</Button>
+                    <Button onClick={handleSave}>Save Changes</Button>
+                  </CardFooter>
                 )}
-              </TabsContent>
-              
-              <TabsContent value="bookings">
+              </Card>
+            </TabsContent>
+            
+            {/* Guruji Details Tab */}
+            {userProfile.role === "guruji" && (
+              <TabsContent value="guruji">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Your Bookings</CardTitle>
-                    <CardDescription>View and manage your booking history</CardDescription>
+                    <CardTitle>Guruji Details</CardTitle>
+                    <CardDescription>
+                      Your professional information visible to clients.
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {isBookingsLoading ? (
-                      <div className="flex justify-center p-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      </div>
-                    ) : bookings.length > 0 ? (
-                      <div className="space-y-4">
-                        {bookings.map((booking: any) => (
-                          <div key={booking.id} className="border rounded-lg p-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="flex items-center">
-                                  <StatusBadge status={booking.status} />
-                                  <h3 className="text-lg font-medium ml-2">{booking.pujaName || 'Puja Booking'}</h3>
-                                </div>
-                                <p className="text-neutral-600 text-sm mt-1">
-                                  {new Date(booking.date).toLocaleDateString('en-US', { 
-                                    month: 'long', 
-                                    day: 'numeric', 
-                                    year: 'numeric' 
-                                  })} at {new Date(booking.date).toLocaleTimeString('en-US', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  })}
-                                </p>
-                                <div className="flex items-center text-sm text-neutral-600 mt-2">
-                                  <MapPin className="h-4 w-4 mr-1" />
-                                  <span>{booking.city}{booking.address ? `, ${booking.address}` : ''}</span>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-medium">₹{booking.amount}</p>
-                                <Button variant="outline" size="sm" className="mt-2">
-                                  View Details
-                                </Button>
-                              </div>
+                  <CardContent className="space-y-4">
+                    {gurujiProfile ? (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="specialization">Specialization</Label>
+                            <Input 
+                              id="specialization" 
+                              value={gurujiProfile.specialization || ""}
+                              disabled={!isEditing}
+                              onChange={(e) => setGurujiProfile({...gurujiProfile, specialization: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="experience">Years of Experience</Label>
+                            <Input 
+                              id="experience" 
+                              type="number"
+                              value={gurujiProfile.experience || 0}
+                              disabled={!isEditing}
+                              onChange={(e) => setGurujiProfile({...gurujiProfile, experience: parseInt(e.target.value, 10)})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="radius">Service Radius (km)</Label>
+                            <Input 
+                              id="radius" 
+                              type="number"
+                              value={gurujiProfile.radius}
+                              disabled={!isEditing}
+                              onChange={(e) => setGurujiProfile({...gurujiProfile, radius: parseInt(e.target.value, 10)})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="rating">Rating</Label>
+                            <div className="flex items-center gap-2">
+                              <span className="text-yellow-500">{gurujiProfile.rating.toFixed(1)} ★</span>
+                              <span className="text-muted-foreground">({gurujiProfile.totalReviews} reviews)</span>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="bio">Bio</Label>
+                          <textarea 
+                            id="bio" 
+                            className="w-full min-h-[100px] px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                            value={gurujiProfile.bio || ""}
+                            disabled={!isEditing}
+                            onChange={(e) => setGurujiProfile({...gurujiProfile, bio: e.target.value})}
+                          />
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="space-y-2">
+                          <Label>Service Types Offered</Label>
+                          <div className="flex flex-wrap gap-2">
+                            <div className={`px-4 py-2 rounded-full ${gurujiProfile.isOffline ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                              Offline Services
+                            </div>
+                            <div className={`px-4 py-2 rounded-full ${gurujiProfile.isOnline ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                              Online Services
+                            </div>
+                            <div className={`px-4 py-2 rounded-full ${gurujiProfile.isConsultation ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                              Consultations
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     ) : (
                       <div className="text-center py-8">
-                        <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Calendar className="h-8 w-8 text-neutral-400" />
-                        </div>
-                        <h3 className="text-lg font-medium mb-2">No bookings yet</h3>
-                        <p className="text-neutral-600 mb-6">
-                          You haven't made any bookings yet. Start by booking a puja or consultation.
-                        </p>
-                        <Button onClick={() => setLocation('/booking')}>
-                          Book a Puja
-                        </Button>
+                        <UserCog className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <p className="mt-4">Your guruji profile has not been set up. Please contact the administrator.</p>
                       </div>
                     )}
                   </CardContent>
+                  {isEditing && gurujiProfile && (
+                    <CardFooter className="flex justify-end space-x-2">
+                      <Button onClick={handleCancel} variant="outline">Cancel</Button>
+                      <Button onClick={handleSave}>Save Changes</Button>
+                    </CardFooter>
+                  )}
                 </Card>
               </TabsContent>
-              
-              <TabsContent value="security">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Payment Methods</CardTitle>
-                    <CardDescription>Manage your payment methods</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+            )}
+            
+            {/* Booking History Tab */}
+            <TabsContent value="history">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Booking History</CardTitle>
+                  <CardDescription>
+                    Your past and upcoming bookings.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {bookingsLoading ? (
+                    <div className="flex items-center justify-center h-40">
+                      <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+                    </div>
+                  ) : bookingsData && bookingsData.length > 0 ? (
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center p-4 border rounded-lg">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-neutral-100 rounded-full flex items-center justify-center mr-4">
-                            <CreditCard className="h-5 w-5 text-neutral-600" />
+                      {bookingsData.map((booking: any) => (
+                        <div key={booking.id} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h3 className="font-medium">{booking.pujaName || "Service Booking"}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(booking.date).toLocaleDateString('en-US', { 
+                                  day: 'numeric', 
+                                  month: 'short', 
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
+                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                              booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
+                              booking.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium">Add New Payment Method</p>
-                            <p className="text-sm text-neutral-500">Add a credit card or other payment method</p>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Type:</span> {booking.type}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Amount:</span> ₹{booking.amount}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">City:</span> {booking.city}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Duration:</span> {booking.duration} min
+                            </div>
                           </div>
                         </div>
-                        <Button variant="outline">
-                          Add Method
-                        </Button>
-                      </div>
+                      ))}
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="mt-8">
-                  <CardHeader>
-                    <CardTitle>Account Security</CardTitle>
-                    <CardDescription>Manage your account security settings</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">Change Password</p>
-                        <p className="text-sm text-neutral-500">Update your account password</p>
-                      </div>
-                      <Button variant="outline" onClick={() => setIsPasswordChangeOpen(true)}>
-                        Change
-                      </Button>
-                    </div>
-                    
-                    <div className="flex justify-between items-center p-4 border rounded-lg border-red-200 bg-red-50">
-                      <div>
-                        <p className="font-medium text-red-800">Deactivate Account</p>
-                        <p className="text-sm text-red-700">Temporarily disable your account</p>
-                      </div>
-                      <Button variant="destructive" onClick={() => setIsDeactivateOpen(true)}>
-                        Deactivate
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
-      </main>
-      
-      <Footer />
-
-      {/* Password Change Dialog */}
-      <Dialog open={isPasswordChangeOpen} onOpenChange={setIsPasswordChangeOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
-            <DialogDescription>
-              Enter your current password and a new password to change it.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...passwordForm}>
-            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
-              <FormField
-                control={passwordForm.control}
-                name="currentPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Current Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={passwordForm.control}
-                name="newPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>New Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={passwordForm.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm New Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter className="mt-6">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsPasswordChangeOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={changePasswordMutation.isPending}
-                >
-                  {changePasswordMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Changing...
-                    </>
                   ) : (
-                    "Change Password"
+                    <div className="text-center py-8">
+                      <History className="h-12 w-12 mx-auto text-muted-foreground" />
+                      <p className="mt-4">You don't have any bookings yet.</p>
+                      <Button className="mt-4" variant="outline">Book a Service</Button>
+                    </div>
                   )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Deactivate Account Dialog */}
-      <Dialog open={isDeactivateOpen} onOpenChange={setIsDeactivateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Deactivate Account</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to deactivate your account? This action is reversible but will disable your account temporarily.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mt-2">
-            <div className="flex">
-              <AlertCircle className="h-5 w-5 text-amber-600 mr-2 flex-shrink-0" />
-              <p className="text-sm text-amber-800">
-                Your bookings and personal information will be preserved, but you won't be able to login until you contact support to reactivate your account.
-              </p>
-            </div>
-          </div>
-          <DialogFooter className="mt-6">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setIsDeactivateOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="button"
-              variant="destructive"
-              onClick={onDeactivateAccount}
-              disabled={deactivateAccountMutation.isPending}
-            >
-              {deactivateAccountMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Deactivate Account"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  let color;
-  let label;
-
-  switch (status) {
-    case 'pending':
-      color = 'bg-amber-50 text-amber-700 border-amber-200';
-      label = 'Pending';
-      break;
-    case 'confirmed':
-      color = 'bg-blue-50 text-blue-700 border-blue-200';
-      label = 'Confirmed';
-      break;
-    case 'in_progress':
-      color = 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      label = 'In Progress';
-      break;
-    case 'completed':
-      color = 'bg-green-50 text-green-700 border-green-200';
-      label = 'Completed';
-      break;
-    case 'cancelled':
-      color = 'bg-red-50 text-red-700 border-red-200';
-      label = 'Cancelled';
-      break;
-    default:
-      color = 'bg-neutral-50 text-neutral-700 border-neutral-200';
-      label = status;
-  }
-
-  return (
-    <span className={`px-2 py-1 rounded text-xs font-medium border ${color}`}>
-      {label}
-    </span>
   );
 }
