@@ -8,7 +8,10 @@ import PujaManagementTab from '@/components/admin/PujaManagementTab';
 import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { user, isLoading } = useAuth();
+  // Temporarily disabled auth check for demo 
+  // const { user, isLoading } = useAuth();
+  const user = { role: 'admin' }; // Mock user for demo
+  const isLoading = false;
   const [activeTab, setActiveTab] = useState('analytics');
 
   // Demo mode - no authentication check for demonstration purposes
