@@ -1,11 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { dbStorage } from '../dbStorage';
+import { DBStorage } from '../dbStorage';
 import { 
   insertUserJourneySchema, 
   insertUserJourneyItemSchema, 
   type UserJourney,
   type UserJourneyItem
 } from '@shared/schema';
+
+const dbStorage = new DBStorage();
 
 // Authentication middleware
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {

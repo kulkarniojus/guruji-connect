@@ -1404,7 +1404,6 @@ export class DBStorage implements IStorage {
     const result = await pool.query(`SELECT * FROM notifications`);
     return result.rows.map(row => this.mapNotificationFromDb(row));
   }
-}
 
   // User Journey Management
   async getUserJourney(id: number): Promise<UserJourney | undefined> {
@@ -1809,5 +1808,6 @@ export class DBStorage implements IStorage {
       updatedAt: row.updated_at
     };
   }
+}
 
 export const dbStorage = new DBStorage();
