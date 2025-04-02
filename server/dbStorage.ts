@@ -301,7 +301,7 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `INSERT INTO pujas (
         name, description, "basePrice", type, duration, items, 
-        "imageUrl", "isPopular", "isActive", price, created_at, updated_at
+        "imageUrl", "isPopular", "isActive", price, "createdAt", "updatedAt"
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
@@ -383,7 +383,7 @@ export class DBStorage implements IStorage {
     }
     
     // Always update the updatedAt field
-    updateFields.push(`updated_at = $${paramIndex++}`);
+    updateFields.push(`"updatedAt" = $${paramIndex++}`);
     values.push(new Date());
     
     // Add the puja ID to the WHERE clause
@@ -400,17 +400,17 @@ export class DBStorage implements IStorage {
   async deletePuja(id: number): Promise<boolean> {
     // Soft delete by setting isActive to false
     const result = await pool.query(
-      `UPDATE pujas SET "isActive" = false, updated_at =  WHERE id = `,
+      `UPDATE pujas SET "isActive" = false, "updatedAt" = $1 WHERE id = $2`,
       [new Date(), id]
     );
     
-    return result.rowCount > 0;
+    return result.rowCount! > 0;
   }
   
   async searchPujas(query: string): Promise<Puja[]> {
     const result = await pool.query(
       `SELECT * FROM pujas 
-       WHERE name ILIKE  AND "isActive" = true`,
+       WHERE name ILIKE $1 AND "isActive" = true`,
       [`%${query}%`]
     );
     
@@ -569,7 +569,7 @@ export class DBStorage implements IStorage {
       SELECT gp.* FROM guruji_profiles gp
       JOIN users u ON gp.user_id = u.id
       WHERE u.is_blocked = false AND gp."isAvailable" = true
-        AND LOWER(gp.location) LIKE LOWER()
+        AND LOWER(gp.location) LIKE LOWER($1)
     `;
     
     const params: any[] = [`%${city}%`];
@@ -579,7 +579,7 @@ export class DBStorage implements IStorage {
       query += ` 
         AND EXISTS (
           SELECT 1 FROM guruji_pujas gpu
-          WHERE gpu.guruji_profile_id = gp.id AND gpu.puja_id = 
+          WHERE gpu.guruji_profile_id = gp.id AND gpu.puja_id = $2
         )
       `;
       params.push(pujaId);
@@ -593,7 +593,7 @@ export class DBStorage implements IStorage {
   // Booking Management
   async getBooking(id: number): Promise<Booking | undefined> {
     const result = await pool.query(
-      `SELECT * FROM bookings WHERE id = `,
+      `SELECT * FROM bookings WHERE id = $1`,
       [id]
     );
     
@@ -604,7 +604,7 @@ export class DBStorage implements IStorage {
   
   async getBookingsByCustomerId(customerId: number): Promise<Booking[]> {
     const result = await pool.query(
-      `SELECT * FROM bookings WHERE customer_id =  ORDER BY date DESC`,
+      `SELECT * FROM bookings WHERE customer_id = $1 ORDER BY date DESC`,
       [customerId]
     );
     
@@ -613,7 +613,7 @@ export class DBStorage implements IStorage {
   
   async getBookingsByGurujiId(gurujiId: number): Promise<Booking[]> {
     const result = await pool.query(
-      `SELECT * FROM bookings WHERE guruji_id =  ORDER BY date DESC`,
+      `SELECT * FROM bookings WHERE guruji_id = $1 ORDER BY date DESC`,
       [gurujiId]
     );
     
@@ -652,7 +652,7 @@ export class DBStorage implements IStorage {
   
   async updateBookingStatus(id: number, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'): Promise<Booking | undefined> {
     const result = await pool.query(
-      `UPDATE bookings SET status = , updated_at =  WHERE id =  RETURNING *`,
+      `UPDATE bookings SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *`,
       [status, new Date(), id]
     );
     
@@ -663,8 +663,8 @@ export class DBStorage implements IStorage {
   
   async assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined> {
     const result = await pool.query(
-      `UPDATE bookings SET guruji_id = , status = 'confirmed', updated_at =  
-       WHERE id =  RETURNING *`,
+      `UPDATE bookings SET guruji_id = $1, status = 'confirmed', updated_at = $2 
+       WHERE id = $3 RETURNING *`,
       [gurujiId, new Date(), bookingId]
     );
     
@@ -676,7 +676,7 @@ export class DBStorage implements IStorage {
   // Payment Management
   async getPayment(id: number): Promise<Payment | undefined> {
     const result = await pool.query(
-      `SELECT * FROM payments WHERE id = `,
+      `SELECT * FROM payments WHERE id = $1`,
       [id]
     );
     
@@ -687,7 +687,7 @@ export class DBStorage implements IStorage {
   
   async getPaymentsByBookingId(bookingId: number): Promise<Payment[]> {
     const result = await pool.query(
-      `SELECT * FROM payments WHERE booking_id =  ORDER BY created_at DESC`,
+      `SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC`,
       [bookingId]
     );
     
@@ -717,7 +717,7 @@ export class DBStorage implements IStorage {
   
   async updatePaymentStatus(id: number, status: 'unpaid' | 'partial' | 'paid' | 'refunded'): Promise<Payment | undefined> {
     const result = await pool.query(
-      `UPDATE payments SET status = , updated_at =  WHERE id =  RETURNING *`,
+      `UPDATE payments SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *`,
       [status, new Date(), id]
     );
     
@@ -729,7 +729,7 @@ export class DBStorage implements IStorage {
   // Review Management
   async getReview(id: number): Promise<Review | undefined> {
     const result = await pool.query(
-      `SELECT * FROM reviews WHERE id = `,
+      `SELECT * FROM reviews WHERE id = $1`,
       [id]
     );
     
@@ -740,7 +740,7 @@ export class DBStorage implements IStorage {
   
   async getReviewsByGurujiId(gurujiId: number): Promise<Review[]> {
     const result = await pool.query(
-      `SELECT * FROM reviews WHERE guruji_id =  ORDER BY created_at DESC`,
+      `SELECT * FROM reviews WHERE guruji_id = $1 ORDER BY created_at DESC`,
       [gurujiId]
     );
     
@@ -887,6 +887,10 @@ export class DBStorage implements IStorage {
       role: row.role,
       aadhar: row.aadhar,
       caste: row.caste,
+      address: row.address || null,
+      city: row.city || null,
+      state: row.state || null,
+      pincode: row.pincode || null,
       isVerified: row.is_verified,
       isBlocked: row.is_blocked,
       createdAt: row.created_at,
@@ -932,13 +936,18 @@ export class DBStorage implements IStorage {
       location: row.location,
       radius: row.radius,
       languages: row.languages,
-      availability: row.availability,
-      certificate: row.certificate,
-      imageUrl: row.imageUrl,
-      isConsultation: row.isConsultation,
-      isAvailable: row.isAvailable,
+      pricePerHour: row.price_per_hour,
+      isOnline: row.is_online,
+      isOffline: row.is_offline,
+      isConsultation: row.is_consultation,
+      isAvailable: row.is_available,
+      aadharVerified: row.aadhar_verified,
+      documentsVerified: row.documents_verified,
+      verificationDate: row.verification_date,
       rating: row.rating,
-      totalReviews: row.totalReviews,
+      totalReviews: row.total_reviews,
+      certificates: row.certificates,
+      profilePictureUrl: row.profile_picture_url,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };
@@ -953,12 +962,12 @@ export class DBStorage implements IStorage {
       address: row.address,
       city: row.city,
       date: row.date,
-      time: row.time,
       status: row.status,
       type: row.type,
       duration: row.duration,
       amount: row.amount,
       consultationType: row.consultation_type,
+      isImmediate: row.is_immediate,
       notes: row.notes,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -996,6 +1005,7 @@ export class DBStorage implements IStorage {
       userId: row.user_id,
       title: row.title,
       message: row.message,
+      type: row.type || 'general', // Add missing type field with default value
       isRead: row.is_read,
       createdAt: row.created_at
     };
