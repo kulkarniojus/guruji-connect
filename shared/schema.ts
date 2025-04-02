@@ -10,6 +10,7 @@ export const pujaTypeEnum = pgEnum('puja_type', ['offline', 'online']);
 export const consultationType = pgEnum('consultation_type', ['own_guruji', 'auto_select', 'immediate']);
 export const videoSessionStatusEnum = pgEnum('video_session_status', ['scheduled', 'in_progress', 'completed', 'cancelled', 'missed']);
 export const chatbotIntentEnum = pgEnum('chatbot_intent', ['greeting', 'booking_inquiry', 'puja_information', 'guruji_availability', 'payment_issue', 'cancel_booking', 'reschedule_booking', 'general_inquiry', 'technical_support', 'other']);
+export const journeyStageEnum = pgEnum('journey_stage', ['beginner', 'intermediate', 'advanced', 'expert', 'master']);
 
 // User table
 export const users = pgTable("users", {
@@ -283,6 +284,38 @@ export const chatbotTrainingData = pgTable("chatbot_training_data", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// User journey progress table
+export const userJourneys = pgTable("user_journeys", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  stage: journeyStageEnum("stage").notNull().default('beginner'),
+  totalPujas: integer("total_pujas").default(0),
+  completedPujas: integer("completed_pujas").default(0),
+  goals: jsonb("goals"), // Array of spiritual goals
+  achievements: jsonb("achievements"), // Unlocked achievements
+  nextRecommendation: integer("next_recommendation").references(() => pujas.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User Journey Items table - records each step in a user's journey
+export const userJourneyItems = pgTable("user_journey_items", {
+  id: serial("id").primaryKey(),
+  journeyId: integer("journey_id").notNull().references(() => userJourneys.id),
+  pujaId: integer("puja_id").references(() => pujas.id),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  reflection: text("reflection"), // User's notes/reflections after completing this item
+  sequence: integer("sequence").notNull(), // Order in the journey
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Create Zod schemas for insertion
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -382,6 +415,23 @@ export const insertChatbotTrainingDataSchema = createInsertSchema(chatbotTrainin
   updatedAt: true,
 });
 
+export const insertUserJourneySchema = createInsertSchema(userJourneys).omit({
+  id: true,
+  stage: true,
+  totalPujas: true,
+  completedPujas: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserJourneyItemSchema = createInsertSchema(userJourneyItems).omit({
+  id: true,
+  isCompleted: true,
+  completedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Define types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -424,3 +474,9 @@ export type InsertChatbotTemplate = z.infer<typeof insertChatbotTemplateSchema>;
 
 export type ChatbotTrainingData = typeof chatbotTrainingData.$inferSelect;
 export type InsertChatbotTrainingData = z.infer<typeof insertChatbotTrainingDataSchema>;
+
+export type UserJourney = typeof userJourneys.$inferSelect;
+export type InsertUserJourney = z.infer<typeof insertUserJourneySchema>;
+
+export type UserJourneyItem = typeof userJourneyItems.$inferSelect;
+export type InsertUserJourneyItem = z.infer<typeof insertUserJourneyItemSchema>;

@@ -9,7 +9,9 @@ import {
   chatbotTrainingData, ChatbotTrainingData, InsertChatbotTrainingData,
   whatsappUsers, WhatsappUser, InsertWhatsappUser,
   whatsappConversations, WhatsappConversation, InsertWhatsappConversation,
-  whatsappMessages, WhatsappMessage, InsertWhatsappMessage
+  whatsappMessages, WhatsappMessage, InsertWhatsappMessage,
+  userJourneys, UserJourney, InsertUserJourney,
+  userJourneyItems, UserJourneyItem, InsertUserJourneyItem
 } from "@shared/schema";
 import { eq, and, like, or, lt, gt, gte, desc, inArray } from "drizzle-orm";
 import { genSalt, hash, compare } from "bcrypt";
@@ -109,6 +111,22 @@ export interface IStorage {
   // WhatsApp Message Management
   getChatbotMessages(conversationId: number): Promise<WhatsappMessage[]>;
   addChatbotMessage(message: InsertWhatsappMessage): Promise<WhatsappMessage>;
+  
+  // User Journey Management
+  getUserJourney(id: number): Promise<UserJourney | undefined>;
+  getUserJourneyByUserId(userId: number): Promise<UserJourney | undefined>;
+  createUserJourney(journey: InsertUserJourney): Promise<UserJourney>;
+  updateUserJourney(id: number, journey: Partial<UserJourney>): Promise<UserJourney | undefined>;
+  updateUserJourneyProgress(journeyId: number, completedPujas: number): Promise<UserJourney | undefined>;
+  deleteUserJourney(id: number): Promise<boolean>;
+  
+  // User Journey Items Management
+  getUserJourneyItem(id: number): Promise<UserJourneyItem | undefined>;
+  getUserJourneyItemsByJourneyId(journeyId: number): Promise<UserJourneyItem[]>;
+  createUserJourneyItem(item: InsertUserJourneyItem): Promise<UserJourneyItem>;
+  updateUserJourneyItem(id: number, item: Partial<UserJourneyItem>): Promise<UserJourneyItem | undefined>;
+  markUserJourneyItemComplete(id: number, reflection?: string): Promise<UserJourneyItem | undefined>;
+  deleteUserJourneyItem(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -155,6 +173,8 @@ export class MemStorage implements IStorage {
     this.whatsappUsers = new Map();
     this.whatsappConversations = new Map();
     this.whatsappMessages = new Map();
+    this.userJourneys = new Map();
+    this.userJourneyItems = new Map();
     this.userIdCounter = 1;
     this.otpIdCounter = 1;
     this.pujaIdCounter = 1;
@@ -168,6 +188,8 @@ export class MemStorage implements IStorage {
     this.whatsappUserIdCounter = 1;
     this.whatsappConversationIdCounter = 1;
     this.whatsappMessageIdCounter = 1;
+    this.userJourneyIdCounter = 1;
+    this.userJourneyItemIdCounter = 1;
 
     // Initialize with some default content
     this.contents.set('customer_terms', {
@@ -838,6 +860,183 @@ export class MemStorage implements IStorage {
     }
     
     return message;
+  }
+
+  // User Journey properties and counters
+  private userJourneys: Map<number, UserJourney> = new Map();
+  private userJourneyItems: Map<number, UserJourneyItem> = new Map();
+  private userJourneyIdCounter: number = 1;
+  private userJourneyItemIdCounter: number = 1;
+
+  // User Journey Management
+  async getUserJourney(id: number): Promise<UserJourney | undefined> {
+    return this.userJourneys.get(id);
+  }
+
+  async getUserJourneyByUserId(userId: number): Promise<UserJourney | undefined> {
+    return Array.from(this.userJourneys.values()).find(
+      (journey) => journey.userId === userId
+    );
+  }
+
+  async createUserJourney(journeyData: InsertUserJourney): Promise<UserJourney> {
+    const journey: UserJourney = {
+      ...journeyData,
+      id: this.userJourneyIdCounter++,
+      stage: 'beginner',
+      totalPujas: 0,
+      completedPujas: 0,
+      description: journeyData.description || null,
+      goals: journeyData.goals || null,
+      achievements: journeyData.achievements || null,
+      nextRecommendation: journeyData.nextRecommendation || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.userJourneys.set(journey.id, journey);
+    return journey;
+  }
+
+  async updateUserJourney(id: number, journeyData: Partial<UserJourney>): Promise<UserJourney | undefined> {
+    const journey = this.userJourneys.get(id);
+    if (!journey) return undefined;
+
+    const updatedJourney = { ...journey, ...journeyData, updatedAt: new Date() };
+    this.userJourneys.set(id, updatedJourney);
+    return updatedJourney;
+  }
+
+  async updateUserJourneyProgress(journeyId: number, completedPujas: number): Promise<UserJourney | undefined> {
+    const journey = this.userJourneys.get(journeyId);
+    if (!journey) return undefined;
+
+    // Calculate new stage based on progress
+    let newStage = journey.stage;
+    const totalPujas = journey.totalPujas || 0;
+    const completionRate = completedPujas / Math.max(totalPujas, 1);
+    
+    if (completionRate >= 0.9 && totalPujas >= 20) {
+      newStage = 'master';
+    } else if (completionRate >= 0.75 && totalPujas >= 15) {
+      newStage = 'expert';
+    } else if (completionRate >= 0.5 && totalPujas >= 10) {
+      newStage = 'advanced';
+    } else if (completionRate >= 0.25 && totalPujas >= 5) {
+      newStage = 'intermediate';
+    }
+
+    const updatedJourney = { 
+      ...journey, 
+      completedPujas, 
+      stage: newStage, 
+      updatedAt: new Date() 
+    };
+    
+    this.userJourneys.set(journeyId, updatedJourney);
+    return updatedJourney;
+  }
+
+  async deleteUserJourney(id: number): Promise<boolean> {
+    return this.userJourneys.delete(id);
+  }
+  
+  // User Journey Items Management
+  async getUserJourneyItem(id: number): Promise<UserJourneyItem | undefined> {
+    return this.userJourneyItems.get(id);
+  }
+
+  async getUserJourneyItemsByJourneyId(journeyId: number): Promise<UserJourneyItem[]> {
+    return Array.from(this.userJourneyItems.values())
+      .filter(item => item.journeyId === journeyId)
+      .sort((a, b) => a.sequence - b.sequence);
+  }
+
+  async createUserJourneyItem(itemData: InsertUserJourneyItem): Promise<UserJourneyItem> {
+    const item: UserJourneyItem = {
+      ...itemData,
+      id: this.userJourneyItemIdCounter++,
+      isCompleted: false,
+      completedAt: null,
+      description: itemData.description || null,
+      pujaId: itemData.pujaId || null,
+      bookingId: itemData.bookingId || null,
+      reflection: itemData.reflection || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.userJourneyItems.set(item.id, item);
+    
+    // Update total pujas count in the journey
+    const journey = this.userJourneys.get(item.journeyId);
+    if (journey) {
+      const totalPujas = (journey.totalPujas || 0) + 1;
+      journey.totalPujas = totalPujas;
+      this.userJourneys.set(journey.id, journey);
+    }
+    
+    return item;
+  }
+
+  async updateUserJourneyItem(id: number, itemData: Partial<UserJourneyItem>): Promise<UserJourneyItem | undefined> {
+    const item = this.userJourneyItems.get(id);
+    if (!item) return undefined;
+
+    const updatedItem = { ...item, ...itemData, updatedAt: new Date() };
+    this.userJourneyItems.set(id, updatedItem);
+    return updatedItem;
+  }
+
+  async markUserJourneyItemComplete(id: number, reflection?: string): Promise<UserJourneyItem | undefined> {
+    const item = this.userJourneyItems.get(id);
+    if (!item) return undefined;
+
+    // Only mark as complete if it wasn't already completed
+    const wasAlreadyCompleted = item.isCompleted;
+    
+    const updatedItem: UserJourneyItem = {
+      ...item,
+      isCompleted: true,
+      completedAt: new Date(),
+      reflection: reflection || item.reflection,
+      updatedAt: new Date(),
+    };
+    
+    this.userJourneyItems.set(id, updatedItem);
+    
+    // Update journey progress if this is newly completed
+    if (!wasAlreadyCompleted) {
+      const journey = this.userJourneys.get(item.journeyId);
+      if (journey) {
+        const completedPujas = (journey.completedPujas || 0) + 1;
+        await this.updateUserJourneyProgress(journey.id, completedPujas);
+      }
+    }
+    
+    return updatedItem;
+  }
+
+  async deleteUserJourneyItem(id: number): Promise<boolean> {
+    const item = this.userJourneyItems.get(id);
+    if (!item) return false;
+    
+    // Update total pujas count in the journey
+    const journey = this.userJourneys.get(item.journeyId);
+    if (journey) {
+      const totalPujas = Math.max(0, (journey.totalPujas || 0) - 1);
+      journey.totalPujas = totalPujas;
+      
+      // If the item was completed, also decrease the completed count
+      if (item.isCompleted) {
+        const completedPujas = Math.max(0, (journey.completedPujas || 0) - 1);
+        journey.completedPujas = completedPujas;
+      }
+      
+      this.userJourneys.set(journey.id, journey);
+    }
+    
+    return this.userJourneyItems.delete(id);
   }
 }
 
