@@ -265,7 +265,46 @@ export default function CustomerDashboard() {
         </TabsContent>
       </Tabs>
 
+      {/* Spiritual Journey Section */}
       <div className="mt-10">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold font-poppins">Your Spiritual Growth</h2>
+          <Button asChild>
+            <Link href="/spiritual-journey">View All</Link>
+          </Button>
+        </div>
+        <Card className="hover:shadow-md transition-shadow mb-10">
+          <CardHeader>
+            <CardTitle>Personal Journey Progress</CardTitle>
+            <CardDescription>Track your spiritual milestones and growth</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <div className="flex justify-between mb-2">
+                <span className="text-sm font-medium">Progress</span>
+                <span className="text-sm font-medium">30%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="bg-primary h-2.5 rounded-full" style={{ width: '30%' }}></div>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Continue your spiritual growth by completing recommended pujas and tracking your journey.
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/spiritual-journey">
+                <div className="flex items-center justify-center w-full">
+                  View Your Journey
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </div>
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Help Section */}
+      <div className="mt-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold font-poppins">Need Help?</h2>
         </div>

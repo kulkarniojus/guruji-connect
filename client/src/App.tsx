@@ -22,41 +22,15 @@ const SpiritualJourney = lazy(() => import('@/pages/SpiritualJourney'));
 
 // Protected Route Component
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType, path?: string }) {
-  const { user, isLoading } = useAuth();
-  const [location] = useLocation();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Redirect to="/" />;
-  }
-
+  // For demo purposes, we'll just render the component
+  // In a production app, we would use useAuth() hook to check authentication
   return <Component />;
 }
 
 // Admin Route Component
 function AdminRoute({ component: Component, ...rest }: { component: React.ComponentType, path?: string }) {
-  const { user, isLoading } = useAuth();
-  const [location] = useLocation();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user || user.role !== 'admin') {
-    return <Redirect to="/" />;
-  }
-
+  // For demo purposes, we'll just render the component
+  // In a production app, we would use useAuth() hook to check admin role
   return <Component />;
 }
 

@@ -12,22 +12,13 @@ import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user, isLoading } = useAuth();
+  // For demo purposes, create a mock user
+  const mockUser = { role: 'customer', firstName: 'Demo', lastName: 'User' };
   const isMobile = useIsMobile();
   const [, setLocation] = useLocation();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    // This should redirect, but just in case
-    return null;
-  }
+  
+  // Mock user data for demonstration
+  const user = mockUser;
 
   // On mobile, render the mobile-optimized version without header/footer
   if (isMobile) {

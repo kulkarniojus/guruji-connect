@@ -13,20 +13,14 @@ import CTA from '@/components/landing/CTA';
 import Footer from '@/components/landing/Footer';
 import Chatbot from '@/components/common/Chatbot';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function Home() {
   const isMobile = useIsMobile();
-  const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   
-  // Redirect to dashboard if already logged in
-  useEffect(() => {
-    if (user && !isLoading) {
-      setLocation('/dashboard');
-    }
-  }, [user, isLoading, setLocation]);
+  // Home page doesn't redirect for demo purposes
+  // In a full app, we would check authentication here
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -37,6 +31,12 @@ export default function Home() {
       </Helmet>
 
       <Header />
+      
+      <div className="bg-primary text-white py-2 px-4 text-center">
+        <p>
+          Demo Mode: <a href="/dashboard" className="underline font-bold">View Dashboard</a> to access the Spiritual Journey Tracker
+        </p>
+      </div>
       
       <main>
         {isMobile ? <MobileHero /> : <Hero />}
