@@ -284,6 +284,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch pujas" });
     }
   });
+  
+  // Create a new puja
+  app.post("/api/pujas", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
+    try {
+      const pujaData = req.body;
+      const newPuja = await storage.createPuja(pujaData);
+      res.status(201).json(newPuja);
+    } catch (error) {
+      console.error("Error creating puja:", error);
+      res.status(500).json({ message: "Failed to create puja" });
+    }
+  });
+  
+  // Update an existing puja
+  app.put("/api/pujas/:id", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const pujaData = req.body;
+      const updatedPuja = await storage.updatePuja(id, pujaData);
+      if (!updatedPuja) {
+        return res.status(404).json({ message: "Puja not found" });
+      }
+      res.json(updatedPuja);
+    } catch (error) {
+      console.error("Error updating puja:", error);
+      res.status(500).json({ message: "Failed to update puja" });
+    }
+  });
+  
+  // Delete a puja
+  app.delete("/api/pujas/:id", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deletePuja(id);
+      if (!success) {
+        return res.status(404).json({ message: "Puja not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting puja:", error);
+      res.status(500).json({ message: "Failed to delete puja" });
+    }
+  });
 
   app.get("/api/pujas/search", async (req: Request, res: Response) => {
     try {
