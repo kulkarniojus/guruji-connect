@@ -147,27 +147,127 @@ const SpiritualJourney = () => {
   const [isReflectionDialogOpen, setIsReflectionDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<number | null>(null);
 
-  // Fetch user journeys
-  const { 
-    data: journeys, 
-    isLoading: journeysLoading, 
-    error: journeysError 
-  } = useQuery({
-    queryKey: ['/api/journey'],
-    queryFn: () => fetch('/api/journey').then(res => res.json()),
-    enabled: true
-  });
+  // For demo purposes, use mock data instead of API
+  const demoJourneys = [
+    {
+      id: 1,
+      userId: 1,
+      title: "Spiritual Growth Path",
+      description: "My personal journey to spiritual enlightenment",
+      stage: "intermediate" as const,
+      totalPujas: 10,
+      completedPujas: 3,
+      goals: ["Inner peace", "Deeper connection", "Family harmony"],
+      achievements: null,
+      nextRecommendation: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 2,
+      userId: 1,
+      title: "Family Blessing Journey",
+      description: "Seeking blessings for my family's prosperity",
+      stage: "beginner" as const,
+      totalPujas: 5,
+      completedPujas: 1,
+      goals: ["Family prosperity", "Protection", "Health"],
+      achievements: null,
+      nextRecommendation: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  ];
 
-  // Fetch journey details with items
+  const demoJourneyDetails = {
+    journey: demoJourneys[0],
+    items: [
+      {
+        id: 1,
+        journeyId: 1,
+        pujaId: 1,
+        bookingId: null,
+        title: "Satyanarayan Puja",
+        description: "Seeking truth and clarity in spiritual path",
+        isCompleted: true,
+        completedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+        reflection: "I felt more centered and peaceful after this puja.",
+        sequence: 1,
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 2,
+        journeyId: 1,
+        pujaId: 2,
+        bookingId: null,
+        title: "Ganesh Puja",
+        description: "Removing obstacles on my spiritual path",
+        isCompleted: true,
+        completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+        reflection: "I feel more capable of overcoming challenges in my life.",
+        sequence: 2,
+        createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 3,
+        journeyId: 1,
+        pujaId: 3,
+        bookingId: null,
+        title: "Lakshmi Puja",
+        description: "Inviting abundance and prosperity",
+        isCompleted: true,
+        completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        reflection: "I've been feeling more grateful for what I have.",
+        sequence: 3,
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 4,
+        journeyId: 1,
+        pujaId: 4,
+        bookingId: null,
+        title: "Rudra Abhishek",
+        description: "Inner strength and transformation",
+        isCompleted: false,
+        completedAt: null,
+        reflection: null,
+        sequence: 4,
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 5,
+        journeyId: 1,
+        pujaId: 5,
+        bookingId: null,
+        title: "Durga Puja",
+        description: "Inner strength and protection",
+        isCompleted: false,
+        completedAt: null,
+        reflection: null,
+        sequence: 5,
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    ]
+  };
+
+  // Use mock data instead of API calls
   const { 
-    data: journeyDetails, 
-    isLoading: journeyDetailsLoading, 
-    error: journeyDetailsError 
-  } = useQuery({
-    queryKey: ['/api/journey', selectedJourney],
-    queryFn: () => fetch(`/api/journey/${selectedJourney}`).then(res => res.json()),
-    enabled: !!selectedJourney
-  });
+    data: journeys = demoJourneys, 
+    isLoading: journeysLoading = false, 
+    error: journeysError = null 
+  } = { data: demoJourneys, isLoading: false, error: null };
+
+  // Use mock data for journey details
+  const { 
+    data: journeyDetails = selectedJourney === 1 ? demoJourneyDetails : null, 
+    isLoading: journeyDetailsLoading = false, 
+    error: journeyDetailsError = null 
+  } = { data: selectedJourney === 1 ? demoJourneyDetails : null, isLoading: false, error: null };
 
   // New Journey form
   const newJourneyForm = useForm<z.infer<typeof newJourneySchema>>({
@@ -198,69 +298,40 @@ const SpiritualJourney = () => {
     }
   });
 
-  // Create journey mutation
-  const createJourneyMutation = useMutation({
-    mutationFn: (data: z.infer<typeof newJourneySchema>) => {
-      // Convert goals string to array
-      const goals = data.goals ? data.goals.split(',').map(g => g.trim()).filter(g => g) : null;
-      
-      return apiRequest('POST', '/api/journey', {
-        ...data,
-        goals
-      });
-    },
-    onSuccess: () => {
+  // Mock journey mutation (demo only)
+  const createJourneyMutation = {
+    mutate: (data: z.infer<typeof newJourneySchema>) => {
+      // Mock success
       toast({
         title: 'Journey created',
         description: 'Your spiritual journey has been created successfully.',
       });
       newJourneyForm.reset();
       setIsNewJourneyDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
     },
-    onError: (error) => {
-      toast({
-        title: 'Error creating journey',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  });
+    isPending: false,
+    isSuccess: false
+  };
 
-  // Create journey item mutation
-  const createJourneyItemMutation = useMutation({
-    mutationFn: (data: z.infer<typeof newJourneyItemSchema>) => {
-      return apiRequest('POST', `/api/journey/${selectedJourney}/items`, {
-        ...data,
-        pujaId: data.pujaId ? parseInt(data.pujaId) : null
-      });
-    },
-    onSuccess: () => {
+  // Mock journey item mutation (demo only)
+  const createJourneyItemMutation = {
+    mutate: (data: z.infer<typeof newJourneyItemSchema>) => {
+      // Mock success
       toast({
         title: 'Journey milestone added',
         description: 'A new milestone has been added to your journey.',
       });
       newJourneyItemForm.reset();
       setIsNewItemDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/journey', selectedJourney] });
     },
-    onError: (error) => {
-      toast({
-        title: 'Error adding milestone',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  });
+    isPending: false,
+    isSuccess: false
+  };
 
-  // Mark item complete mutation
-  const markItemCompleteMutation = useMutation({
-    mutationFn: (data: { itemId: number, reflection: string }) => {
-      return apiRequest('PATCH', `/api/journey/items/${data.itemId}/complete`, {
-        reflection: data.reflection
-      });
-    },
-    onSuccess: () => {
+  // Mock mark item complete mutation (demo only)
+  const markItemCompleteMutation = {
+    mutate: (data: { itemId: number, reflection: string }) => {
+      // Mock success
       toast({
         title: 'Milestone completed',
         description: 'Your reflection has been saved and the milestone marked as complete.',
@@ -268,16 +339,10 @@ const SpiritualJourney = () => {
       reflectionForm.reset();
       setIsReflectionDialogOpen(false);
       setSelectedItem(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/journey', selectedJourney] });
     },
-    onError: (error) => {
-      toast({
-        title: 'Error completing milestone',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  });
+    isPending: false,
+    isSuccess: false
+  };
 
   // Handle new journey submission
   const onSubmitNewJourney = (data: z.infer<typeof newJourneySchema>) => {
