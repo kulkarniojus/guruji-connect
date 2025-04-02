@@ -3,6 +3,9 @@ import { pool } from './db';
 export async function initializeDatabase() {
   try {
     console.log('Initializing database...');
+
+    // Run schema migrations
+    await migrateSchema();
     
     // Check if the pujas table exists and if it already has data
     const existingPujasResult = await pool.query('SELECT * FROM pujas LIMIT 1');
@@ -81,6 +84,87 @@ export async function initializeDatabase() {
     return true;
   } catch (error) {
     console.error('Error initializing database:', error);
+    throw error;
+  }
+}
+
+/**
+ * Apply schema migrations to update database tables with new columns
+ */
+async function migrateSchema() {
+  try {
+    console.log('Running schema migrations...');
+    
+    // Add address columns to users table
+    await pool.query(`
+      DO $$ 
+      BEGIN
+        -- Add address columns to users table if they don't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'address') THEN
+          ALTER TABLE users ADD COLUMN address TEXT;
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'city') THEN
+          ALTER TABLE users ADD COLUMN city TEXT;
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'state') THEN
+          ALTER TABLE users ADD COLUMN state TEXT;
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'pincode') THEN
+          ALTER TABLE users ADD COLUMN pincode TEXT;
+        END IF;
+      END $$;
+    `);
+    
+    // Add new columns to guruji_profiles table
+    await pool.query(`
+      DO $$ 
+      BEGIN
+        -- Add new columns to guruji_profiles table if they don't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'price_per_hour') THEN
+          ALTER TABLE guruji_profiles ADD COLUMN price_per_hour INTEGER DEFAULT 500;
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'is_available') THEN
+          ALTER TABLE guruji_profiles ADD COLUMN is_available BOOLEAN DEFAULT TRUE;
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'aadhar_verified') THEN
+          ALTER TABLE guruji_profiles ADD COLUMN aadhar_verified BOOLEAN DEFAULT FALSE;
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'documents_verified') THEN
+          ALTER TABLE guruji_profiles ADD COLUMN documents_verified BOOLEAN DEFAULT FALSE;
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'verification_date') THEN
+          ALTER TABLE guruji_profiles ADD COLUMN verification_date TIMESTAMP;
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'languages') THEN
+          ALTER TABLE guruji_profiles ADD COLUMN languages TEXT[];
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'certificates') THEN
+          ALTER TABLE guruji_profiles ADD COLUMN certificates TEXT[];
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'profile_picture_url') THEN
+          ALTER TABLE guruji_profiles ADD COLUMN profile_picture_url TEXT;
+        END IF;
+        
+        -- Update radius default to 20km
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guruji_profiles' AND column_name = 'radius') THEN
+          ALTER TABLE guruji_profiles ALTER COLUMN radius SET DEFAULT 20;
+        END IF;
+      END $$;
+    `);
+    
+    console.log('Schema migrations completed successfully');
+  } catch (error) {
+    console.error('Error during schema migration:', error);
     throw error;
   }
 }

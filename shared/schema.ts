@@ -20,6 +20,12 @@ export const users = pgTable("users", {
   age: integer("age").notNull(),
   gender: text("gender").notNull(),
   role: userRoleEnum("role").notNull(),
+  // Address details
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  pincode: text("pincode"),
+  // Identity details
   aadhar: text("aadhar"),
   caste: text("caste"),
   isVerified: boolean("is_verified").default(false),
@@ -61,13 +67,26 @@ export const gurujiProfiles = pgTable("guruji_profiles", {
   bio: text("bio"),
   experience: integer("experience"), // in years
   specialization: text("specialization"),
+  // Service availability
   location: text("location").notNull(),
-  radius: integer("radius").default(10), // in km
+  radius: integer("radius").default(20), // in km - increased from 10km to 20km
+  pricePerHour: integer("price_per_hour").default(500), // Base price for consultation
   isOnline: boolean("is_online").default(false),
   isOffline: boolean("is_offline").default(true),
   isConsultation: boolean("is_consultation").default(false),
+  isAvailable: boolean("is_available").default(true),
+  // Verification details
+  aadharVerified: boolean("aadhar_verified").default(false),
+  documentsVerified: boolean("documents_verified").default(false),
+  verificationDate: timestamp("verification_date"),
+  // Ratings and reviews
   rating: integer("rating").default(0),
   totalReviews: integer("total_reviews").default(0),
+  // Additional profile details
+  languages: text("languages").array(),
+  certificates: text("certificates").array(),
+  profilePictureUrl: text("profile_picture_url"),
+  // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

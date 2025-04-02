@@ -42,6 +42,35 @@ import {
 } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+// Extend the User type to include the new fields
+declare module '@/context/AuthContext' {
+  interface User {
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+  }
+}
+
+// Booking type for TypeScript
+interface Booking {
+  id: number;
+  pujaId: number;
+  pujaName?: string;
+  customerId: number;
+  gurujiId?: number;
+  gurujiName?: string;
+  type: string;
+  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  amount: number;
+  date: string;
+  duration: number;
+  city?: string;
+  address?: string;
+  notes?: string;
+  isImmediate?: boolean;
+}
+
 // Profile update form schema
 const profileFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -49,6 +78,11 @@ const profileFormSchema = z.object({
   email: z.string().email("Invalid email address"),
   mobile: z.string().length(10, "Mobile number must be 10 digits"),
   age: z.coerce.number().min(18, "You must be at least 18 years old"),
+  // Address fields
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  pincode: z.string().optional(),
 });
 
 // Password change form schema
@@ -86,6 +120,11 @@ export default function Profile() {
       email: user?.email || '',
       mobile: user?.mobile || '',
       age: user?.age || 18,
+      // Address fields
+      address: user?.address || '',
+      city: user?.city || '',
+      state: user?.state || '',
+      pincode: user?.pincode || '',
     },
   });
 
@@ -99,7 +138,7 @@ export default function Profile() {
   });
 
   // Fetch bookings for the user
-  const { data: bookings = [], isLoading: isBookingsLoading } = useQuery({
+  const { data: bookings = [] as Booking[], isLoading: isBookingsLoading } = useQuery<Booking[]>({
     queryKey: ['/api/bookings'],
     enabled: !!user,
   });
@@ -181,6 +220,11 @@ export default function Profile() {
         email: user.email || '',
         mobile: user.mobile || '',
         age: user.age || 18,
+        // Address fields
+        address: user.address || '',
+        city: user.city || '',
+        state: user.state || '',
+        pincode: user.pincode || '',
       });
     }
   }, [user, profileForm]);
@@ -289,107 +333,224 @@ export default function Profile() {
                     <CardDescription>Update your personal information</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Form {...profileForm}>
-                      <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <FormField
-                            control={profileForm.control}
-                            name="firstName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>First Name</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="lastName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Last Name</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="email"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Email</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="mobile"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Mobile Number</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    {...field} 
-                                    readOnly 
-                                    disabled 
-                                    className="bg-neutral-100" 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="age"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Age</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    {...field} 
-                                    onChange={(e) => field.onChange(parseInt(e.target.value))} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="lg:col-span-2">
+                        <Form {...profileForm}>
+                          <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <FormField
+                                control={profileForm.control}
+                                name="firstName"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>First Name</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={profileForm.control}
+                                name="lastName"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Last Name</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={profileForm.control}
+                                name="email"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Email</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={profileForm.control}
+                                name="mobile"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Mobile Number</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        {...field} 
+                                        readOnly 
+                                        disabled 
+                                        className="bg-neutral-100" 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={profileForm.control}
+                                name="age"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Age</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        {...field} 
+                                        onChange={(e) => field.onChange(parseInt(e.target.value))} 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
 
-                        <Button 
-                          type="submit" 
-                          disabled={updateProfileMutation.isPending}
-                        >
-                          {updateProfileMutation.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <Save className="mr-2 h-4 w-4" />
-                              Save Changes
-                            </>
+                              {/* Address Fields */}
+                              <div className="md:col-span-2">
+                                <h3 className="text-lg font-medium mb-2">Address Information</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <FormField
+                                    control={profileForm.control}
+                                    name="address"
+                                    render={({ field }) => (
+                                      <FormItem className="md:col-span-2">
+                                        <FormLabel>Address</FormLabel>
+                                        <FormControl>
+                                          <Input {...field} placeholder="Street address" />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  
+                                  <FormField
+                                    control={profileForm.control}
+                                    name="city"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>City</FormLabel>
+                                        <FormControl>
+                                          <Input {...field} placeholder="City" />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  
+                                  <FormField
+                                    control={profileForm.control}
+                                    name="state"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>State</FormLabel>
+                                        <FormControl>
+                                          <Input {...field} placeholder="State" />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  
+                                  <FormField
+                                    control={profileForm.control}
+                                    name="pincode"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Pincode</FormLabel>
+                                        <FormControl>
+                                          <Input {...field} placeholder="Pincode" />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <Button 
+                              type="submit" 
+                              disabled={updateProfileMutation.isPending}
+                            >
+                              {updateProfileMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Updating...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="mr-2 h-4 w-4" />
+                                  Save Changes
+                                </>
+                              )}
+                            </Button>
+                          </form>
+                        </Form>
+                      </div>
+                      
+                      {/* User Info Card - Similar to the provided design */}
+                      <div>
+                        <div className="flex flex-col items-center justify-center">
+                          <Avatar className="h-32 w-32 mb-4">
+                            <AvatarFallback className="text-2xl font-semibold">
+                              {user.firstName?.charAt(0) || ''}
+                              {user.lastName?.charAt(0) || ''}
+                            </AvatarFallback>
+                          </Avatar>
+                          <h2 className="text-xl font-bold mb-2">{user.firstName} {user.lastName}</h2>
+                          <p className="text-gray-600 mb-1">{user.role === 'customer' ? 'Hindu' : 'Guruji'}</p>
+                        </div>
+                        
+                        <div className="mt-6 space-y-3">
+                          <div className="flex items-start">
+                            <Phone className="h-5 w-5 text-primary mt-0.5 mr-2" />
+                            <div>
+                              <p className="text-sm text-gray-500">Mobile</p>
+                              <p>+91 {user.mobile}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-start">
+                            <Mail className="h-5 w-5 text-primary mt-0.5 mr-2" />
+                            <div>
+                              <p className="text-sm text-gray-500">Email</p>
+                              <p>{user.email}</p>
+                            </div>
+                          </div>
+                          
+                          {user?.address && (
+                            <div className="flex items-start">
+                              <MapPin className="h-5 w-5 text-primary mt-0.5 mr-2" />
+                              <div>
+                                <p className="text-sm text-gray-500">Address</p>
+                                <p>{user.address}</p>
+                                <p>{user?.city || ''}, {user?.state || ''} {user?.pincode || ''}</p>
+                              </div>
+                            </div>
                           )}
-                        </Button>
-                      </form>
-                    </Form>
+                        </div>
+                        
+                        {/* Add address button if no address */}
+                        {!user?.address && (
+                          <Button className="w-full mt-4" variant="outline">
+                            <MapPin className="mr-2 h-4 w-4" />
+                            Add Address
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -473,35 +634,69 @@ export default function Profile() {
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
                     ) : bookings.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-6">
+                        {/* Puja Cards Section based on the provided design */}
                         {bookings.map((booking: any) => (
-                          <div key={booking.id} className="border rounded-lg p-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="flex items-center">
-                                  <StatusBadge status={booking.status} />
-                                  <h3 className="text-lg font-medium ml-2">{booking.pujaName || 'Puja Booking'}</h3>
+                          <div key={booking.id} className="border rounded-lg overflow-hidden">
+                            <div className="bg-neutral-200 p-4">
+                              <h3 className="text-xl font-semibold mb-2">Puja Card</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <p className="text-sm text-neutral-600">Puja Name</p>
+                                  <p className="font-medium">{booking.pujaName || 'Puja Service'}</p>
                                 </div>
-                                <p className="text-neutral-600 text-sm mt-1">
-                                  {new Date(booking.date).toLocaleDateString('en-US', { 
-                                    month: 'long', 
-                                    day: 'numeric', 
-                                    year: 'numeric' 
-                                  })} at {new Date(booking.date).toLocaleTimeString('en-US', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  })}
-                                </p>
-                                <div className="flex items-center text-sm text-neutral-600 mt-2">
-                                  <MapPin className="h-4 w-4 mr-1" />
-                                  <span>{booking.city}{booking.address ? `, ${booking.address}` : ''}</span>
+                                <div>
+                                  <p className="text-sm text-neutral-600">Puja Date</p>
+                                  <p className="font-medium">
+                                    {new Date(booking.date).toLocaleDateString('en-US', { 
+                                      month: 'long', 
+                                      day: 'numeric', 
+                                      year: 'numeric' 
+                                    })} at {new Date(booking.date).toLocaleTimeString('en-US', { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    })}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-neutral-600">Guruji's Name</p>
+                                  <p className="font-medium">{booking.gurujiName || 'To be assigned'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-neutral-600">Other Puja details</p>
+                                  <p className="font-medium">{booking.notes || 'No additional details'}</p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <p className="font-medium">₹{booking.amount}</p>
-                                <Button variant="outline" size="sm" className="mt-2">
-                                  View Details
-                                </Button>
+                              
+                              <div className="flex justify-between items-center mt-4">
+                                <div className="flex items-center">
+                                  <div className={`px-3 py-1 rounded-md text-sm font-medium ${
+                                    booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                    booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
+                                    'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    Status - {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1) || 'Pending'}
+                                  </div>
+                                </div>
+                                
+                                {booking.status === 'completed' && (
+                                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+                                    Request Same Guruji
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="p-4 flex justify-between items-center">
+                              <div>
+                                <p className="font-bold text-lg">Total Amount: ₹{booking.amount}</p>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Button variant="outline" size="sm">View Details</Button>
+                                {booking.status === 'pending' && (
+                                  <Button variant="destructive" size="sm">Cancel</Button>
+                                )}
                               </div>
                             </div>
                           </div>

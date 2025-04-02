@@ -194,6 +194,12 @@ export class PgStorage implements IStorage {
       age: userData.age,
       gender: userData.gender,
       role: userData.role,
+      // Address fields
+      address: userData.address || null,
+      city: userData.city || null,
+      state: userData.state || null,
+      pincode: userData.pincode || null,
+      // Identity fields
       aadhar: userData.aadhar || null,
       caste: userData.caste || null,
       is_verified: false,
@@ -221,6 +227,12 @@ export class PgStorage implements IStorage {
     if (userData.age) updateData.age = userData.age;
     if (userData.gender) updateData.gender = userData.gender;
     if (userData.role) updateData.role = userData.role;
+    // Address fields
+    if ('address' in userData) updateData.address = userData.address;
+    if ('city' in userData) updateData.city = userData.city;
+    if ('state' in userData) updateData.state = userData.state;
+    if ('pincode' in userData) updateData.pincode = userData.pincode;
+    // Identity fields
     if ('aadhar' in userData) updateData.aadhar = userData.aadhar;
     if ('caste' in userData) updateData.caste = userData.caste;
     if ('isVerified' in userData) updateData.is_verified = userData.isVerified;
