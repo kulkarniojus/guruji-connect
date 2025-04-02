@@ -89,10 +89,20 @@ export default function PujaManagement() {
 
   // For demo purposes, we're using a simpler approach to avoid unnecessary API calls
   // In production, this would use the actual API endpoint
-  const [demoLoading, setDemoLoading] = useState(true);
+  // Initial loading state
+  const [isUiLoading, setIsUiLoading] = useState(true);
   
-  // Demo data for pujas - with proper types
-  const demoPujas: Puja[] = [
+  // Fetch pujas from the API
+  const { 
+    data: apiPujas, 
+    isLoading: isApiLoading, 
+    error: apiError 
+  } = useQuery<Puja[]>({
+    queryKey: ['/api/pujas'],
+  });
+
+  // Demo data for initial load and fallback - properly typed
+  const initialPujas: Puja[] = [
     {
       id: 1,
       name: "Satyanarayan Puja",
@@ -103,7 +113,7 @@ export default function PujaManagement() {
       items: ["Flowers", "Incense sticks", "Fruits", "Sweets"],
       isPopular: true,
       isActive: true,
-      type: "offline" as "offline", // Explicitly typed
+      type: "offline" as "offline",
       duration: 120,
       createdAt: "2023-01-01T00:00:00Z",
       updatedAt: "2023-01-01T00:00:00Z"
@@ -118,7 +128,7 @@ export default function PujaManagement() {
       items: ["Kalash", "Coconut", "Flowers", "Rice"],
       isPopular: true,
       isActive: true,
-      type: "offline" as "offline", // Explicitly typed
+      type: "offline" as "offline",
       duration: 180,
       createdAt: "2023-01-02T00:00:00Z",
       updatedAt: "2023-01-02T00:00:00Z"
@@ -133,139 +143,195 @@ export default function PujaManagement() {
       items: [],
       isPopular: false,
       isActive: true,
-      type: "online" as "online", // Explicitly typed
+      type: "online" as "online",
       duration: 45,
       createdAt: "2023-01-03T00:00:00Z",
       updatedAt: "2023-01-03T00:00:00Z"
     }
   ];
   
-  // Using local state for demo instead of API calls
-  const [pujas, setPujas] = useState(demoPujas);
-  const isLoading = demoLoading;
-  const error = null;
+  // Track puja data with local state
+  const [pujasData, setPujasData] = useState<Puja[]>(initialPujas);
   
-  // Simulate API loading
+  // Update local state when API data is available
   useEffect(() => {
+    if (apiPujas) {
+      setPujasData(apiPujas);
+    }
+  }, [apiPujas]);
+  
+  // Loading states
+  useEffect(() => {
+    // Add a small delay for demo loading state
     const timer = setTimeout(() => {
-      setDemoLoading(false);
+      setIsUiLoading(false);
     }, 1000);
     
     return () => clearTimeout(timer);
   }, []);
+  
+  // Derived values
+  const pujas = pujasData;
+  const setPujas = setPujasData;
+  const isLoading = isApiLoading || isUiLoading;
+  const error = apiError;
 
-  // For demo purposes we'll use simpler local state mutations
-  // In a production app, these would be actual API calls
+  // Real API mutations combined with optimistic UI updates 
+  // This provides immediate UI feedback while ensuring data persistence
 
-  // Create puja mutation (local state version)
-  const [createPending, setCreatePending] = useState(false);
+  // Real API mutations with optimistic UI updates
+  const createRealPujaMutation = useMutation({
+    mutationFn: async (data: PujaFormData) => {
+      const response = await apiRequest('POST', '/api/pujas', data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create puja',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const updateRealPujaMutation = useMutation({
+    mutationFn: async (data: { id: number; puja: PujaFormData }) => {
+      const response = await apiRequest('PUT', `/api/pujas/${data.id}`, data.puja);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update puja',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const deleteRealPujaMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest('DELETE', `/api/pujas/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete puja',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Update local state immediately for responsive UI
+  // Create puja - optimistic UI update + real API call
   const createPujaMutation = {
     mutate: (data: PujaFormData) => {
-      setCreatePending(true);
-      // Simulate API call
-      setTimeout(() => {
-        // Create a new puja with an ID
-        const newPuja: Puja = {
-          id: Math.max(0, ...pujas.map(p => p.id)) + 1,
-          name: data.name,
-          description: data.description,
-          basePrice: data.basePrice,
-          price: data.price,
-          imageUrl: data.imageUrl,
-          items: data.items,
-          isPopular: data.isPopular,
-          isActive: data.isActive,
-          type: data.type, // This is properly typed as 'offline' | 'online'
-          duration: data.duration,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        
-        // Update state
-        setPujas(prev => [...prev, newPuja]);
-        
-        // Show success message
-        toast({
-          title: 'Success',
-          description: 'Puja created successfully',
-        });
-        
-        // Clean up
-        resetForm();
-        setIsAddDialogOpen(false);
-        setCreatePending(false);
-      }, 800);
+      // Create optimistic puja entry with temporary ID
+      const tempId = Math.max(0, ...pujas.map(p => p.id)) + 1;
+      const newPuja: Puja = {
+        id: tempId,
+        name: data.name,
+        description: data.description,
+        basePrice: data.basePrice,
+        price: data.price,
+        imageUrl: data.imageUrl,
+        items: data.items,
+        isPopular: data.isPopular,
+        isActive: data.isActive,
+        type: data.type,
+        duration: data.duration,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Update local state immediately for responsive UI
+      setPujas(prev => [...prev, newPuja]);
+      
+      // Show success toast
+      toast({
+        title: 'Success',
+        description: 'Puja created successfully',
+      });
+      
+      // Clean up UI
+      resetForm();
+      setIsAddDialogOpen(false);
+      
+      // Make the actual API call
+      createRealPujaMutation.mutate(data);
     },
-    isPending: createPending
+    isPending: createRealPujaMutation.isPending
   };
 
-  // Update puja mutation (local state version)
-  const [updatePending, setUpdatePending] = useState(false);
+  // Update puja - optimistic UI update + real API call
   const updatePujaMutation = {
     mutate: (data: { id: number; puja: PujaFormData }) => {
-      setUpdatePending(true);
-      // Simulate API call
-      setTimeout(() => {
-        // Update the puja in state with proper typing
-        setPujas(prev => prev.map(puja => {
-          if (puja.id === data.id) {
-            // Create a properly typed object
-            const updatedPuja: Puja = {
-              ...puja, // Keep original data
-              name: data.puja.name,
-              description: data.puja.description,
-              basePrice: data.puja.basePrice,
-              price: data.puja.price,
-              imageUrl: data.puja.imageUrl,
-              items: data.puja.items,
-              isPopular: data.puja.isPopular,
-              isActive: data.puja.isActive,
-              type: data.puja.type,
-              duration: data.puja.duration,
-              updatedAt: new Date().toISOString()
-            };
-            return updatedPuja;
-          }
-          return puja;
-        }));
-        
-        // Show success message
-        toast({
-          title: 'Success',
-          description: 'Puja updated successfully',
-        });
-        
-        // Clean up
-        resetForm();
-        setIsEditDialogOpen(false);
-        setUpdatePending(false);
-      }, 800);
+      // Update local state immediately
+      setPujas(prev => prev.map(puja => {
+        if (puja.id === data.id) {
+          // Create an updated puja object
+          const updatedPuja: Puja = {
+            ...puja,
+            name: data.puja.name,
+            description: data.puja.description,
+            basePrice: data.puja.basePrice,
+            price: data.puja.price,
+            imageUrl: data.puja.imageUrl,
+            items: data.puja.items,
+            isPopular: data.puja.isPopular,
+            isActive: data.puja.isActive,
+            type: data.puja.type,
+            duration: data.puja.duration,
+            updatedAt: new Date().toISOString()
+          };
+          return updatedPuja;
+        }
+        return puja;
+      }));
+      
+      // Show success toast
+      toast({
+        title: 'Success',
+        description: 'Puja updated successfully',
+      });
+      
+      // Clean up UI
+      resetForm();
+      setIsEditDialogOpen(false);
+      
+      // Make the actual API call
+      updateRealPujaMutation.mutate(data);
     },
-    isPending: updatePending
+    isPending: updateRealPujaMutation.isPending
   };
 
-  // Delete puja mutation (local state version)
-  const [deletePending, setDeletePending] = useState(false);
+  // Delete puja - optimistic UI update + real API call
   const deletePujaMutation = {
     mutate: (id: number) => {
-      setDeletePending(true);
-      // Simulate API call
-      setTimeout(() => {
-        // Remove the puja from state
-        setPujas(prev => prev.filter(puja => puja.id !== id));
-        
-        // Show success message
-        toast({
-          title: 'Success',
-          description: 'Puja deleted successfully',
-        });
-        
-        // Clean up
-        setIsDeleteDialogOpen(false);
-        setDeletePending(false);
-      }, 800);
+      // Update local state immediately
+      setPujas(prev => prev.filter(puja => puja.id !== id));
+      
+      // Show success toast
+      toast({
+        title: 'Success',
+        description: 'Puja deleted successfully',
+      });
+      
+      // Clean up UI
+      setIsDeleteDialogOpen(false);
+      
+      // Make the actual API call
+      deleteRealPujaMutation.mutate(id);
     },
-    isPending: deletePending
+    isPending: deleteRealPujaMutation.isPending
   };
 
   // Reset form
