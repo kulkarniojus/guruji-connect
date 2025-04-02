@@ -18,11 +18,11 @@ const cities = [
 ];
 
 const pujas = [
-  { value: 'satyanarayan', label: 'Satyanarayan Puja' },
-  { value: 'griha-pravesh', label: 'Griha Pravesh' },
-  { value: 'ganesh-puja', label: 'Ganesh Puja' },
-  { value: 'navgraha-shanti', label: 'Navgraha Shanti' },
-  { value: 'rudrabhishek', label: 'Rudrabhishek' }
+  { value: '1', label: 'Satyanarayan Puja' },
+  { value: '2', label: 'Griha Pravesh' },
+  { value: '3', label: 'Ganesh Puja' },
+  { value: '4', label: 'Navgraha Shanti' },
+  { value: '5', label: 'Rudrabhishek' }
 ];
 
 export default function MobileHero() {

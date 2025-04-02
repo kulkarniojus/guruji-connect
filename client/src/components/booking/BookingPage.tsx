@@ -85,6 +85,17 @@ export default function BookingPage() {
 
   // Selected puja details
   const selectedPuja = pujas && Array.isArray(pujas) ? pujas.find(p => p.id.toString() === selectedPujaId) : null;
+  
+  // Debug information
+  console.log("DEBUG: Puja selection", {
+    selectedService: null,
+    initialPujaId,
+    pujas,
+    pujasType: typeof pujas,
+    isArray: Array.isArray(pujas),
+    selectedPujaId
+  });
+  console.log("DEBUG: Selected puja result:", selectedPuja || "Not found");
 
   // Calculate booking amount based on type and consultation type
   const calculateAmount = () => {

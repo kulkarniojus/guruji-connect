@@ -36,7 +36,8 @@ export default function PujaDetails() {
     if (puja) {
       // Type cast inside the function to access id safely
       const pujaToBook = puja as Puja;
-      setLocation(`/booking?puja=${pujaToBook.id}`);
+      // Add the puja name to the URL for use in the booking page
+      setLocation(`/booking?puja=${pujaToBook.id}&pujaName=${encodeURIComponent(pujaToBook.name)}`);
     }
   };
   
