@@ -26,7 +26,7 @@ import {
   Star,
   UserCheck,
   PersonStanding,
-  PrayingHands,
+  FlowerIcon,
   MessageCircle,
   TrendingUp,
   Clock
@@ -159,7 +159,7 @@ const OverviewSection: React.FC<{ data: OverviewData }> = ({ data }) => {
           title="Total Pujas"
           value={data.totalPujas}
           description="Available religious services"
-          icon={<PrayingHands className="h-5 w-5" />}
+          icon={<FlowerIcon className="h-5 w-5" />}
           color="text-red-500"
         />
         <StatCard
