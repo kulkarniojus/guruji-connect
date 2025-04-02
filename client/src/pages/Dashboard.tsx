@@ -8,24 +8,13 @@ import GurujiDashboard from '@/components/dashboard/GurujiDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import { MobileDashboard } from '@/components/dashboard/MobileDashboard';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
-  // Mock user and auth data for now
-  const user = { role: 'customer' };
-  const isLoading = false;
+  const { user, isLoading } = useAuth();
   const isMobile = useIsMobile();
   const [, setLocation] = useLocation();
-
-  // Commented out for now to prevent redirection errors
-  /*
-  useEffect(() => {
-    // If not loading and no user is logged in, redirect to home
-    if (!isLoading && !user) {
-      setLocation('/');
-    }
-  }, [user, isLoading, setLocation]);
-  */
 
   if (isLoading) {
     return (

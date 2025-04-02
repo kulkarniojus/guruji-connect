@@ -1,4 +1,6 @@
 import { Helmet } from 'react-helmet';
+import { useLocation } from 'wouter';
+import { useEffect } from 'react';
 import Header from '@/components/landing/Header';
 import Hero from '@/components/landing/Hero';
 import MobileHero from '@/components/landing/MobileHero';
@@ -11,9 +13,20 @@ import CTA from '@/components/landing/CTA';
 import Footer from '@/components/landing/Footer';
 import Chatbot from '@/components/common/Chatbot';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 export default function Home() {
   const isMobile = useIsMobile();
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user && !isLoading) {
+      setLocation('/dashboard');
+    }
+  }, [user, isLoading, setLocation]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
