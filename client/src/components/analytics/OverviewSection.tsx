@@ -24,7 +24,6 @@ import {
   Calendar,
   IndianRupee,
   Star,
-  UserCheck,
   PersonStanding,
   FlowerIcon,
   MessageCircle,
@@ -90,34 +89,54 @@ const StatCard: React.FC<StatCardProps> = ({
   </Card>
 );
 
-const formatCurrency = (value: number) => {
+const formatCurrency = (value: number | undefined) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0
-  }).format(value);
+  }).format(value || 0);
 };
 
 const OverviewSection: React.FC<{ data: OverviewData }> = ({ data }) => {
-  // Estimate some percentage changes for demo purposes
-  // In a real app, these would come from the backend
-  const userGrowth = ((data.newUsers30Days / (data.totalUsers - data.newUsers30Days)) * 100).toFixed(1);
-  const bookingGrowth = ((data.newBookings30Days / (data.totalBookings - data.newBookings30Days)) * 100).toFixed(1);
+  // Use default values for all data to prevent undefined errors
+  const totalUsers = data?.totalUsers || 0;
+  const totalBookings = data?.totalBookings || 0;
+  const totalRevenue = data?.totalRevenue || 0;
+  const totalGurujis = data?.totalGurujis || 0;
+  const totalPujas = data?.totalPujas || 0;
+  const activeWhatsappUsers = data?.activeWhatsappUsers || 0;
+  const newUsers30Days = data?.newUsers30Days || 0;
+  const newBookings30Days = data?.newBookings30Days || 0;
+  const revenue30Days = data?.revenue30Days || 0;
+  const averageRating = data?.averageRating || 4.5;
+  
+  // Calculate growth percentages safely
+  const userGrowth = totalUsers > newUsers30Days ? 
+    ((newUsers30Days / (totalUsers - newUsers30Days)) * 100).toFixed(1) : '0.0';
+  const bookingGrowth = totalBookings > newBookings30Days ? 
+    ((newBookings30Days / (totalBookings - newBookings30Days)) * 100).toFixed(1) : '0.0';
 
-  // Chart data
+  // Chart data with safe values - calculate total customers vs gurujis
+  const customers = Math.max(0, totalUsers - totalGurujis);
+  
+  // Ensure we always have at least 1 for each category to avoid rendering issues
   const pieData = [
-    { name: 'Customers', value: data.totalUsers - data.totalGurujis, color: '#8884d8' },
-    { name: 'Gurujis', value: data.totalGurujis, color: '#82ca9d' },
+    { name: 'Customers', value: customers || 1, color: '#8884d8' },
+    { name: 'Gurujis', value: totalGurujis || 1, color: '#82ca9d' },
   ];
 
-  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe'];
+  const barData = [
+    { name: 'Users', value: newUsers30Days, color: '#8884d8' },
+    { name: 'Bookings', value: newBookings30Days, color: '#82ca9d' },
+    { name: 'Revenue (₹K)', value: revenue30Days / 1000, color: '#ffc658' },
+  ];
 
   return (
     <div className="grid gap-6">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
-          value={data.totalUsers}
+          value={totalUsers}
           description="All registered users"
           icon={<Users className="h-5 w-5" />}
           color="text-blue-500"
@@ -125,7 +144,7 @@ const OverviewSection: React.FC<{ data: OverviewData }> = ({ data }) => {
         />
         <StatCard
           title="Total Bookings"
-          value={data.totalBookings}
+          value={totalBookings}
           description="All time bookings"
           icon={<Calendar className="h-5 w-5" />}
           color="text-purple-500"
@@ -133,14 +152,14 @@ const OverviewSection: React.FC<{ data: OverviewData }> = ({ data }) => {
         />
         <StatCard
           title="Total Revenue"
-          value={formatCurrency(data.totalRevenue)}
+          value={formatCurrency(totalRevenue)}
           description="All time revenue"
           icon={<IndianRupee className="h-5 w-5" />}
           color="text-green-500"
         />
         <StatCard
           title="Average Rating"
-          value={data.averageRating.toFixed(1)}
+          value={averageRating.toFixed(1)}
           description="Overall customer satisfaction"
           icon={<Star className="h-5 w-5" />}
           color="text-yellow-500"
@@ -150,28 +169,28 @@ const OverviewSection: React.FC<{ data: OverviewData }> = ({ data }) => {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Gurujis"
-          value={data.totalGurujis}
+          value={totalGurujis}
           description="Registered religious professionals"
           icon={<PersonStanding className="h-5 w-5" />}
           color="text-orange-500"
         />
         <StatCard
           title="Total Pujas"
-          value={data.totalPujas}
+          value={totalPujas}
           description="Available religious services"
           icon={<FlowerIcon className="h-5 w-5" />}
           color="text-red-500"
         />
         <StatCard
           title="Active WhatsApp Users"
-          value={data.activeWhatsappUsers}
+          value={activeWhatsappUsers}
           description="Users subscribed to WhatsApp"
           icon={<MessageCircle className="h-5 w-5" />}
           color="text-teal-500"
         />
         <StatCard
           title="New Bookings (30d)"
-          value={data.newBookings30Days}
+          value={newBookings30Days}
           description="Recent booking activity"
           icon={<Clock className="h-5 w-5" />}
           color="text-indigo-500"
@@ -218,11 +237,7 @@ const OverviewSection: React.FC<{ data: OverviewData }> = ({ data }) => {
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={[
-                    { name: 'Users', value: data.newUsers30Days, color: '#8884d8' },
-                    { name: 'Bookings', value: data.newBookings30Days, color: '#82ca9d' },
-                    { name: 'Revenue (₹K)', value: data.revenue30Days / 1000, color: '#ffc658' },
-                  ]}
+                  data={barData}
                   margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -234,15 +249,9 @@ const OverviewSection: React.FC<{ data: OverviewData }> = ({ data }) => {
                   ]} />
                   <Legend />
                   <Bar dataKey="value" name="Last 30 Days">
-                    {
-                      [
-                        { name: 'Users', value: data.newUsers30Days, color: '#8884d8' },
-                        { name: 'Bookings', value: data.newBookings30Days, color: '#82ca9d' },
-                        { name: 'Revenue (₹K)', value: data.revenue30Days / 1000, color: '#ffc658' },
-                      ].map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))
-                    }
+                    {barData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

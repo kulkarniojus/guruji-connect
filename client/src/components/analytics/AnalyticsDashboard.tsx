@@ -86,7 +86,13 @@ const AnalyticsDashboard: React.FC = () => {
       users: 5.2,
       bookings: 12.8,
       revenue: 8.5
-    }
+    },
+    totalGurujis: 28,
+    activeWhatsappUsers: 124,
+    newUsers30Days: 34,
+    newBookings30Days: 67,
+    revenue30Days: 38200,
+    averageRating: 4.5
   };
 
   const mockUserData = {
