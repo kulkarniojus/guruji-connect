@@ -84,93 +84,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Authentication Routes
-  app.post("/api/auth/send-otp", async (req: Request, res: Response) => {
-    try {
-      const { mobile } = z.object({
-        mobile: z.string().length(10, "Mobile number must be 10 digits"),
-      }).parse(req.body);
-
-      // Generate OTP
-      const otp = generateOTP();
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 10); // OTP expires in 10 minutes
-
-      await storage.createOtp({
-        mobile,
-        otp,
-        expiresAt,
-      });
-
-      // In a production environment, we would send the OTP via SMS
-      // For now, log it to console for testing
-      console.log(`OTP for ${mobile}: ${otp}`);
-      
-      // Simulate sending SMS
-      // await sendSMS(mobile, `Your OTP for PujaConnect is: ${otp}`);
-
-      res.json({ message: "OTP sent successfully" });
-    } catch (error) {
-      console.error("Error sending OTP:", error);
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          message: "Validation error",
-          errors: fromZodError(error),
-        });
-      }
-      res.status(500).json({ message: "Failed to send OTP" });
-    }
-  });
-
-  app.post("/api/auth/verify-otp", async (req: Request, res: Response) => {
-    try {
-      const { mobile, otp } = z.object({
-        mobile: z.string().length(10, "Mobile number must be 10 digits"),
-        otp: z.string().length(6, "OTP must be 6 digits"),
-      }).parse(req.body);
-
-      const isValid = await storage.verifyOtp(mobile, otp);
-      if (!isValid) {
-        return res.status(400).json({ message: "Invalid or expired OTP" });
-      }
-
-      // Check if user exists
-      const user = await storage.getUserByMobile(mobile);
-      if (user) {
-        // User exists, set session
-        req.session.userId = user.id;
-        req.session.userRole = user.role;
-        return res.json({ user });
-      }
-
-      res.json({ exists: false, message: "OTP verified, user not registered" });
-    } catch (error) {
-      console.error("Error verifying OTP:", error);
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          message: "Validation error",
-          errors: fromZodError(error),
-        });
-      }
-      res.status(500).json({ message: "Failed to verify OTP" });
-    }
-  });
-
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      const { mobile, otp } = z.object({
-        mobile: z.string().length(10, "Mobile number must be 10 digits"),
-        otp: z.string().length(6, "OTP must be 6 digits"),
+      const { email, password } = z.object({
+        email: z.string().email("Invalid email address"),
+        password: z.string().min(6, "Password must be at least 6 characters"),
       }).parse(req.body);
 
-      const isValid = await storage.verifyOtp(mobile, otp);
-      if (!isValid) {
-        return res.status(400).json({ message: "Invalid or expired OTP" });
-      }
-
-      // Check if user exists
-      const user = await storage.getUserByMobile(mobile);
+      // Check if user exists with this email
+      const user = await storage.getUserByEmail(email);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(401).json({ message: "Invalid email or password" });
       }
 
       // Check if user is blocked
@@ -178,12 +102,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Your account has been blocked" });
       }
 
+      // Verify password
+      const isPasswordValid = await compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
       // Set session
       req.session.userId = user.id;
       req.session.userRole = user.role;
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error logging in:", error);
@@ -234,6 +164,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "User already exists with this email" });
       }
 
+      // Hash the password
+      const salt = await genSalt(10);
+      const hashedPassword = await hash(password, salt);
+
       // Create user
       const user = await storage.createUser({
         firstName,
@@ -242,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mobile,
         age,
         gender,
-        password,
+        password: hashedPassword,
         role,
         aadhar,
         caste,
@@ -311,11 +245,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/check-user", async (req: Request, res: Response) => {
     try {
-      const { mobile } = z.object({
-        mobile: z.string().length(10, "Mobile number must be 10 digits"),
+      const { email } = z.object({
+        email: z.string().email("Invalid email address"),
       }).parse(req.query);
 
-      const user = await storage.getUserByMobile(mobile as string);
+      const user = await storage.getUserByEmail(email as string);
       
       if (user) {
         const { password, ...userWithoutPassword } = user;

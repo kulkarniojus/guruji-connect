@@ -17,7 +17,7 @@ const Notifications = lazy(() => import('@/pages/Notifications'));
 
 // Router setup
 
-// Simple router for now - we'll worry about auth checks later
+// Simple router for now - we'll add protected routes in the future
 function Router() {
   return (
     <Switch>

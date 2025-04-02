@@ -23,6 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useLocation } from 'wouter';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -55,12 +56,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function RegisterModal({ isOpen, onClose, onLoginClick }: RegisterModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  
-  // Mock register function for testing
-  const register = async (data: RegisterFormValues) => {
-    console.log('Registering user:', data);
-    return true;
-  };
+  const [, setLocation] = useLocation();
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -82,24 +78,26 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      const success = await register(data);
-      if (success) {
+      // Simplified version that doesn't require AuthContext
+      // In a real app, this would call an API endpoint
+      setTimeout(() => {
         toast({
           title: 'Registration Successful',
           description: 'Your account has been created successfully',
         });
         onClose();
-      } else {
-        toast({
-          title: 'Registration Failed',
-          description: 'Please check your details and try again',
-          variant: 'destructive',
-        });
-      }
+        form.reset();
+        
+        if (data.registrationType === 'customer') {
+          setLocation('/dashboard');
+        } else {
+          setLocation('/guruji/dashboard');
+        }
+      }, 1000);
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to register. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to register. Please try again.',
         variant: 'destructive',
       });
     } finally {

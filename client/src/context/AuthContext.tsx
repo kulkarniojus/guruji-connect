@@ -1,14 +1,14 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { apiRequest } from '@/lib/queryClient';
 import { User } from '@shared/schema';
+import { login as authLogin, registerUser, logout as authLogout, getCurrentUser } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (mobile: string, otp: string) => Promise<boolean>;
-  register: (userData: any) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string; user?: User }>;
+  register: (userData: any) => Promise<{ success: boolean; message: string; user?: User }>;
   logout: () => Promise<void>;
-  sendOtp: (mobile: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,14 +16,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { toast } = useToast();
 
   // Check if user is already logged in
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await apiRequest('GET', '/api/auth/me', undefined);
-        const data = await response.json();
-        setUser(data);
+        const userData = await getCurrentUser();
+        setUser(userData);
       } catch (error) {
         setUser(null);
       } finally {
@@ -34,46 +34,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  const login = async (mobile: string, otp: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; message: string; user?: User }> => {
     try {
-      const response = await apiRequest('POST', '/api/auth/login', { mobile, otp });
-      const data = await response.json();
-      setUser(data);
-      return true;
+      const result = await authLogin(email, password);
+      if (result.success) {
+        setUser(result.user as User);
+      }
+      return result;
     } catch (error) {
       console.error('Login error:', error);
-      return false;
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "An unexpected error occurred"
+      };
     }
   };
 
-  const register = async (userData: any): Promise<boolean> => {
+  const register = async (userData: any): Promise<{ success: boolean; message: string; user?: User }> => {
     try {
-      const response = await apiRequest('POST', '/api/auth/register', userData);
-      const data = await response.json();
-      setUser(data);
-      return true;
+      const result = await registerUser(userData);
+      if (result.success) {
+        setUser(result.user as User);
+      }
+      return result;
     } catch (error) {
       console.error('Registration error:', error);
-      return false;
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "An unexpected error occurred"
+      };
     }
   };
 
   const logout = async (): Promise<void> => {
     try {
-      await apiRequest('POST', '/api/auth/logout', undefined);
-      setUser(null);
+      const result = await authLogout();
+      if (result.success) {
+        setUser(null);
+        toast({
+          title: "Logout Successful",
+          description: "You have been logged out successfully",
+        });
+      } else {
+        toast({
+          title: "Logout Failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error('Logout error:', error);
-    }
-  };
-
-  const sendOtp = async (mobile: string): Promise<boolean> => {
-    try {
-      await apiRequest('POST', '/api/auth/send-otp', { mobile });
-      return true;
-    } catch (error) {
-      console.error('OTP sending error:', error);
-      return false;
+      toast({
+        title: "Logout Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
     }
   };
 
@@ -82,8 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     login,
     register,
-    logout,
-    sendOtp
+    logout
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

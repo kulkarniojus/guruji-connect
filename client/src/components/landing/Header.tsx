@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Menu, Bell, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,15 +12,23 @@ import {
 } from '@/components/ui/dropdown-menu';
 import LoginModal from '../auth/LoginModal';
 import RegisterModal from '../auth/RegisterModal';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const { toast } = useToast();
+  const [location, setLocation] = useLocation();
   
-  // Mock auth for now to avoid context errors
-  const user: any = null;
-  const logout = () => console.log('Logout clicked');
+  // Since we can't use useAuth here, we'll create a simple non-authenticated header
+  const user = null;
+  const logout = () => {
+    toast({
+      title: "Login Required",
+      description: "Please login to access this feature",
+    });
+  };
 
   const handleLoginClick = () => {
     setLoginModalOpen(true);

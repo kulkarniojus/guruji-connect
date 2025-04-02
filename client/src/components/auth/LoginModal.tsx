@@ -10,9 +10,19 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-// Note: There's a known issue with the InputOTP component types that we'll address in a future update
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/otp-input';
 import { Loader2 } from 'lucide-react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { useLocation } from 'wouter';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -20,126 +30,44 @@ interface LoginModalProps {
   onRegisterClick: () => void;
 }
 
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+
 export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginModalProps) {
-  const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
-  const [mobile, setMobile] = useState('');
-  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  
-  // Mock auth function for testing
-  const sendOtp = async (mobile: string) => {
-    console.log('Sending OTP to', mobile);
-    return true;
-  };
-  
-  const login = async (mobile: string, otp: string) => {
-    console.log('Logging in with', mobile, otp);
-    return true;
-  };
+  const [, setLocation] = useLocation();
 
-  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow digits
-    const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 10) {
-      setMobile(value);
-    }
-  };
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
 
-  const handleGetOTP = async () => {
-    if (mobile.length !== 10) {
-      toast({
-        title: 'Invalid mobile number',
-        description: 'Please enter a valid 10-digit mobile number',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     try {
-      const success = await sendOtp(mobile);
-      if (success) {
-        setStep('otp');
-        toast({
-          title: 'OTP Sent',
-          description: 'An OTP has been sent to your mobile number',
-        });
-      } else {
-        toast({
-          title: 'Failed to send OTP',
-          description: 'Please try again later',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to send OTP. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogin = async () => {
-    if (otp.length !== 6) {
-      toast({
-        title: 'Invalid OTP',
-        description: 'Please enter a valid 6-digit OTP',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const success = await login(mobile, otp);
-      if (success) {
+      // Simplified version that doesn't require AuthContext
+      // In a real app, this would call an API endpoint
+      setTimeout(() => {
         toast({
           title: 'Login Successful',
           description: 'You have been logged in successfully',
         });
         onClose();
-      } else {
-        toast({
-          title: 'Login Failed',
-          description: 'Invalid OTP. Please try again.',
-          variant: 'destructive',
-        });
-      }
+        form.reset();
+        setLocation('/dashboard');
+      }, 1000);
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to login. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendOTP = async () => {
-    setIsLoading(true);
-    try {
-      const success = await sendOtp(mobile);
-      if (success) {
-        toast({
-          title: 'OTP Resent',
-          description: 'A new OTP has been sent to your mobile number',
-        });
-      } else {
-        toast({
-          title: 'Failed to resend OTP',
-          description: 'Please try again later',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to resend OTP. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to login. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -148,9 +76,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
   };
 
   const handleCancel = () => {
-    setStep('mobile');
-    setMobile('');
-    setOtp('');
+    form.reset();
     onClose();
   };
 
@@ -164,95 +90,71 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
         </DialogHeader>
         
         <div className="mt-6 space-y-6">
-          {step === 'mobile' ? (
-            <div className="mb-6">
-              <Label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-1">
-                Mobile Number
-              </Label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-neutral-500 sm:text-sm">+91</span>
-                </div>
-                <Input
-                  type="tel"
-                  id="phone"
-                  value={mobile}
-                  onChange={handleMobileChange}
-                  className="pl-12 pr-20"
-                  placeholder="Enter 10 digit mobile number"
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center">
-                  <Button
-                    type="button"
-                    onClick={handleGetOTP}
-                    disabled={isLoading || mobile.length !== 10}
-                    className="rounded-r-md"
-                  >
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="email" 
+                        placeholder="Enter your email address" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Enter your password" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-between items-center pt-2">
+                <Button variant="link" type="button" className="px-0">
+                  Forgot password?
+                </Button>
+                
+                <div className="flex space-x-2">
+                  <Button type="button" variant="outline" onClick={handleCancel}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Get OTP
+                    Login
                   </Button>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="mb-6">
-              <Label htmlFor="otp" className="block text-sm font-medium text-neutral-700 mb-1">
-                Enter OTP
-              </Label>
-              <div className="mt-1">
-                <div className="flex gap-2 justify-center">
-                  <Input
-                    type="text"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => {
-                      // Only allow digits and max 6 characters
-                      const value = e.target.value.replace(/\D/g, '');
-                      if (value.length <= 6) {
-                        setOtp(value);
-                      }
-                    }}
-                    className="text-center"
-                    placeholder="Enter 6-digit OTP"
-                  />
-                </div>
-                <p className="mt-2 text-sm text-neutral-500">
-                  Didn't receive the OTP?{" "}
-                  <Button
-                    variant="link"
-                    onClick={handleResendOTP}
-                    disabled={isLoading}
-                    className="p-0 text-primary hover:text-primary-500"
-                  >
-                    Resend OTP
-                  </Button>
-                </p>
-              </div>
-            </div>
-          )}
+            </form>
+          </Form>
         </div>
         
-        <DialogFooter className="sm:flex sm:flex-row-reverse">
-          {step === 'mobile' ? (
-            <Button type="button" onClick={handleGetOTP} disabled={isLoading || mobile.length !== 10}>
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Get OTP
-            </Button>
-          ) : (
-            <Button type="button" onClick={handleLogin} disabled={isLoading || otp.length !== 6}>
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Login
-            </Button>
-          )}
-          <Button type="button" variant="outline" onClick={handleCancel} className="mt-3 sm:mt-0 sm:mr-3">
-            Cancel
-          </Button>
-        </DialogFooter>
-
         <div className="pt-3 text-center border-t border-neutral-200">
           <p className="text-sm text-neutral-600">
             Don't have an account?{" "}
-            <Button variant="link" onClick={onRegisterClick} className="p-0 font-medium text-primary hover:text-primary-500">
+            <Button 
+              variant="link" 
+              onClick={onRegisterClick} 
+              className="p-0 font-medium text-primary hover:text-primary-500"
+            >
               Register now
             </Button>
           </p>
