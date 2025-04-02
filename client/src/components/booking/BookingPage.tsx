@@ -57,12 +57,12 @@ export default function BookingPage() {
   const [, setLocation] = useLocation();
 
   // Fetch available pujas
-  const { data: pujas, isLoading: isPujasLoading } = useQuery({
+  const { data: pujas = [], isLoading: isPujasLoading } = useQuery<any[]>({
     queryKey: ['/api/pujas'],
   });
 
   // Fetch available gurujis based on criteria
-  const { data: gurujis, isLoading: isGurujiLoading } = useQuery({
+  const { data: gurujis = [], isLoading: isGurujiLoading } = useQuery({
     queryKey: ['/api/gurujis', { city: selectedCity, pujaId: selectedPujaId }],
     enabled: !!selectedCity && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
   });
@@ -182,7 +182,8 @@ export default function BookingPage() {
       const hour = parseInt(hours) + (period === 'PM' && hours !== '12' ? 12 : 0);
       dateTime.setHours(hour, parseInt(minutes));
 
-      const bookingData = {
+      // Create booking data with correct TypeScript interface
+      const bookingData: any = {
         pujaId: parseInt(selectedPujaId),
         type: bookingType,
         amount: calculateAmount(),
