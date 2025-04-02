@@ -1,26 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'wouter';
 import { Loader2, Calendar, User, CreditCard, Clock, MapPin, Check, X } from 'lucide-react';
 
 export default function GurujiDashboard() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('requests');
+  // Mock user data for demonstration
+  const user = {
+    firstName: 'Pandit',
+    lastName: 'Sharma',
+    email: 'pandit.sharma@example.com',
+    mobile: '9876543210'
+  };
   
-  // Fetch bookings data
-  const { 
-    data: bookings, 
-    isLoading, 
-    error 
-  } = useQuery({
-    queryKey: ['/api/guruji/bookings'],
-    enabled: !!user,
-  });
+  const [activeTab, setActiveTab] = useState('requests');
+  const [isLoading, setIsLoading] = useState(false);
+  const [bookings, setBookings] = useState([]);
+  
+  useEffect(() => {
+    // Simulate loading state
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+  }, []);
 
   // Simulated data for better visualization
   const requestBookings = [
@@ -76,13 +81,7 @@ export default function GurujiDashboard() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-500">Error loading dashboard data. Please try again later.</p>
-      </div>
-    );
-  }
+  // Error state removed as we're using mock data
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -359,7 +358,7 @@ export default function GurujiDashboard() {
           <h2 className="text-2xl font-bold font-poppins">Account Information</h2>
           <Button variant="outline" asChild>
             <Link href="/profile">
-              <a>Edit Profile</a>
+              Edit Profile
             </Link>
           </Button>
         </div>

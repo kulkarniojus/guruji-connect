@@ -311,29 +311,21 @@ export function MobileDashboard() {
       {/* Fixed bottom navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40">
         <div className="flex justify-around">
-          <Link href="/">
-            <a className="flex flex-col items-center p-3">
-              <Home className="h-5 w-5 text-neutral-600" />
-              <span className="text-xs mt-1 text-neutral-600">Home</span>
-            </a>
+          <Link href="/" className="flex flex-col items-center p-3">
+            <Home className="h-5 w-5 text-neutral-600" />
+            <span className="text-xs mt-1 text-neutral-600">Home</span>
           </Link>
-          <Link href="/booking">
-            <a className="flex flex-col items-center p-3">
-              <Calendar className="h-5 w-5 text-neutral-600" />
-              <span className="text-xs mt-1 text-neutral-600">Book</span>
-            </a>
+          <Link href="/booking" className="flex flex-col items-center p-3">
+            <Calendar className="h-5 w-5 text-neutral-600" />
+            <span className="text-xs mt-1 text-neutral-600">Book</span>
           </Link>
-          <Link href="/dashboard">
-            <a className="flex flex-col items-center p-3">
-              <User className="h-5 w-5 text-primary" />
-              <span className="text-xs mt-1 text-primary">Dashboard</span>
-            </a>
+          <Link href="/dashboard" className="flex flex-col items-center p-3">
+            <User className="h-5 w-5 text-primary" />
+            <span className="text-xs mt-1 text-primary">Dashboard</span>
           </Link>
-          <Link href="/chat">
-            <a className="flex flex-col items-center p-3">
-              <PhoneCall className="h-5 w-5 text-neutral-600" />
-              <span className="text-xs mt-1 text-neutral-600">Consult</span>
-            </a>
+          <Link href="/chat" className="flex flex-col items-center p-3">
+            <PhoneCall className="h-5 w-5 text-neutral-600" />
+            <span className="text-xs mt-1 text-neutral-600">Consult</span>
           </Link>
         </div>
       </div>

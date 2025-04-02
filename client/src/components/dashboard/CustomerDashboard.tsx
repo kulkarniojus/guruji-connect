@@ -2,46 +2,73 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/context/AuthContext';
 import { Link } from 'wouter';
 import { Loader2, Calendar, User, CreditCard, FileText, ChevronRight } from 'lucide-react';
 
 export default function CustomerDashboard() {
-  const { user } = useAuth();
+  // Mock user data for demonstration purposes
+  const user = {
+    firstName: 'Customer',
+    lastName: 'User'
+  };
+  
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [isLoading, setIsLoading] = useState(false);
+  const [bookings, setBookings] = useState<any[]>([]);
   
-  // Fetch bookings data
-  const { 
-    data: bookings, 
-    isLoading, 
-    error 
-  } = useQuery({
-    queryKey: ['/api/bookings'],
-    enabled: !!user,
-  });
-
+  // Mock bookings data since we're not using the real API
+  const mockBookings = [
+    {
+      id: 1,
+      title: 'Satyanarayan Puja',
+      location: 'Mumbai, Maharashtra',
+      date: 'Today at 5:00 PM',
+      amount: 1500,
+      guruji: 'Pandit Ramesh Ji',
+      status: 'confirmed'
+    },
+    {
+      id: 2,
+      title: 'Ganesh Puja',
+      location: 'Online Consultation',
+      date: 'Tomorrow at 10:00 AM',
+      amount: 1200,
+      guruji: null,
+      status: 'pending'
+    },
+    {
+      id: 3,
+      title: 'Griha Pravesh Puja',
+      location: 'Pune, Maharashtra',
+      date: '15 days ago',
+      amount: 2500,
+      guruji: 'Pandit Suresh Ji',
+      status: 'completed'
+    }
+  ];
+  
+  useEffect(() => {
+    // Set mock bookings after a brief loading state
+    setIsLoading(true);
+    setTimeout(() => {
+      setBookings(mockBookings);
+      setIsLoading(false);
+    }, 500);
+  }, []);
+  
   // Separate bookings by status
-  const upcomingBookings = bookings?.filter((booking: any) => 
+  const upcomingBookings = bookings.filter((booking) => 
     ['confirmed', 'pending'].includes(booking.status)
-  ) || [];
+  );
   
-  const pastBookings = bookings?.filter((booking: any) => 
+  const pastBookings = bookings.filter((booking) => 
     ['completed', 'cancelled'].includes(booking.status)
-  ) || [];
+  );
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-500">Error loading dashboard data. Please try again later.</p>
       </div>
     );
   }
