@@ -16,6 +16,7 @@ import { VideoConferenceProvider } from "@/context/VideoConferenceContext";
 const Chat = lazy(() => import('@/pages/Chat'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
 const VideoCall = lazy(() => import('@/pages/VideoCall'));
+const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 
 // Router setup
 
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/booking" component={Booking} />
       <Route path="/profile" component={Profile} />
       <Route path="/admin" component={AdminLogin} />
+      <Route path="/admin-dashboard" component={AdminDashboard} />
       <Route path="/availability" component={AvailabilityPage} />
       <Route path="/chat" component={Chat} />
       <Route path="/notifications" component={Notifications} />

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -9,6 +9,7 @@ export const paymentStatusEnum = pgEnum('payment_status', ['unpaid', 'partial', 
 export const pujaTypeEnum = pgEnum('puja_type', ['offline', 'online']);
 export const consultationType = pgEnum('consultation_type', ['own_guruji', 'auto_select', 'immediate']);
 export const videoSessionStatusEnum = pgEnum('video_session_status', ['scheduled', 'in_progress', 'completed', 'cancelled', 'missed']);
+export const chatbotIntentEnum = pgEnum('chatbot_intent', ['greeting', 'booking_inquiry', 'puja_information', 'guruji_availability', 'payment_issue', 'cancel_booking', 'reschedule_booking', 'general_inquiry', 'technical_support', 'other']);
 
 // User table
 export const users = pgTable("users", {
@@ -222,6 +223,66 @@ export const videoConferences = pgTable("video_conferences", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// WhatsApp user table - to associate WhatsApp numbers with system users
+export const whatsappUsers = pgTable("whatsapp_users", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  whatsappNumber: text("whatsapp_number").notNull().unique(),
+  isVerified: boolean("is_verified").default(false),
+  isOptedIn: boolean("is_opted_in").default(true),
+  lastInteractionAt: timestamp("last_interaction_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// WhatsApp conversations table
+export const whatsappConversations = pgTable("whatsapp_conversations", {
+  id: serial("id").primaryKey(),
+  whatsappUserId: integer("whatsapp_user_id").notNull().references(() => whatsappUsers.id),
+  isActive: boolean("is_active").default(true),
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  contextData: jsonb("context_data"), // Store conversation context as JSON
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// WhatsApp messages table
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").notNull().references(() => whatsappConversations.id),
+  direction: text("direction").notNull(), // "inbound" or "outbound"
+  messageContent: text("message_content").notNull(),
+  mediaUrl: text("media_url"), // For attachments, photos, etc.
+  isDelivered: boolean("is_delivered").default(false),
+  isRead: boolean("is_read").default(false),
+  messageId: text("message_id"), // WhatsApp message ID for tracking
+  intent: chatbotIntentEnum("intent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ChatBot templates table - for predefined WhatsApp message templates
+export const chatbotTemplates = pgTable("chatbot_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  content: text("content").notNull(),
+  intent: chatbotIntentEnum("intent").notNull(),
+  variables: text("variables").array(), // Placeholders in the template
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ChatBot training data table - for NLP model training
+export const chatbotTrainingData = pgTable("chatbot_training_data", {
+  id: serial("id").primaryKey(),
+  text: text("text").notNull(),
+  intent: chatbotIntentEnum("intent").notNull(),
+  entities: jsonb("entities"), // Named entities in the training data
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Create Zod schemas for insertion
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -285,6 +346,42 @@ export const insertVideoConferenceSchema = createInsertSchema(videoConferences).
   updatedAt: true,
 });
 
+export const insertWhatsappUserSchema = createInsertSchema(whatsappUsers).omit({
+  id: true,
+  isVerified: true,
+  lastInteractionAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWhatsappConversationSchema = createInsertSchema(whatsappConversations).omit({
+  id: true,
+  isActive: true,
+  lastMessageAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWhatsappMessageSchema = createInsertSchema(whatsappMessages).omit({
+  id: true,
+  isDelivered: true,
+  isRead: true,
+  createdAt: true,
+});
+
+export const insertChatbotTemplateSchema = createInsertSchema(chatbotTemplates).omit({
+  id: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertChatbotTrainingDataSchema = createInsertSchema(chatbotTrainingData).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Define types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -312,3 +409,18 @@ export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 export type VideoConference = typeof videoConferences.$inferSelect;
 export type InsertVideoConference = z.infer<typeof insertVideoConferenceSchema>;
+
+export type WhatsappUser = typeof whatsappUsers.$inferSelect;
+export type InsertWhatsappUser = z.infer<typeof insertWhatsappUserSchema>;
+
+export type WhatsappConversation = typeof whatsappConversations.$inferSelect;
+export type InsertWhatsappConversation = z.infer<typeof insertWhatsappConversationSchema>;
+
+export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
+export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;
+
+export type ChatbotTemplate = typeof chatbotTemplates.$inferSelect;
+export type InsertChatbotTemplate = z.infer<typeof insertChatbotTemplateSchema>;
+
+export type ChatbotTrainingData = typeof chatbotTrainingData.$inferSelect;
+export type InsertChatbotTrainingData = z.infer<typeof insertChatbotTrainingDataSchema>;

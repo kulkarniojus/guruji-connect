@@ -11,6 +11,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import { fromZodError } from "zod-validation-error";
 import { registerPaymentRoutes } from "./routes/payment";
+import chatbotRoutes from "./routes/chatbot";
 
 // Extend session type to include userId and userRole
 declare module 'express-session' {
@@ -967,6 +968,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register payment routes
   registerPaymentRoutes(app);
+  
+  // Register chatbot routes
+  app.use('/api/chatbot', chatbotRoutes);
   
   // Create HTTP server
   const httpServer = createServer(app);
