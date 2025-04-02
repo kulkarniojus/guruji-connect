@@ -10,25 +10,13 @@ import PujaDetails from "@/pages/PujaDetails";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
-import { AuthProvider } from "@/context/AuthProvider";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-// Create a new query client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
 
 // Lazy-loaded components
 const Chat = lazy(() => import('@/pages/Chat'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
-const AdminPujas = lazy(() => import('@/pages/AdminPujas'));
 
 // Router setup
+
 // Simple router for now - we'll worry about auth checks later
 function Router() {
   return (
@@ -38,7 +26,6 @@ function Router() {
       <Route path="/booking" component={Booking} />
       <Route path="/profile" component={Profile} />
       <Route path="/admin" component={AdminLogin} />
-      <Route path="/admin/pujas" component={AdminPujas} />
       <Route path="/availability" component={AvailabilityPage} />
       <Route path="/chat" component={Chat} />
       <Route path="/notifications" component={Notifications} />
@@ -50,18 +37,14 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        }>
-          <Router />
-          <Toaster />
-        </Suspense>
-      </AuthProvider>
-    </QueryClientProvider>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <Router />
+      <Toaster />
+    </Suspense>
   );
 }
 

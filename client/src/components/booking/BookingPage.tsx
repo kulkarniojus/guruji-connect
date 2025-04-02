@@ -43,11 +43,6 @@ export default function BookingPage() {
   const [activeStep, setActiveStep] = useState<number>(1);
   const [bookingType, setBookingType] = useState<'offline' | 'online' | 'consultation'>(initialType as any);
   const [consultationType, setConsultationType] = useState<'own_guruji' | 'auto_select' | 'immediate'>('auto_select');
-  
-  // Helper type guards for proper type narrowing
-  const isOfflineBooking = (type: typeof bookingType): type is 'offline' => type === 'offline';
-  const isOnlineBooking = (type: typeof bookingType): type is 'online' => type === 'online';
-  const isConsultationBooking = (type: typeof bookingType): type is 'consultation' => type === 'consultation';
   const [selectedPujaId, setSelectedPujaId] = useState<string>(initialPujaId);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -65,20 +60,12 @@ export default function BookingPage() {
   const { data: pujas, isLoading: isPujasLoading } = useQuery({
     queryKey: ['/api/pujas'],
   });
-  
-  // Make sure we have a valid array of pujas
-  const pujasArray = Array.isArray(pujas) ? pujas : [];
-  console.log("DEBUG: Pujas from API:", pujasArray);
 
   // Fetch available gurujis based on criteria
   const { data: gurujis, isLoading: isGurujiLoading } = useQuery({
     queryKey: ['/api/gurujis', { city: selectedCity, pujaId: selectedPujaId }],
-    enabled: !!selectedCity && activeStep === 3 && (isOfflineBooking(bookingType) || (isConsultationBooking(bookingType) && consultationType === 'own_guruji')),
+    enabled: !!selectedCity && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
   });
-  
-  // Make sure we have a valid array of gurujis
-  const gurujisArray = Array.isArray(gurujis) ? gurujis : [];
-  console.log("DEBUG: Gurujis from API:", gurujisArray);
 
   // Time slots that can be selected
   const timeSlots = [
@@ -97,7 +84,7 @@ export default function BookingPage() {
   ];
 
   // Selected puja details
-  const selectedPuja = pujasArray.find(p => p.id.toString() === selectedPujaId);
+  const selectedPuja = pujas && Array.isArray(pujas) ? pujas.find(p => p.id.toString() === selectedPujaId) : null;
   
   // Debug information
   console.log("DEBUG: Puja selection", {
@@ -114,7 +101,7 @@ export default function BookingPage() {
   const calculateAmount = () => {
     if (!selectedPuja) return 0;
     
-    if (isConsultationBooking(bookingType)) {
+    if (bookingType === 'consultation') {
       if (consultationType === 'immediate') {
         return selectedPuja.price * 3; // 3x for immediate consultation
       }
@@ -151,7 +138,7 @@ export default function BookingPage() {
         });
         return;
       }
-      if (isOfflineBooking(bookingType) && !selectedCity) {
+      if (bookingType === 'offline' && !selectedCity) {
         toast({
           title: "Please select a city",
           description: "You need to select a city for offline puja",
@@ -159,7 +146,7 @@ export default function BookingPage() {
         });
         return;
       }
-      if (isOfflineBooking(bookingType) && !address) {
+      if (bookingType === 'offline' && !address) {
         toast({
           title: "Please enter your address",
           description: "Address is required for offline puja",
@@ -195,22 +182,7 @@ export default function BookingPage() {
       const hour = parseInt(hours) + (period === 'PM' && hours !== '12' ? 12 : 0);
       dateTime.setHours(hour, parseInt(minutes));
 
-      // Properly typed booking data interface
-      interface BookingData {
-        pujaId: number;
-        type: 'offline' | 'online' | 'consultation';
-        amount: number;
-        city: string;
-        address: string;
-        date: string;
-        duration: number;
-        notes: string;
-        isImmediate: boolean;
-        consultationType?: 'own_guruji' | 'auto_select' | 'immediate';
-        gurujiId?: number;
-      }
-      
-      const bookingData: BookingData = {
+      const bookingData = {
         pujaId: parseInt(selectedPujaId),
         type: bookingType,
         amount: calculateAmount(),
@@ -219,10 +191,10 @@ export default function BookingPage() {
         date: dateTime.toISOString(),
         duration: selectedPuja?.duration || 120,
         notes: '',
-        isImmediate: isConsultationBooking(bookingType) && consultationType === 'immediate',
+        isImmediate: bookingType === 'consultation' && consultationType === 'immediate',
       };
 
-      if (isConsultationBooking(bookingType)) {
+      if (bookingType === 'consultation') {
         bookingData.consultationType = consultationType;
       }
 
@@ -374,7 +346,7 @@ export default function BookingPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  {pujasArray.map((puja) => (
+                  {pujas?.map((puja) => (
                     <div 
                       key={puja.id}
                       className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors ${
@@ -446,7 +418,7 @@ export default function BookingPage() {
               </div>
             </div>
 
-            {(isOfflineBooking(bookingType) || (isConsultationBooking(bookingType) && consultationType === 'own_guruji')) && (
+            {(bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')) && (
               <div className="mt-6 space-y-4">
                 <div>
                   <Label htmlFor="city">City</Label>
@@ -464,7 +436,7 @@ export default function BookingPage() {
                   </Select>
                 </div>
 
-                {isOfflineBooking(bookingType) && (
+                {bookingType === 'offline' && (
                   <div>
                     <Label htmlFor="address">Address</Label>
                     <Input
@@ -495,26 +467,26 @@ export default function BookingPage() {
         <Card className="max-w-4xl mx-auto">
           <CardHeader>
             <CardTitle>
-              {isConsultationBooking(bookingType) && consultationType !== 'own_guruji' 
+              {bookingType === 'consultation' && consultationType !== 'own_guruji' 
                 ? 'Review Details' 
                 : 'Select Guruji'}
             </CardTitle>
             <CardDescription>
-              {isConsultationBooking(bookingType) && consultationType !== 'own_guruji' 
+              {bookingType === 'consultation' && consultationType !== 'own_guruji' 
                 ? 'The best available Guruji will be assigned to your booking' 
                 : 'Choose a Guruji for your service'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {(isOfflineBooking(bookingType) || (isConsultationBooking(bookingType) && consultationType === 'own_guruji')) ? (
+            {(bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')) ? (
               <div>
                 {isGurujiLoading ? (
                   <div className="flex justify-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : gurujisArray.length > 0 ? (
+                ) : gurujis && gurujis.length > 0 ? (
                   <div className="space-y-4">
-                    {gurujisArray.map((guruji) => (
+                    {gurujis.map((guruji) => (
                       <div
                         key={guruji.id}
                         className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors ${
@@ -566,9 +538,9 @@ export default function BookingPage() {
                     <div className="flex justify-between">
                       <span className="text-neutral-600">Service Type:</span>
                       <span className="font-medium">
-                        {isOfflineBooking(bookingType) ? 'Offline Puja' : 
-                         isOnlineBooking(bookingType) ? 'Online Puja' : 'Consultation'}
-                        {isConsultationBooking(bookingType) && ` (${consultationType === 'auto_select' ? 'Auto-select' : 'Immediate'})`}
+                        {bookingType === 'offline' ? 'Offline Puja' : 
+                         bookingType === 'online' ? 'Online Puja' : 'Consultation'}
+                        {bookingType === 'consultation' && ` (${consultationType === 'auto_select' ? 'Auto-select' : 'Immediate'})`}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -585,7 +557,7 @@ export default function BookingPage() {
                       </span>
                     </div>
                     
-                    {isOfflineBooking(bookingType) && (
+                    {bookingType === 'offline' && (
                       <div className="flex justify-between">
                         <span className="text-neutral-600">Address:</span>
                         <span className="font-medium">{address || 'Not provided'}</span>

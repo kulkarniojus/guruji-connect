@@ -199,51 +199,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const userSchema = z.object({
-        firstName: z.string().min(1, "First name is required"),
-        lastName: z.string().min(1, "Last name is required"),
-        email: z.string().email("Invalid email address"),
-        mobile: z.string().length(10, "Mobile number must be 10 digits"),
-        age: z.number().min(18, "You must be at least 18 years old"),
-        gender: z.enum(["male", "female", "other"]),
-        password: z.string().min(6, "Password must be at least 6 characters"),
-        role: z.enum(["customer", "guruji"]),
-        aadhar: z.string().min(12, "Aadhar number is required").max(12, "Aadhar number must be 12 digits"),
-        caste: z.string().optional(),
-        address: z.string().optional(),
-        city: z.string().optional(),
-        state: z.string().optional(),
-        pincode: z.string().optional(),
-        // Guruji specific fields
-        gurujiProfile: z.object({
-          bio: z.string().optional(),
-          experience: z.number().optional(),
-          specialization: z.string().optional(),
-          address: z.string(),
-          city: z.string(),
-          state: z.string(),
-          pincode: z.string(),
-          radius: z.number().default(10),
-          isOnline: z.boolean().default(false),
-          isOffline: z.boolean().default(true),
-          isConsultation: z.boolean().default(false),
-          pujaIds: z.array(z.number()).optional(),
-        }).optional()
-      });
-
-      // For guruji role, make gurujiProfile required
-      const validationSchema = z.discriminatedUnion('role', [
-        userSchema.extend({ 
-          role: z.literal('customer')
-        }),
-        userSchema.extend({ 
-          role: z.literal('guruji'),
-          gurujiProfile: userSchema.shape.gurujiProfile.required()
-        })
-      ]);
-
-      const userData = validationSchema.parse(req.body);
-      
       const {
         firstName,
         lastName,
@@ -255,12 +210,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role,
         aadhar,
         caste,
-        address,
-        city,
-        state,
-        pincode,
-        gurujiProfile
-      } = userData;
+      } = z.object({
+        firstName: z.string().min(1, "First name is required"),
+        lastName: z.string().min(1, "Last name is required"),
+        email: z.string().email("Invalid email address"),
+        mobile: z.string().length(10, "Mobile number must be 10 digits"),
+        age: z.number().min(18, "You must be at least 18 years old"),
+        gender: z.enum(["male", "female", "other"]),
+        password: z.string().min(6, "Password must be at least 6 characters"),
+        role: z.enum(["customer", "guruji"]),
+        aadhar: z.string().optional(),
+        caste: z.string().optional(),
+      }).parse(req.body);
 
       // Check if user already exists
       const existingUser = await storage.getUserByMobile(mobile);
@@ -285,38 +246,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role,
         aadhar,
         caste,
-        address,
-        city,
-        state,
-        pincode,
       });
 
-      // If user is guruji, create profile from the provided data
-      if (role === "guruji" && gurujiProfile) {
+      // If user is guruji, create a default profile
+      if (role === "guruji") {
         await storage.createGurujiProfile({
           userId: user.id,
-          bio: gurujiProfile.bio || "",
-          experience: gurujiProfile.experience || 0,
-          specialization: gurujiProfile.specialization || "",
-          address: gurujiProfile.address,
-          city: gurujiProfile.city,
-          state: gurujiProfile.state,
-          pincode: gurujiProfile.pincode,
-          radius: gurujiProfile.radius || 10,
-          isOnline: gurujiProfile.isOnline || false,
-          isOffline: gurujiProfile.isOffline || true,
-          isConsultation: gurujiProfile.isConsultation || false,
+          bio: "",
+          experience: 0,
+          specialization: "",
+          location: "",
+          radius: 10,
+          isOnline: false,
+          isOffline: true,
+          isConsultation: false,
         });
-        
-        // If pujaIds are provided, create guruji-puja relationships
-        if (gurujiProfile.pujaIds && gurujiProfile.pujaIds.length > 0) {
-          // This would be implemented in a real production system
-          // For each puja ID, create a record in the gurujiPujas table
-          // Example (pseudocode):
-          // for (const pujaId of gurujiProfile.pujaIds) {
-          //   await storage.createGurujiPuja({ gurujiId: gurujiProfile.id, pujaId });
-          // }
-        }
       }
 
       // Set session
@@ -794,49 +738,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to unblock user" });
     }
   });
-  
-  // Guruji Profile Routes
-  app.get("/api/gurujis/profile", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const userId = req.session.userId as number;
-      const userRole = req.session.userRole as string;
-      
-      if (userRole !== "guruji") {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-      
-      const gurujiProfile = await storage.getGurujiProfileByUserId(userId);
-      
-      if (!gurujiProfile) {
-        return res.status(404).json({ message: "Guruji profile not found" });
-      }
-      
-      res.json(gurujiProfile);
-    } catch (error) {
-      console.error("Error fetching guruji profile:", error);
-      res.status(500).json({ message: "Failed to fetch guruji profile" });
-    }
-  });
-  
-  app.get("/api/gurujis", async (req: Request, res: Response) => {
-    try {
-      const { city, pujaId } = req.query;
-      let gurujis = [];
-      
-      if (city) {
-        const radius = req.query.radius ? parseInt(req.query.radius as string) : 10;
-        gurujis = await storage.getNearbyGurujis(city as string, pujaId ? parseInt(pujaId as string) : undefined, radius);
-      } else {
-        // Future implementation: getAllGurujis with pagination
-        gurujis = [];
-      }
-      
-      res.json(gurujis);
-    } catch (error) {
-      console.error("Error fetching gurujis:", error);
-      res.status(500).json({ message: "Failed to fetch gurujis" });
-    }
-  });
 
   // Content Routes
   app.get("/api/content/:key", async (req: Request, res: Response) => {
@@ -891,123 +792,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.status(500).json({ message: "Failed to update content" });
-    }
-  });
-
-  // Admin Puja Management Routes
-  app.post("/api/admin/pujas", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
-    try {
-      const pujaData = z.object({
-        name: z.string().min(1, "Name is required"),
-        description: z.string().min(1, "Description is required"),
-        basePrice: z.number().positive("Base price must be positive"),
-        price: z.number().positive("Price must be positive"),
-        imageUrl: z.string().optional(),
-        items: z.array(z.string()).optional(),
-        isPopular: z.boolean().optional(),
-        isActive: z.boolean().optional(),
-        type: z.enum(["offline", "online"]),
-        duration: z.number().positive("Duration must be positive"),
-      }).parse(req.body);
-
-      // Set timestamps
-      const now = new Date();
-      const newPuja = {
-        ...pujaData,
-        items: pujaData.items || [],
-        isPopular: pujaData.isPopular ?? false,
-        isActive: pujaData.isActive ?? true,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      const puja = await storage.createPuja(newPuja);
-      res.status(201).json(puja);
-    } catch (error) {
-      console.error("Error creating puja:", error);
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          message: "Validation error",
-          errors: fromZodError(error),
-        });
-      }
-      res.status(500).json({ message: "Failed to create puja" });
-    }
-  });
-
-  app.put("/api/admin/pujas/:id", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
-    try {
-      const { id } = z.object({
-        id: z.string().refine((val) => !isNaN(parseInt(val)), {
-          message: "ID must be a number",
-        }),
-      }).parse(req.params);
-
-      const pujaId = parseInt(id);
-      const existingPuja = await storage.getPuja(pujaId);
-      
-      if (!existingPuja) {
-        return res.status(404).json({ message: "Puja not found" });
-      }
-
-      const pujaData = z.object({
-        name: z.string().min(1, "Name is required").optional(),
-        description: z.string().min(1, "Description is required").optional(),
-        basePrice: z.number().positive("Base price must be positive").optional(),
-        price: z.number().positive("Price must be positive").optional(),
-        imageUrl: z.string().optional(),
-        items: z.array(z.string()).optional(),
-        isPopular: z.boolean().optional(),
-        isActive: z.boolean().optional(),
-        type: z.enum(["offline", "online"]).optional(),
-        duration: z.number().positive("Duration must be positive").optional(),
-      }).parse(req.body);
-
-      // Update timestamp
-      const updatedPuja = {
-        ...pujaData,
-        updatedAt: new Date(),
-      };
-
-      const puja = await storage.updatePuja(pujaId, updatedPuja);
-      res.json(puja);
-    } catch (error) {
-      console.error("Error updating puja:", error);
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          message: "Validation error",
-          errors: fromZodError(error),
-        });
-      }
-      res.status(500).json({ message: "Failed to update puja" });
-    }
-  });
-
-  app.delete("/api/admin/pujas/:id", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
-    try {
-      const { id } = z.object({
-        id: z.string().refine((val) => !isNaN(parseInt(val)), {
-          message: "ID must be a number",
-        }),
-      }).parse(req.params);
-
-      const pujaId = parseInt(id);
-      const success = await storage.deletePuja(pujaId);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Puja not found" });
-      }
-      
-      res.json({ message: "Puja deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting puja:", error);
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          message: "Validation error",
-          errors: fromZodError(error),
-        });
-      }
-      res.status(500).json({ message: "Failed to delete puja" });
     }
   });
 

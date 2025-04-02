@@ -393,8 +393,9 @@ export class MemStorage implements IStorage {
     // For this memory storage, we'll just filter by city
     return Array.from(this.gurujiProfiles.values()).filter(
       (profile) => 
-        profile.city.toLowerCase().includes(city.toLowerCase()) && 
-        (profile.radius >= radius)
+        profile.location.toLowerCase().includes(city.toLowerCase()) && 
+        (profile.radius >= radius) &&
+        !profile.isBlocked
     );
   }
 

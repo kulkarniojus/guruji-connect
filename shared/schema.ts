@@ -22,10 +22,6 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").notNull(),
   aadhar: text("aadhar"),
   caste: text("caste"),
-  address: text("address"),
-  city: text("city"),
-  state: text("state"),
-  pincode: text("pincode"),
   isVerified: boolean("is_verified").default(false),
   isBlocked: boolean("is_blocked").default(false),
   createdAt: timestamp("created_at").defaultNow(),
@@ -65,10 +61,7 @@ export const gurujiProfiles = pgTable("guruji_profiles", {
   bio: text("bio"),
   experience: integer("experience"), // in years
   specialization: text("specialization"),
-  address: text("address").notNull(),
-  city: text("city").notNull(),
-  state: text("state").notNull(),
-  pincode: text("pincode").notNull(),
+  location: text("location").notNull(),
   radius: integer("radius").default(10), // in km
   isOnline: boolean("is_online").default(false),
   isOffline: boolean("is_offline").default(true),
