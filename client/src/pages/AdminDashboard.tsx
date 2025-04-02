@@ -10,26 +10,16 @@ export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('analytics');
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Redirect to login if not authenticated
-  if (!user) {
-    return <Redirect to="/auth" />;
-  }
-
-  // Redirect if not an admin
-  if (user.role !== 'admin') {
-    return <Redirect to="/" />;
-  }
+  // Demo mode - no authentication check for demonstration purposes
+  // In a production environment, we would authenticate and verify admin role
 
   return (
     <div className="container mx-auto py-8">
+      <div className="bg-primary/10 rounded-lg p-4 mb-6 border border-primary/20">
+        <p className="text-center font-medium">
+          Demo Mode: You're viewing the Admin Analytics Dashboard with sample data
+        </p>
+      </div>
       <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>

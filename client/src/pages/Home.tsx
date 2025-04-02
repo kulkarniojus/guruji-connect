@@ -34,7 +34,8 @@ export default function Home() {
       
       <div className="bg-primary text-white py-2 px-4 text-center">
         <p>
-          Demo Mode: <a href="/dashboard" className="underline font-bold">View Dashboard</a> to access the Spiritual Journey Tracker
+          Demo Mode: <a href="/dashboard" className="underline font-bold">View Dashboard</a> to access the Spiritual Journey Tracker | 
+          <a href="/admin-dashboard" className="underline font-bold ml-2">Admin Analytics</a> for advanced metrics
         </p>
       </div>
       
