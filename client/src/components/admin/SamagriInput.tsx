@@ -14,7 +14,7 @@ interface SamagriInputProps {
 
 export default function SamagriInput({ samagri, onChange }: SamagriInputProps) {
   const addSamagri = () => {
-    onChange([...samagri, { name: '', quantity: 1, optional: false }]);
+    onChange([...samagri, { name: '', quantity: 1, optional: false, price: 0 }]);
   };
 
   const removeSamagri = (index: number) => {
@@ -50,6 +50,14 @@ export default function SamagriInput({ samagri, onChange }: SamagriInputProps) {
             className="w-24"
             value={item.quantity}
             onChange={(e) => updateSamagri(index, 'quantity', parseInt(e.target.value) || 1)}
+          />
+          <Input
+            type="number"
+            min="0"
+            className="w-24"
+            value={item.price}
+            onChange={(e) => updateSamagri(index, 'price', parseInt(e.target.value) || 0)}
+            placeholder="Price"
           />
           <div className="flex items-center gap-2">
             <Switch

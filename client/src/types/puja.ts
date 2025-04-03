@@ -1,7 +1,9 @@
+
 export interface PujaSamagri {
   name: string;
   quantity: number;
   optional: boolean;
+  price: number;
 }
 
 export interface Puja {
@@ -13,6 +15,7 @@ export interface Puja {
   imageUrl?: string;
   items?: string[];
   samagri?: PujaSamagri[];
+  samagriPrice?: number;
   isPopular: boolean;
   isActive: boolean;
   type: 'online' | 'offline';

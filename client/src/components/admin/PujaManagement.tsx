@@ -614,6 +614,24 @@ export default function PujaManagement() {
                   />
                 </div>
                 <div className="col-span-2">
+                  <Label htmlFor="samagriPrice">Samagri Price (₹)</Label>
+                  <Input
+                    id="samagriPrice"
+                    name="samagriPrice"
+                    type="number"
+                    value={formData.samagriPrice || 0}
+                    onChange={handleInputChange}
+                    min={0}
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <SamagriInput 
+                    samagri={formData.samagri || []}
+                    onChange={(samagri) => setFormData(prev => ({ ...prev, samagri }))}
+                  />
+                </div>
+                <div className="col-span-2">
                   <SamagriInput 
                     samagri={formData.samagri || []}
                     onChange={(samagri) => setFormData(prev => ({ ...prev, samagri }))}

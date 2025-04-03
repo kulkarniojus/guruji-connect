@@ -98,6 +98,8 @@ export default function BookingPage() {
   console.log("DEBUG: Selected puja result:", selectedPuja || "Not found");
 
   // Calculate booking amount based on type and consultation type
+  const [withSamagri, setWithSamagri] = useState(false);
+
   const calculateAmount = () => {
     if (!selectedPuja) return 0;
     
@@ -107,7 +109,11 @@ export default function BookingPage() {
       }
     }
     
-    return selectedPuja.price;
+    let total = selectedPuja.price;
+    if (withSamagri && selectedPuja.samagriPrice) {
+      total += selectedPuja.samagriPrice;
+    }
+    return total;
   };
 
   const handleNextStep = () => {
@@ -364,6 +370,47 @@ export default function BookingPage() {
                         <Clock className="h-3 w-3 mr-1" />
                         <span>{puja.duration} minutes</span>
                       </div>
+                      {selectedPujaId === puja.id.toString() && puja.type === 'offline' && (
+                        <div className="mt-4 space-y-4">
+                          <div className="flex items-center space-x-6">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                id="without-samagri"
+                                name="samagri"
+                                checked={!withSamagri}
+                                onChange={() => setWithSamagri(false)}
+                                className="h-4 w-4"
+                              />
+                              <label htmlFor="without-samagri">Without Samagri</label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                id="with-samagri"
+                                name="samagri"
+                                checked={withSamagri}
+                                onChange={() => setWithSamagri(true)}
+                                className="h-4 w-4"
+                              />
+                              <label htmlFor="with-samagri">With Samagri (+₹{puja.samagriPrice || 0})</label>
+                            </div>
+                          </div>
+                          {withSamagri && puja.samagri && (
+                            <div className="bg-neutral-50 p-4 rounded-lg">
+                              <h4 className="font-medium mb-2">Included Samagri Items:</h4>
+                              <ul className="text-sm space-y-1">
+                                {puja.samagri.map((item, index) => (
+                                  <li key={index} className="flex justify-between">
+                                    <span>{item.name} × {item.quantity}</span>
+                                    {item.optional && <span className="text-neutral-500">(Optional)</span>}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
