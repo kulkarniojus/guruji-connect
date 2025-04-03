@@ -50,6 +50,7 @@ export default function SamagriInput({ samagri, onChange }: SamagriInputProps) {
             className="w-24"
             value={item.quantity}
             onChange={(e) => updateSamagri(index, 'quantity', parseInt(e.target.value) || 1)}
+            placeholder="Qty"
           />
           <Input
             type="number"

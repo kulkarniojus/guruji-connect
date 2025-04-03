@@ -6,6 +6,13 @@ export interface PujaSamagri {
   price: number;
 }
 
+export interface PujaSamagri {
+  name: string;
+  quantity: number;
+  optional: boolean;
+  price: number;
+}
+
 export interface Puja {
   id: number;
   name: string;
