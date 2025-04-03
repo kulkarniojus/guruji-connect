@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SamagriInput from './SamagriInput';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Table, 
@@ -77,6 +78,7 @@ export default function PujaManagement() {
     price: 0,
     imageUrl: '',
     items: [],
+    samagri: [],
     isPopular: false,
     isActive: true,
     type: 'offline',
@@ -612,13 +614,9 @@ export default function PujaManagement() {
                   />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="items">Items (comma-separated)</Label>
-                  <Input
-                    id="items"
-                    name="items"
-                    value={itemsInput}
-                    onChange={handleItemsChange}
-                    placeholder="e.g. incense, flowers, ghee"
+                  <SamagriInput 
+                    samagri={formData.samagri || []}
+                    onChange={(samagri) => setFormData(prev => ({ ...prev, samagri }))}
                   />
                 </div>
                 <div className="flex items-center space-x-2">
