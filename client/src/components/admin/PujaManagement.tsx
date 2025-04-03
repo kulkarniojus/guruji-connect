@@ -625,16 +625,17 @@ export default function PujaManagement() {
                     placeholder="Optional"
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 max-h-[300px] overflow-y-auto">
                   <SamagriInput 
                     samagri={formData.samagri || []}
-                    onChange={(samagri) => setFormData(prev => ({ ...prev, samagri }))}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <SamagriInput 
-                    samagri={formData.samagri || []}
-                    onChange={(samagri) => setFormData(prev => ({ ...prev, samagri }))}
+                    onChange={(samagri) => {
+                      const totalPrice = samagri.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        samagri,
+                        samagriPrice: totalPrice
+                      }));
+                    }}
                   />
                 </div>
                 <div className="flex items-center space-x-2">
