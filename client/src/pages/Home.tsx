@@ -41,12 +41,12 @@ export default function Home() {
       
       <main>
         {isMobile ? <MobileHero /> : <Hero />}
+        <CTA />
         <Services />
         <HowItWorks />
         <PopularPujas />
         <Testimonials />
         <FAQ />
-        <CTA />
       </main>
       
       <Footer />
