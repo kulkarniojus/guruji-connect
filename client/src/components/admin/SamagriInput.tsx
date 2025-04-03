@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +35,8 @@ export default function SamagriInput({ samagri, onChange }: SamagriInputProps) {
           Add Item
         </Button>
       </div>
-      
+
+      <div className="max-h-[250px] overflow-y-auto"> {/* This line has been modified */}
       {samagri.map((item, index) => (
         <div key={index} className="flex gap-4 items-center">
           <Input
@@ -73,6 +73,7 @@ export default function SamagriInput({ samagri, onChange }: SamagriInputProps) {
           </Button>
         </div>
       ))}
+      </div>
     </div>
   );
 }

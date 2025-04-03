@@ -85,7 +85,7 @@ export default function PujaManagement() {
     duration: 60,
   });
   const [itemsInput, setItemsInput] = useState('');
-  
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -93,7 +93,7 @@ export default function PujaManagement() {
   // In production, this would use the actual API endpoint
   // Initial loading state
   const [isUiLoading, setIsUiLoading] = useState(true);
-  
+
   // Fetch pujas from the API
   const { 
     data: apiPujas, 
@@ -151,27 +151,27 @@ export default function PujaManagement() {
       updatedAt: "2023-01-03T00:00:00Z"
     }
   ];
-  
+
   // Track puja data with local state
   const [pujasData, setPujasData] = useState<Puja[]>(initialPujas);
-  
+
   // Update local state when API data is available
   useEffect(() => {
     if (apiPujas) {
       setPujasData(apiPujas);
     }
   }, [apiPujas]);
-  
+
   // Loading states
   useEffect(() => {
     // Add a small delay for demo loading state
     const timer = setTimeout(() => {
       setIsUiLoading(false);
     }, 1000);
-    
+
     return () => clearTimeout(timer);
   }, []);
-  
+
   // Derived values
   const pujas = pujasData;
   const setPujas = setPujasData;
@@ -253,20 +253,20 @@ export default function PujaManagement() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      
+
       // Update local state immediately for responsive UI
       setPujas(prev => [...prev, newPuja]);
-      
+
       // Show success toast
       toast({
         title: 'Success',
         description: 'Puja created successfully',
       });
-      
+
       // Clean up UI
       resetForm();
       setIsAddDialogOpen(false);
-      
+
       // Make the actual API call
       createRealPujaMutation.mutate(data);
     },
@@ -298,17 +298,17 @@ export default function PujaManagement() {
         }
         return puja;
       }));
-      
+
       // Show success toast
       toast({
         title: 'Success',
         description: 'Puja updated successfully',
       });
-      
+
       // Clean up UI
       resetForm();
       setIsEditDialogOpen(false);
-      
+
       // Make the actual API call
       updateRealPujaMutation.mutate(data);
     },
@@ -320,16 +320,16 @@ export default function PujaManagement() {
     mutate: (id: number) => {
       // Update local state immediately
       setPujas(prev => prev.filter(puja => puja.id !== id));
-      
+
       // Show success toast
       toast({
         title: 'Success',
         description: 'Puja deleted successfully',
       });
-      
+
       // Clean up UI
       setIsDeleteDialogOpen(false);
-      
+
       // Make the actual API call
       deleteRealPujaMutation.mutate(id);
     },
@@ -357,7 +357,7 @@ export default function PujaManagement() {
   // Handle form input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
+
     // Handle number inputs
     if (name === 'basePrice' || name === 'price' || name === 'duration') {
       setFormData(prev => ({
@@ -391,10 +391,10 @@ export default function PujaManagement() {
   // Handle items input (comma-separated list)
   const handleItemsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setItemsInput(e.target.value);
-    
+
     // Convert comma-separated string to array
     const itemsArray = e.target.value.split(',').map(item => item.trim()).filter(Boolean);
-    
+
     setFormData(prev => ({
       ...prev,
       items: itemsArray
@@ -429,7 +429,7 @@ export default function PujaManagement() {
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (selectedPuja) {
       // Update existing puja
       updatePujaMutation.mutate({ id: selectedPuja.id, puja: formData });
@@ -524,7 +524,7 @@ export default function PujaManagement() {
 
       {/* Add Puja Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Puja</DialogTitle>
           </DialogHeader>
@@ -680,7 +680,7 @@ export default function PujaManagement() {
 
       {/* Edit Puja Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Puja</DialogTitle>
           </DialogHeader>
