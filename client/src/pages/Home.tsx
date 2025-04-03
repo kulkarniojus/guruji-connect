@@ -18,7 +18,7 @@ import { Loader2 } from 'lucide-react';
 export default function Home() {
   const isMobile = useIsMobile();
   const [, setLocation] = useLocation();
-  
+
   // Home page doesn't redirect for demo purposes
   // In a full app, we would check authentication here
 
@@ -31,14 +31,14 @@ export default function Home() {
       </Helmet>
 
       <Header />
-      
+
       <div className="bg-primary text-white py-2 px-4 text-center">
         <p>
           Demo Mode: <a href="/dashboard" className="underline font-bold">View Dashboard</a> to access the Spiritual Journey Tracker | 
           <a href="/admin-dashboard" className="underline font-bold ml-2">Admin Analytics</a> for advanced metrics
         </p>
       </div>
-      
+
       <main>
         {isMobile ? <MobileHero /> : <Hero />}
         <CTA />
@@ -48,7 +48,7 @@ export default function Home() {
         <Testimonials />
         <FAQ />
       </main>
-      
+
       <Footer />
       <Chatbot />
     </div>
