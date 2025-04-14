@@ -11,7 +11,8 @@ import {
   whatsappConversations, WhatsappConversation, InsertWhatsappConversation,
   whatsappMessages, WhatsappMessage, InsertWhatsappMessage,
   userJourneys, UserJourney, InsertUserJourney,
-  userJourneyItems, UserJourneyItem, InsertUserJourneyItem
+  userJourneyItems, UserJourneyItem, InsertUserJourneyItem,
+  bookingRequests, BookingRequest, InsertBookingRequest
 } from "@shared/schema";
 import { eq, and, like, or, lt, gt, gte, desc, inArray } from "drizzle-orm";
 import { genSalt, hash, compare } from "bcrypt";
@@ -59,6 +60,14 @@ export interface IStorage {
   updateBookingStatus(id: number, status: 'pending' | 'pending_approval' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'rejected'): Promise<Booking | undefined>;
   assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined>;
   getAllBookings(): Promise<Booking[]>; // For analytics
+  
+  // Booking Request Management
+  createBookingRequest(bookingRequest: InsertBookingRequest): Promise<BookingRequest>;
+  getBookingRequest(id: number): Promise<BookingRequest | undefined>;
+  getBookingRequestsByBookingId(bookingId: number): Promise<BookingRequest[]>;
+  getBookingRequestsByGurujiId(gurujiId: number): Promise<BookingRequest[]>;
+  updateBookingRequestStatus(id: number, status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled', responseMessage?: string): Promise<BookingRequest | undefined>;
+  expireOtherBookingRequests(bookingId: number, acceptedRequestId: number): Promise<boolean>;
 
   // Payment Management
   getPayment(id: number): Promise<Payment | undefined>;
