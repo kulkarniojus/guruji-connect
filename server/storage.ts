@@ -554,6 +554,75 @@ export class MemStorage implements IStorage {
   async getAllBookings(): Promise<Booking[]> {
     return Array.from(this.bookings.values());
   }
+  
+  // Booking Request Methods
+  async createBookingRequest(bookingRequestData: InsertBookingRequest): Promise<BookingRequest> {
+    const bookingRequest: BookingRequest = {
+      ...bookingRequestData,
+      id: this.bookingRequestIdCounter++,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      responseTime: undefined,
+      penalty: 0
+    };
+    
+    this.bookingRequests.set(bookingRequest.id, bookingRequest);
+    return bookingRequest;
+  }
+  
+  async getBookingRequest(id: number): Promise<BookingRequest | undefined> {
+    return this.bookingRequests.get(id);
+  }
+  
+  async getBookingRequestsByBookingId(bookingId: number): Promise<BookingRequest[]> {
+    return Array.from(this.bookingRequests.values()).filter(
+      (request) => request.bookingId === bookingId
+    );
+  }
+  
+  async getBookingRequestsByGurujiId(gurujiId: number): Promise<BookingRequest[]> {
+    return Array.from(this.bookingRequests.values()).filter(
+      (request) => request.gurujiId === gurujiId
+    );
+  }
+  
+  async updateBookingRequestStatus(
+    id: number, 
+    status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled', 
+    responseMessage?: string
+  ): Promise<BookingRequest | undefined> {
+    const request = this.bookingRequests.get(id);
+    if (!request) return undefined;
+    
+    const updatedRequest = { 
+      ...request, 
+      status,
+      responseTime: new Date(),
+      responseMessage: responseMessage || request.responseMessage,
+      updatedAt: new Date()
+    };
+    
+    this.bookingRequests.set(id, updatedRequest);
+    return updatedRequest;
+  }
+  
+  async expireOtherBookingRequests(bookingId: number, acceptedRequestId: number): Promise<boolean> {
+    const requests = Array.from(this.bookingRequests.values()).filter(
+      (request) => request.bookingId === bookingId && request.id !== acceptedRequestId
+    );
+    
+    for (const request of requests) {
+      const updatedRequest = {
+        ...request,
+        status: 'expired' as const,
+        updatedAt: new Date()
+      };
+      this.bookingRequests.set(request.id, updatedRequest);
+    }
+    
+    return true;
+  }
 
   async getPayment(id: number): Promise<Payment | undefined> {
     return this.payments.get(id);

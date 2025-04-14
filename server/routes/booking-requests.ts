@@ -268,13 +268,18 @@ export async function cancelBookingByGuruji(req: Request, res: Response) {
     const gurujiRequest = bookingRequests.find(req => req.gurujiId === guruji.id);
     
     if (gurujiRequest) {
-      // Update the booking request status to cancelled with reason and penalty
-      await storage.updateBookingRequestStatus(
+      // Update the booking request status to cancelled with reason
+      const updatedRequest = await storage.updateBookingRequestStatus(
         gurujiRequest.id, 
         'cancelled', 
-        reason,
-        penalty
+        reason
       );
+      
+      // Add penalty to the guruji
+      if (updatedRequest) {
+        updatedRequest.penalty = penalty;
+        updatedRequest.cancellationReason = reason;
+      }
     }
     
     // Notify the customer
