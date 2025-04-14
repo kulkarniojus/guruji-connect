@@ -22,11 +22,11 @@ export default function MainLayout({
       </Helmet>
 
       <Header />
-      
+
       <main className="flex-grow">
         {children}
       </main>
-      
+
       <Footer />
     </div>
   );
