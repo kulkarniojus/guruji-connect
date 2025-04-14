@@ -8,7 +8,7 @@ const services = [
     id: 'online-puja',
     title: 'Online Puja Booking',
     description: 'Book pujas online from the comfort of your home and participate virtually in real-time. Experience authentic rituals performed by verified pandits, with detailed explanation and guidance throughout the ceremony.',
-    image: '/images/puja_ceremony.svg',
+    image: '/images/online_puja.png',
   },
   {
     id: 'online-consultation',
