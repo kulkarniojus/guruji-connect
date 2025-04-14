@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserPlus, Users, CheckCircle2 } from 'lucide-react';
-import GurujiApplicationManagement from './GurujiApplicationManagement';
+import { GurujiApplicationManagement } from './GurujiApplicationManagement';
 
 export default function GurujiRegistrationTab() {
   return (

@@ -93,7 +93,7 @@ interface ApplicationStatus {
 }
 
 // Main Component
-export default function GurujiApplicationManagement({ status }: ApplicationStatus) {
+export function GurujiApplicationManagement({ status }: ApplicationStatus) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<GurujiProfile | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);

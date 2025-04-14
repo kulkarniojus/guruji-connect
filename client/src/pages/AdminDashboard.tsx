@@ -28,7 +28,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 mb-8">
+        <TabsList className="grid w-full grid-cols-6 mb-8">
           <TabsTrigger value="analytics" className="flex items-center justify-center">
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
@@ -48,6 +48,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="pujas" className="flex items-center justify-center">
             <Package2 className="h-4 w-4 mr-2" />
             Puja Management
+          </TabsTrigger>
+          <TabsTrigger value="guruji-registrations" className="flex items-center justify-center">
+            <UserCheck className="h-4 w-4 mr-2" />
+            Guruji Registrations
           </TabsTrigger>
         </TabsList>
         
@@ -73,6 +77,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="pujas">
           <PujaManagementTab />
+        </TabsContent>
+
+        <TabsContent value="guruji-registrations">
+          <GurujiRegistrationTab />
         </TabsContent>
       </Tabs>
     </div>
