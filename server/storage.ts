@@ -56,7 +56,7 @@ export interface IStorage {
   getBookingsByCustomerId(customerId: number): Promise<Booking[]>;
   getBookingsByGurujiId(gurujiId: number): Promise<Booking[]>;
   createBooking(booking: InsertBooking): Promise<Booking>;
-  updateBookingStatus(id: number, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'): Promise<Booking | undefined>;
+  updateBookingStatus(id: number, status: 'pending' | 'pending_approval' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'rejected'): Promise<Booking | undefined>;
   assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined>;
   getAllBookings(): Promise<Booking[]>; // For analytics
 
@@ -135,6 +135,7 @@ export class MemStorage implements IStorage {
   private pujas: Map<number, Puja>;
   private gurujiProfiles: Map<number, GurujiProfile>;
   private bookings: Map<number, Booking>;
+  private bookingRequests: Map<number, BookingRequest>;
   private payments: Map<number, Payment>;
   private reviews: Map<number, Review>;
   private notifications: Map<number, Notification>;
@@ -152,6 +153,7 @@ export class MemStorage implements IStorage {
   private paymentIdCounter: number;
   private reviewIdCounter: number;
   private notificationIdCounter: number;
+  private bookingRequestIdCounter: number;
   private chatbotTemplateIdCounter: number;
   private chatbotTrainingDataIdCounter: number;
   private whatsappUserIdCounter: number;
@@ -164,6 +166,7 @@ export class MemStorage implements IStorage {
     this.pujas = new Map();
     this.gurujiProfiles = new Map();
     this.bookings = new Map();
+    this.bookingRequests = new Map();
     this.payments = new Map();
     this.reviews = new Map();
     this.notifications = new Map();
@@ -183,6 +186,7 @@ export class MemStorage implements IStorage {
     this.paymentIdCounter = 1;
     this.reviewIdCounter = 1;
     this.notificationIdCounter = 1;
+    this.bookingRequestIdCounter = 1;
     this.chatbotTemplateIdCounter = 1;
     this.chatbotTrainingDataIdCounter = 1;
     this.whatsappUserIdCounter = 1;
