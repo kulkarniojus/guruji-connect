@@ -15,6 +15,12 @@ import chatbotRoutes from "./routes/chatbot";
 import { analyticsRouter } from "./routes/analytics";
 import journeyRoutes from "./routes/journey";
 import pujaRoutes from "./routes/pujas";
+import { 
+  sendBookingRequests, 
+  respondToBookingRequest, 
+  cancelBookingByGuruji, 
+  getGurujiBookingRequests 
+} from "./routes/booking-requests";
 
 // Extend session type to include userId and userRole
 declare module 'express-session' {
@@ -1038,6 +1044,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/analytics', analyticsRouter);
   app.use('/api', journeyRoutes);
   app.use('/api/admin/pujas', pujaRoutes);
+  
+  // Register booking request routes
+  app.post('/api/bookings/:id/send-requests', isAuthenticated, checkRole(['customer']), sendBookingRequests);
+  app.post('/api/booking-requests/:id/respond', isAuthenticated, checkRole(['guruji']), respondToBookingRequest);
+  app.post('/api/bookings/:id/cancel', isAuthenticated, checkRole(['guruji']), cancelBookingByGuruji);
+  app.get('/api/guruji/booking-requests', isAuthenticated, checkRole(['guruji']), getGurujiBookingRequests);
   
   // Create HTTP server
   const httpServer = createServer(app);

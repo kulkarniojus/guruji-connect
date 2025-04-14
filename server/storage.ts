@@ -58,8 +58,6 @@ export interface IStorage {
   getBookingsByGurujiId(gurujiId: number): Promise<Booking[]>;
   createBooking(booking: InsertBooking): Promise<Booking>;
   updateBookingStatus(id: number, status: 'pending' | 'pending_approval' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'rejected'): Promise<Booking | undefined>;
-  assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined>;
-  getAllBookings(): Promise<Booking[]>; // For analytics
   
   // Booking Request Management
   createBookingRequest(bookingRequest: InsertBookingRequest): Promise<BookingRequest>;
@@ -68,6 +66,8 @@ export interface IStorage {
   getBookingRequestsByGurujiId(gurujiId: number): Promise<BookingRequest[]>;
   updateBookingRequestStatus(id: number, status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled', responseMessage?: string): Promise<BookingRequest | undefined>;
   expireOtherBookingRequests(bookingId: number, acceptedRequestId: number): Promise<boolean>;
+  assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined>;
+  getAllBookings(): Promise<Booking[]>; // For analytics
 
   // Payment Management
   getPayment(id: number): Promise<Payment | undefined>;
