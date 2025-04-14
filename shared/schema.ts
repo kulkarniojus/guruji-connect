@@ -4,7 +4,7 @@ import { z } from "zod";
 
 // Enum definitions
 export const userRoleEnum = pgEnum('user_role', ['customer', 'guruji', 'admin']);
-export const bookingStatusEnum = pgEnum('booking_status', ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled']);
+export const bookingStatusEnum = pgEnum('booking_status', ['pending', 'pending_approval', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rejected']);
 export const paymentStatusEnum = pgEnum('payment_status', ['unpaid', 'partial', 'paid', 'refunded']);
 export const pujaTypeEnum = pgEnum('puja_type', ['offline', 'online']);
 export const consultationType = pgEnum('consultation_type', ['own_guruji', 'auto_select', 'immediate']);
@@ -162,6 +162,23 @@ export const reviews = pgTable("reviews", {
   rating: integer("rating").notNull(),
   review: text("review"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Booking Request Status Enum
+export const requestStatusEnum = pgEnum('request_status', ['pending', 'accepted', 'declined', 'expired', 'cancelled']);
+
+// Booking Requests table - for tracking booking requests sent to gurujis
+export const bookingRequests = pgTable("booking_requests", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").notNull().references(() => bookings.id),
+  gurujiId: integer("guruji_id").notNull().references(() => gurujiProfiles.id),
+  status: requestStatusEnum("status").notNull().default('pending'),
+  responseTime: timestamp("response_time"),
+  responseMessage: text("response_message"),
+  cancellationReason: text("cancellation_reason"),
+  penalty: integer("penalty").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Content table (for configurable content like T&C)
@@ -480,3 +497,16 @@ export type InsertUserJourney = z.infer<typeof insertUserJourneySchema>;
 
 export type UserJourneyItem = typeof userJourneyItems.$inferSelect;
 export type InsertUserJourneyItem = z.infer<typeof insertUserJourneyItemSchema>;
+
+// Add schema and types for booking requests
+export const insertBookingRequestSchema = createInsertSchema(bookingRequests).omit({
+  id: true,
+  status: true,
+  responseTime: true,
+  penalty: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BookingRequest = typeof bookingRequests.$inferSelect;
+export type InsertBookingRequest = z.infer<typeof insertBookingRequestSchema>;
