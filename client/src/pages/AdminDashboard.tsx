@@ -5,7 +5,8 @@ import { Redirect } from 'wouter';
 import ChatbotDashboard from '@/components/chatbot/ChatbotDashboard';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import PujaManagementTab from '@/components/admin/PujaManagementTab';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2 } from 'lucide-react';
+import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck } from 'lucide-react';
 
 export default function AdminDashboard() {
   // Temporarily disabled auth check for demo 
