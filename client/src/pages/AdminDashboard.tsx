@@ -5,8 +5,7 @@ import { Redirect } from 'wouter';
 import ChatbotDashboard from '@/components/chatbot/ChatbotDashboard';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import PujaManagementTab from '@/components/admin/PujaManagementTab';
-import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserPlus } from 'lucide-react';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2 } from 'lucide-react';
 
 export default function AdminDashboard() {
   // Temporarily disabled auth check for demo 
@@ -28,7 +27,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6 mb-8">
+        <TabsList className="grid w-full grid-cols-5 mb-8">
           <TabsTrigger value="analytics" className="flex items-center justify-center">
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
@@ -73,15 +72,6 @@ export default function AdminDashboard() {
 
         <TabsContent value="pujas">
           <PujaManagementTab />
-        </TabsContent>
-
-        <TabsTrigger value="guruji" className="flex items-center justify-center">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Guruji Registration
-        </TabsTrigger>
-        
-        <TabsContent value="guruji">
-          <GurujiRegistrationTab />
         </TabsContent>
       </Tabs>
     </div>
