@@ -105,34 +105,40 @@ router.get('/guruji-booking-requests/:email', async (req: Request, res: Response
       return res.status(404).json({ message: 'Guruji profile not found' });
     }
     
-    const requests = await storage.getBookingRequestsByGurujiId(gurujiProfile.id);
+    // Get customer bookings that are pending
+    const demoCustomer = await storage.getUserByEmail('demo.customer@example.com');
+    if (!demoCustomer) {
+      return res.status(404).json({ message: 'Demo customer not found' });
+    }
     
-    // Get booking details for each request
+    const customerBookings = await storage.getBookingsByCustomerId(demoCustomer.id);
+    const pendingBookings = customerBookings.filter(b => b.status === 'pending' || b.status === 'pending_approval');
+    
+    // Create synthetic booking requests for the demo
     const requestsWithDetails = await Promise.all(
-      requests.map(async (request) => {
-        const booking = await storage.getBooking(request.bookingId);
+      pendingBookings.map(async (booking) => {
+        // Get puja details
         let puja = null;
-        let customer = null;
-        
-        if (booking) {
-          if (booking.pujaId) {
-            puja = await storage.getPuja(booking.pujaId);
-          }
-          
-          customer = await storage.getUser(booking.customerId);
+        if (booking.pujaId) {
+          puja = await storage.getPuja(booking.pujaId);
         }
         
+        // Synthetic request
         return {
-          ...request,
+          id: booking.id * 10 + gurujiProfile.id, // Generate a unique ID
+          bookingId: booking.id,
+          gurujiId: gurujiProfile.id,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
           booking,
           puja,
-          customer: customer ? {
-            id: customer.id,
-            firstName: customer.firstName,
-            lastName: customer.lastName,
-            email: customer.email,
-            mobile: customer.mobile,
-          } : null,
+          customer: {
+            id: demoCustomer.id,
+            firstName: demoCustomer.firstName,
+            lastName: demoCustomer.lastName,
+            email: demoCustomer.email,
+            mobile: demoCustomer.mobile,
+          },
         };
       })
     );
@@ -195,78 +201,53 @@ router.post('/respond-to-request/:requestId', async (req: Request, res: Response
       return res.status(404).json({ message: 'Guruji profile not found' });
     }
     
-    const bookingRequest = await storage.getBookingRequest(parseInt(requestId));
-    if (!bookingRequest) {
-      return res.status(404).json({ message: 'Booking request not found' });
-    }
-    
-    if (bookingRequest.gurujiId !== gurujiProfile.id) {
-      return res.status(403).json({ 
-        message: 'You are not authorized to respond to this booking request' 
-      });
-    }
-    
-    // Check if request is already accepted or declined
-    if (bookingRequest.status !== 'pending') {
-      return res.status(400).json({ 
-        message: `Request is already ${bookingRequest.status}` 
-      });
-    }
+    // Extract the booking ID from the requestId
+    // Note: in our simplified demo mode, requestId is booking.id * 10 + gurujiProfile.id
+    // So we can extract the booking ID by dividing and using Math.floor
+    const bookingId = Math.floor(parseInt(requestId) / 10);
     
     // Get the original booking
-    const booking = await storage.getBooking(bookingRequest.bookingId);
+    const booking = await storage.getBooking(bookingId);
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
     
-    // Check if booking is still in pending_approval state
-    if (booking.status !== 'pending_approval') {
-      return res.status(400).json({ 
-        message: `Booking is already ${booking.status}` 
-      });
+    // Get customer
+    const customer = await storage.getUser(booking.customerId);
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
     }
     
     if (response === 'accept') {
-      // Update request status to accepted
-      await storage.updateBookingRequestStatus(bookingRequest.id, 'accepted', message);
-      
       // Assign guruji to booking
-      await storage.assignGurujiToBooking(booking.id, bookingRequest.gurujiId);
+      await storage.assignGurujiToBooking(booking.id, gurujiProfile.id);
       
       // Update booking status to confirmed
       await storage.updateBookingStatus(booking.id, 'confirmed');
       
-      // Get customer information
-      const customer = await storage.getUser(booking.customerId);
+      // Notify customer
+      await storage.createNotification({
+        userId: customer.id,
+        title: 'Booking Confirmed',
+        message: `Your booking has been accepted by ${guruji.firstName} ${guruji.lastName}`,
+        type: 'booking_confirmed',
+      });
       
-      if (customer) {
-        // Notify customer
-        await storage.createNotification({
-          userId: customer.id,
-          title: 'Booking Confirmed',
-          message: `Your booking has been accepted by ${guruji.firstName} ${guruji.lastName}`,
-          type: 'booking_confirmed',
-          isRead: false,
-        });
-      }
+      // Notify other gurujis with demo accounts that the booking was accepted
+      const otherGurujis = await Promise.all([
+        storage.getUserByEmail('demo.guruji1@example.com'),
+        storage.getUserByEmail('demo.guruji2@example.com'),
+        storage.getUserByEmail('demo.guruji3@example.com')
+      ]);
       
-      // Update all other pending requests for this booking to expired
-      await storage.expireOtherBookingRequests(booking.id, bookingRequest.id);
-      
-      // Notify other gurujis
-      const otherRequests = await storage.getBookingRequestsByBookingId(booking.id);
-      for (const req of otherRequests) {
-        if (req.id !== bookingRequest.id && req.status === 'expired') {
-          const otherGuruji = await storage.getGurujiProfile(req.gurujiId);
-          if (otherGuruji) {
-            await storage.createNotification({
-              userId: otherGuruji.userId,
-              title: 'Booking Already Accepted',
-              message: 'A booking request you received has been accepted by another guruji',
-              type: 'booking_expired',
-              isRead: false,
-            });
-          }
+      for (const otherGuruji of otherGurujis.filter(Boolean)) {
+        if (otherGuruji && otherGuruji.id !== guruji.id) {
+          await storage.createNotification({
+            userId: otherGuruji.id,
+            title: 'Booking Already Accepted',
+            message: 'A booking request you received has been accepted by another guruji',
+            type: 'booking_expired',
+          });
         }
       }
       
@@ -280,31 +261,13 @@ router.post('/respond-to-request/:requestId', async (req: Request, res: Response
         }
       });
     } else {
-      // Update request status to declined
-      await storage.updateBookingRequestStatus(bookingRequest.id, 'declined', message);
-      
-      // Check if all requests are declined
-      const allRequests = await storage.getBookingRequestsByBookingId(booking.id);
-      const allDeclined = allRequests.every(req => 
-        req.status === 'declined' || req.status === 'expired' || req.status === 'cancelled'
-      );
-      
-      if (allDeclined) {
-        // If all requests are declined, update booking status back to pending
-        await storage.updateBookingStatus(booking.id, 'pending');
-        
-        // Notify customer that no guruji is available
-        const customer = await storage.getUser(booking.customerId);
-        if (customer) {
-          await storage.createNotification({
-            userId: customer.id,
-            title: 'Booking Update',
-            message: 'We couldn\'t find an available guruji for your booking. Please try again later or choose a different date/time.',
-            type: 'booking_update',
-            isRead: false,
-          });
-        }
-      }
+      // Create a declined notification for customer
+      await storage.createNotification({
+        userId: customer.id,
+        title: 'Booking Update',
+        message: `Guruji ${guruji.firstName} ${guruji.lastName} has declined your booking request.`,
+        type: 'booking_update',
+      });
       
       res.status(200).json({ 
         message: "Booking request declined successfully",

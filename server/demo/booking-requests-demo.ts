@@ -169,23 +169,22 @@ export async function getDemoGurujiProfiles() {
 }
 
 export async function getOrCreateDemoBookingRequests(bookingId: number) {
-  // Check if booking requests already exist
-  const existingRequests = await storage.getBookingRequestsByBookingId(bookingId);
-  if (existingRequests.length > 0) {
-    return existingRequests;
-  }
-  
-  // Create new booking requests
+  // For simplicity, we'll just create notifications for gurujis
+  // without relying on the booking_requests table
   const gurujiProfiles = await getDemoGurujiProfiles();
   const requests = [];
   
   for (const profile of gurujiProfiles) {
-    const requestData: InsertBookingRequest = {
+    // Create a simple request object to return
+    const request = {
+      id: Math.floor(Math.random() * 1000) + 1,
       bookingId,
       gurujiId: profile.id,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
-    const request = await storage.createBookingRequest(requestData);
     requests.push(request);
     
     // Create notification for the guruji
