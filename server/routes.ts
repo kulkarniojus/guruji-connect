@@ -15,6 +15,7 @@ import chatbotRoutes from "./routes/chatbot";
 import { analyticsRouter } from "./routes/analytics";
 import journeyRoutes from "./routes/journey";
 import pujaRoutes from "./routes/pujas";
+import demoRoutes from "./routes/demo";
 import { 
   sendBookingRequests, 
   respondToBookingRequest, 
