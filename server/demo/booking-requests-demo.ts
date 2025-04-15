@@ -92,8 +92,7 @@ export async function createBookingRequestDemoData() {
       isPopular: true,
       isActive: true,
       items: ['Coconut', 'Flowers', 'Incense sticks', 'Ghee', 'Rice'],
-      createdAt: new Date(),
-      updatedAt: new Date()
+
     };
     
     demoPuja = await storage.createPuja(pujaData);
