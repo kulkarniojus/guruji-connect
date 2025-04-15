@@ -1045,6 +1045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/analytics', analyticsRouter);
   app.use('/api', journeyRoutes);
   app.use('/api/admin/pujas', pujaRoutes);
+  app.use('/api/demo', demoRoutes);
   
   // Register booking request routes
   app.post('/api/bookings/:id/send-requests', isAuthenticated, checkRole(['customer']), sendBookingRequests);

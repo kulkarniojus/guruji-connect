@@ -14,9 +14,13 @@ export async function createBookingRequestDemoData() {
   
   if (demoCustomer && demoGuruji1) {
     console.log('Demo data already exists, skipping creation');
+    
+    // Get existing booking or create a new one
+    const booking = await getOrCreateDemoBooking(demoCustomer.id);
+    
     return {
       customer: demoCustomer,
-      booking: await getOrCreateDemoBooking(demoCustomer.id)
+      booking
     };
   }
   
@@ -34,7 +38,6 @@ export async function createBookingRequestDemoData() {
     address: '123 Demo Street',
     city: 'Mumbai',
     state: 'Maharashtra',
-    pincode: '400001',
   };
   
   const customer = await storage.createUser(customerData);
@@ -54,7 +57,6 @@ export async function createBookingRequestDemoData() {
       address: `${i}23 Temple Street`,
       city: 'Mumbai',
       state: 'Maharashtra',
-      pincode: '400001',
     };
     
     const guruji = await storage.createUser(gurujiData);
@@ -67,18 +69,10 @@ export async function createBookingRequestDemoData() {
       specialization: 'Vedic Rituals, Navgraha Shanti',
       location: 'Mumbai',
       bio: `I am a ${15 + i} years experienced guruji specializing in traditional vedic ceremonies and rituals.`,
-      education: 'Vedic Studies',
-      languages: ['Hindi', 'Sanskrit', 'English'],
       isAvailable: true,
       aadharVerified: true,
       documentsVerified: true,
-      availability: ['morning', 'afternoon', 'evening'],
       radius: 25,
-      certificates: ['Vedic Studies Diploma'],
-      applicationStatus: 'approved',
-      applicationDate: new Date().toISOString(),
-      verificationDate: new Date().toISOString(),
-      verifiedBy: 1, // Admin ID
     };
     
     await storage.createGurujiProfile(profileData);
@@ -98,6 +92,8 @@ export async function createBookingRequestDemoData() {
       isPopular: true,
       isActive: true,
       items: ['Coconut', 'Flowers', 'Incense sticks', 'Ghee', 'Rice'],
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
     
     demoPuja = await storage.createPuja(pujaData);
@@ -119,7 +115,7 @@ async function getPujaByName(name: string) {
 async function getOrCreateDemoBooking(customerId: number, pujaId?: number) {
   // Check if a demo booking already exists
   const customerBookings = await storage.getBookingsByCustomerId(customerId);
-  const demoBooking = customerBookings.find(b => b.pujaId && b.status === 'pending');
+  const demoBooking = customerBookings.find(b => b.status === 'pending');
   
   if (demoBooking) {
     return demoBooking;
@@ -139,16 +135,12 @@ async function getOrCreateDemoBooking(customerId: number, pujaId?: number) {
   const bookingData: InsertBooking = {
     customerId,
     pujaId,
-    date: tomorrowDate,
-    time: '10:00 AM',
+    type: 'offline',
+    amount: 2000,
     address: '123 Demo Street, Apartment 4B',
     city: 'Mumbai',
-    type: 'offline',
-    status: 'pending',
-    amount: 2000,
+    date: tomorrowDate,
     duration: 180,
-    specialInstructions: 'This is a demo booking for testing the notification system.',
-    guests: 5,
   };
   
   return await storage.createBooking(bookingData);
@@ -163,12 +155,14 @@ export async function getDemoGurujiProfiles() {
   
   const gurujiProfiles = [];
   for (const user of gurujiUsers.filter(Boolean)) {
-    const profile = await storage.getGurujiProfileByUserId(user.id);
-    if (profile) {
-      gurujiProfiles.push({
-        ...profile,
-        user
-      });
+    if (user) {
+      const profile = await storage.getGurujiProfileByUserId(user.id);
+      if (profile) {
+        gurujiProfiles.push({
+          ...profile,
+          user
+        });
+      }
     }
   }
   
@@ -190,7 +184,6 @@ export async function getOrCreateDemoBookingRequests(bookingId: number) {
     const requestData: InsertBookingRequest = {
       bookingId,
       gurujiId: profile.id,
-      status: 'pending',
     };
     
     const request = await storage.createBookingRequest(requestData);
@@ -202,7 +195,6 @@ export async function getOrCreateDemoBookingRequests(bookingId: number) {
       title: 'New Demo Booking Request',
       message: 'You have a new demo booking request for testing purposes.',
       type: 'booking_request',
-      isRead: false,
     });
   }
   
