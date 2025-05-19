@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { 
@@ -10,7 +11,6 @@ import {
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
@@ -27,6 +27,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+
+// Import new animation components
+import AnimatedProgress from '@/components/journey/AnimatedProgress';
+import AnimatedStage from '@/components/journey/AnimatedStage';
+import AnimatedJourneyPath from '@/components/journey/AnimatedJourneyPath';
+import { JourneyAnimationProvider, useJourneyAnimation } from '@/context/JourneyAnimationContext';
 import {
   Form,
   FormControl,
@@ -139,7 +145,8 @@ const getStageIcon = (stage: string) => {
   }
 };
 
-const SpiritualJourney = () => {
+// Wrap the main component with animation provider
+const SpiritualJourneyContent = () => {
   const { toast } = useToast();
   const [selectedJourney, setSelectedJourney] = useState<number | null>(null);
   const [isNewJourneyDialogOpen, setIsNewJourneyDialogOpen] = useState(false);
@@ -466,34 +473,43 @@ const SpiritualJourney = () => {
                 <Card className="mb-6">
                   <CardHeader>
                     <div className="flex justify-between items-start">
-                      <div>
-                        <Badge className={`${getStageColor(journeyDetails.journey.stage)} mb-2`}>
-                          {journeyDetails.journey.stage.charAt(0).toUpperCase() + journeyDetails.journey.stage.slice(1)}
-                        </Badge>
-                        <CardTitle>{journeyDetails.journey.title}</CardTitle>
-                        <CardDescription>
-                          Started on {new Date(journeyDetails.journey.createdAt).toLocaleDateString()}
-                        </CardDescription>
+                      <div className="flex gap-3 items-start">
+                        <AnimatedStage stage={journeyDetails.journey.stage} size="md" />
+                        <div>
+                          <Badge className={`${getStageColor(journeyDetails.journey.stage)} mb-2`}>
+                            {journeyDetails.journey.stage.charAt(0).toUpperCase() + journeyDetails.journey.stage.slice(1)}
+                          </Badge>
+                          <CardTitle>{journeyDetails.journey.title}</CardTitle>
+                          <CardDescription>
+                            Started on {new Date(journeyDetails.journey.createdAt).toLocaleDateString()}
+                          </CardDescription>
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-medium">Progress</div>
-                        <div className="text-3xl font-bold">
+                        <motion.div 
+                          className="text-3xl font-bold"
+                          initial={{ scale: 1 }}
+                          whileHover={{ scale: 1.05 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                        >
                           {calculateProgress(
                             journeyDetails.journey.completedPujas,
                             journeyDetails.journey.totalPujas
                           )}%
-                        </div>
+                        </motion.div>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="mb-6">
-                      <Progress
-                        value={calculateProgress(
+                      <AnimatedProgress
+                        progress={calculateProgress(
                           journeyDetails.journey.completedPujas,
                           journeyDetails.journey.totalPujas
                         )}
-                        className="h-2"
+                        showCelebration={journeyDetails.journey.completedPujas === journeyDetails.journey.totalPujas}
+                        size="md"
                       />
                     </div>
                     {journeyDetails.journey.description && (
@@ -883,6 +899,15 @@ const SpiritualJourney = () => {
         </DialogContent>
       </Dialog>
     </div>
+  );
+};
+
+// Main component with animation provider
+const SpiritualJourney = () => {
+  return (
+    <JourneyAnimationProvider>
+      <SpiritualJourneyContent />
+    </JourneyAnimationProvider>
   );
 };
 
