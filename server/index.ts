@@ -44,18 +44,12 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    // Skip database initialization for now to get the app running
-    log("Skipping database initialization temporarily...");
-    useMemStorage = true;
-    
-    // Initialize in-memory storage
-    const memStorage = new MemStorage();
-    
-    // Make memStorage globally available
-    (global as any).appStorage = memStorage;
-    log("Using in-memory storage instead");
+    // Initialize database and run migrations
+    log("Initializing database...");
+    await initializeDatabase();
+    log("Database initialized successfully");
   } catch (err) {
-    log(`Error setting up memory storage: ${err}`);
+    log(`Error initializing database: ${err}`);
     process.exit(1);
   }
 
