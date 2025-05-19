@@ -399,24 +399,84 @@ const SpiritualJourneyContent = () => {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Your Spiritual Journey</h1>
-        <Button onClick={() => setIsNewJourneyDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> New Journey
-        </Button>
+        <motion.h1 
+          className="text-3xl font-bold"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          Your Spiritual Journey
+        </motion.h1>
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Button onClick={() => setIsNewJourneyDialogOpen(true)}>
+            <motion.div
+              className="mr-2" 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            >
+              <Plus className="h-4 w-4" />
+            </motion.div>
+            New Journey
+          </Button>
+        </motion.div>
       </div>
 
       {/* No journeys state */}
       {(!journeys || journeys.length === 0) && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <BookOpen className="h-16 w-16 text-gray-400 mb-4" />
-          <h2 className="text-2xl font-semibold mb-2">Start Your Spiritual Journey</h2>
-          <p className="text-gray-500 mb-6 max-w-md">
+        <motion.div 
+          className="flex flex-col items-center justify-center py-12 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7 }}
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
+            transition={{ 
+              scale: { duration: 0.7, type: "spring" },
+              rotate: { duration: 1.5, delay: 0.7 }
+            }}
+          >
+            <BookOpen className="h-16 w-16 text-gray-400 mb-4" />
+          </motion.div>
+          <motion.h2 
+            className="text-2xl font-semibold mb-2"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            Start Your Spiritual Journey
+          </motion.h2>
+          <motion.p 
+            className="text-gray-500 mb-6 max-w-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
             Track your progress, set spiritual goals, and reflect on your growth as you connect with our Gurujis.
-          </p>
-          <Button onClick={() => setIsNewJourneyDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Create Your First Journey
-          </Button>
-        </div>
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Button onClick={() => setIsNewJourneyDialogOpen(true)}>
+              <motion.div
+                className="mr-2" 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              >
+                <Plus className="h-4 w-4" />
+              </motion.div>
+              Create Your First Journey
+            </Button>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Journey content */}
@@ -427,8 +487,8 @@ const SpiritualJourneyContent = () => {
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <h3 className="text-lg font-medium mb-4">Your Journeys</h3>
               <div className="space-y-2">
-                {journeys.map((journey: UserJourney) => (
-                  <button
+                {journeys.map((journey: UserJourney, index: number) => (
+                  <motion.button
                     key={journey.id}
                     onClick={() => setSelectedJourney(journey.id)}
                     className={`w-full flex items-center justify-between p-3 rounded-md text-left ${
@@ -436,9 +496,23 @@ const SpiritualJourneyContent = () => {
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-white hover:bg-gray-100'
                     }`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ 
+                      duration: 0.3, 
+                      delay: 0.1 * index,
+                      type: "spring",
+                      stiffness: 260,
+                      damping: 20
+                    }}
+                    whileHover={{ 
+                      scale: 1.02,
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
+                    }}
+                    whileTap={{ scale: 0.98 }}
                   >
                     <div className="flex items-center">
-                      {getStageIcon(journey.stage)}
+                      <AnimatedStage stage={journey.stage} size="sm" animated={selectedJourney === journey.id} />
                       <div className="ml-3">
                         <div className="font-medium">{journey.title}</div>
                         <div className="text-xs opacity-80">
@@ -447,12 +521,25 @@ const SpiritualJourneyContent = () => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs opacity-80">
+                      <motion.span 
+                        className="text-xs opacity-80"
+                        animate={selectedJourney === journey.id ? {
+                          scale: [1, 1.2, 1],
+                          transition: { duration: 0.5, repeat: 0 }
+                        } : {}}
+                      >
                         {calculateProgress(journey.completedPujas, journey.totalPujas)}%
-                      </span>
-                      <ChevronRight className="h-4 w-4" />
+                      </motion.span>
+                      <motion.div
+                        animate={selectedJourney === journey.id ? { 
+                          x: [0, 4, 0],
+                          transition: { duration: 0.5, repeat: Infinity, repeatType: "reverse" }
+                        } : {}}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </motion.div>
                     </div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
