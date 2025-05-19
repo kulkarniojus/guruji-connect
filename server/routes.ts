@@ -2,6 +2,9 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketServer } from "socket.io";
 import { storage, IStorage, MemStorage } from "./storage";
+
+// Use the global in-memory storage if available
+const storageInstance = (global as any).appStorage || storage;
 import { z } from "zod";
 import { ZodError } from "zod";
 import { genSalt, hash, compare } from "bcrypt";
