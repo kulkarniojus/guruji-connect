@@ -9,7 +9,7 @@ import AdminLogin from "@/pages/AdminLogin";
 import PujaDetails from "@/pages/PujaDetails";
 import PujasList from "@/pages/PujasList";
 import Services from "@/pages/Services";
-import BookingNotificationDemo from "@/pages/BookingNotificationDemo";
+import SimpleBookingDemo from "@/pages/SimpleBookingDemo";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -73,7 +73,7 @@ function Router() {
       <Route path="/video-call/:id">
         <ProtectedRoute component={VideoCall} />
       </Route>
-      <Route path="/demo/booking-notifications" component={BookingNotificationDemo} />
+      <Route path="/demo/booking-notifications" component={SimpleBookingDemo} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, CheckIcon, XIcon, RefreshCcw, BellIcon, UserIcon, BookOpenIcon } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 // Demo data types
 interface DemoCredential {
@@ -160,6 +160,7 @@ const BookingNotificationDemo: React.FC = () => {
   const [customerNotifications, setCustomerNotifications] = useState<DemoNotification[]>([]);
   const [gurujiNotifications, setGurujiNotifications] = useState<DemoNotification[]>([]);
   const [responseMessage, setResponseMessage] = useState('');
+  const { toast } = useToast();
   
   const sendBookingRequests = async () => {
     try {
