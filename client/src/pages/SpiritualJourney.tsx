@@ -597,6 +597,7 @@ const SpiritualJourneyContent = () => {
                         )}
                         showCelebration={journeyDetails.journey.completedPujas === journeyDetails.journey.totalPujas}
                         size="md"
+                        journeyId={journeyDetails.journey.id}
                       />
                     </div>
                     {journeyDetails.journey.description && (
