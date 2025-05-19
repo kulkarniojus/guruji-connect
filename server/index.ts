@@ -2,11 +2,15 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { pgStorage } from "./pgStorage";
+import { MemStorage } from "./storage";
 import { initializeDatabase } from "./db_init";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Flag to determine if we're using in-memory storage
+let useMemStorage = false;
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -40,12 +44,18 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    // Initialize database and run migrations
-    log("Initializing database...");
-    await initializeDatabase();
-    log("Database initialized successfully");
+    // Skip database initialization for now to get the app running
+    log("Skipping database initialization temporarily...");
+    useMemStorage = true;
+    
+    // Initialize in-memory storage
+    const memStorage = new MemStorage();
+    
+    // Make memStorage globally available
+    (global as any).appStorage = memStorage;
+    log("Using in-memory storage instead");
   } catch (err) {
-    log(`Error initializing database: ${err}`);
+    log(`Error setting up memory storage: ${err}`);
     process.exit(1);
   }
 
