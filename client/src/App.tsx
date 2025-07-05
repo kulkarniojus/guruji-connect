@@ -15,6 +15,12 @@ import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { VideoConferenceProvider } from "@/context/VideoConferenceContext";
 import { useAuth } from "@/context/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+// Mobile Components
+import MobileDashboard from "@/components/mobile/MobileDashboard";
+import MobileBooking from "@/components/mobile/MobileBooking";
+import MobileProfile from "@/components/mobile/MobileProfile";
 
 // Lazy-loaded components
 const Chat = lazy(() => import('@/pages/Chat'));
@@ -37,19 +43,37 @@ function AdminRoute({ component: Component, ...rest }: { component: React.Compon
   return <Component />;
 }
 
+// Mobile-aware Dashboard Component
+function ResponsiveDashboard() {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileDashboard /> : <Dashboard />;
+}
+
+// Mobile-aware Booking Component
+function ResponsiveBooking() {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileBooking /> : <Booking />;
+}
+
+// Mobile-aware Profile Component
+function ResponsiveProfile() {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileProfile /> : <Profile />;
+}
+
 // Router setup
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/dashboard">
-        <ProtectedRoute component={Dashboard} />
+        <ProtectedRoute component={ResponsiveDashboard} />
       </Route>
       <Route path="/booking">
-        <ProtectedRoute component={Booking} />
+        <ProtectedRoute component={ResponsiveBooking} />
       </Route>
       <Route path="/profile">
-        <ProtectedRoute component={Profile} />
+        <ProtectedRoute component={ResponsiveProfile} />
       </Route>
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin-dashboard">
