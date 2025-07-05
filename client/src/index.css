@@ -9,47 +9,47 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    background: linear-gradient(135deg, hsl(45, 95%, 98%) 0%, hsl(35, 85%, 95%) 100%);
+    background: linear-gradient(135deg, hsl(210, 85%, 98%) 0%, hsl(200, 75%, 95%) 100%);
     min-height: 100vh;
   }
 }
 
 @layer components {
-  /* Beautiful gradient buttons - Golden Theme */
+  /* Beautiful gradient buttons - Ocean Blue Theme */
   .btn-gradient {
-    @apply bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 hover:from-amber-600 hover:via-yellow-600 hover:to-orange-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200;
+    @apply bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 hover:from-blue-600 hover:via-cyan-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200;
   }
   
-  /* Spiritual gradient cards - Golden Theme */
+  /* Spiritual gradient cards - Ocean Blue Theme */
   .card-spiritual {
-    @apply bg-gradient-to-br from-white via-amber-50 to-yellow-50 border border-amber-100 shadow-lg hover:shadow-xl transition-all duration-300;
+    @apply bg-gradient-to-br from-white via-blue-50 to-cyan-50 border border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300;
   }
   
-  /* Journey progress gradient - Golden Theme */
+  /* Journey progress gradient - Ocean Blue Theme */
   .progress-spiritual {
-    @apply bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500;
+    @apply bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600;
   }
   
-  /* Glowing effect for important elements - Golden Theme */
+  /* Glowing effect for important elements - Ocean Blue Theme */
   .glow-spiritual {
-    box-shadow: 0 0 20px hsla(45, 95%, 58%, 0.3);
+    box-shadow: 0 0 20px hsla(210, 85%, 55%, 0.3);
   }
   
-  /* Beautiful text gradients - Golden Theme */
+  /* Beautiful text gradients - Ocean Blue Theme */
   .text-gradient-spiritual {
-    @apply bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-blue-600 via-cyan-600 to-blue-700 bg-clip-text text-transparent;
   }
   
-  /* Animated background pattern - Golden Theme */
+  /* Animated background pattern - Ocean Blue Theme */
   .bg-spiritual-pattern {
     background-image: 
-      radial-gradient(circle at 25% 25%, hsla(45, 95%, 58%, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 75% 75%, hsla(35, 85%, 65%, 0.1) 0%, transparent 50%);
+      radial-gradient(circle at 25% 25%, hsla(210, 85%, 55%, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, hsla(200, 75%, 65%, 0.1) 0%, transparent 50%);
     animation: float 6s ease-in-out infinite;
   }
   
-  /* Hero section gradient - Golden Theme */
+  /* Hero section gradient - Ocean Blue Theme */
   .hero-gradient {
-    @apply bg-gradient-to-br from-amber-600 via-yellow-600 to-orange-700;
+    @apply bg-gradient-to-br from-blue-600 via-cyan-600 to-blue-700;
   }
 }
