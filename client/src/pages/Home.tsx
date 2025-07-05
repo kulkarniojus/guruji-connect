@@ -23,7 +23,7 @@ export default function Home() {
   // In a full app, we would check authentication here
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-spiritual-pattern">
       <Helmet>
         <title>GurujiConnect - Book Online and Offline Pujas</title>
         <meta name="description" content="Connect with verified Gurujis for your spiritual needs. Book online or in-person puja services, consultations, and more with expert Gurujis all over India." />
@@ -32,10 +32,10 @@ export default function Home() {
 
       <Header />
 
-      <div className="bg-primary text-white py-2 px-4 text-center">
-        <p>
-          Demo Mode: <a href="/dashboard" className="underline font-bold">View Dashboard</a> to access the Spiritual Journey Tracker | 
-          <a href="/admin-dashboard" className="underline font-bold ml-2">Admin Analytics</a> for advanced metrics
+      <div className="hero-gradient text-white py-3 px-4 text-center shadow-lg">
+        <p className="text-sm md:text-base">
+          ✨ Demo Mode: <a href="/dashboard" className="underline font-bold hover:text-purple-200 transition-colors">View Dashboard</a> to access the Spiritual Journey Tracker | 
+          <a href="/admin-dashboard" className="underline font-bold ml-2 hover:text-purple-200 transition-colors">Admin Analytics</a> for advanced metrics ✨
         </p>
       </div>
 
