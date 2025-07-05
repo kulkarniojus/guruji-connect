@@ -2,7 +2,7 @@
 
 ## Overview
 
-GurujiConnect is a comprehensive spiritual services platform built with a modern tech stack. It serves as a marketplace connecting customers with verified spiritual guides (Gurujis) for online and offline puja services, consultations, and religious ceremonies. The platform features a React frontend with TypeScript, Express.js backend, and is designed to use PostgreSQL with Drizzle ORM for data management.
+GurujiConnect is a comprehensive spiritual services platform built with a modern tech stack. It serves as a marketplace connecting customers with verified spiritual guides (Gurujis) for online and offline puja services, consultations, and religious ceremonies. The platform features both a web application (React frontend with TypeScript, Express.js backend) and native mobile applications (React Native with Expo) designed to use PostgreSQL with Drizzle ORM for data management.
 
 ## System Architecture
 
@@ -103,11 +103,51 @@ GurujiConnect is a comprehensive spiritual services platform built with a modern
 3. Run database migrations with `npm run db:push`
 4. Start production server with `npm start`
 
+## Mobile Application
+
+### React Native Implementation
+The platform now includes a complete React Native mobile application built with Expo:
+
+**Core Features:**
+- Native iOS and Android applications
+- Bottom tab navigation with 5 main screens
+- OTP-based authentication with biometric support
+- Home dashboard with featured pujas and gurujis
+- Booking management with status tracking
+- Real-time chat system with online indicators
+- Spiritual journey tracking with progress milestones
+- Profile management with settings and statistics
+- Video calling capabilities
+- Push notification support
+
+**Technical Stack:**
+- React Native with Expo SDK 50
+- TypeScript for type safety
+- React Navigation for routing
+- React Query for data management
+- Linear gradients and animations
+- Native device features (camera, location, notifications)
+
+**Project Structure:**
+```
+mobile/
+├── src/screens/           # All app screens
+├── App.tsx               # Main navigation
+├── app.json             # Expo configuration
+└── package.json         # Dependencies
+```
+
+**Getting Started:**
+1. `cd mobile && npm install`
+2. `npm start`
+3. Use Expo Go app to test on device
+
 ## Changelog
 
 ```
 Changelog:
 - July 05, 2025. Initial setup
+- July 05, 2025. Added comprehensive React Native mobile application with all web features
 ```
 
 ## User Preferences
