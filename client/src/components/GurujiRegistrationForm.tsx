@@ -71,7 +71,7 @@ function CitySearchableDropdown({ cities, selectedCities, onCityToggle, maxSelec
       />
       
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
           {filteredCities.length > 0 ? (
             filteredCities.map((city: any) => (
               <div
@@ -138,7 +138,7 @@ function PujaSearchableDropdown({ pujas, selectedPujas, onPujaToggle }: {
       />
       
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
           {filteredPujas.length > 0 ? (
             filteredPujas.map((puja: any) => (
               <div
@@ -206,16 +206,20 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
   });
 
   // Fetch cities
-  const { data: cities = [] } = useQuery({
+  const { data: cities = [], isLoading: citiesLoading, error: citiesError } = useQuery({
     queryKey: ['/api/cities'],
     select: (data: any[]) => data || [],
   });
 
   // Fetch pujas
-  const { data: pujas = [] } = useQuery({
+  const { data: pujas = [], isLoading: pujasLoading, error: pujasError } = useQuery({
     queryKey: ['/api/pujas'],
     select: (data: any[]) => data || [],
   });
+
+  // Debug logs
+  console.log('Cities data:', cities, 'Loading:', citiesLoading, 'Error:', citiesError);
+  console.log('Pujas data:', pujas, 'Loading:', pujasLoading, 'Error:', pujasError);
 
   // Submit mutation
   const submitMutation = useMutation({
@@ -378,12 +382,18 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
               </h3>
               
               <div className="space-y-4">
-                <CitySearchableDropdown 
-                  cities={cities} 
-                  selectedCities={selectedCities}
-                  onCityToggle={handleCityToggle}
-                  maxSelections={2}
-                />
+                {citiesLoading ? (
+                  <div className="text-sm text-gray-500">Loading cities...</div>
+                ) : citiesError ? (
+                  <div className="text-sm text-red-500">Error loading cities</div>
+                ) : (
+                  <CitySearchableDropdown 
+                    cities={cities} 
+                    selectedCities={selectedCities}
+                    onCityToggle={handleCityToggle}
+                    maxSelections={2}
+                  />
+                )}
                 
                 {selectedCities.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -411,11 +421,17 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
               <h3 className="text-lg font-semibold">Puja Specializations</h3>
               
               <div className="space-y-4">
-                <PujaSearchableDropdown 
-                  pujas={pujas} 
-                  selectedPujas={selectedPujas}
-                  onPujaToggle={handlePujaToggle}
-                />
+                {pujasLoading ? (
+                  <div className="text-sm text-gray-500">Loading pujas...</div>
+                ) : pujasError ? (
+                  <div className="text-sm text-red-500">Error loading pujas</div>
+                ) : (
+                  <PujaSearchableDropdown 
+                    pujas={pujas} 
+                    selectedPujas={selectedPujas}
+                    onPujaToggle={handlePujaToggle}
+                  />
+                )}
                 
                 {selectedPujas.length > 0 && (
                   <div className="flex flex-wrap gap-2">
