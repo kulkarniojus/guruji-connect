@@ -59,6 +59,7 @@ export default function Header() {
             <nav className="hidden md:flex space-x-8">
               <Link href="/" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Home</Link>
               <Link href="/services" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Services</Link>
+              <Link href="/become-guruji" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Become a Guruji</Link>
               <Link href="/availability" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Availability</Link>
               <Link href="/about" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">About Us</Link>
               <Link href="/contact" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Contact</Link>

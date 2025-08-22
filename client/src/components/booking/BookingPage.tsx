@@ -76,14 +76,14 @@ export default function BookingPage() {
     '06:00 PM', '07:00 PM', '08:00 PM'
   ];
 
-  // Cities available for selection
-  const cities = [
-    { value: 'mumbai', label: 'Mumbai' },
-    { value: 'delhi', label: 'Delhi' },
-    { value: 'bangalore', label: 'Bangalore' },
-    { value: 'pune', label: 'Pune' },
-    { value: 'chennai', label: 'Chennai' }
-  ];
+  // Fetch cities from database
+  const { data: cities = [], isLoading: isCitiesLoading } = useQuery({
+    queryKey: ['/api/cities'],
+    select: (data: any[]) => data.map(city => ({
+      value: city.name.toLowerCase().replace(/\s+/g, '-'),
+      label: `${city.name}, ${city.state}`
+    })),
+  });
 
   // Selected puja details
   const selectedPuja = pujas && Array.isArray(pujas) ? pujas.find(p => p.id.toString() === selectedPujaId) : null;

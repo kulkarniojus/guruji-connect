@@ -2,9 +2,10 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketServer } from "socket.io";
 import { storage, IStorage, MemStorage } from "./storage";
+import { DBStorage } from "./dbStorage";
 
-// Use the global in-memory storage if available
-const storageInstance = (global as any).appStorage || storage;
+// Use database storage in production, memory storage for quick testing
+const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
 import { z } from "zod";
 import { ZodError } from "zod";
 import { genSalt, hash, compare } from "bcrypt";
@@ -36,7 +37,31 @@ declare module 'express-session' {
 
 const SessionStore = MemoryStore(session);
 
+// Initialize admin user if it doesn't exist
+async function initializeAdminUser() {
+  try {
+    const adminUser = await storageInstance.getUserByEmail("admin@admin.com");
+    if (!adminUser) {
+      await storageInstance.createUser({
+        name: "Administrator",
+        email: "admin@admin.com", 
+        mobile: "9999999999",
+        password: "admin",
+        role: "admin",
+        isActive: true,
+        isBlocked: false
+      });
+      console.log("✓ Admin user created: admin@admin.com / admin");
+    }
+  } catch (error) {
+    console.error("Error creating admin user:", error);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize admin user
+  await initializeAdminUser();
+
   // Set up session middleware
   app.use(
     session({
@@ -98,6 +123,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
+  const isAdmin = checkRole(['admin']);
+
   // Authentication Routes
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
@@ -139,6 +166,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
+  // Admin Login Route
+  app.post('/api/admin/login', async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      
+      // Find admin user
+      const user = await storageInstance.getUserByEmail(email);
+      if (!user || user.role !== 'admin') {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+      
+      // Verify password
+      const isValidPassword = await storageInstance.verifyPassword(user.id, password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+      
+      // Set session
+      req.session.userId = user.id;
+      req.session.userRole = user.role;
+      
+      res.json({
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
+      });
+    } catch (error) {
+      console.error('Admin login error:', error);
+      res.status(500).json({ message: 'Login failed' });
+    }
+  });
+
+  // Cities Management Routes
+  app.get('/api/cities', async (req: Request, res: Response) => {
+    try {
+      const cities = await storageInstance.getAllCities();
+      res.json(cities);
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      res.status(500).json({ message: 'Failed to fetch cities' });
+    }
+  });
+
+  app.post('/api/cities', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { name, state } = req.body;
+      const city = await storageInstance.createCity({ name, state, isActive: true });
+      res.status(201).json(city);
+    } catch (error) {
+      console.error('Error creating city:', error);
+      res.status(500).json({ message: 'Failed to create city' });
+    }
+  });
+
+  app.put('/api/cities/:id', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      const city = await storageInstance.updateCity(id, updates);
+      
+      if (!city) {
+        return res.status(404).json({ message: 'City not found' });
+      }
+      
+      res.json(city);
+    } catch (error) {
+      console.error('Error updating city:', error);
+      res.status(500).json({ message: 'Failed to update city' });
+    }
+  });
+
+  app.delete('/api/cities/:id', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storageInstance.deleteCity(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'City not found' });
+      }
+      
+      res.json({ message: 'City deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting city:', error);
+      res.status(500).json({ message: 'Failed to delete city' });
+    }
+  });
+
+  // Guruji Registration Routes
+  app.post('/api/guruji/register', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const {
+        bio, experience, location, pricePerHour, cities, pujas, languages,
+        isOnline, isOffline, isConsultation, aadharNumber, profilePicture, certificates
+      } = req.body;
+
+      // Check if user already has a guruji profile
+      const existingProfile = await storageInstance.getGurujiProfileByUserId(userId);
+      if (existingProfile) {
+        return res.status(400).json({ message: 'You already have a Guruji application' });
+      }
+
+      // Create guruji profile with pending status
+      const gurujiProfile = await storageInstance.createGurujiProfile({
+        userId,
+        bio,
+        experience,
+        specialization: pujas.join(','), // Store as comma-separated for now
+        location,
+        pricePerHour,
+        cities: cities, // Array of city IDs
+        maxCities: 2,
+        languages: languages,
+        isOnline: isOnline || false,
+        isOffline: isOffline || true,
+        isConsultation: isConsultation || false,
+        isAvailable: false, // Not available until approved
+        aadharVerified: false, // Pending verification
+        documentsVerified: false, // Pending verification
+        status: 'pending',
+        rating: 0,
+        totalReviews: 0,
+        profilePictureUrl: profilePicture || null,
+        certificates: certificates || []
+      });
+
+      res.status(201).json({
+        message: 'Guruji application submitted successfully',
+        profile: gurujiProfile
+      });
+    } catch (error) {
+      console.error('Error creating guruji profile:', error);
+      res.status(500).json({ message: 'Failed to submit application' });
+    }
+  });
+
+  // Admin routes for guruji approval
+  app.get('/api/admin/gurujis', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const gurujis = await storageInstance.getAllGurujiProfiles();
+      res.json(gurujis);
+    } catch (error) {
+      console.error('Error fetching guruji profiles:', error);
+      res.status(500).json({ message: 'Failed to fetch guruji profiles' });
+    }
+  });
+
+  app.put('/api/admin/gurujis/:id/approve', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const gurujiId = parseInt(req.params.id);
+      const adminId = req.session.userId!;
+      
+      const updatedProfile = await storageInstance.approveGuruji(gurujiId, adminId);
+      
+      if (!updatedProfile) {
+        return res.status(404).json({ message: 'Guruji profile not found' });
+      }
+      
+      res.json({
+        message: 'Guruji approved successfully',
+        profile: updatedProfile
+      });
+    } catch (error) {
+      console.error('Error approving guruji:', error);
+      res.status(500).json({ message: 'Failed to approve guruji' });
+    }
+  });
+
+  app.put('/api/admin/gurujis/:id/reject', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const gurujiId = parseInt(req.params.id);
+      const { reason } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ message: 'Rejection reason is required' });
+      }
+      
+      const updatedProfile = await storageInstance.rejectGuruji(gurujiId, reason);
+      
+      if (!updatedProfile) {
+        return res.status(404).json({ message: 'Guruji profile not found' });
+      }
+      
+      res.json({
+        message: 'Guruji application rejected',
+        profile: updatedProfile
+      });
+    } catch (error) {
+      console.error('Error rejecting guruji:', error);
+      res.status(500).json({ message: 'Failed to reject guruji' });
     }
   });
 

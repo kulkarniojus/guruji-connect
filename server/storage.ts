@@ -12,7 +12,8 @@ import {
   whatsappMessages, WhatsappMessage, InsertWhatsappMessage,
   userJourneys, UserJourney, InsertUserJourney,
   userJourneyItems, UserJourneyItem, InsertUserJourneyItem,
-  bookingRequests, BookingRequest, InsertBookingRequest
+  bookingRequests, BookingRequest, InsertBookingRequest,
+  cities, City, InsertCity
 } from "@shared/schema";
 import { eq, and, like, or, lt, gt, gte, desc, inArray } from "drizzle-orm";
 import { genSalt, hash, compare } from "bcrypt";
@@ -136,6 +137,16 @@ export interface IStorage {
   updateUserJourneyItem(id: number, item: Partial<UserJourneyItem>): Promise<UserJourneyItem | undefined>;
   markUserJourneyItemComplete(id: number, reflection?: string): Promise<UserJourneyItem | undefined>;
   deleteUserJourneyItem(id: number): Promise<boolean>;
+
+  // Cities Management
+  getAllCities(): Promise<City[]>;
+  createCity(city: InsertCity): Promise<City>;
+  updateCity(id: number, city: Partial<City>): Promise<City | undefined>;
+  deleteCity(id: number): Promise<boolean>;
+
+  // Guruji Approval Management
+  approveGuruji(id: number, approvedBy: number): Promise<GurujiProfile | undefined>;
+  rejectGuruji(id: number, reason: string): Promise<GurujiProfile | undefined>;
 }
 
 export class MemStorage implements IStorage {

@@ -8,6 +8,7 @@ import Profile from "@/pages/Profile";
 import AdminLogin from "@/pages/AdminLogin";
 import PujaDetails from "@/pages/PujaDetails";
 import PujasList from "@/pages/PujasList";
+import BecomeGuruji from "@/pages/BecomeGuruji";
 import Services from "@/pages/Services";
 import HowItWorks from "@/pages/HowItWorks";
 import SimpleBookingDemo from "@/pages/SimpleBookingDemo";
@@ -94,6 +95,7 @@ function Router() {
       </Route>
       <Route path="/pujas" component={PujasList} />
       <Route path="/services" component={Services} />
+      <Route path="/become-guruji" component={BecomeGuruji} />
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/puja/:id" component={PujaDetails} />
       <Route path="/video-call/:id">

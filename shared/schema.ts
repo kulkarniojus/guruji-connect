@@ -11,6 +11,17 @@ export const consultationType = pgEnum('consultation_type', ['own_guruji', 'auto
 export const videoSessionStatusEnum = pgEnum('video_session_status', ['scheduled', 'in_progress', 'completed', 'cancelled', 'missed']);
 export const chatbotIntentEnum = pgEnum('chatbot_intent', ['greeting', 'booking_inquiry', 'puja_information', 'guruji_availability', 'payment_issue', 'cancel_booking', 'reschedule_booking', 'general_inquiry', 'technical_support', 'other']);
 export const journeyStageEnum = pgEnum('journey_stage', ['beginner', 'intermediate', 'advanced', 'expert', 'master']);
+export const gurujiStatusEnum = pgEnum('guruji_status', ['pending', 'approved', 'rejected', 'suspended']);
+
+// Cities table - for admin-configurable cities
+export const cities = pgTable("cities", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  state: text("state").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 // User table
 export const users = pgTable("users", {
@@ -70,6 +81,14 @@ export const gurujiProfiles = pgTable("guruji_profiles", {
   bio: text("bio"),
   experience: integer("experience"), // in years
   specialization: text("specialization"),
+  // Approval workflow
+  status: gurujiStatusEnum("status").notNull().default('pending'),
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"),
+  // Additional required fields
+  cities: text("cities").array(), // Array of city IDs they serve
+  maxCities: integer("max_cities").default(2),
   // Service availability
   location: text("location").notNull(),
   radius: integer("radius").default(20), // in km - increased from 10km to 20km
@@ -449,6 +468,12 @@ export const insertUserJourneyItemSchema = createInsertSchema(userJourneyItems).
   updatedAt: true,
 });
 
+export const insertCitySchema = createInsertSchema(cities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Define types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -497,6 +522,9 @@ export type InsertUserJourney = z.infer<typeof insertUserJourneySchema>;
 
 export type UserJourneyItem = typeof userJourneyItems.$inferSelect;
 export type InsertUserJourneyItem = z.infer<typeof insertUserJourneyItemSchema>;
+
+export type City = typeof cities.$inferSelect;
+export type InsertCity = z.infer<typeof insertCitySchema>;
 
 // Add schema and types for booking requests
 export const insertBookingRequestSchema = createInsertSchema(bookingRequests).omit({

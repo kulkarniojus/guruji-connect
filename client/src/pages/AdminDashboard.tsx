@@ -7,13 +7,23 @@ import FAQManagementTab from '@/components/admin/FAQManagementTab';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import PujaManagementTab from '@/components/admin/PujaManagementTab';
 import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle } from 'lucide-react';
+import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin } from 'lucide-react';
 
 export default function AdminDashboard() {
-  // Temporarily disabled auth check for demo 
-  // const { user, isLoading } = useAuth();
-  const user = { role: 'admin' }; // Mock user for demo
-  const isLoading = false;
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+  
+  if (!user || user.role !== 'admin') {
+    return <Redirect to="/admin/login" />;
+  }
   const [activeTab, setActiveTab] = useState('analytics');
 
   // Demo mode - no authentication check for demonstration purposes
@@ -21,15 +31,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="container mx-auto py-8">
-      <div className="bg-primary/10 rounded-lg p-4 mb-6 border border-primary/20">
-        <p className="text-center font-medium">
-          Demo Mode: You're viewing the Admin Analytics Dashboard with sample data
-        </p>
-      </div>
       <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-7 mb-8">
+        <TabsList className="grid w-full grid-cols-8 mb-8">
           <TabsTrigger value="analytics" className="flex items-center justify-center">
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
@@ -53,6 +58,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="guruji-registrations" className="flex items-center justify-center">
             <UserCheck className="h-4 w-4 mr-2" />
             Guruji Registrations
+          </TabsTrigger>
+          <TabsTrigger value="cities" className="flex items-center justify-center">
+            <MapPin className="h-4 w-4 mr-2" />
+            Cities
           </TabsTrigger>
           <TabsTrigger value="faq" className="flex items-center justify-center">
             <HelpCircle className="h-4 w-4 mr-2" />
@@ -86,6 +95,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="guruji-registrations">
           <GurujiRegistrationTab />
+        </TabsContent>
+
+        <TabsContent value="cities">
+          <CitiesManagementTab />
         </TabsContent>
 
         <TabsContent value="faq">
