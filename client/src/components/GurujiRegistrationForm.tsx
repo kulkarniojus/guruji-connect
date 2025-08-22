@@ -44,6 +44,141 @@ interface GurujiRegistrationFormProps {
   onSuccess?: () => void;
 }
 
+// City Searchable Dropdown Component
+function CitySearchableDropdown({ cities, selectedCities, onCityToggle, maxSelections }: {
+  cities: any[];
+  selectedCities: string[];
+  onCityToggle: (cityId: string) => void;
+  maxSelections: number;
+}) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filteredCities = cities.filter(city => 
+    city.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    city.state.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="relative">
+      <Input
+        type="text"
+        placeholder="Search and select cities (e.g., type 'nag' for Nagpur)..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        onFocus={() => setIsOpen(true)}
+        className="w-full"
+      />
+      
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {filteredCities.length > 0 ? (
+            filteredCities.map((city: any) => (
+              <div
+                key={city.id}
+                className={`flex items-center p-3 hover:bg-gray-50 cursor-pointer ${
+                  selectedCities.length >= maxSelections && !selectedCities.includes(city.id.toString()) 
+                    ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                onClick={() => {
+                  if (selectedCities.length < maxSelections || selectedCities.includes(city.id.toString())) {
+                    onCityToggle(city.id.toString());
+                    setSearchTerm('');
+                    setIsOpen(false);
+                  }
+                }}
+              >
+                <Checkbox
+                  checked={selectedCities.includes(city.id.toString())}
+                  className="mr-2"
+                />
+                <span className="text-sm">{city.name}, {city.state}</span>
+              </div>
+            ))
+          ) : (
+            <div className="p-3 text-sm text-gray-500">No cities found</div>
+          )}
+        </div>
+      )}
+      
+      {/* Click outside to close */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-0" 
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Puja Searchable Dropdown Component
+function PujaSearchableDropdown({ pujas, selectedPujas, onPujaToggle }: {
+  pujas: any[];
+  selectedPujas: string[];
+  onPujaToggle: (pujaId: string) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filteredPujas = pujas.filter(puja => 
+    puja.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    puja.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="relative">
+      <Input
+        type="text"
+        placeholder="Search and select puja specializations..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        onFocus={() => setIsOpen(true)}
+        className="w-full"
+      />
+      
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {filteredPujas.length > 0 ? (
+            filteredPujas.map((puja: any) => (
+              <div
+                key={puja.id}
+                className="flex items-center p-3 hover:bg-gray-50 cursor-pointer"
+                onClick={() => {
+                  onPujaToggle(puja.id.toString());
+                  setSearchTerm('');
+                  setIsOpen(false);
+                }}
+              >
+                <Checkbox
+                  checked={selectedPujas.includes(puja.id.toString())}
+                  className="mr-2"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">{puja.name}</div>
+                  {puja.description && (
+                    <div className="text-xs text-gray-500 truncate">{puja.description}</div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-3 text-sm text-gray-500">No pujas found</div>
+          )}
+        </div>
+      )}
+      
+      {/* Click outside to close */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-0" 
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistrationFormProps) {
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedPujas, setSelectedPujas] = useState<string[]>([]);
@@ -243,24 +378,12 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
               </h3>
               
               <div className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {cities.map((city: any) => (
-                    <div key={city.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`city-${city.id}`}
-                        checked={selectedCities.includes(city.id.toString())}
-                        onCheckedChange={() => handleCityToggle(city.id.toString())}
-                        disabled={selectedCities.length >= 2 && !selectedCities.includes(city.id.toString())}
-                      />
-                      <Label 
-                        htmlFor={`city-${city.id}`}
-                        className={`text-sm ${selectedCities.length >= 2 && !selectedCities.includes(city.id.toString()) ? 'text-muted-foreground' : ''}`}
-                      >
-                        {city.name}, {city.state}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
+                <CitySearchableDropdown 
+                  cities={cities} 
+                  selectedCities={selectedCities}
+                  onCityToggle={handleCityToggle}
+                  maxSelections={2}
+                />
                 
                 {selectedCities.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -288,20 +411,11 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
               <h3 className="text-lg font-semibold">Puja Specializations</h3>
               
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {pujas.map((puja: any) => (
-                    <div key={puja.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`puja-${puja.id}`}
-                        checked={selectedPujas.includes(puja.id.toString())}
-                        onCheckedChange={() => handlePujaToggle(puja.id.toString())}
-                      />
-                      <Label htmlFor={`puja-${puja.id}`} className="text-sm">
-                        {puja.name}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
+                <PujaSearchableDropdown 
+                  pujas={pujas} 
+                  selectedPujas={selectedPujas}
+                  onPujaToggle={handlePujaToggle}
+                />
                 
                 {selectedPujas.length > 0 && (
                   <div className="flex flex-wrap gap-2">

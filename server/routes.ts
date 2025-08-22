@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { Server as SocketServer } from "socket.io";
 import { storage, IStorage, MemStorage } from "./storage";
 import { DBStorage } from "./dbStorage";
+import { pool } from './db';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -230,7 +231,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: 'Pune', state: 'Maharashtra' },
         { name: 'Ahmedabad', state: 'Gujarat' },
         { name: 'Jaipur', state: 'Rajasthan' },
-        { name: 'Lucknow', state: 'Uttar Pradesh' }
+        { name: 'Lucknow', state: 'Uttar Pradesh' },
+        { name: 'Nagpur', state: 'Maharashtra' },
+        { name: 'Nashik', state: 'Maharashtra' },
+        { name: 'Kanpur', state: 'Uttar Pradesh' },
+        { name: 'Indore', state: 'Madhya Pradesh' },
+        { name: 'Surat', state: 'Gujarat' }
       ];
 
       // Clear existing cities and insert new ones
