@@ -426,7 +426,7 @@ export class DBStorage implements IStorage {
   
   async getGurujiProfileByUserId(userId: number): Promise<GurujiProfile | undefined> {
     const result = await pool.query(
-      `SELECT * FROM guruji_profiles WHERE user_id = `,
+      `SELECT * FROM guruji_profiles WHERE "userId" = `,
       [userId]
     );
     
@@ -438,7 +438,7 @@ export class DBStorage implements IStorage {
   async createGurujiProfile(profileData: InsertGurujiProfile): Promise<GurujiProfile> {
     const result = await pool.query(
       `INSERT INTO guruji_profiles (
-        user_id, bio, experience, specialization, location,
+        "userId", bio, experience, specialization, location,
         radius, languages, availability, certificate, "imageUrl",
         "isConsultation", "isAvailable", rating, "totalReviews",
         created_at, updated_at
@@ -562,7 +562,7 @@ export class DBStorage implements IStorage {
     
     let query = `
       SELECT gp.* FROM guruji_profiles gp
-      JOIN users u ON gp.user_id = u.id
+      JOIN users u ON gp."userId" = u.id
       WHERE u.is_blocked = false AND gp."isAvailable" = true
         AND LOWER(gp.location) LIKE LOWER($1)
     `;
@@ -789,7 +789,7 @@ export class DBStorage implements IStorage {
   async getNotifications(userId: number): Promise<Notification[]> {
     const result = await pool.query(
       `SELECT * FROM notifications 
-       WHERE user_id = $1
+       WHERE "userId" = $1
        ORDER BY is_read ASC, created_at DESC`,
       [userId]
     );
@@ -800,7 +800,7 @@ export class DBStorage implements IStorage {
   async createNotification(notificationData: InsertNotification): Promise<Notification> {
     const result = await pool.query(
       `INSERT INTO notifications (
-        user_id, title, message, is_read, created_at
+        "userId", title, message, "isRead", "createdAt"
       ) VALUES ($1, $2, $3, $4, $5)
       RETURNING *`,
       [
@@ -924,7 +924,7 @@ export class DBStorage implements IStorage {
   private mapGurujiProfileFromDb(row: any): GurujiProfile {
     return {
       id: row.id,
-      userId: row.user_id,
+      userId: row.userId,
       bio: row.bio,
       experience: row.experience,
       specialization: row.specialization,
@@ -997,7 +997,7 @@ export class DBStorage implements IStorage {
   private mapNotificationFromDb(row: any): Notification {
     return {
       id: row.id,
-      userId: row.user_id,
+      userId: row.userId,
       title: row.title,
       message: row.message,
       type: row.type || 'general', // Add missing type field with default value
@@ -1186,7 +1186,7 @@ export class DBStorage implements IStorage {
       // Update the existing record
       const result = await pool.query(
         `UPDATE whatsapp_users 
-         SET user_id = $1, is_verified = true, is_opted_in = true, last_interaction_at = $2, updated_at = $3
+         SET "userId" = $1, "isVerified" = true, "isOptedIn" = true, "lastInteractionAt" = $2, "updatedAt" = $3
          WHERE whatsapp_number = $4
          RETURNING *`,
         [userId, new Date(), new Date(), whatsappNumber]
@@ -1197,7 +1197,7 @@ export class DBStorage implements IStorage {
       // Create a new record
       const result = await pool.query(
         `INSERT INTO whatsapp_users (
-          user_id, whatsapp_number, is_verified, is_opted_in, last_interaction_at, created_at, updated_at
+          "userId", "whatsappNumber", "isVerified", "isOptedIn", "lastInteractionAt", "createdAt", "updatedAt"
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *`,
         [
@@ -1219,7 +1219,7 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `UPDATE whatsapp_users 
        SET is_opted_in = false, updated_at = $1
-       WHERE user_id = $2
+       WHERE "userId" = $2
        RETURNING *`,
       [new Date(), userId]
     );
@@ -1249,7 +1249,7 @@ export class DBStorage implements IStorage {
   async createChatbotConversation(data: InsertWhatsappConversation): Promise<WhatsappConversation> {
     const result = await pool.query(
       `INSERT INTO whatsapp_conversations (
-        user_id, whatsapp_number, is_active, last_message_at, created_at, updated_at
+        "userId", "whatsappNumber", "isActive", "lastMessageAt", "createdAt", "updatedAt"
       ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
       [
@@ -1345,7 +1345,7 @@ export class DBStorage implements IStorage {
   private mapWhatsappUserFromDb(row: any): WhatsappUser {
     return {
       id: row.id,
-      userId: row.user_id,
+      userId: row.userId,
       whatsappNumber: row.whatsapp_number,
       isVerified: row.is_verified,
       isOptedIn: row.is_opted_in,
@@ -1358,7 +1358,7 @@ export class DBStorage implements IStorage {
   private mapWhatsappConversationFromDb(row: any): WhatsappConversation {
     return {
       id: row.id,
-      userId: row.user_id,
+      userId: row.userId,
       whatsappNumber: row.whatsapp_number,
       isActive: row.is_active,
       lastMessageAt: row.last_message_at,
@@ -1395,8 +1395,8 @@ export class DBStorage implements IStorage {
       let query = `
         SELECT gp.*, u."firstName", u."lastName", u.email, u.mobile 
         FROM guruji_profiles gp
-        JOIN users u ON gp.user_id = u.id
-        WHERE gp.status = $1
+        JOIN users u ON gp."userId" = u.id
+        WHERE 1=1
       `;
       const values: any[] = [filters.status || 'approved'];
       let paramIndex = 2;
@@ -1415,13 +1415,13 @@ export class DBStorage implements IStorage {
         paramIndex++;
       }
 
-      query += ` ORDER BY gp.rating DESC, gp.total_reviews DESC`;
+      query += ` ORDER BY gp.rating DESC, gp."totalReviews" DESC`;
 
       const result = await pool.query(query, values);
       
       return result.rows.map(row => ({
         id: row.id,
-        userId: row.user_id,
+        userId: row.userId,
         firstName: row.firstName,
         lastName: row.lastName,
         email: row.email,
@@ -1430,13 +1430,13 @@ export class DBStorage implements IStorage {
         experience: row.experience,
         specialization: row.specialization,
         location: row.location,
-        pricePerHour: row.price_per_hour,
+        pricePerHour: row.pricePerHour,
         rating: parseFloat(row.rating) || 0,
-        totalReviews: row.total_reviews || 0,
-        isAvailable: row.is_available,
+        totalReviews: row.totalReviews || 0,
+        isAvailable: row.isAvailable,
         status: row.status,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt
       }));
     } catch (error) {
       console.error('Error getting gurujis by filters:', error);
@@ -1489,7 +1489,7 @@ export class DBStorage implements IStorage {
   async getUserJourneyByUserId(userId: number): Promise<UserJourney[]> {
     try {
       const result = await pool.query(
-        `SELECT * FROM user_journeys WHERE user_id = $1 ORDER BY created_at DESC`,
+        `SELECT * FROM user_journeys WHERE "userId" = $1 ORDER BY "createdAt" DESC`,
         [userId]
       );
       
@@ -1504,7 +1504,7 @@ export class DBStorage implements IStorage {
     try {
       const result = await pool.query(
         `INSERT INTO user_journeys (
-          user_id, title, description, stage, total_pujas, 
+          "userId", title, description, stage, "totalPujas", 
           completed_pujas, goals, achievements, next_recommendation, 
           created_at, updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -1842,7 +1842,7 @@ export class DBStorage implements IStorage {
   private mapUserJourneyFromDb(row: any): UserJourney {
     return {
       id: row.id,
-      userId: row.user_id,
+      userId: row.userId,
       title: row.title,
       description: row.description,
       stage: row.stage,
@@ -1871,6 +1871,92 @@ export class DBStorage implements IStorage {
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };
+  }
+
+  // Cities Management Methods
+  async getAllCities(): Promise<City[]> {
+    try {
+      const result = await pool.query('SELECT * FROM cities ORDER BY name ASC');
+      return result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        state: row.state,
+        isActive: row.isActive || true,
+        createdAt: row.createdAt || new Date(),
+        updatedAt: row.updatedAt || new Date()
+      }));
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      throw error;
+    }
+  }
+
+  async createCity(city: InsertCity): Promise<City> {
+    try {
+      const result = await pool.query(
+        `INSERT INTO cities (name, state, "isActive", "createdAt", "updatedAt") 
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [city.name, city.state, city.isActive || true, new Date(), new Date()]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error creating city:', error);
+      throw error;
+    }
+  }
+
+  async updateCity(id: number, city: Partial<City>): Promise<City | undefined> {
+    try {
+      const updateFields: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (city.name !== undefined) {
+        updateFields.push(`name = $${paramIndex}`);
+        values.push(city.name);
+        paramIndex++;
+      }
+
+      if (city.state !== undefined) {
+        updateFields.push(`state = $${paramIndex}`);
+        values.push(city.state);
+        paramIndex++;
+      }
+
+      if (city.isActive !== undefined) {
+        updateFields.push(`"isActive" = $${paramIndex}`);
+        values.push(city.isActive);
+        paramIndex++;
+      }
+
+      updateFields.push(`"updatedAt" = $${paramIndex}`);
+      values.push(new Date());
+      paramIndex++;
+
+      values.push(id);
+
+      if (updateFields.length === 1) return undefined;
+
+      const result = await pool.query(
+        `UPDATE cities SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+      );
+
+      return result.rows[0] || undefined;
+    } catch (error) {
+      console.error('Error updating city:', error);
+      throw error;
+    }
+  }
+
+  async deleteCity(id: number): Promise<boolean> {
+    try {
+      const result = await pool.query('DELETE FROM cities WHERE id = $1', [id]);
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error deleting city:', error);
+      throw error;
+    }
   }
 }
 

@@ -80,6 +80,59 @@ export async function initializeDatabase() {
     // Update the price column with values from basePrice if it's null
     await pool.query('UPDATE pujas SET price = "basePrice" WHERE price IS NULL');
     
+    // Initialize cities table with default data
+    const existingCities = await pool.query('SELECT * FROM cities LIMIT 1').catch(() => ({ rows: [] }));
+    
+    if (existingCities.rows.length === 0) {
+      // Create cities table if it doesn't exist
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS cities (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          state VARCHAR(255) NOT NULL,
+          "isActive" BOOLEAN DEFAULT true,
+          "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Insert default cities
+      const defaultCities = [
+        { name: 'Mumbai', state: 'Maharashtra' },
+        { name: 'Delhi', state: 'Delhi' },
+        { name: 'Bangalore', state: 'Karnataka' },
+        { name: 'Chennai', state: 'Tamil Nadu' },
+        { name: 'Kolkata', state: 'West Bengal' },
+        { name: 'Hyderabad', state: 'Telangana' },
+        { name: 'Pune', state: 'Maharashtra' },
+        { name: 'Ahmedabad', state: 'Gujarat' },
+        { name: 'Jaipur', state: 'Rajasthan' },
+        { name: 'Lucknow', state: 'Uttar Pradesh' },
+        { name: 'Nagpur', state: 'Maharashtra' },
+        { name: 'Indore', state: 'Madhya Pradesh' },
+        { name: 'Bhopal', state: 'Madhya Pradesh' },
+        { name: 'Visakhapatnam', state: 'Andhra Pradesh' },
+        { name: 'Patna', state: 'Bihar' },
+        { name: 'Vadodara', state: 'Gujarat' },
+        { name: 'Ghaziabad', state: 'Uttar Pradesh' },
+        { name: 'Ludhiana', state: 'Punjab' },
+        { name: 'Agra', state: 'Uttar Pradesh' },
+        { name: 'Nashik', state: 'Maharashtra' }
+      ];
+
+      for (const city of defaultCities) {
+        await pool.query(
+          `INSERT INTO cities (name, state, "isActive", "createdAt", "updatedAt") 
+           VALUES ($1, $2, $3, $4, $5)`,
+          [city.name, city.state, true, new Date(), new Date()]
+        );
+      }
+      
+      console.log('Default cities created');
+    } else {
+      console.log('Cities table already has data, skipping initialization');
+    }
+
     console.log('Database initialization complete');
     return true;
   } catch (error) {

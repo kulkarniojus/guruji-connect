@@ -204,6 +204,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Database initialization route
+  app.post('/api/db/init', async (req: Request, res: Response) => {
+    try {
+      // Create cities table directly
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS cities (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          state VARCHAR(255) NOT NULL,
+          "isActive" BOOLEAN DEFAULT true,
+          "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Insert default cities
+      const defaultCities = [
+        { name: 'Mumbai', state: 'Maharashtra' },
+        { name: 'Delhi', state: 'Delhi' },
+        { name: 'Bangalore', state: 'Karnataka' },
+        { name: 'Chennai', state: 'Tamil Nadu' },
+        { name: 'Kolkata', state: 'West Bengal' },
+        { name: 'Hyderabad', state: 'Telangana' },
+        { name: 'Pune', state: 'Maharashtra' },
+        { name: 'Ahmedabad', state: 'Gujarat' },
+        { name: 'Jaipur', state: 'Rajasthan' },
+        { name: 'Lucknow', state: 'Uttar Pradesh' }
+      ];
+
+      // Clear existing cities and insert new ones
+      await pool.query('DELETE FROM cities');
+      
+      for (const city of defaultCities) {
+        await pool.query(
+          `INSERT INTO cities (name, state, "isActive", "createdAt", "updatedAt") 
+           VALUES ($1, $2, $3, $4, $5)`,
+          [city.name, city.state, true, new Date(), new Date()]
+        );
+      }
+      
+      res.json({ message: 'Database initialized successfully', cities: defaultCities.length });
+    } catch (error) {
+      console.error('Error initializing database:', error);
+      res.status(500).json({ message: 'Failed to initialize database', error: error.message });
+    }
+  });
+
   // Cities Management Routes
   app.get('/api/cities', async (req: Request, res: Response) => {
     try {
