@@ -63,10 +63,10 @@ export default function BookingPage() {
     cacheTime: 0, // Don't cache to avoid stale data
   });
 
-  // Fetch available gurujis based on criteria
+  // Fetch available gurujis based on puja specialization
   const { data: gurujis = [], isLoading: isGurujiLoading } = useQuery({
-    queryKey: ['/api/gurujis', { city: selectedCity, pujaId: selectedPujaId }],
-    enabled: !!selectedCity && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
+    queryKey: ['/api/gurujis', { city: selectedCity, pujaId: selectedPujaId, specialization: selectedPuja?.name }],
+    enabled: !!selectedPujaId && !!selectedCity && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
   });
 
   // Time slots that can be selected

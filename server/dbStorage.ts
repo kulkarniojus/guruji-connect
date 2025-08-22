@@ -27,7 +27,7 @@ export class DBStorage implements IStorage {
   // User Management
   async getUser(id: number): Promise<User | undefined> {
     const result = await pool.query(
-      `SELECT * FROM users WHERE id = `,
+      `SELECT * FROM users WHERE id = $1`,
       [id]
     );
     
@@ -40,7 +40,7 @@ export class DBStorage implements IStorage {
     if (!email) return undefined;
     
     const result = await pool.query(
-      `SELECT * FROM users WHERE email = `,
+      `SELECT * FROM users WHERE email = $1`,
       [email]
     );
     
@@ -53,7 +53,7 @@ export class DBStorage implements IStorage {
     if (!mobile) return undefined;
     
     const result = await pool.query(
-      `SELECT * FROM users WHERE mobile = `,
+      `SELECT * FROM users WHERE mobile = $1`,
       [mobile]
     );
     
@@ -71,10 +71,10 @@ export class DBStorage implements IStorage {
     
     const result = await pool.query(
       `INSERT INTO users (
-        first_name, last_name, email, mobile, password, 
+        firstName, lastName, email, mobile, password, 
         age, gender, role, aadhar, caste, 
-        is_verified, is_blocked, created_at, updated_at
-      ) VALUES (, , , , , , , , , 0, 1, 2, 3, 4)
+        isVerified, isBlocked, createdAt, updatedAt
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         userData.firstName,
@@ -1388,6 +1388,65 @@ export class DBStorage implements IStorage {
   async getAllUsers(): Promise<User[]> {
     const result = await pool.query(`SELECT * FROM users`);
     return result.rows.map(row => this.mapUserFromDb(row));
+  }
+
+  async getGurujisByFilters(filters: {
+    city?: string;
+    pujaId?: number;
+    specialization?: string;
+    status?: string;
+  }): Promise<GurujiProfile[]> {
+    try {
+      let query = `
+        SELECT gp.*, u.firstName, u.lastName, u.email, u.mobile 
+        FROM guruji_profiles gp
+        JOIN users u ON gp.user_id = u.id
+        WHERE gp.status = $1
+      `;
+      const values: any[] = [filters.status || 'approved'];
+      let paramIndex = 2;
+
+      // Filter by city
+      if (filters.city) {
+        query += ` AND (gp.location ILIKE $${paramIndex} OR gp.cities LIKE $${paramIndex})`;
+        values.push(`%${filters.city}%`);
+        paramIndex++;
+      }
+
+      // Filter by puja specialization
+      if (filters.specialization) {
+        query += ` AND gp.specialization ILIKE $${paramIndex}`;
+        values.push(`%${filters.specialization}%`);
+        paramIndex++;
+      }
+
+      query += ` ORDER BY gp.rating DESC, gp.total_reviews DESC`;
+
+      const result = await pool.query(query, values);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        email: row.email,
+        mobile: row.mobile,
+        bio: row.bio,
+        experience: row.experience,
+        specialization: row.specialization,
+        location: row.location,
+        pricePerHour: row.price_per_hour,
+        rating: parseFloat(row.rating) || 0,
+        totalReviews: row.total_reviews || 0,
+        isAvailable: row.is_available,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }));
+    } catch (error) {
+      console.error('Error getting gurujis by filters:', error);
+      throw error;
+    }
   }
 
   async getAllGurujiProfiles(): Promise<GurujiProfile[]> {

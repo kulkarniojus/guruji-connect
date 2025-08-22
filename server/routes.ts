@@ -259,6 +259,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gurujis Listing Route (for booking page)
+  app.get('/api/gurujis', async (req: Request, res: Response) => {
+    try {
+      const { city, pujaId, specialization } = req.query;
+      
+      // Get gurujis filtered by city and puja specialization  
+      const gurujis = await storageInstance.getGurujisByFilters({
+        city: city as string,
+        pujaId: pujaId ? parseInt(pujaId as string) : undefined,
+        specialization: specialization as string,
+        status: 'approved' // Only show approved gurujis
+      });
+      
+      res.json(gurujis);
+    } catch (error) {
+      console.error('Error fetching gurujis:', error);
+      res.status(500).json({ message: 'Failed to fetch gurujis' });
+    }
+  });
+
   // Guruji Registration Routes
   app.post('/api/guruji/register', isAuthenticated, async (req: Request, res: Response) => {
     try {
