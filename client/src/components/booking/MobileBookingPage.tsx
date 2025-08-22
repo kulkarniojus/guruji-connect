@@ -33,6 +33,8 @@ export function MobileBookingPage() {
   // Fetch available pujas from API (same as desktop version)
   const { data: services = [], isLoading: isServicesLoading } = useQuery<any[]>({
     queryKey: ['/api/pujas'],
+    staleTime: 0, // Always refetch to ensure fresh data
+    cacheTime: 0, // Don't cache to avoid stale data
   });
   
   // Mock data for Guruji selection

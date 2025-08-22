@@ -59,6 +59,8 @@ export default function BookingPage() {
   // Fetch available pujas
   const { data: pujas = [], isLoading: isPujasLoading } = useQuery<any[]>({
     queryKey: ['/api/pujas'],
+    staleTime: 0, // Always refetch to ensure fresh data
+    cacheTime: 0, // Don't cache to avoid stale data
   });
 
   // Fetch available gurujis based on criteria

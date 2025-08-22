@@ -189,6 +189,7 @@ export default function PujaManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+      queryClient.refetchQueries({ queryKey: ['/api/pujas'] });
     },
     onError: (error: any) => {
       toast({
@@ -206,6 +207,7 @@ export default function PujaManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+      queryClient.refetchQueries({ queryKey: ['/api/pujas'] });
     },
     onError: (error: any) => {
       toast({
@@ -222,6 +224,7 @@ export default function PujaManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+      queryClient.refetchQueries({ queryKey: ['/api/pujas'] });
     },
     onError: (error: any) => {
       toast({
