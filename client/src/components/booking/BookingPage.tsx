@@ -505,11 +505,16 @@ export default function BookingPage() {
                       <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent>
-                      {cities.map((city) => (
+                      {!isCitiesLoading && cities.map((city) => (
                         <SelectItem key={city.value} value={city.value}>
                           {city.label}
                         </SelectItem>
                       ))}
+                      {isCitiesLoading && (
+                        <SelectItem value="" disabled>
+                          Loading cities...
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

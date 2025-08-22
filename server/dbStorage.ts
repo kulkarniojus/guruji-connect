@@ -188,7 +188,7 @@ export class DBStorage implements IStorage {
   
   async blockUser(id: number): Promise<boolean> {
     const result = await pool.query(
-      `UPDATE users SET is_blocked = true, updated_at =  WHERE id = `,
+      `UPDATE users SET is_blocked = true, updated_at = $1 WHERE id = $2`,
       [new Date(), id]
     );
     
@@ -197,7 +197,7 @@ export class DBStorage implements IStorage {
   
   async unblockUser(id: number): Promise<boolean> {
     const result = await pool.query(
-      `UPDATE users SET is_blocked = false, updated_at =  WHERE id = `,
+      `UPDATE users SET is_blocked = false, updated_at = $1 WHERE id = $2`,
       [new Date(), id]
     );
     
@@ -206,7 +206,7 @@ export class DBStorage implements IStorage {
   
   async verifyPassword(userId: number, password: string): Promise<boolean> {
     const result = await pool.query(
-      `SELECT password FROM users WHERE id = `,
+      `SELECT password FROM users WHERE id = $1`,
       [userId]
     );
     
@@ -219,7 +219,7 @@ export class DBStorage implements IStorage {
     const hashedPassword = await hash(newPassword, 10);
     
     const result = await pool.query(
-      `UPDATE users SET password = , updated_at =  WHERE id = `,
+      `UPDATE users SET password = $1, updated_at = $2 WHERE id = $3`,
       [hashedPassword, new Date(), userId]
     );
     
