@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { 
   ChevronLeft, 
   ChevronRight, 
   Calendar, 
   Clock, 
   MapPin, 
-  Users 
+  Users,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,14 +30,10 @@ export function MobileBookingPage() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
   
-  // Mock data for service selection
-  const services = [
-    { id: 1, name: 'Satyanarayan Puja', price: 2100, duration: '2 hours', type: 'spiritual' },
-    { id: 2, name: 'Griha Pravesh', price: 3500, duration: '3 hours', type: 'ceremony' },
-    { id: 3, name: 'Vastu Shanti', price: 1800, duration: '1.5 hours', type: 'spiritual' },
-    { id: 4, name: 'Ganesh Puja', price: 1500, duration: '1 hour', type: 'ceremony' },
-    { id: 5, name: 'Navagraha Shanti', price: 2800, duration: '2.5 hours', type: 'spiritual' }
-  ];
+  // Fetch available pujas from API (same as desktop version)
+  const { data: services = [], isLoading: isServicesLoading } = useQuery<any[]>({
+    queryKey: ['/api/pujas'],
+  });
   
   // Mock data for Guruji selection
   const gurujis = [
@@ -151,28 +149,34 @@ export function MobileBookingPage() {
           <div className="space-y-4">
             <p className="text-neutral-600 mb-4">Select the service you need:</p>
             
-            <div className="space-y-3">
-              {services.map(service => (
-                <Card 
-                  key={service.id}
-                  className={`cursor-pointer transition-all hover:border-primary ${selectedService === service.id ? 'border-primary ring-2 ring-primary-50' : ''}`}
-                  onClick={() => setSelectedService(service.id)}
-                >
-                  <CardContent className="p-4 flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">{service.name}</h3>
-                      <div className="text-sm text-neutral-500">
-                        <span>{service.duration}</span> • 
-                        <span className="ml-1 capitalize">{service.type}</span>
+            {isServicesLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {services.map(service => (
+                  <Card 
+                    key={service.id}
+                    className={`cursor-pointer transition-all hover:border-primary ${selectedService === service.id ? 'border-primary ring-2 ring-primary-50' : ''}`}
+                    onClick={() => setSelectedService(service.id)}
+                  >
+                    <CardContent className="p-4 flex justify-between items-center">
+                      <div>
+                        <h3 className="font-medium">{service.name}</h3>
+                        <div className="text-sm text-neutral-500">
+                          <span>{service.duration} min</span> • 
+                          <span className="ml-1 capitalize">{service.type}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium text-primary">₹{service.price}</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      <div className="text-right">
+                        <div className="font-medium text-primary">₹{service.basePrice || service.price}</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
         

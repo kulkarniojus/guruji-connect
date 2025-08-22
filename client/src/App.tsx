@@ -9,6 +9,7 @@ import AdminLogin from "@/pages/AdminLogin";
 import PujaDetails from "@/pages/PujaDetails";
 import PujasList from "@/pages/PujasList";
 import Services from "@/pages/Services";
+import HowItWorks from "@/pages/HowItWorks";
 import SimpleBookingDemo from "@/pages/SimpleBookingDemo";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy, useEffect } from "react";
@@ -93,6 +94,7 @@ function Router() {
       </Route>
       <Route path="/pujas" component={PujasList} />
       <Route path="/services" component={Services} />
+      <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/puja/:id" component={PujaDetails} />
       <Route path="/video-call/:id">
         <ProtectedRoute component={VideoCall} />

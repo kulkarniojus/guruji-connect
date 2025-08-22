@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
-import { Loader2, Calendar, User, CreditCard, FileText, ChevronRight } from 'lucide-react';
+import { Loader2, Calendar, User, CreditCard, FileText, ChevronRight, Star } from 'lucide-react';
+import { RatingDialog, RatingDisplay } from '@/components/rating/RatingSystem';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CustomerDashboard() {
   // Mock user data for demonstration purposes
@@ -15,6 +17,9 @@ export default function CustomerDashboard() {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [isLoading, setIsLoading] = useState(false);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
+  const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
+  const { toast } = useToast();
   
   // Mock bookings data since we're not using the real API
   const mockBookings = [
@@ -43,7 +48,9 @@ export default function CustomerDashboard() {
       date: '15 days ago',
       amount: 2500,
       guruji: 'Pandit Suresh Ji',
-      status: 'completed'
+      status: 'completed',
+      hasRating: false,
+      rating: 0
     }
   ];
   
@@ -254,9 +261,38 @@ export default function CustomerDashboard() {
                       <span className="font-medium">Pandit Suresh Ji</span>
                     </div>
                   </div>
-                  <div className="mt-4 flex justify-end">
-                    <Button variant="outline" size="sm" className="mr-2">Book Again</Button>
-                    <Button size="sm">View Details</Button>
+                  <div className="mt-4 flex justify-between items-center">
+                    <div className="flex items-center">
+                      {pastBookings[0]?.hasRating ? (
+                        <RatingDisplay 
+                          rating={pastBookings[0]?.rating || 5} 
+                          totalRatings={1}
+                          className="text-sm"
+                        />
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-primary hover:text-primary-700 p-0"
+                          onClick={() => {
+                            setSelectedBookingForRating({
+                              id: '3',
+                              gurujiName: 'Pandit Suresh Ji',
+                              serviceName: 'Griha Pravesh Puja',
+                              date: '15 days ago'
+                            });
+                            setIsRatingDialogOpen(true);
+                          }}
+                        >
+                          <Star className="h-4 w-4 mr-1" />
+                          Rate Service
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex">
+                      <Button variant="outline" size="sm" className="mr-2">Book Again</Button>
+                      <Button size="sm">View Details</Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -352,6 +388,34 @@ export default function CustomerDashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Rating Dialog */}
+      {selectedBookingForRating && (
+        <RatingDialog
+          isOpen={isRatingDialogOpen}
+          onClose={() => {
+            setIsRatingDialogOpen(false);
+            setSelectedBookingForRating(null);
+          }}
+          booking={selectedBookingForRating}
+          onSubmitRating={async (rating: number, review: string) => {
+            // Simulate API call to submit rating
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Update the booking to show it has been rated
+            setBookings(prev => prev.map(booking => 
+              booking.id === 3 
+                ? { ...booking, hasRating: true, rating: rating }
+                : booking
+            ));
+            
+            toast({
+              title: 'Rating Submitted',
+              description: 'Thank you for your feedback! It helps other customers and improves our service.',
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

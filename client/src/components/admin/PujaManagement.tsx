@@ -779,6 +779,31 @@ export default function PujaManagement() {
                     placeholder="e.g. incense, flowers, ghee"
                   />
                 </div>
+                <div className="col-span-2">
+                  <Label htmlFor="edit-samagriPrice">Samagri Price (₹)</Label>
+                  <Input
+                    id="edit-samagriPrice"
+                    name="samagriPrice"
+                    type="number"
+                    value={formData.samagriPrice || 0}
+                    onChange={handleInputChange}
+                    min={0}
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="col-span-2 max-h-[300px] overflow-y-auto">
+                  <SamagriInput 
+                    samagri={formData.samagri || []}
+                    onChange={(samagri) => {
+                      const totalPrice = samagri.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        samagri,
+                        samagriPrice: totalPrice
+                      }));
+                    }}
+                  />
+                </div>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="edit-isPopular"

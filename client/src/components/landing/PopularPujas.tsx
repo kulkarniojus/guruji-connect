@@ -12,7 +12,7 @@ const popularPujas = [
     description: 'A puja dedicated to Lord Vishnu, performed for prosperity and well-being of the family.',
     rating: 4.8,
     bookings: 120,
-    image: 'https://images.unsplash.com/photo-1602602444238-8a75da8578c6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80'
+    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
   },
   {
     id: 'ganesh-puja',
@@ -21,7 +21,7 @@ const popularPujas = [
     description: 'A ceremony to worship Lord Ganesha, performed for removing obstacles and bringing good fortune.',
     rating: 4.9,
     bookings: 145,
-    image: 'https://images.unsplash.com/photo-1602989372721-7d65d54a74ef?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80'
+    image: 'https://images.unsplash.com/photo-1606991683106-a6b7d95e33dc?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
   },
   {
     id: 'griha-pravesh',
@@ -30,7 +30,7 @@ const popularPujas = [
     description: 'A housewarming ceremony performed before entering a new home to invoke positive energy and blessings.',
     rating: 4.7,
     bookings: 98,
-    image: 'https://images.unsplash.com/photo-1599946347960-dbf2caca5ba5?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80'
+    image: 'https://images.unsplash.com/photo-1607344645866-009c7471b638?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
   }
 ];
 

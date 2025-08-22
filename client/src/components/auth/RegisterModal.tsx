@@ -46,6 +46,12 @@ const registerSchema = z.object({
   }),
   aadhar: z.string().optional(),
   caste: z.string().optional(),
+  // Additional fields for Guruji registration
+  experience: z.coerce.number().min(0, 'Experience must be a positive number').optional(),
+  specialization: z.string().optional(),
+  qualification: z.string().optional(),
+  location: z.string().optional(),
+  languages: z.string().optional(),
   terms: z.boolean().refine(val => val === true, {
     message: 'You must accept the terms and conditions',
   }),
@@ -71,6 +77,11 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
       registrationType: 'customer', // Default to customer registration
       aadhar: '',
       caste: '',
+      experience: undefined,
+      specialization: '',
+      qualification: '',
+      location: '',
+      languages: '',
       terms: false
     },
   });
@@ -293,6 +304,81 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
                   </FormItem>
                 )}
               />
+
+              {/* Additional fields for Guruji registration */}
+              {form.watch('registrationType') === 'guruji' && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="experience"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Years of Experience *</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} placeholder="e.g. 5" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="specialization"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Specialization *</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g. Vedic Astrology, Vastu" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="qualification"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Qualification *</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g. Jyotish Acharya, Sanskrit Scholar" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City/Location *</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g. Mumbai, Delhi" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="languages"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Languages Known *</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g. Hindi, English, Sanskrit" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
               
               <FormField
                 control={form.control}
