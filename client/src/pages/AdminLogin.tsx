@@ -14,9 +14,14 @@ import { useForm } from 'react-hook-form';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, KeyRound, Mail } from 'lucide-react';
 
-// Login form schema
+// Login form schema - bypass email validation for admin user
 const loginFormSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().min(1, "Username/Email is required").refine((value) => {
+    // Allow 'admin' as special case, otherwise require valid email
+    if (value === 'admin') return true;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(value);
+  }, "Please enter a valid email address or use 'admin'"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -44,7 +49,7 @@ export default function AdminLogin() {
         description: "Welcome to the admin dashboard",
       });
       
-      setLocation('/admin/dashboard');
+      setLocation('/admin-dashboard');
     } catch (error) {
       console.error('Admin login error:', error);
       toast({
@@ -88,12 +93,12 @@ export default function AdminLogin() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Username/Email</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-neutral-500" />
                           <Input 
-                            placeholder="admin@example.com" 
+                            placeholder="admin or admin@example.com" 
                             className="pl-10" 
                             {...field} 
                           />
