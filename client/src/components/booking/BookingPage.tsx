@@ -348,20 +348,48 @@ export default function BookingPage() {
             <Separator className="my-6" />
             
             <div>
-              <Label className="mb-2 block">Select Puja</Label>
+              <div className="flex justify-between items-center mb-2">
+                <Label className="block">
+                  {initialPujaId ? 'Selected Puja' : 'Select Puja'}
+                </Label>
+                {initialPujaId && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      // Clear the initial selection to show all pujas
+                      const url = new URL(window.location.href);
+                      url.searchParams.delete('puja');
+                      url.searchParams.delete('pujaName');
+                      window.history.replaceState({}, '', url.toString());
+                      setSelectedPujaId('');
+                      window.location.reload(); // Reload to reset initialPujaId
+                    }}
+                    className="text-primary hover:text-primary-700"
+                  >
+                    Change Selection
+                  </Button>
+                )}
+              </div>
               {isPujasLoading ? (
                 <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  {pujas?.map((puja) => (
+                  {(initialPujaId ? pujas?.filter(puja => puja.id.toString() === initialPujaId) : pujas)?.map((puja) => (
                     <div 
                       key={puja.id}
-                      className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors ${
-                        selectedPujaId === puja.id.toString() ? 'border-primary bg-primary-50' : ''
+                      className={`border rounded-lg p-4 transition-colors ${
+                        initialPujaId 
+                          ? 'border-primary bg-primary-50 cursor-default' 
+                          : `cursor-pointer hover:border-primary ${selectedPujaId === puja.id.toString() ? 'border-primary bg-primary-50' : ''}`
                       }`}
-                      onClick={() => setSelectedPujaId(puja.id.toString())}
+                      onClick={() => {
+                        if (!initialPujaId) {
+                          setSelectedPujaId(puja.id.toString());
+                        }
+                      }}
                     >
                       <div className="flex justify-between">
                         <h3 className="font-medium">{puja.name}</h3>
