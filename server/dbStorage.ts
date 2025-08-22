@@ -71,10 +71,9 @@ export class DBStorage implements IStorage {
     
     const result = await pool.query(
       `INSERT INTO users (
-        firstName, lastName, email, mobile, password, 
-        age, gender, role, aadhar, caste, 
-        isVerified, isBlocked, createdAt, updatedAt
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        "firstName", "lastName", email, mobile, password, 
+        role, "isVerified", "isBlocked", "createdAt", "updatedAt"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *`,
       [
         userData.firstName,
@@ -82,13 +81,9 @@ export class DBStorage implements IStorage {
         userData.email,
         userData.mobile,
         hashedPassword,
-        userData.age,
-        userData.gender,
-        userData.role,
-        userData.aadhar || null,
-        userData.caste || null,
-        false, // is_verified
-        false, // is_blocked
+        userData.role || 'customer',
+        false, // isVerified
+        false, // isBlocked
         new Date(),
         new Date()
       ]
@@ -1398,7 +1393,7 @@ export class DBStorage implements IStorage {
   }): Promise<GurujiProfile[]> {
     try {
       let query = `
-        SELECT gp.*, u.firstName, u.lastName, u.email, u.mobile 
+        SELECT gp.*, u."firstName", u."lastName", u.email, u.mobile 
         FROM guruji_profiles gp
         JOIN users u ON gp.user_id = u.id
         WHERE gp.status = $1

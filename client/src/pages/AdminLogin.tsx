@@ -41,7 +41,9 @@ export default function AdminLogin() {
   const onSubmit = async (data: z.infer<typeof loginFormSchema>) => {
     try {
       setIsLoading(true);
-      const response = await apiRequest('POST', '/api/admin/login', data);
+      // For admin login, send as 'email' field even though it might be username
+      const loginData = { email: data.email === 'admin' ? 'admin@admin.com' : data.email, password: data.password };
+      const response = await apiRequest('POST', '/api/admin/login', loginData);
       const userData = await response.json();
       
       toast({
