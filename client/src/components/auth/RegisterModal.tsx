@@ -17,18 +17,191 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 
 interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLoginClick: () => void;
+}
+
+// Multi-select Dropdown Component for Cities (Max 2)
+function CityMultiSelect({ cities, selectedCities, onCityToggle, maxSelections }: {
+  cities: any[];
+  selectedCities: string[];
+  onCityToggle: (cityId: string) => void;
+  maxSelections: number;
+}) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filteredCities = cities.filter(city => 
+    city.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    city.state.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Input
+          type="text"
+          placeholder="Search and select cities (e.g., type 'nag' for Nagpur)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          className="w-full"
+        />
+        
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+            {filteredCities.length > 0 ? (
+              filteredCities.map((city: any) => (
+                <div
+                  key={city.id}
+                  className={`flex items-center p-3 hover:bg-gray-50 cursor-pointer ${
+                    selectedCities.length >= maxSelections && !selectedCities.includes(city.id.toString()) 
+                      ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  onClick={() => {
+                    if (selectedCities.length < maxSelections || selectedCities.includes(city.id.toString())) {
+                      onCityToggle(city.id.toString());
+                      setSearchTerm('');
+                      setIsOpen(false);
+                    }
+                  }}
+                >
+                  <Checkbox
+                    checked={selectedCities.includes(city.id.toString())}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">{city.name}, {city.state}</span>
+                </div>
+              ))
+            ) : (
+              <div className="p-3 text-sm text-gray-500">No cities found</div>
+            )}
+          </div>
+        )}
+        
+        {isOpen && (
+          <div 
+            className="fixed inset-0 z-0" 
+            onClick={() => setIsOpen(false)}
+          />
+        )}
+      </div>
+      
+      {selectedCities.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedCities.map((cityId) => {
+            const city = cities.find((c: any) => c.id.toString() === cityId);
+            return city ? (
+              <Badge key={cityId} variant="secondary" className="flex items-center gap-1">
+                {city.name}, {city.state}
+                <X 
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => onCityToggle(cityId)}
+                />
+              </Badge>
+            ) : null;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Multi-select Dropdown Component for Pujas
+function PujaMultiSelect({ pujas, selectedPujas, onPujaToggle }: {
+  pujas: any[];
+  selectedPujas: string[];
+  onPujaToggle: (pujaId: string) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filteredPujas = pujas.filter(puja => 
+    puja.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    puja.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Input
+          type="text"
+          placeholder="Search and select puja specializations..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          className="w-full"
+        />
+        
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+            {filteredPujas.length > 0 ? (
+              filteredPujas.map((puja: any) => (
+                <div
+                  key={puja.id}
+                  className="flex items-center p-3 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => {
+                    onPujaToggle(puja.id.toString());
+                    setSearchTerm('');
+                    setIsOpen(false);
+                  }}
+                >
+                  <Checkbox
+                    checked={selectedPujas.includes(puja.id.toString())}
+                    className="mr-2"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{puja.name}</div>
+                    {puja.description && (
+                      <div className="text-xs text-gray-500 truncate">{puja.description}</div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-3 text-sm text-gray-500">No pujas found</div>
+            )}
+          </div>
+        )}
+        
+        {isOpen && (
+          <div 
+            className="fixed inset-0 z-0" 
+            onClick={() => setIsOpen(false)}
+          />
+        )}
+      </div>
+      
+      {selectedPujas.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedPujas.map((pujaId) => {
+            const puja = pujas.find((p: any) => p.id.toString() === pujaId);
+            return puja ? (
+              <Badge key={pujaId} variant="secondary" className="flex items-center gap-1">
+                {puja.name}
+                <X 
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => onPujaToggle(pujaId)}
+                />
+              </Badge>
+            ) : null;
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const registerSchema = z.object({
@@ -61,8 +234,22 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterModal({ isOpen, onClose, onLoginClick }: RegisterModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [selectedPujas, setSelectedPujas] = useState<string[]>([]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  // Fetch cities
+  const { data: cities = [] } = useQuery({
+    queryKey: ['/api/cities'],
+    select: (data: any[]) => data || [],
+  });
+
+  // Fetch pujas
+  const { data: pujas = [] } = useQuery({
+    queryKey: ['/api/pujas'],
+    select: (data: any[]) => data || [],
+  });
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -327,9 +514,19 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
                     name="specialization"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Specialization *</FormLabel>
+                        <FormLabel>Puja Specializations *</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="e.g. Vedic Astrology, Vastu" />
+                          <PujaMultiSelect 
+                            pujas={pujas}
+                            selectedPujas={selectedPujas}
+                            onPujaToggle={(pujaId) => {
+                              const newPujas = selectedPujas.includes(pujaId)
+                                ? selectedPujas.filter(id => id !== pujaId)
+                                : [...selectedPujas, pujaId];
+                              setSelectedPujas(newPujas);
+                              field.onChange(newPujas.join(','));
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -355,9 +552,22 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
                     name="location"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>City/Location *</FormLabel>
+                        <FormLabel>Service Cities * (Maximum 2)</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="e.g. Mumbai, Delhi" />
+                          <CityMultiSelect 
+                            cities={cities}
+                            selectedCities={selectedCities}
+                            maxSelections={2}
+                            onCityToggle={(cityId) => {
+                              const newCities = selectedCities.includes(cityId)
+                                ? selectedCities.filter(id => id !== cityId)
+                                : selectedCities.length < 2 
+                                  ? [...selectedCities, cityId]
+                                  : selectedCities;
+                              setSelectedCities(newCities);
+                              field.onChange(newCities.join(','));
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
