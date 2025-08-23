@@ -8,22 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-
-const cities = [
-  { value: 'mumbai', label: 'Mumbai' },
-  { value: 'delhi', label: 'Delhi' },
-  { value: 'bangalore', label: 'Bangalore' },
-  { value: 'pune', label: 'Pune' },
-  { value: 'chennai', label: 'Chennai' }
-];
-
-const pujas = [
-  { value: '1', label: 'Satyanarayan Puja' },
-  { value: '2', label: 'Griha Pravesh' },
-  { value: '3', label: 'Ganesh Puja' },
-  { value: '4', label: 'Navgraha Shanti' },
-  { value: '5', label: 'Rudrabhishek' }
-];
+import { useQuery } from '@tanstack/react-query';
 
 export default function MobileHero() {
   const [, setLocation] = useLocation();
@@ -31,6 +16,24 @@ export default function MobileHero() {
   const [puja, setPuja] = useState<string>('');
   const [date, setDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
+
+  // Fetch cities from API
+  const { data: citiesData = [], isLoading: isCitiesLoading } = useQuery({
+    queryKey: ['/api/cities'],
+    select: (data: any[]) => data.map(city => ({
+      value: city.name.toLowerCase().replace(/\s+/g, '-'),
+      label: `${city.name}, ${city.state}`
+    })),
+  });
+
+  // Fetch pujas from API
+  const { data: pujasData = [], isLoading: isPujasLoading } = useQuery({
+    queryKey: ['/api/pujas'],
+    select: (data: any[]) => data.map(puja => ({
+      value: puja.id.toString(),
+      label: puja.name
+    })),
+  });
 
   const handleSearch = () => {
     // Validate mandatory fields
@@ -68,7 +71,7 @@ export default function MobileHero() {
     params.append('date', date.toISOString());
     
     // Find puja label to pass along
-    const selectedPuja = pujas.find(p => p.value === puja);
+    const selectedPuja = pujasData.find(p => p.value === puja);
     if (selectedPuja) {
       params.append('pujaName', selectedPuja.label);
     }
@@ -95,12 +98,12 @@ export default function MobileHero() {
             <div className="flex flex-col space-y-4">
               <div>
                 <label htmlFor="mobile-city" className="block text-xs font-medium text-neutral-700 mb-1">City</label>
-                <Select onValueChange={(value) => setCity(value)}>
+                <Select onValueChange={(value) => setCity(value)} disabled={isCitiesLoading}>
                   <SelectTrigger id="mobile-city" className="w-full">
-                    <SelectValue placeholder="Select City" />
+                    <SelectValue placeholder={isCitiesLoading ? "Loading cities..." : "Select City"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {cities.map((city) => (
+                    {citiesData.map((city) => (
                       <SelectItem key={city.value} value={city.value}>
                         {city.label}
                       </SelectItem>
@@ -111,12 +114,12 @@ export default function MobileHero() {
               
               <div>
                 <label htmlFor="mobile-puja" className="block text-xs font-medium text-neutral-700 mb-1">Puja Service</label>
-                <Select onValueChange={(value) => setPuja(value)}>
+                <Select onValueChange={(value) => setPuja(value)} disabled={isPujasLoading}>
                   <SelectTrigger id="mobile-puja" className="w-full">
-                    <SelectValue placeholder="Select Puja" />
+                    <SelectValue placeholder={isPujasLoading ? "Loading pujas..." : "Select Puja"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {pujas.map((puja) => (
+                    {pujasData.map((puja) => (
                       <SelectItem key={puja.value} value={puja.value}>
                         {puja.label}
                       </SelectItem>
