@@ -11,46 +11,35 @@ const services = [
     title: "Online Puja Booking",
     description:
       "Book pujas online from the comfort of your home and participate virtually in real-time",
-    image: "/images/childpuja.png",
+    image: "/images/onlinepuja.png",
   },
   {
     id: "online-consultation",
     title: "Online Consultation",
     description:
       "Get expert guidance from verified pandits via video call for astrological or spiritual advice",
-    image:
-      "https://images.unsplash.com/photo-1542856391-010fb87dcfed?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
+    image: "/images/onlinepuja.png",
   },
   {
     id: "brahmin-booking",
     title: "Brahmin Booking",
     description:
       "Book experienced Brahmins for various religious ceremonies at your home or preferred location",
-    image:
-      "https://images.unsplash.com/photo-1557031751-30f159e4ac6c?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
+    image: "/images/onlinepuja.png",
   },
   {
     id: "special-occasions",
     title: "Special Occasions",
     description:
       "Book for special occasions like Varsha shradha, Kumarika, Vat Savitri puja, Mangalagaur, and more",
-    image:
-      "https://images.unsplash.com/photo-1590177600178-8444b586eccc?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-  },
-  {
-    id: "satyanarayan-puja",
-    title: "Satyanarayan Puja",
-    description:
-      "A sacred ritual dedicated to Lord Vishnu that brings prosperity, well-being and spiritual growth",
-    image:
-      "https://images.unsplash.com/photo-1555400038-63f5ba517a47?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
+    image: "/images/onlinepuja.png",
   },
   {
     id: "traditional-puja",
     title: "Traditional Puja Ceremony",
     description:
       "Experience authentic Hindu rituals performed by trained priests following ancient Vedic traditions",
-    image: "/images/puja_ceremony.svg",
+    image: "/images/onlinepuja.png",
   },
 ];
 

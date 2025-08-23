@@ -1,19 +1,57 @@
-import { 
-  users, User, InsertUser, otps, Otp, InsertOtp, 
-  pujas, Puja, InsertPuja, bookings, Booking, InsertBooking,
-  payments, Payment, InsertPayment, reviews, Review, InsertReview,
-  gurujiProfiles, GurujiProfile, InsertGurujiProfile,
-  notifications, Notification, InsertNotification,
-  contents, promotionCodes,
-  chatbotTemplates, ChatbotTemplate, InsertChatbotTemplate,
-  chatbotTrainingData, ChatbotTrainingData, InsertChatbotTrainingData,
-  whatsappUsers, WhatsappUser, InsertWhatsappUser,
-  whatsappConversations, WhatsappConversation, InsertWhatsappConversation,
-  whatsappMessages, WhatsappMessage, InsertWhatsappMessage,
-  userJourneys, UserJourney, InsertUserJourney,
-  userJourneyItems, UserJourneyItem, InsertUserJourneyItem,
-  bookingRequests, BookingRequest, InsertBookingRequest,
-  cities, City, InsertCity
+import {
+  users,
+  User,
+  InsertUser,
+  otps,
+  Otp,
+  InsertOtp,
+  pujas,
+  Puja,
+  InsertPuja,
+  bookings,
+  Booking,
+  InsertBooking,
+  payments,
+  Payment,
+  InsertPayment,
+  reviews,
+  Review,
+  InsertReview,
+  gurujiProfiles,
+  GurujiProfile,
+  InsertGurujiProfile,
+  notifications,
+  Notification,
+  InsertNotification,
+  contents,
+  promotionCodes,
+  chatbotTemplates,
+  ChatbotTemplate,
+  InsertChatbotTemplate,
+  chatbotTrainingData,
+  ChatbotTrainingData,
+  InsertChatbotTrainingData,
+  whatsappUsers,
+  WhatsappUser,
+  InsertWhatsappUser,
+  whatsappConversations,
+  WhatsappConversation,
+  InsertWhatsappConversation,
+  whatsappMessages,
+  WhatsappMessage,
+  InsertWhatsappMessage,
+  userJourneys,
+  UserJourney,
+  InsertUserJourney,
+  userJourneyItems,
+  UserJourneyItem,
+  InsertUserJourneyItem,
+  bookingRequests,
+  BookingRequest,
+  InsertBookingRequest,
+  cities,
+  City,
+  InsertCity,
 } from "@shared/schema";
 import { eq, and, like, or, lt, gt, gte, desc, inArray } from "drizzle-orm";
 import { genSalt, hash, compare } from "bcrypt";
@@ -49,8 +87,15 @@ export interface IStorage {
   getGurujiProfile(id: number): Promise<GurujiProfile | undefined>;
   getGurujiProfileByUserId(userId: number): Promise<GurujiProfile | undefined>;
   createGurujiProfile(profile: InsertGurujiProfile): Promise<GurujiProfile>;
-  updateGurujiProfile(id: number, profile: Partial<GurujiProfile>): Promise<GurujiProfile | undefined>;
-  getNearbyGurujis(city: string, pujaId?: number, radius?: number): Promise<GurujiProfile[]>;
+  updateGurujiProfile(
+    id: number,
+    profile: Partial<GurujiProfile>,
+  ): Promise<GurujiProfile | undefined>;
+  getNearbyGurujis(
+    city: string,
+    pujaId?: number,
+    radius?: number,
+  ): Promise<GurujiProfile[]>;
   getAllGurujiProfiles(): Promise<GurujiProfile[]>; // For analytics
 
   // Booking Management
@@ -58,23 +103,48 @@ export interface IStorage {
   getBookingsByCustomerId(customerId: number): Promise<Booking[]>;
   getBookingsByGurujiId(gurujiId: number): Promise<Booking[]>;
   createBooking(booking: InsertBooking): Promise<Booking>;
-  updateBookingStatus(id: number, status: 'pending' | 'pending_approval' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'rejected'): Promise<Booking | undefined>;
-  
+  updateBookingStatus(
+    id: number,
+    status:
+      | "pending"
+      | "pending_approval"
+      | "confirmed"
+      | "in_progress"
+      | "completed"
+      | "cancelled"
+      | "rejected",
+  ): Promise<Booking | undefined>;
+
   // Booking Request Management
-  createBookingRequest(bookingRequest: InsertBookingRequest): Promise<BookingRequest>;
+  createBookingRequest(
+    bookingRequest: InsertBookingRequest,
+  ): Promise<BookingRequest>;
   getBookingRequest(id: number): Promise<BookingRequest | undefined>;
   getBookingRequestsByBookingId(bookingId: number): Promise<BookingRequest[]>;
   getBookingRequestsByGurujiId(gurujiId: number): Promise<BookingRequest[]>;
-  updateBookingRequestStatus(id: number, status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled', responseMessage?: string): Promise<BookingRequest | undefined>;
-  expireOtherBookingRequests(bookingId: number, acceptedRequestId: number): Promise<boolean>;
-  assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined>;
+  updateBookingRequestStatus(
+    id: number,
+    status: "pending" | "accepted" | "declined" | "expired" | "cancelled",
+    responseMessage?: string,
+  ): Promise<BookingRequest | undefined>;
+  expireOtherBookingRequests(
+    bookingId: number,
+    acceptedRequestId: number,
+  ): Promise<boolean>;
+  assignGurujiToBooking(
+    bookingId: number,
+    gurujiId: number,
+  ): Promise<Booking | undefined>;
   getAllBookings(): Promise<Booking[]>; // For analytics
 
   // Payment Management
   getPayment(id: number): Promise<Payment | undefined>;
   getPaymentsByBookingId(bookingId: number): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
-  updatePaymentStatus(id: number, status: 'unpaid' | 'partial' | 'paid' | 'refunded'): Promise<Payment | undefined>;
+  updatePaymentStatus(
+    id: number,
+    status: "unpaid" | "partial" | "paid" | "refunded",
+  ): Promise<Payment | undefined>;
   getAllPayments(): Promise<Payment[]>; // For analytics
 
   // Review Management
@@ -92,50 +162,86 @@ export interface IStorage {
 
   // Content Management
   getContent(key: string): Promise<any | undefined>;
-  updateContent(key: string, title: string, content: string): Promise<any | undefined>;
-  
+  updateContent(
+    key: string,
+    title: string,
+    content: string,
+  ): Promise<any | undefined>;
+
   // ChatBot Management
   getChatbotTemplates(): Promise<ChatbotTemplate[]>;
-  createChatbotTemplate(template: InsertChatbotTemplate): Promise<ChatbotTemplate>;
-  updateChatbotTemplate(id: number, template: Partial<ChatbotTemplate>): Promise<ChatbotTemplate | undefined>;
+  createChatbotTemplate(
+    template: InsertChatbotTemplate,
+  ): Promise<ChatbotTemplate>;
+  updateChatbotTemplate(
+    id: number,
+    template: Partial<ChatbotTemplate>,
+  ): Promise<ChatbotTemplate | undefined>;
   deleteChatbotTemplate(id: number): Promise<boolean>;
-  
+
   // ChatBot Training Data
   getChatbotTrainingData(): Promise<ChatbotTrainingData[]>;
-  createChatbotTrainingData(data: InsertChatbotTrainingData): Promise<ChatbotTrainingData>;
-  updateChatbotTrainingData(id: number, data: Partial<ChatbotTrainingData>): Promise<ChatbotTrainingData | undefined>;
+  createChatbotTrainingData(
+    data: InsertChatbotTrainingData,
+  ): Promise<ChatbotTrainingData>;
+  updateChatbotTrainingData(
+    id: number,
+    data: Partial<ChatbotTrainingData>,
+  ): Promise<ChatbotTrainingData | undefined>;
   deleteChatbotTrainingData(id: number): Promise<boolean>;
-  
+
   // WhatsApp User Management
   getChatbotUsers(): Promise<WhatsappUser[]>;
-  getChatbotUserByWhatsappNumber(whatsappNumber: string): Promise<WhatsappUser | undefined>;
-  linkUserWhatsapp(userId: number, whatsappNumber: string): Promise<WhatsappUser | undefined>;
+  getChatbotUserByWhatsappNumber(
+    whatsappNumber: string,
+  ): Promise<WhatsappUser | undefined>;
+  linkUserWhatsapp(
+    userId: number,
+    whatsappNumber: string,
+  ): Promise<WhatsappUser | undefined>;
   optOutUserWhatsapp(userId: number): Promise<WhatsappUser | undefined>;
-  
+
   // WhatsApp Conversation Management
   getChatbotConversations(): Promise<WhatsappConversation[]>;
   getChatbotConversation(id: number): Promise<WhatsappConversation | undefined>;
-  createChatbotConversation(data: InsertWhatsappConversation): Promise<WhatsappConversation>;
-  updateChatbotConversationStatus(id: number, status: 'active' | 'closed'): Promise<WhatsappConversation | undefined>;
-  
+  createChatbotConversation(
+    data: InsertWhatsappConversation,
+  ): Promise<WhatsappConversation>;
+  updateChatbotConversationStatus(
+    id: number,
+    status: "active" | "closed",
+  ): Promise<WhatsappConversation | undefined>;
+
   // WhatsApp Message Management
   getChatbotMessages(conversationId: number): Promise<WhatsappMessage[]>;
   addChatbotMessage(message: InsertWhatsappMessage): Promise<WhatsappMessage>;
-  
+
   // User Journey Management
   getUserJourney(id: number): Promise<UserJourney | undefined>;
   getUserJourneyByUserId(userId: number): Promise<UserJourney | undefined>;
   createUserJourney(journey: InsertUserJourney): Promise<UserJourney>;
-  updateUserJourney(id: number, journey: Partial<UserJourney>): Promise<UserJourney | undefined>;
-  updateUserJourneyProgress(journeyId: number, completedPujas: number): Promise<UserJourney | undefined>;
+  updateUserJourney(
+    id: number,
+    journey: Partial<UserJourney>,
+  ): Promise<UserJourney | undefined>;
+  updateUserJourneyProgress(
+    journeyId: number,
+    completedPujas: number,
+  ): Promise<UserJourney | undefined>;
   deleteUserJourney(id: number): Promise<boolean>;
-  
+
   // User Journey Items Management
   getUserJourneyItem(id: number): Promise<UserJourneyItem | undefined>;
   getUserJourneyItemsByJourneyId(journeyId: number): Promise<UserJourneyItem[]>;
   createUserJourneyItem(item: InsertUserJourneyItem): Promise<UserJourneyItem>;
-  updateUserJourneyItem(id: number, item: Partial<UserJourneyItem>): Promise<UserJourneyItem | undefined>;
-  markUserJourneyItemComplete(id: number, reflection?: string): Promise<UserJourneyItem | undefined>;
+  updateUserJourneyItem(
+    id: number,
+    item: Partial<UserJourneyItem>,
+  ): Promise<UserJourneyItem | undefined>;
+  markUserJourneyItemComplete(
+    id: number,
+    reflection?: string,
+  ): Promise<UserJourneyItem | undefined>;
   deleteUserJourneyItem(id: number): Promise<boolean>;
 
   // Cities Management
@@ -145,7 +251,10 @@ export interface IStorage {
   deleteCity(id: number): Promise<boolean>;
 
   // Guruji Approval Management
-  approveGuruji(id: number, approvedBy: number): Promise<GurujiProfile | undefined>;
+  approveGuruji(
+    id: number,
+    approvedBy: number,
+  ): Promise<GurujiProfile | undefined>;
   rejectGuruji(id: number, reason: string): Promise<GurujiProfile | undefined>;
 }
 
@@ -216,20 +325,20 @@ export class MemStorage implements IStorage {
     this.userJourneyItemIdCounter = 1;
 
     // Initialize with some default content
-    this.contents.set('customer_terms', {
-      key: 'customer_terms',
-      title: 'Terms and Conditions for Customers',
-      content: 'These are the terms and conditions for customers.',
+    this.contents.set("customer_terms", {
+      key: "customer_terms",
+      title: "Terms and Conditions for Customers",
+      content: "These are the terms and conditions for customers.",
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
-    
-    this.contents.set('guruji_terms', {
-      key: 'guruji_terms',
-      title: 'Terms and Conditions for Gurujis',
-      content: 'These are the terms and conditions for Gurujis.',
+
+    this.contents.set("guruji_terms", {
+      key: "guruji_terms",
+      title: "Terms and Conditions for Gurujis",
+      content: "These are the terms and conditions for Gurujis.",
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     // Initialize with some default pujas
@@ -240,48 +349,52 @@ export class MemStorage implements IStorage {
     const defaultPujas = [
       {
         id: this.pujaIdCounter++,
-        name: 'Satyanarayan Puja',
-        description: 'A puja dedicated to Lord Vishnu, performed for prosperity and well-being of the family.',
+        name: "Satyanarayan Puja",
+        description:
+          "A puja dedicated to Lord Vishnu, performed for prosperity and well-being of the family.",
         price: 1500,
-        imageUrl: 'https://images.unsplash.com/photo-1602602444238-8a75da8578c6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-        type: 'offline',
+        image: "/images/childpuja.png",
+        type: "offline",
         duration: 120, // 2 hours
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       {
         id: this.pujaIdCounter++,
-        name: 'Ganesh Puja',
-        description: 'A ceremony to worship Lord Ganesha, performed for removing obstacles and bringing good fortune.',
+        name: "Ganesh Puja",
+        description:
+          "A ceremony to worship Lord Ganesha, performed for removing obstacles and bringing good fortune.",
         price: 1200,
-        src: 'images/',
-        type: 'offline',
+        src: "/images/ganeshpuja.png",
+        type: "offline",
         duration: 90, // 1.5 hours
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       {
         id: this.pujaIdCounter++,
-        name: 'Griha Pravesh',
-        description: 'A housewarming ceremony performed before entering a new home to invoke positive energy and blessings.',
+        name: "Griha Pravesh",
+        description:
+          "A housewarming ceremony performed before entering a new home to invoke positive energy and blessings.",
         price: 2500,
-        imageUrl: 'https://images.unsplash.com/photo-1599946347960-dbf2caca5ba5?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-        type: 'offline',
+        imageUrl: "/images/grihapraveshpuja.png",
+        type: "offline",
         duration: 180, // 3 hours
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       {
         id: this.pujaIdCounter++,
-        name: 'Navgraha Shanti',
-        description: 'A puja to pacify the nine planets and seek their blessings to remove obstacles in life.',
+        name: "Navgraha Shanti",
+        description:
+          "A puja to pacify the nine planets and seek their blessings to remove obstacles in life.",
         price: 1800,
-        imageUrl: 'https://images.unsplash.com/photo-1617473346681-58383870ca6a?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-        type: 'online',
+        imageUrl: "/images/chilpuja.png",
+        type: "online",
         duration: 120, // 2 hours
         createdAt: new Date(),
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     ];
 
     for (const puja of defaultPujas) {
@@ -295,13 +408,13 @@ export class MemStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.email.toLowerCase() === email.toLowerCase()
+      (user) => user.email.toLowerCase() === email.toLowerCase(),
     );
   }
 
   async getUserByMobile(mobile: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.mobile === mobile
+      (user) => user.mobile === mobile,
     );
   }
 
@@ -324,7 +437,10 @@ export class MemStorage implements IStorage {
     return user;
   }
 
-  async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
+  async updateUser(
+    id: number,
+    userData: Partial<User>,
+  ): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
 
@@ -366,7 +482,7 @@ export class MemStorage implements IStorage {
 
     const salt = await genSalt(10);
     const hashedPassword = await hash(newPassword, salt);
-    
+
     user.password = hashedPassword;
     user.updatedAt = new Date();
     this.users.set(userId, user);
@@ -386,9 +502,9 @@ export class MemStorage implements IStorage {
 
     // Delete any existing OTPs for this mobile
     const existingOtps = Array.from(this.otps.values()).filter(
-      (o) => o.mobile === otpData.mobile
+      (o) => o.mobile === otpData.mobile,
     );
-    
+
     for (const existingOtp of existingOtps) {
       this.otps.delete(existingOtp.mobile);
     }
@@ -406,13 +522,13 @@ export class MemStorage implements IStorage {
     if (!otp) return false;
 
     if (otp.otp !== otpValue) return false;
-    
+
     // Check if OTP is expired
     if (otp.expiresAt < new Date()) {
       this.otps.delete(mobile);
       return false;
     }
-    
+
     // OTP verified, delete it
     this.otps.delete(mobile);
     return true;
@@ -442,7 +558,10 @@ export class MemStorage implements IStorage {
     return puja;
   }
 
-  async updatePuja(id: number, pujaData: Partial<Puja>): Promise<Puja | undefined> {
+  async updatePuja(
+    id: number,
+    pujaData: Partial<Puja>,
+  ): Promise<Puja | undefined> {
     const puja = this.pujas.get(id);
     if (!puja) return undefined;
 
@@ -458,9 +577,9 @@ export class MemStorage implements IStorage {
   async searchPujas(query: string): Promise<Puja[]> {
     const lowercaseQuery = query.toLowerCase();
     return Array.from(this.pujas.values()).filter(
-      (puja) => 
-        puja.name.toLowerCase().includes(lowercaseQuery) || 
-        puja.description.toLowerCase().includes(lowercaseQuery)
+      (puja) =>
+        puja.name.toLowerCase().includes(lowercaseQuery) ||
+        puja.description.toLowerCase().includes(lowercaseQuery),
     );
   }
 
@@ -468,13 +587,17 @@ export class MemStorage implements IStorage {
     return this.gurujiProfiles.get(id);
   }
 
-  async getGurujiProfileByUserId(userId: number): Promise<GurujiProfile | undefined> {
+  async getGurujiProfileByUserId(
+    userId: number,
+  ): Promise<GurujiProfile | undefined> {
     return Array.from(this.gurujiProfiles.values()).find(
-      (profile) => profile.userId === userId
+      (profile) => profile.userId === userId,
     );
   }
 
-  async createGurujiProfile(profileData: InsertGurujiProfile): Promise<GurujiProfile> {
+  async createGurujiProfile(
+    profileData: InsertGurujiProfile,
+  ): Promise<GurujiProfile> {
     const profile: GurujiProfile = {
       ...profileData,
       id: this.gurujiProfileIdCounter++,
@@ -488,26 +611,37 @@ export class MemStorage implements IStorage {
     return profile;
   }
 
-  async updateGurujiProfile(id: number, profileData: Partial<GurujiProfile>): Promise<GurujiProfile | undefined> {
+  async updateGurujiProfile(
+    id: number,
+    profileData: Partial<GurujiProfile>,
+  ): Promise<GurujiProfile | undefined> {
     const profile = this.gurujiProfiles.get(id);
     if (!profile) return undefined;
 
-    const updatedProfile = { ...profile, ...profileData, updatedAt: new Date() };
+    const updatedProfile = {
+      ...profile,
+      ...profileData,
+      updatedAt: new Date(),
+    };
     this.gurujiProfiles.set(id, updatedProfile);
     return updatedProfile;
   }
 
-  async getNearbyGurujis(city: string, pujaId?: number, radius: number = 10): Promise<GurujiProfile[]> {
+  async getNearbyGurujis(
+    city: string,
+    pujaId?: number,
+    radius: number = 10,
+  ): Promise<GurujiProfile[]> {
     // In a real implementation, this would use geolocation data
     // For this memory storage, we'll just filter by city
     return Array.from(this.gurujiProfiles.values()).filter(
-      (profile) => 
-        profile.location.toLowerCase().includes(city.toLowerCase()) && 
-        (profile.radius >= radius) &&
-        !profile.isBlocked
+      (profile) =>
+        profile.location.toLowerCase().includes(city.toLowerCase()) &&
+        profile.radius >= radius &&
+        !profile.isBlocked,
     );
   }
-  
+
   async getAllGurujiProfiles(): Promise<GurujiProfile[]> {
     return Array.from(this.gurujiProfiles.values());
   }
@@ -518,13 +652,13 @@ export class MemStorage implements IStorage {
 
   async getBookingsByCustomerId(customerId: number): Promise<Booking[]> {
     return Array.from(this.bookings.values()).filter(
-      (booking) => booking.customerId === customerId
+      (booking) => booking.customerId === customerId,
     );
   }
 
   async getBookingsByGurujiId(gurujiId: number): Promise<Booking[]> {
     return Array.from(this.bookings.values()).filter(
-      (booking) => booking.gurujiId === gurujiId
+      (booking) => booking.gurujiId === gurujiId,
     );
   }
 
@@ -532,7 +666,7 @@ export class MemStorage implements IStorage {
     const booking: Booking = {
       ...bookingData,
       id: this.bookingIdCounter++,
-      status: 'pending',
+      status: "pending",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -541,7 +675,10 @@ export class MemStorage implements IStorage {
     return booking;
   }
 
-  async updateBookingStatus(id: number, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'): Promise<Booking | undefined> {
+  async updateBookingStatus(
+    id: number,
+    status: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled",
+  ): Promise<Booking | undefined> {
     const booking = this.bookings.get(id);
     if (!booking) return undefined;
 
@@ -551,87 +688,100 @@ export class MemStorage implements IStorage {
     return booking;
   }
 
-  async assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined> {
+  async assignGurujiToBooking(
+    bookingId: number,
+    gurujiId: number,
+  ): Promise<Booking | undefined> {
     const booking = this.bookings.get(bookingId);
     if (!booking) return undefined;
 
     booking.gurujiId = gurujiId;
-    booking.status = 'confirmed';
+    booking.status = "confirmed";
     booking.updatedAt = new Date();
     this.bookings.set(bookingId, booking);
     return booking;
   }
-  
+
   async getAllBookings(): Promise<Booking[]> {
     return Array.from(this.bookings.values());
   }
-  
+
   // Booking Request Methods
-  async createBookingRequest(bookingRequestData: InsertBookingRequest): Promise<BookingRequest> {
+  async createBookingRequest(
+    bookingRequestData: InsertBookingRequest,
+  ): Promise<BookingRequest> {
     const bookingRequest: BookingRequest = {
       ...bookingRequestData,
       id: this.bookingRequestIdCounter++,
-      status: 'pending',
+      status: "pending",
       createdAt: new Date(),
       updatedAt: new Date(),
       responseTime: undefined,
-      penalty: 0
+      penalty: 0,
     };
-    
+
     this.bookingRequests.set(bookingRequest.id, bookingRequest);
     return bookingRequest;
   }
-  
+
   async getBookingRequest(id: number): Promise<BookingRequest | undefined> {
     return this.bookingRequests.get(id);
   }
-  
-  async getBookingRequestsByBookingId(bookingId: number): Promise<BookingRequest[]> {
+
+  async getBookingRequestsByBookingId(
+    bookingId: number,
+  ): Promise<BookingRequest[]> {
     return Array.from(this.bookingRequests.values()).filter(
-      (request) => request.bookingId === bookingId
+      (request) => request.bookingId === bookingId,
     );
   }
-  
-  async getBookingRequestsByGurujiId(gurujiId: number): Promise<BookingRequest[]> {
+
+  async getBookingRequestsByGurujiId(
+    gurujiId: number,
+  ): Promise<BookingRequest[]> {
     return Array.from(this.bookingRequests.values()).filter(
-      (request) => request.gurujiId === gurujiId
+      (request) => request.gurujiId === gurujiId,
     );
   }
-  
+
   async updateBookingRequestStatus(
-    id: number, 
-    status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled', 
-    responseMessage?: string
+    id: number,
+    status: "pending" | "accepted" | "declined" | "expired" | "cancelled",
+    responseMessage?: string,
   ): Promise<BookingRequest | undefined> {
     const request = this.bookingRequests.get(id);
     if (!request) return undefined;
-    
-    const updatedRequest = { 
-      ...request, 
+
+    const updatedRequest = {
+      ...request,
       status,
       responseTime: new Date(),
       responseMessage: responseMessage || request.responseMessage,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     this.bookingRequests.set(id, updatedRequest);
     return updatedRequest;
   }
-  
-  async expireOtherBookingRequests(bookingId: number, acceptedRequestId: number): Promise<boolean> {
+
+  async expireOtherBookingRequests(
+    bookingId: number,
+    acceptedRequestId: number,
+  ): Promise<boolean> {
     const requests = Array.from(this.bookingRequests.values()).filter(
-      (request) => request.bookingId === bookingId && request.id !== acceptedRequestId
+      (request) =>
+        request.bookingId === bookingId && request.id !== acceptedRequestId,
     );
-    
+
     for (const request of requests) {
       const updatedRequest = {
         ...request,
-        status: 'expired' as const,
-        updatedAt: new Date()
+        status: "expired" as const,
+        updatedAt: new Date(),
       };
       this.bookingRequests.set(request.id, updatedRequest);
     }
-    
+
     return true;
   }
 
@@ -641,7 +791,7 @@ export class MemStorage implements IStorage {
 
   async getPaymentsByBookingId(bookingId: number): Promise<Payment[]> {
     return Array.from(this.payments.values()).filter(
-      (payment) => payment.bookingId === bookingId
+      (payment) => payment.bookingId === bookingId,
     );
   }
 
@@ -649,7 +799,7 @@ export class MemStorage implements IStorage {
     const payment: Payment = {
       ...paymentData,
       id: this.paymentIdCounter++,
-      status: 'unpaid',
+      status: "unpaid",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -658,7 +808,10 @@ export class MemStorage implements IStorage {
     return payment;
   }
 
-  async updatePaymentStatus(id: number, status: 'unpaid' | 'partial' | 'paid' | 'refunded'): Promise<Payment | undefined> {
+  async updatePaymentStatus(
+    id: number,
+    status: "unpaid" | "partial" | "paid" | "refunded",
+  ): Promise<Payment | undefined> {
     const payment = this.payments.get(id);
     if (!payment) return undefined;
 
@@ -667,7 +820,7 @@ export class MemStorage implements IStorage {
     this.payments.set(id, payment);
     return payment;
   }
-  
+
   async getAllPayments(): Promise<Payment[]> {
     return Array.from(this.payments.values());
   }
@@ -678,7 +831,7 @@ export class MemStorage implements IStorage {
 
   async getReviewsByGurujiId(gurujiId: number): Promise<Review[]> {
     return Array.from(this.reviews.values()).filter(
-      (review) => review.gurujiId === gurujiId
+      (review) => review.gurujiId === gurujiId,
     );
   }
 
@@ -697,28 +850,30 @@ export class MemStorage implements IStorage {
       const gurujiReviews = await this.getReviewsByGurujiId(review.gurujiId);
       const totalRating = gurujiReviews.reduce((sum, r) => sum + r.rating, 0);
       const avgRating = Math.round(totalRating / gurujiReviews.length);
-      
+
       gurujiProfile.rating = avgRating;
       gurujiProfile.totalReviews = gurujiReviews.length;
       gurujiProfile.updatedAt = new Date();
-      
+
       this.gurujiProfiles.set(gurujiProfile.id, gurujiProfile);
     }
 
     return review;
   }
-  
+
   async getAllReviews(): Promise<Review[]> {
     return Array.from(this.reviews.values());
   }
 
   async getNotifications(userId: number): Promise<Notification[]> {
     return Array.from(this.notifications.values())
-      .filter(notification => notification.userId === userId)
+      .filter((notification) => notification.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async createNotification(notificationData: InsertNotification): Promise<Notification> {
+  async createNotification(
+    notificationData: InsertNotification,
+  ): Promise<Notification> {
     const notification: Notification = {
       ...notificationData,
       id: this.notificationIdCounter++,
@@ -742,7 +897,7 @@ export class MemStorage implements IStorage {
   async deleteNotification(id: number): Promise<boolean> {
     return this.notifications.delete(id);
   }
-  
+
   async getAllNotifications(): Promise<Notification[]> {
     return Array.from(this.notifications.values());
   }
@@ -751,17 +906,21 @@ export class MemStorage implements IStorage {
     return this.contents.get(key);
   }
 
-  async updateContent(key: string, title: string, content: string): Promise<any | undefined> {
+  async updateContent(
+    key: string,
+    title: string,
+    content: string,
+  ): Promise<any | undefined> {
     const existingContent = this.contents.get(key);
-    
+
     const updatedContent = {
       key,
       title,
       content,
       createdAt: existingContent ? existingContent.createdAt : new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     this.contents.set(key, updatedContent);
     return updatedContent;
   }
@@ -771,7 +930,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.chatbotTemplates.values());
   }
 
-  async createChatbotTemplate(templateData: InsertChatbotTemplate): Promise<ChatbotTemplate> {
+  async createChatbotTemplate(
+    templateData: InsertChatbotTemplate,
+  ): Promise<ChatbotTemplate> {
     const template: ChatbotTemplate = {
       ...templateData,
       id: this.chatbotTemplateIdCounter++,
@@ -784,11 +945,18 @@ export class MemStorage implements IStorage {
     return template;
   }
 
-  async updateChatbotTemplate(id: number, templateData: Partial<ChatbotTemplate>): Promise<ChatbotTemplate | undefined> {
+  async updateChatbotTemplate(
+    id: number,
+    templateData: Partial<ChatbotTemplate>,
+  ): Promise<ChatbotTemplate | undefined> {
     const template = this.chatbotTemplates.get(id);
     if (!template) return undefined;
 
-    const updatedTemplate = { ...template, ...templateData, updatedAt: new Date() };
+    const updatedTemplate = {
+      ...template,
+      ...templateData,
+      updatedAt: new Date(),
+    };
     this.chatbotTemplates.set(id, updatedTemplate);
     return updatedTemplate;
   }
@@ -802,7 +970,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.chatbotTrainingData.values());
   }
 
-  async createChatbotTrainingData(data: InsertChatbotTrainingData): Promise<ChatbotTrainingData> {
+  async createChatbotTrainingData(
+    data: InsertChatbotTrainingData,
+  ): Promise<ChatbotTrainingData> {
     const trainingData: ChatbotTrainingData = {
       ...data,
       id: this.chatbotTrainingDataIdCounter++,
@@ -814,11 +984,18 @@ export class MemStorage implements IStorage {
     return trainingData;
   }
 
-  async updateChatbotTrainingData(id: number, data: Partial<ChatbotTrainingData>): Promise<ChatbotTrainingData | undefined> {
+  async updateChatbotTrainingData(
+    id: number,
+    data: Partial<ChatbotTrainingData>,
+  ): Promise<ChatbotTrainingData | undefined> {
     const trainingData = this.chatbotTrainingData.get(id);
     if (!trainingData) return undefined;
 
-    const updatedTrainingData = { ...trainingData, ...data, updatedAt: new Date() };
+    const updatedTrainingData = {
+      ...trainingData,
+      ...data,
+      updatedAt: new Date(),
+    };
     this.chatbotTrainingData.set(id, updatedTrainingData);
     return updatedTrainingData;
   }
@@ -832,15 +1009,21 @@ export class MemStorage implements IStorage {
     return Array.from(this.whatsappUsers.values());
   }
 
-  async getChatbotUserByWhatsappNumber(whatsappNumber: string): Promise<WhatsappUser | undefined> {
+  async getChatbotUserByWhatsappNumber(
+    whatsappNumber: string,
+  ): Promise<WhatsappUser | undefined> {
     return Array.from(this.whatsappUsers.values()).find(
-      (user) => user.whatsappNumber === whatsappNumber
+      (user) => user.whatsappNumber === whatsappNumber,
     );
   }
 
-  async linkUserWhatsapp(userId: number, whatsappNumber: string): Promise<WhatsappUser | undefined> {
-    const existingUser = await this.getChatbotUserByWhatsappNumber(whatsappNumber);
-    
+  async linkUserWhatsapp(
+    userId: number,
+    whatsappNumber: string,
+  ): Promise<WhatsappUser | undefined> {
+    const existingUser =
+      await this.getChatbotUserByWhatsappNumber(whatsappNumber);
+
     if (existingUser) {
       // Update the existing user
       const updatedUser: WhatsappUser = {
@@ -851,7 +1034,7 @@ export class MemStorage implements IStorage {
         lastInteractionAt: new Date(),
         updatedAt: new Date(),
       };
-      
+
       this.whatsappUsers.set(existingUser.id, updatedUser);
       return updatedUser;
     } else {
@@ -866,7 +1049,7 @@ export class MemStorage implements IStorage {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      
+
       this.whatsappUsers.set(newUser.id, newUser);
       return newUser;
     }
@@ -874,17 +1057,17 @@ export class MemStorage implements IStorage {
 
   async optOutUserWhatsapp(userId: number): Promise<WhatsappUser | undefined> {
     const whatsappUser = Array.from(this.whatsappUsers.values()).find(
-      (user) => user.userId === userId
+      (user) => user.userId === userId,
     );
-    
+
     if (!whatsappUser) return undefined;
-    
+
     const updatedUser: WhatsappUser = {
       ...whatsappUser,
       isOptedIn: false,
       updatedAt: new Date(),
     };
-    
+
     this.whatsappUsers.set(whatsappUser.id, updatedUser);
     return updatedUser;
   }
@@ -894,11 +1077,15 @@ export class MemStorage implements IStorage {
     return Array.from(this.whatsappConversations.values());
   }
 
-  async getChatbotConversation(id: number): Promise<WhatsappConversation | undefined> {
+  async getChatbotConversation(
+    id: number,
+  ): Promise<WhatsappConversation | undefined> {
     return this.whatsappConversations.get(id);
   }
 
-  async createChatbotConversation(data: InsertWhatsappConversation): Promise<WhatsappConversation> {
+  async createChatbotConversation(
+    data: InsertWhatsappConversation,
+  ): Promise<WhatsappConversation> {
     const conversation: WhatsappConversation = {
       ...data,
       id: this.whatsappConversationIdCounter++,
@@ -912,13 +1099,16 @@ export class MemStorage implements IStorage {
     return conversation;
   }
 
-  async updateChatbotConversationStatus(id: number, status: 'active' | 'closed'): Promise<WhatsappConversation | undefined> {
+  async updateChatbotConversationStatus(
+    id: number,
+    status: "active" | "closed",
+  ): Promise<WhatsappConversation | undefined> {
     const conversation = this.whatsappConversations.get(id);
     if (!conversation) return undefined;
 
     const updatedConversation: WhatsappConversation = {
       ...conversation,
-      isActive: status === 'active',
+      isActive: status === "active",
       updatedAt: new Date(),
     };
 
@@ -929,21 +1119,23 @@ export class MemStorage implements IStorage {
   // WhatsApp Message Management
   async getChatbotMessages(conversationId: number): Promise<WhatsappMessage[]> {
     return Array.from(this.whatsappMessages.values())
-      .filter(message => message.conversationId === conversationId)
+      .filter((message) => message.conversationId === conversationId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
-  async addChatbotMessage(messageData: InsertWhatsappMessage): Promise<WhatsappMessage> {
+  async addChatbotMessage(
+    messageData: InsertWhatsappMessage,
+  ): Promise<WhatsappMessage> {
     const message: WhatsappMessage = {
       ...messageData,
       id: this.whatsappMessageIdCounter++,
-      isDelivered: messageData.direction === 'outbound', // Mark outbound messages as delivered
+      isDelivered: messageData.direction === "outbound", // Mark outbound messages as delivered
       isRead: false,
       createdAt: new Date(),
     };
 
     this.whatsappMessages.set(message.id, message);
-    
+
     // Update the conversation's lastMessageAt timestamp
     const conversation = this.whatsappConversations.get(message.conversationId);
     if (conversation) {
@@ -951,7 +1143,7 @@ export class MemStorage implements IStorage {
       conversation.updatedAt = new Date();
       this.whatsappConversations.set(conversation.id, conversation);
     }
-    
+
     return message;
   }
 
@@ -966,17 +1158,21 @@ export class MemStorage implements IStorage {
     return this.userJourneys.get(id);
   }
 
-  async getUserJourneyByUserId(userId: number): Promise<UserJourney | undefined> {
+  async getUserJourneyByUserId(
+    userId: number,
+  ): Promise<UserJourney | undefined> {
     return Array.from(this.userJourneys.values()).find(
-      (journey) => journey.userId === userId
+      (journey) => journey.userId === userId,
     );
   }
 
-  async createUserJourney(journeyData: InsertUserJourney): Promise<UserJourney> {
+  async createUserJourney(
+    journeyData: InsertUserJourney,
+  ): Promise<UserJourney> {
     const journey: UserJourney = {
       ...journeyData,
       id: this.userJourneyIdCounter++,
-      stage: 'beginner',
+      stage: "beginner",
       totalPujas: 0,
       completedPujas: 0,
       description: journeyData.description || null,
@@ -991,16 +1187,26 @@ export class MemStorage implements IStorage {
     return journey;
   }
 
-  async updateUserJourney(id: number, journeyData: Partial<UserJourney>): Promise<UserJourney | undefined> {
+  async updateUserJourney(
+    id: number,
+    journeyData: Partial<UserJourney>,
+  ): Promise<UserJourney | undefined> {
     const journey = this.userJourneys.get(id);
     if (!journey) return undefined;
 
-    const updatedJourney = { ...journey, ...journeyData, updatedAt: new Date() };
+    const updatedJourney = {
+      ...journey,
+      ...journeyData,
+      updatedAt: new Date(),
+    };
     this.userJourneys.set(id, updatedJourney);
     return updatedJourney;
   }
 
-  async updateUserJourneyProgress(journeyId: number, completedPujas: number): Promise<UserJourney | undefined> {
+  async updateUserJourneyProgress(
+    journeyId: number,
+    completedPujas: number,
+  ): Promise<UserJourney | undefined> {
     const journey = this.userJourneys.get(journeyId);
     if (!journey) return undefined;
 
@@ -1008,24 +1214,24 @@ export class MemStorage implements IStorage {
     let newStage = journey.stage;
     const totalPujas = journey.totalPujas || 0;
     const completionRate = completedPujas / Math.max(totalPujas, 1);
-    
+
     if (completionRate >= 0.9 && totalPujas >= 20) {
-      newStage = 'master';
+      newStage = "master";
     } else if (completionRate >= 0.75 && totalPujas >= 15) {
-      newStage = 'expert';
+      newStage = "expert";
     } else if (completionRate >= 0.5 && totalPujas >= 10) {
-      newStage = 'advanced';
+      newStage = "advanced";
     } else if (completionRate >= 0.25 && totalPujas >= 5) {
-      newStage = 'intermediate';
+      newStage = "intermediate";
     }
 
-    const updatedJourney = { 
-      ...journey, 
-      completedPujas, 
-      stage: newStage, 
-      updatedAt: new Date() 
+    const updatedJourney = {
+      ...journey,
+      completedPujas,
+      stage: newStage,
+      updatedAt: new Date(),
     };
-    
+
     this.userJourneys.set(journeyId, updatedJourney);
     return updatedJourney;
   }
@@ -1033,19 +1239,23 @@ export class MemStorage implements IStorage {
   async deleteUserJourney(id: number): Promise<boolean> {
     return this.userJourneys.delete(id);
   }
-  
+
   // User Journey Items Management
   async getUserJourneyItem(id: number): Promise<UserJourneyItem | undefined> {
     return this.userJourneyItems.get(id);
   }
 
-  async getUserJourneyItemsByJourneyId(journeyId: number): Promise<UserJourneyItem[]> {
+  async getUserJourneyItemsByJourneyId(
+    journeyId: number,
+  ): Promise<UserJourneyItem[]> {
     return Array.from(this.userJourneyItems.values())
-      .filter(item => item.journeyId === journeyId)
+      .filter((item) => item.journeyId === journeyId)
       .sort((a, b) => a.sequence - b.sequence);
   }
 
-  async createUserJourneyItem(itemData: InsertUserJourneyItem): Promise<UserJourneyItem> {
+  async createUserJourneyItem(
+    itemData: InsertUserJourneyItem,
+  ): Promise<UserJourneyItem> {
     const item: UserJourneyItem = {
       ...itemData,
       id: this.userJourneyItemIdCounter++,
@@ -1060,7 +1270,7 @@ export class MemStorage implements IStorage {
     };
 
     this.userJourneyItems.set(item.id, item);
-    
+
     // Update total pujas count in the journey
     const journey = this.userJourneys.get(item.journeyId);
     if (journey) {
@@ -1068,11 +1278,14 @@ export class MemStorage implements IStorage {
       journey.totalPujas = totalPujas;
       this.userJourneys.set(journey.id, journey);
     }
-    
+
     return item;
   }
 
-  async updateUserJourneyItem(id: number, itemData: Partial<UserJourneyItem>): Promise<UserJourneyItem | undefined> {
+  async updateUserJourneyItem(
+    id: number,
+    itemData: Partial<UserJourneyItem>,
+  ): Promise<UserJourneyItem | undefined> {
     const item = this.userJourneyItems.get(id);
     if (!item) return undefined;
 
@@ -1081,13 +1294,16 @@ export class MemStorage implements IStorage {
     return updatedItem;
   }
 
-  async markUserJourneyItemComplete(id: number, reflection?: string): Promise<UserJourneyItem | undefined> {
+  async markUserJourneyItemComplete(
+    id: number,
+    reflection?: string,
+  ): Promise<UserJourneyItem | undefined> {
     const item = this.userJourneyItems.get(id);
     if (!item) return undefined;
 
     // Only mark as complete if it wasn't already completed
     const wasAlreadyCompleted = item.isCompleted;
-    
+
     const updatedItem: UserJourneyItem = {
       ...item,
       isCompleted: true,
@@ -1095,9 +1311,9 @@ export class MemStorage implements IStorage {
       reflection: reflection || item.reflection,
       updatedAt: new Date(),
     };
-    
+
     this.userJourneyItems.set(id, updatedItem);
-    
+
     // Update journey progress if this is newly completed
     if (!wasAlreadyCompleted) {
       const journey = this.userJourneys.get(item.journeyId);
@@ -1106,39 +1322,39 @@ export class MemStorage implements IStorage {
         await this.updateUserJourneyProgress(journey.id, completedPujas);
       }
     }
-    
+
     return updatedItem;
   }
 
   async deleteUserJourneyItem(id: number): Promise<boolean> {
     const item = this.userJourneyItems.get(id);
     if (!item) return false;
-    
+
     // Update total pujas count in the journey
     const journey = this.userJourneys.get(item.journeyId);
     if (journey) {
       const totalPujas = Math.max(0, (journey.totalPujas || 0) - 1);
       journey.totalPujas = totalPujas;
-      
+
       // If the item was completed, also decrease the completed count
       if (item.isCompleted) {
         const completedPujas = Math.max(0, (journey.completedPujas || 0) - 1);
         journey.completedPujas = completedPujas;
       }
-      
+
       this.userJourneys.set(journey.id, journey);
     }
-    
+
     return this.userJourneyItems.delete(id);
   }
 }
 
 // Import the PostgreSQL storage implementation
-import { pgStorage } from './pgStorage';
+import { pgStorage } from "./pgStorage";
 
 // Swap to PostgreSQL storage implementation
 // Use pgStorage for real database
 // Import our new implementation that uses direct SQL queries
-import { dbStorage } from './dbStorage';
+import { dbStorage } from "./dbStorage";
 
 export const storage = dbStorage;
