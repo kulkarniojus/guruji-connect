@@ -6,10 +6,30 @@ import { User } from '@shared/schema';
  */
 export async function login(email: string, password: string): Promise<{ success: boolean; message: string; user?: User }> {
   try {
+    // Try regular login first
     const response = await apiRequest('POST', '/api/auth/login', { email, password });
     const data = await response.json();
     return { success: true, message: 'Login successful', user: data };
   } catch (error: any) {
+    // If regular login fails and this looks like an admin email, try admin login
+    if (error.status === 401 && (email.includes('admin') || email === 'admin@gmail.com')) {
+      try {
+        const adminResponse = await apiRequest('POST', '/api/admin/login', { email, password });
+        const adminData = await adminResponse.json();
+        
+        // Redirect to admin dashboard after successful admin login
+        window.location.href = '/admin-dashboard';
+        
+        return { success: true, message: 'Admin login successful', user: adminData.user };
+      } catch (adminError: any) {
+        console.error('Error with admin login:', adminError);
+        const message = adminError.status === 401 
+          ? 'Invalid admin email or password' 
+          : 'Admin login failed. Please try again.';
+        return { success: false, message };
+      }
+    }
+    
     console.error('Error logging in:', error);
     const message = error.status === 401 
       ? 'Invalid email or password' 
