@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useLocation } from 'wouter';
+import { login } from '@/lib/auth';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -53,17 +54,33 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // Simplified version that doesn't require AuthContext
-      // In a real app, this would call an API endpoint
-      setTimeout(() => {
+      const result = await login(values.email, values.password);
+      
+      if (result.success) {
         toast({
           title: 'Login Successful',
-          description: 'You have been logged in successfully',
+          description: result.message,
         });
         onClose();
         form.reset();
-        setLocation('/dashboard');
-      }, 1000);
+        
+        // Check if user is admin and redirect accordingly
+        if (result.user?.role === 'admin' || values.email.includes('admin')) {
+          // Admin users will be redirected by the login function itself
+          // But if they're already on admin dashboard, stay there
+          if (window.location.pathname !== '/admin-dashboard') {
+            setLocation('/admin-dashboard');
+          }
+        } else {
+          setLocation('/dashboard');
+        }
+      } else {
+        toast({
+          title: 'Login Failed',
+          description: result.message,
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
       toast({
         title: 'Error',
