@@ -310,14 +310,14 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCancel}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
-        <DialogHeader className="bg-white">
-          <DialogTitle className="text-lg font-medium text-gray-900 font-poppins">
-            Register with GurujiConnect
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col bg-white border border-gray-200">
+        <DialogHeader className="bg-white border-b border-gray-100 pb-4">
+          <DialogTitle className="text-xl font-semibold text-gray-900">
+            Create Your Account
           </DialogTitle>
         </DialogHeader>
         
-        <div className="mt-6 flex-1 overflow-y-auto pr-2 bg-white" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+        <div className="mt-4 flex-1 overflow-y-auto pr-2 bg-white" style={{ maxHeight: 'calc(90vh - 120px)' }}>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <FormField
