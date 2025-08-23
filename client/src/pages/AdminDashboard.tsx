@@ -11,7 +11,9 @@ import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
 import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin } from 'lucide-react';
 
 export default function AdminDashboard() {
+  // All hooks must be called before any conditional logic
   const { user, isLoading } = useAuth();
+  const [activeTab, setActiveTab] = useState('analytics');
   
   if (isLoading) {
     return (
@@ -24,7 +26,6 @@ export default function AdminDashboard() {
   if (!user || user.role !== 'admin') {
     return <Redirect to="/admin/login" />;
   }
-  const [activeTab, setActiveTab] = useState('analytics');
 
   // Demo mode - no authentication check for demonstration purposes
   // In a production environment, we would authenticate and verify admin role
