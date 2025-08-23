@@ -63,6 +63,9 @@ export default function BookingPage() {
     cacheTime: 0, // Don't cache to avoid stale data
   });
 
+  // Selected puja details - moved before gurujis query to fix initialization error
+  const selectedPuja = pujas && Array.isArray(pujas) ? pujas.find(p => p.id.toString() === selectedPujaId) : null;
+
   // Fetch available gurujis based on puja specialization
   const { data: gurujis = [], isLoading: isGurujiLoading } = useQuery({
     queryKey: ['/api/gurujis', { city: selectedCity, pujaId: selectedPujaId, specialization: selectedPuja?.name }],
@@ -84,9 +87,6 @@ export default function BookingPage() {
       label: `${city.name}, ${city.state}`
     })),
   });
-
-  // Selected puja details
-  const selectedPuja = pujas && Array.isArray(pujas) ? pujas.find(p => p.id.toString() === selectedPujaId) : null;
   
   // Debug information
   console.log("DEBUG: Puja selection", {
