@@ -42,7 +42,10 @@ export default function AdminLogin() {
     try {
       setIsLoading(true);
       // For admin login, send as 'email' field even though it might be username
-      const loginData = { email: data.email === 'admin' ? 'admin@admin.com' : data.email, password: data.password };
+      const loginData = { 
+        email: data.email === 'admin' ? 'admin@admin.com' : data.email, 
+        password: data.password 
+      };
       const response = await apiRequest('POST', '/api/admin/login', loginData);
       const userData = await response.json();
       

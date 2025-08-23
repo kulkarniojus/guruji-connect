@@ -41,18 +41,40 @@ const SessionStore = MemoryStore(session);
 // Initialize admin user if it doesn't exist
 async function initializeAdminUser() {
   try {
-    const adminUser = await storageInstance.getUserByEmail("admin@admin.com");
-    if (!adminUser) {
+    // Create default admin user
+    const defaultAdmin = await storageInstance.getUserByEmail("admin@admin.com");
+    if (!defaultAdmin) {
       await storageInstance.createUser({
-        name: "Administrator",
+        firstName: "Default",
+        lastName: "Admin",
         email: "admin@admin.com", 
         mobile: "9999999999",
         password: "admin",
+        age: 30,
+        gender: "male",
         role: "admin",
-        isActive: true,
+        isVerified: true,
         isBlocked: false
       });
-      console.log("✓ Admin user created: admin@admin.com / admin");
+      console.log("✓ Default admin user created: admin@admin.com / admin");
+    }
+
+    // Create preferred admin user
+    const preferredAdmin = await storageInstance.getUserByEmail("admin@gmail.com");
+    if (!preferredAdmin) {
+      await storageInstance.createUser({
+        firstName: "Admin",
+        lastName: "User",
+        email: "admin@gmail.com", 
+        mobile: "8888888888",
+        password: "admin123",
+        age: 30,
+        gender: "male",
+        role: "admin",
+        isVerified: true,
+        isBlocked: false
+      });
+      console.log("✓ Preferred admin user created: admin@gmail.com / admin123");
     }
   } catch (error) {
     console.error("Error creating admin user:", error);
