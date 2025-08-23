@@ -254,7 +254,7 @@ export class MemStorage implements IStorage {
         name: 'Ganesh Puja',
         description: 'A ceremony to worship Lord Ganesha, performed for removing obstacles and bringing good fortune.',
         price: 1200,
-        imageUrl: 'https://images.unsplash.com/photo-1602989372721-7d65d54a74ef?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+        src: 'images/',
         type: 'offline',
         duration: 90, // 1.5 hours
         createdAt: new Date(),
