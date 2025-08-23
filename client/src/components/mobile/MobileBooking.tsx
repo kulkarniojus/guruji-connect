@@ -70,6 +70,38 @@ const MobileBooking: React.FC = () => {
   const [currentGurujiIndex, setCurrentGurujiIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('All');
+
+  // Filter gurujis based on search query and selected filters
+  const filteredGurujis = gurujis.filter(guruji => {
+    // Search query filter
+    const matchesSearch = searchQuery === '' || 
+      guruji.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      guruji.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      guruji.specialization.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      guruji.pujas.some(puja => puja.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    // Filter chip filter
+    let matchesFilter = true;
+    switch (selectedFilter) {
+      case 'Available Today':
+        matchesFilter = guruji.availability === 'Available Today';
+        break;
+      case 'Top Rated':
+        matchesFilter = guruji.rating >= 4.8;
+        break;
+      case 'Nearby':
+        matchesFilter = guruji.location.includes('Mumbai') || guruji.location.includes('Pune');
+        break;
+      case 'Budget Friendly':
+        matchesFilter = parseInt(guruji.price.replace('₹', '').replace(',', '')) <= 1500;
+        break;
+      default:
+        matchesFilter = true;
+    }
+
+    return matchesSearch && matchesFilter;
+  });
 
   const handleSwipe = (event: any, info: PanInfo) => {
     const threshold = 50;
@@ -77,13 +109,20 @@ const MobileBooking: React.FC = () => {
     if (info.offset.x > threshold && currentGurujiIndex > 0) {
       // Swipe right - previous
       setCurrentGurujiIndex(prev => prev - 1);
-    } else if (info.offset.x < -threshold && currentGurujiIndex < gurujis.length - 1) {
+    } else if (info.offset.x < -threshold && currentGurujiIndex < filteredGurujis.length - 1) {
       // Swipe left - next
       setCurrentGurujiIndex(prev => prev + 1);
     }
   };
 
-  const currentGuruji = gurujis[currentGurujiIndex];
+  // Reset current index if filters change and current index is out of bounds
+  React.useEffect(() => {
+    if (currentGurujiIndex >= filteredGurujis.length && filteredGurujis.length > 0) {
+      setCurrentGurujiIndex(0);
+    }
+  }, [filteredGurujis.length, currentGurujiIndex]);
+
+  const currentGuruji = filteredGurujis[currentGurujiIndex];
 
   return (
     <MobileLayout 
@@ -118,9 +157,10 @@ const MobileBooking: React.FC = () => {
           {['All', 'Available Today', 'Top Rated', 'Nearby', 'Budget Friendly'].map((filter) => (
             <Button
               key={filter}
-              variant="outline"
+              variant={selectedFilter === filter ? "default" : "outline"}
               size="sm"
               className="whitespace-nowrap"
+              onClick={() => setSelectedFilter(filter)}
             >
               {filter}
             </Button>
@@ -130,9 +170,20 @@ const MobileBooking: React.FC = () => {
 
       {/* Swipeable Guruji Cards */}
       <div className="px-4 py-6">
-        <div className="relative overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
+        {filteredGurujis.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">No gurujis found matching your search criteria.</p>
+            <Button onClick={() => {
+              setSearchQuery('');
+              setSelectedFilter('All');
+            }}>
+              Clear Filters
+            </Button>
+          </div>
+        ) : (
+          <div className="relative overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
               key={currentGurujiIndex}
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
@@ -249,18 +300,18 @@ const MobileBooking: React.FC = () => {
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation Indicators */}
-          <div className="flex justify-center mt-6 space-x-2">
-            {gurujis.map((_, index) => (
-              <motion.button
-                key={index}
-                onClick={() => setCurrentGurujiIndex(index)}
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  index === currentGurujiIndex ? 'bg-blue-500' : 'bg-gray-300'
-                }`}
-                whileTap={{ scale: 0.8 }}
-              />
-            ))}
+            {/* Navigation Indicators */}
+            <div className="flex justify-center mt-6 space-x-2">
+              {filteredGurujis.map((_, index) => (
+                <motion.button
+                  key={index}
+                  onClick={() => setCurrentGurujiIndex(index)}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    index === currentGurujiIndex ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}
+                  whileTap={{ scale: 0.8 }}
+                />
+              ))}
           </div>
 
           {/* Swipe Hint */}
@@ -268,8 +319,9 @@ const MobileBooking: React.FC = () => {
             <ChevronLeft size={20} />
             <span className="text-sm">Swipe to browse</span>
             <ChevronRight size={20} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Quick Book Section */}
