@@ -57,14 +57,14 @@ export default function BookingPage() {
   const [, setLocation] = useLocation();
 
   // Fetch available pujas
-  const { data: pujas = [], isLoading: isPujasLoading } = useQuery<any[]>({
+  const { data: pujas = [], isLoading: isPujasLoading } = useQuery({
     queryKey: ['/api/pujas'],
     staleTime: 0, // Always refetch to ensure fresh data
-    cacheTime: 0, // Don't cache to avoid stale data
+    gcTime: 0, // Don't cache to avoid stale data (renamed from cacheTime in v5)
   });
 
   // Selected puja details - moved before gurujis query to fix initialization error
-  const selectedPuja = pujas && Array.isArray(pujas) ? pujas.find(p => p.id.toString() === selectedPujaId) : null;
+  const selectedPuja = Array.isArray(pujas) ? pujas.find((p: any) => p.id.toString() === selectedPujaId) : null;
 
   // Fetch available gurujis based on puja specialization
   const { data: gurujis = [], isLoading: isGurujiLoading } = useQuery({
@@ -377,7 +377,7 @@ export default function BookingPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  {(initialPujaId ? pujas?.filter(puja => puja.id.toString() === initialPujaId) : pujas)?.map((puja) => (
+                  {(initialPujaId ? (pujas as any[])?.filter((puja: any) => puja.id.toString() === initialPujaId) : (pujas as any[]))?.map((puja: any) => (
                     <div 
                       key={puja.id}
                       className={`border rounded-lg p-4 transition-colors ${

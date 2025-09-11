@@ -31,10 +31,10 @@ export function MobileBookingPage() {
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
   
   // Fetch available pujas from API (same as desktop version)
-  const { data: services = [], isLoading: isServicesLoading } = useQuery<any[]>({
+  const { data: services = [], isLoading: isServicesLoading } = useQuery({
     queryKey: ['/api/pujas'],
     staleTime: 0, // Always refetch to ensure fresh data
-    cacheTime: 0, // Don't cache to avoid stale data
+    gcTime: 0, // Don't cache to avoid stale data (renamed from cacheTime in v5)
   });
   
   // Mock data for Guruji selection
@@ -108,7 +108,7 @@ export function MobileBookingPage() {
     }
   };
   
-  const selectedServiceData = selectedService ? services.find(s => s.id === selectedService) : null;
+  const selectedServiceData = selectedService ? (services as any[]).find((s: any) => s.id === selectedService) : null;
   const selectedGurujiData = selectedGuruji ? gurujis.find(g => g.id === selectedGuruji) : null;
   
   return (
@@ -157,7 +157,7 @@ export function MobileBookingPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {services.map(service => (
+                {(services as any[]).map((service: any) => (
                   <Card 
                     key={service.id}
                     className={`cursor-pointer transition-all hover:border-primary ${selectedService === service.id ? 'border-primary ring-2 ring-primary-50' : ''}`}
