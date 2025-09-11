@@ -97,7 +97,7 @@ export default function Hero() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-1">
                   <label htmlFor="city" className="block text-xs font-medium text-neutral-700 mb-1">City</label>
-                  <Select onValueChange={(value) => setCity(value)} disabled={isCitiesLoading}>
+                  <Select value={city} onValueChange={(value) => setCity(value)} disabled={isCitiesLoading}>
                     <SelectTrigger id="city" className="w-full">
                       <SelectValue placeholder={isCitiesLoading ? "Loading cities..." : "Select City"} />
                     </SelectTrigger>
@@ -113,7 +113,7 @@ export default function Hero() {
                 
                 <div className="md:col-span-1">
                   <label htmlFor="puja" className="block text-xs font-medium text-neutral-700 mb-1">Puja Name</label>
-                  <Select onValueChange={(value) => setPuja(value)} disabled={isPujasLoading}>
+                  <Select value={puja} onValueChange={(value) => setPuja(value)} disabled={isPujasLoading}>
                     <SelectTrigger id="puja" className="w-full">
                       <SelectValue placeholder={isPujasLoading ? "Loading pujas..." : "Select Puja"} />
                     </SelectTrigger>
