@@ -93,7 +93,7 @@ export default function Hero() {
             </p>
             
             {/* Search form */}
-            <div className="bg-white rounded-lg p-4 shadow-lg">
+            <div className="bg-white text-foreground rounded-lg p-4 shadow-lg">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-1">
                   <label htmlFor="city" className="block text-xs font-medium text-neutral-700 mb-1">City</label>
