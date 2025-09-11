@@ -38,46 +38,36 @@ declare module 'express-session' {
 
 const SessionStore = MemoryStore(session);
 
-// Initialize admin user if it doesn't exist
+// Initialize admin user if it doesn't exist (ONLY in development)
 async function initializeAdminUser() {
-  try {
-    // Create default admin user
-    const defaultAdmin = await storageInstance.getUserByEmail("admin@admin.com");
-    if (!defaultAdmin) {
-      await storageInstance.createUser({
-        firstName: "Default",
-        lastName: "Admin",
-        email: "admin@admin.com", 
-        mobile: "9999999999",
-        password: "admin",
-        age: 30,
-        gender: "male",
-        role: "admin",
-        isVerified: true,
-        isBlocked: false
-      });
-      console.log("✓ Default admin user created: admin@admin.com / admin");
-    }
+  // Only create admin user in development environment
+  if (process.env.NODE_ENV === 'production') {
+    console.log("🔒 Admin auto-creation disabled in production for security");
+    return;
+  }
 
-    // Create preferred admin user
-    const preferredAdmin = await storageInstance.getUserByEmail("admin@gmail.com");
-    if (!preferredAdmin) {
-      await storageInstance.createUser({
-        firstName: "Admin",
-        lastName: "User",
-        email: "admin@gmail.com", 
-        mobile: "8888888888",
-        password: "admin123",
-        age: 30,
-        gender: "male",
-        role: "admin",
-        isVerified: true,
-        isBlocked: false
-      });
-      console.log("✓ Preferred admin user created: admin@gmail.com / admin123");
+  try {
+    // Create development admin user only if environment variable is set
+    if (process.env.CREATE_DEV_ADMIN === 'true') {
+      const devAdmin = await storageInstance.getUserByEmail("dev-admin@local.dev");
+      if (!devAdmin) {
+        await storageInstance.createUser({
+          firstName: "Dev",
+          lastName: "Admin",
+          email: "dev-admin@local.dev", 
+          mobile: "0000000000",
+          password: "dev-admin-2024",
+          age: 30,
+          gender: "male",
+          role: "admin",
+          isVerified: true,
+          isBlocked: false
+        });
+        console.log("✓ Development admin user created for testing purposes only");
+      }
     }
   } catch (error) {
-    console.error("Error creating admin user:", error);
+    console.error("Error creating dev admin user:", error);
   }
 }
 

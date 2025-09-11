@@ -4,12 +4,13 @@ import { User } from '@shared/schema';
 /**
  * Login with email and password
  */
-export async function login(email: string, password: string): Promise<{ success: boolean; message: string; user?: User }> {
+export async function login(email: string, password: string): Promise<{ success: boolean; message: string; user?: User; isAdmin?: boolean }> {
   try {
     // Try regular login first
     const response = await apiRequest('POST', '/api/auth/login', { email, password });
     const data = await response.json();
-    return { success: true, message: 'Login successful', user: data };
+    
+    return { success: true, message: 'Login successful', user: data, isAdmin: false };
   } catch (error: any) {
     // If regular login fails and this looks like an admin email, try admin login
     if (error.status === 401 && (email.includes('admin') || email === 'admin@gmail.com')) {
@@ -17,10 +18,7 @@ export async function login(email: string, password: string): Promise<{ success:
         const adminResponse = await apiRequest('POST', '/api/admin/login', { email, password });
         const adminData = await adminResponse.json();
         
-        // Redirect to admin dashboard after successful admin login
-        window.location.href = '/admin-dashboard';
-        
-        return { success: true, message: 'Admin login successful', user: adminData.user };
+        return { success: true, message: 'Admin login successful', user: adminData.user, isAdmin: true };
       } catch (adminError: any) {
         console.error('Error with admin login:', adminError);
         const message = adminError.status === 401 
@@ -72,6 +70,7 @@ export async function registerUser(userData: any): Promise<{ success: boolean; m
   try {
     const response = await apiRequest('POST', '/api/auth/register', userData);
     const data = await response.json();
+    
     return { success: true, message: 'Registration successful', user: data };
   } catch (error: any) {
     console.error('Error registering user:', error);

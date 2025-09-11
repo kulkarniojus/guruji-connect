@@ -64,13 +64,9 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
         onClose();
         form.reset();
         
-        // Check if user is admin and redirect accordingly
-        if (result.user?.role === 'admin' || values.email.includes('admin')) {
-          // Admin users will be redirected by the login function itself
-          // But if they're already on admin dashboard, stay there
-          if (window.location.pathname !== '/admin-dashboard') {
-            setLocation('/admin-dashboard');
-          }
+        // Redirect based on user role or admin flag
+        if (result.isAdmin || result.user?.role === 'admin') {
+          setLocation('/admin-dashboard');
         } else {
           setLocation('/dashboard');
         }

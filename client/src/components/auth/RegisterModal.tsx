@@ -26,6 +26,7 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import { registerUser } from '@/lib/auth';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -276,22 +277,26 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      // Simplified version that doesn't require AuthContext
-      // In a real app, this would call an API endpoint
-      setTimeout(() => {
+      // Call the actual registration API
+      const result = await registerUser(data);
+      
+      if (result.success) {
         toast({
           title: 'Registration Successful',
-          description: 'Your account has been created successfully',
+          description: result.message,
         });
         onClose();
         form.reset();
         
-        if (data.registrationType === 'customer') {
-          setLocation('/dashboard');
-        } else {
-          setLocation('/guruji/dashboard');
-        }
-      }, 1000);
+        // Redirect all users to dashboard (both customers and gurujis)
+        setLocation('/dashboard');
+      } else {
+        toast({
+          title: 'Registration Failed',
+          description: result.message,
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
       toast({
         title: 'Error',
