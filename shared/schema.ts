@@ -12,6 +12,7 @@ export const videoSessionStatusEnum = pgEnum('video_session_status', ['scheduled
 export const chatbotIntentEnum = pgEnum('chatbot_intent', ['greeting', 'booking_inquiry', 'puja_information', 'guruji_availability', 'payment_issue', 'cancel_booking', 'reschedule_booking', 'general_inquiry', 'technical_support', 'other']);
 export const journeyStageEnum = pgEnum('journey_stage', ['beginner', 'intermediate', 'advanced', 'expert', 'master']);
 export const gurujiStatusEnum = pgEnum('guruji_status', ['pending', 'approved', 'rejected', 'suspended']);
+export const notificationStatusEnum = pgEnum('notification_status', ['sent', 'accepted', 'rejected', 'expired']);
 
 // Cities table - for admin-configurable cities
 export const cities = pgTable("cities", {
@@ -219,6 +220,19 @@ export const notifications = pgTable("notifications", {
   isRead: boolean("is_read").default(false),
   type: text("type").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Booking notifications table - tracks which gurujis are notified about bookings
+export const bookingNotifications = pgTable("booking_notifications", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").notNull().references(() => bookings.id),
+  gurujiId: integer("guruji_id").notNull().references(() => gurujiProfiles.id),
+  status: notificationStatusEnum("status").notNull().default('sent'),
+  notifiedAt: timestamp("notified_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Promotion codes table

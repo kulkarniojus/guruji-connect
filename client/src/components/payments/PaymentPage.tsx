@@ -59,70 +59,89 @@ export default function PaymentPage({ bookingId, amount, pujaName, onBack, onSuc
     );
   }
 
+  // Simulate successful payment and trigger notifications
+  const handleProceedWithBooking = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Call the success callback to create booking and notify gurujis
+      onSuccess();
+      
+    } catch (error) {
+      console.error('Error processing booking:', error);
+      toast({
+        title: "Error processing booking",
+        description: "There was an error processing your booking. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {showPaymentForm ? (
-        <DummyPaymentForm 
-          amount={amount} 
-          onSuccess={handlePaymentSuccess}
-          onCancel={() => setShowPaymentForm(false)}
-        />
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Payment Details</CardTitle>
-            <CardDescription>Complete payment to confirm your booking</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="rounded-lg border p-4">
-                <h3 className="text-lg font-semibold mb-2">{pujaName}</h3>
-                <div className="flex justify-between mb-2">
-                  <span className="text-neutral-600">Service Fee</span>
-                  <span>₹{amount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-neutral-600">Platform Fee</span>
-                  <span>₹0.00</span>
-                </div>
-                <div className="flex justify-between font-medium pt-2 border-t mt-2">
-                  <span>Total Amount</span>
-                  <span className="text-primary">₹{amount.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="rounded-lg border p-4 flex items-center">
-                  <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
-                    <CreditCard className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium">Card Payment</h4>
-                    <p className="text-sm text-neutral-600">Pay securely with debit or credit card</p>
-                  </div>
-                  <Button onClick={() => setShowPaymentForm(true)}>Pay Now</Button>
-                </div>
-              </div>
-              
-              <div className="text-sm text-neutral-600">
-                <p className="mb-2">By proceeding with the payment, you agree to our Terms and Conditions.</p>
-                <p>For any assistance, please contact our customer support.</p>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="h-6 w-6 text-green-600" />
+            Booking Request Ready
+          </CardTitle>
+          <CardDescription>Please review your booking details below</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-semibold mb-2">{pujaName}</h3>
+            <div className="flex justify-between mb-2">
+              <span className="text-neutral-600">Service Fee</span>
+              <span>₹{amount.toFixed(2)}</span>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="flex justify-between mb-2">
+              <span className="text-neutral-600">Platform Fee</span>
+              <span>₹0.00</span>
+            </div>
+            <div className="flex justify-between font-medium pt-2 border-t mt-2">
+              <span>Total Amount</span>
+              <span className="text-primary">₹{amount.toFixed(2)}</span>
+            </div>
+          </div>
 
-      {!showPaymentForm && (
-        <Button 
-          variant="ghost" 
-          className="mt-4"
-          onClick={onBack}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-      )}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="font-semibold text-blue-900 mb-3">📞 Payment Process</h3>
+            <div className="space-y-2 text-blue-800">
+              <p>✓ Our admin team will contact you within 2-4 hours for payment</p>
+              <p>✓ You can pay via UPI, Bank Transfer, or Cash on Service</p>
+              <p>✓ No advance payment required - secure and flexible</p>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <h4 className="font-medium text-amber-900 mb-2">🔔 What happens next?</h4>
+            <p className="text-amber-800 text-sm">
+              Once you proceed, qualified Gurujis in your area will be notified. 
+              You'll receive confirmation once a Guruji accepts your request.
+            </p>
+          </div>
+
+          <div className="flex gap-4">
+            <Button 
+              onClick={handleProceedWithBooking}
+              className="flex-1"
+              data-testid="button-proceed-booking"
+            >
+              Proceed with Booking Request
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={onBack}
+              className="flex-1"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Details
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
