@@ -1403,22 +1403,22 @@ export class DBStorage implements IStorage {
         SELECT gp.*, u."firstName", u."lastName", u.email, u.mobile 
         FROM guruji_profiles gp
         JOIN users u ON gp."userId" = u.id
-        WHERE 1=1
+        WHERE gp."isVerified" = true AND gp."isAvailable" = true
       `;
-      const values: any[] = [filters.status || 'approved'];
-      let paramIndex = 2;
+      const values: any[] = [];
+      let paramIndex = 1;
 
-      // Filter by city
+      // Filter by city (case-insensitive)
       if (filters.city) {
-        query += ` AND (gp.location ILIKE $${paramIndex} OR gp.cities LIKE $${paramIndex})`;
-        values.push(`%${filters.city}%`);
+        query += ` AND LOWER(gp.city) = LOWER($${paramIndex})`;
+        values.push(filters.city);
         paramIndex++;
       }
 
       // Filter by puja specialization
       if (filters.specialization) {
-        query += ` AND gp.specialization ILIKE $${paramIndex}`;
-        values.push(`%${filters.specialization}%`);
+        query += ` AND $${paramIndex} = ANY(gp.specialities)`;
+        values.push(filters.specialization);
         paramIndex++;
       }
 
