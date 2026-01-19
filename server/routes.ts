@@ -186,15 +186,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/login', async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
+      console.log('Admin login attempt:', { email });
       
       // Find admin user
       const user = await storageInstance.getUserByEmail(email);
+      console.log('User found:', user ? { id: user.id, email: user.email, role: user.role } : 'null');
+      
       if (!user || user.role !== 'admin') {
+        console.log('User not found or not admin');
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
       // Verify password
       const isValidPassword = await storageInstance.verifyPassword(user.id, password);
+      console.log('Password valid:', isValidPassword);
+      
       if (!isValidPassword) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
