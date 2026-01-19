@@ -162,7 +162,10 @@ const HomeScreen: React.FC = () => {
                 <Text style={styles.greeting}>Namaste 🙏</Text>
                 <Text style={styles.userName}>Welcome back, Rajesh</Text>
               </View>
-              <TouchableOpacity style={styles.notificationButton}>
+              <TouchableOpacity 
+                style={styles.notificationButton}
+                onPress={() => navigation.navigate('Notifications')}
+              >
                 <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
                 <View style={styles.notificationBadge}>
                   <Text style={styles.notificationCount}>3</Text>
@@ -193,7 +196,10 @@ const HomeScreen: React.FC = () => {
         <View style={styles.quickActionsContainer}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickActionButton}>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('PujasList')}
+            >
               <LinearGradient
                 colors={['#F59E0B', '#D97706']}
                 style={styles.quickActionGradient}
@@ -239,7 +245,7 @@ const HomeScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Featured Pujas</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('PujasList')}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>

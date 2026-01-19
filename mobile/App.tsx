@@ -17,6 +17,12 @@ import ChatScreen from './src/screens/ChatScreen';
 import GurujiDetailScreen from './src/screens/GurujiDetailScreen';
 import VideoCallScreen from './src/screens/VideoCallScreen';
 import SpiritualJourneyScreen from './src/screens/SpiritualJourneyScreen';
+import DashboardScreen from './src/screens/DashboardScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import PujasListScreen from './src/screens/PujasListScreen';
+import ServicesScreen from './src/screens/ServicesScreen';
+import HowItWorksScreen from './src/screens/HowItWorksScreen';
+import BecomeGurujiScreen from './src/screens/BecomeGurujiScreen';
 
 // Navigation types
 export type RootStackParamList = {
@@ -25,6 +31,13 @@ export type RootStackParamList = {
   GurujiDetail: { gurujiId: string };
   VideoCall: { roomId: string };
   BookingDetail: { bookingId: string };
+  PujaDetail: { pujaId: string };
+  Dashboard: undefined;
+  Notifications: undefined;
+  PujasList: undefined;
+  Services: undefined;
+  HowItWorks: undefined;
+  BecomeGuruji: undefined;
 };
 
 export type MainTabParamList = {
@@ -144,6 +157,50 @@ export default function App() {
                   headerShown: true,
                   title: 'Video Call',
                   headerBackTitleVisible: false,
+                }}
+              />
+              <Stack.Screen 
+                name="Dashboard" 
+                component={DashboardScreen}
+                options={{
+                  headerShown: true,
+                  title: 'Dashboard',
+                  headerBackTitleVisible: false,
+                }}
+              />
+              <Stack.Screen 
+                name="Notifications" 
+                component={NotificationsScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="PujasList" 
+                component={PujasListScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="Services" 
+                component={ServicesScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="HowItWorks" 
+                component={HowItWorksScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="BecomeGuruji" 
+                component={BecomeGurujiScreen}
+                options={{
+                  headerShown: false,
                 }}
               />
             </Stack.Navigator>
