@@ -110,9 +110,15 @@ The platform now includes a complete React Native mobile application built with 
 
 **Core Features:**
 - Native iOS and Android applications
-- Bottom tab navigation with 5 main screens
+- Bottom tab navigation with 5 main screens (Home, Bookings, Journey, Chat, Profile)
 - OTP-based authentication with biometric support
 - Home dashboard with featured pujas and gurujis
+- Dashboard with user stats, upcoming/past bookings, and spending analytics
+- PujasList with search, category filters, and detailed puja cards
+- Notifications screen with read/unread tabs and notification management
+- Services overview with feature highlights
+- HowItWorks guide with step-by-step process and FAQ accordion
+- BecomeGuruji registration form for spiritual guides
 - Booking management with status tracking
 - Real-time chat system with online indicators
 - Spiritual journey tracking with progress milestones
@@ -131,8 +137,22 @@ The platform now includes a complete React Native mobile application built with 
 **Project Structure:**
 ```
 mobile/
-├── src/screens/           # All app screens
-├── App.tsx               # Main navigation
+├── src/screens/           # All app screens (14 total)
+│   ├── HomeScreen.tsx         # Main home with featured content
+│   ├── AuthScreen.tsx         # Login/registration
+│   ├── BookingScreen.tsx      # Booking management
+│   ├── ProfileScreen.tsx      # User profile
+│   ├── ChatScreen.tsx         # Messaging
+│   ├── SpiritualJourneyScreen.tsx  # Spiritual progress tracking
+│   ├── GurujiDetailScreen.tsx # Guruji profiles
+│   ├── VideoCallScreen.tsx    # Video consultations
+│   ├── DashboardScreen.tsx    # User dashboard with stats
+│   ├── NotificationsScreen.tsx # Notification center
+│   ├── PujasListScreen.tsx    # Browse all pujas
+│   ├── ServicesScreen.tsx     # Services overview
+│   ├── HowItWorksScreen.tsx   # Platform guide
+│   └── BecomeGurujiScreen.tsx # Guruji registration
+├── App.tsx               # Main navigation with stack + tab navigators
 ├── app.json             # Expo configuration
 └── package.json         # Dependencies
 ```
@@ -148,6 +168,7 @@ mobile/
 Changelog:
 - July 05, 2025. Initial setup
 - July 05, 2025. Added comprehensive React Native mobile application with all web features
+- January 19, 2026. Mobile-web frontend alignment: Added 6 new mobile screens (Dashboard, Notifications, PujasList, Services, HowItWorks, BecomeGuruji) to match web functionality
 ```
 
 ## User Preferences
