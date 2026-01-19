@@ -352,16 +352,13 @@ export class MemStorage implements IStorage {
   }
 
   private initializeDefaultAdmin() {
-    // Create admin user with hashed password (sync for constructor)
-    const salt = genSaltSync(10);
-    const hashedPassword = hashSync("admin123", salt);
-    
+    // Create admin user with placeholder password - will be hashed async
     const adminUser = {
       id: this.userIdCounter++,
       name: "Admin",
       email: "admin@admin.com",
       mobile: "9999999999",
-      password: hashedPassword,
+      password: "placeholder",
       role: "admin" as const,
       isBlocked: false,
       createdAt: new Date(),
@@ -369,7 +366,14 @@ export class MemStorage implements IStorage {
     };
     
     this.users.set(adminUser.id, adminUser as User);
-    console.log("Default admin user created: admin@admin.com / admin123");
+    
+    // Hash password asynchronously
+    genSalt(10).then(salt => {
+      hash("admin123", salt).then(hashedPassword => {
+        adminUser.password = hashedPassword;
+        console.log("Default admin user created: admin@admin.com / admin123");
+      });
+    });
   }
 
   private initializeDefaultPujas() {
