@@ -346,6 +346,30 @@ export class MemStorage implements IStorage {
     
     // Initialize with sample Guruji profiles for demo
     this.initializeSampleGurujis();
+    
+    // Initialize default admin user
+    this.initializeDefaultAdmin();
+  }
+
+  private async initializeDefaultAdmin() {
+    // Create admin user with hashed password
+    const salt = await genSalt(10);
+    const hashedPassword = await hash("admin123", salt);
+    
+    const adminUser = {
+      id: this.userIdCounter++,
+      name: "Admin",
+      email: "admin@admin.com",
+      mobile: "9999999999",
+      password: hashedPassword,
+      role: "admin" as const,
+      isBlocked: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    this.users.set(adminUser.id, adminUser as User);
+    console.log("Default admin user created: admin@admin.com / admin123");
   }
 
   private initializeDefaultPujas() {
