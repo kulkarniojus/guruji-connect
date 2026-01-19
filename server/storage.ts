@@ -343,6 +343,9 @@ export class MemStorage implements IStorage {
 
     // Initialize with some default pujas
     this.initializeDefaultPujas();
+    
+    // Initialize with sample Guruji profiles for demo
+    this.initializeSampleGurujis();
   }
 
   private initializeDefaultPujas() {
@@ -399,6 +402,188 @@ export class MemStorage implements IStorage {
 
     for (const puja of defaultPujas) {
       this.pujas.set(puja.id, puja as Puja);
+    }
+  }
+
+  private initializeSampleGurujis() {
+    // First create sample users for the Gurujis
+    const sampleGurujiUsers = [
+      {
+        id: this.userIdCounter++,
+        name: "Pandit Ramesh Sharma",
+        email: "ramesh.sharma@gurujiconnect.com",
+        mobile: "9876543210",
+        password: "hashed_password",
+        role: "guruji" as const,
+        isBlocked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: this.userIdCounter++,
+        name: "Acharya Priya Devi",
+        email: "priya.devi@gurujiconnect.com",
+        mobile: "9876543211",
+        password: "hashed_password",
+        role: "guruji" as const,
+        isBlocked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: this.userIdCounter++,
+        name: "Pandit Suresh Kumar",
+        email: "suresh.kumar@gurujiconnect.com",
+        mobile: "9876543212",
+        password: "hashed_password",
+        role: "guruji" as const,
+        isBlocked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: this.userIdCounter++,
+        name: "Pandit Vijay Mishra",
+        email: "vijay.mishra@gurujiconnect.com",
+        mobile: "9876543213",
+        password: "hashed_password",
+        role: "guruji" as const,
+        isBlocked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+
+    for (const user of sampleGurujiUsers) {
+      this.users.set(user.id, user as User);
+    }
+
+    // Now create Guruji profiles linked to these users
+    const sampleGurujis = [
+      {
+        id: this.gurujiProfileIdCounter++,
+        userId: sampleGurujiUsers[0].id,
+        bio: "Experienced Vedic priest with deep knowledge of Sanskrit shlokas and traditional rituals. Specializing in Satyanarayan Puja and Griha Pravesh ceremonies.",
+        experience: 15,
+        specialization: "Vedic Rituals",
+        status: "approved" as const,
+        approvedBy: null,
+        approvedAt: new Date(),
+        rejectionReason: null,
+        cities: ["mumbai", "pune", "thane"],
+        maxCities: 3,
+        location: "Mumbai",
+        radius: 25,
+        pricePerHour: 1200,
+        isOnline: true,
+        isOffline: true,
+        isConsultation: true,
+        isAvailable: true,
+        aadharVerified: true,
+        documentsVerified: true,
+        verificationDate: new Date(),
+        rating: 48, // 4.8 stars stored as integer
+        totalReviews: 156,
+        languages: ["Hindi", "Sanskrit", "Marathi"],
+        certificates: ["Vedic Studies", "Sanskrit Scholar"],
+        profilePictureUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: this.gurujiProfileIdCounter++,
+        userId: sampleGurujiUsers[1].id,
+        bio: "Spiritual guide and healer with expertise in meditation, yoga, and holistic wellness practices. Conducts both online and offline sessions.",
+        experience: 12,
+        specialization: "Spiritual Guidance",
+        status: "approved" as const,
+        approvedBy: null,
+        approvedAt: new Date(),
+        rejectionReason: null,
+        cities: ["delhi", "noida", "gurgaon"],
+        maxCities: 3,
+        location: "Delhi",
+        radius: 30,
+        pricePerHour: 1500,
+        isOnline: true,
+        isOffline: true,
+        isConsultation: true,
+        isAvailable: true,
+        aadharVerified: true,
+        documentsVerified: true,
+        verificationDate: new Date(),
+        rating: 49, // 4.9 stars
+        totalReviews: 203,
+        languages: ["Hindi", "English", "Sanskrit"],
+        certificates: ["Yoga Teacher", "Meditation Guide"],
+        profilePictureUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: this.gurujiProfileIdCounter++,
+        userId: sampleGurujiUsers[2].id,
+        bio: "Expert astrologer and Vastu consultant with 20+ years of experience. Provides accurate horoscope readings and remedies.",
+        experience: 20,
+        specialization: "Astrology",
+        status: "approved" as const,
+        approvedBy: null,
+        approvedAt: new Date(),
+        rejectionReason: null,
+        cities: ["bangalore", "mysore", "chennai"],
+        maxCities: 3,
+        location: "Bangalore",
+        radius: 35,
+        pricePerHour: 1000,
+        isOnline: true,
+        isOffline: true,
+        isConsultation: true,
+        isAvailable: true,
+        aadharVerified: true,
+        documentsVerified: true,
+        verificationDate: new Date(),
+        rating: 47, // 4.7 stars
+        totalReviews: 178,
+        languages: ["Hindi", "Kannada", "Tamil", "English"],
+        certificates: ["Jyotish Acharya", "Vastu Expert"],
+        profilePictureUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: this.gurujiProfileIdCounter++,
+        userId: sampleGurujiUsers[3].id,
+        bio: "Traditional priest specializing in wedding ceremonies, Navgraha Shanti, and Ganesh Puja. Available for ceremonies across Gujarat.",
+        experience: 18,
+        specialization: "Wedding Ceremonies",
+        status: "approved" as const,
+        approvedBy: null,
+        approvedAt: new Date(),
+        rejectionReason: null,
+        cities: ["ahmedabad", "surat", "vadodara"],
+        maxCities: 3,
+        location: "Ahmedabad",
+        radius: 40,
+        pricePerHour: 1100,
+        isOnline: false,
+        isOffline: true,
+        isConsultation: false,
+        isAvailable: true,
+        aadharVerified: true,
+        documentsVerified: true,
+        verificationDate: new Date(),
+        rating: 46, // 4.6 stars
+        totalReviews: 134,
+        languages: ["Hindi", "Gujarati", "Sanskrit"],
+        certificates: ["Vedic Priest", "Marriage Rituals Expert"],
+        profilePictureUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+
+    for (const guruji of sampleGurujis) {
+      this.gurujiProfiles.set(guruji.id, guruji as GurujiProfile);
     }
   }
 
