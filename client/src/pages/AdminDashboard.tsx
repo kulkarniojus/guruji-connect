@@ -24,7 +24,7 @@ export default function AdminDashboard() {
   }
   
   if (!user || user.role !== 'admin') {
-    return <Redirect to="/admin/login" />;
+    return <Redirect to="/admin" />;
   }
 
   // Demo mode - no authentication check for demonstration purposes
