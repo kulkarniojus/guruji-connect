@@ -11,7 +11,7 @@ export default function CTA() {
           <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
             <Button asChild className="px-6 py-3">
               <Link href="/booking?type=puja">
-                <a>Book a Puja</a>
+                Book a Puja
               </Link>
             </Button>
             <Button 
@@ -20,7 +20,7 @@ export default function CTA() {
               asChild
             >
               <Link href="/booking?type=consultation">
-                <a>Get Online Consultation</a>
+                Get Online Consultation
               </Link>
             </Button>
           </div>

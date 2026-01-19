@@ -68,7 +68,7 @@ export default function PopularPujas() {
                       asChild
                     >
                       <Link href={`/puja/${puja.id}`}>
-                        <a>View Details</a>
+                        View Details
                       </Link>
                     </Button>
                     <Button 
@@ -77,7 +77,7 @@ export default function PopularPujas() {
                       asChild
                     >
                       <Link href={`/booking?puja=${puja.id}`}>
-                        <a>Book Now</a>
+                        Book Now
                       </Link>
                     </Button>
                   </div>
