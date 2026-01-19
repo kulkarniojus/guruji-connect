@@ -335,6 +335,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { city, pujaId, specialization } = req.query;
       
+      console.log('Guruji filter params:', { city, pujaId, specialization });
+      
       // Get gurujis filtered by city and puja specialization  
       const gurujis = await storageInstance.getGurujisByFilters({
         city: city as string,
@@ -342,6 +344,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         specialization: specialization as string,
         status: 'approved' // Only show approved gurujis
       });
+      
+      console.log('Gurujis found:', gurujis.length);
       
       res.json(gurujis);
     } catch (error) {
