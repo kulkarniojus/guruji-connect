@@ -54,7 +54,8 @@ export default function AdminLogin() {
         description: "Welcome to the admin dashboard",
       });
       
-      setLocation('/admin-dashboard');
+      // Use window.location for reliable redirect
+      window.location.href = '/admin-dashboard';
     } catch (error) {
       console.error('Admin login error:', error);
       toast({
