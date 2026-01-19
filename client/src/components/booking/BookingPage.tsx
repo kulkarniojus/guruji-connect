@@ -66,9 +66,12 @@ export default function BookingPage() {
   // Selected puja details - moved before gurujis query to fix initialization error
   const selectedPuja = Array.isArray(pujas) ? pujas.find((p: any) => p.id.toString() === selectedPujaId) : null;
 
+  // Build guruji query URL with filters
+  const gurujiQueryUrl = `/api/gurujis?city=${encodeURIComponent(selectedCity || '')}&pujaId=${selectedPujaId || ''}&specialization=${encodeURIComponent(selectedPuja?.name || '')}`;
+  
   // Fetch available gurujis based on puja specialization
   const { data: gurujis = [], isLoading: isGurujiLoading } = useQuery({
-    queryKey: ['/api/gurujis', { city: selectedCity, pujaId: selectedPujaId, specialization: selectedPuja?.name }],
+    queryKey: [gurujiQueryUrl],
     enabled: !!selectedPujaId && !!selectedCity && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
   });
 
