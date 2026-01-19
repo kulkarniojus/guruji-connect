@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -8,7 +9,8 @@ import {
   Clock, 
   MapPin, 
   Users,
-  Loader2
+  Loader2,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -129,19 +131,59 @@ export function MobileBookingPage() {
           <h1 className="text-lg font-medium">{getStepTitle()}</h1>
         </div>
         
-        {/* Progress bar */}
-        <div className="w-full bg-neutral-200 h-1">
-          <div 
-            className="bg-primary h-1 transition-all duration-300"
-            style={{ 
-              width: 
-                currentStep === 'service' ? '16.6%' :
-                currentStep === 'guruji' ? '33.3%' :
-                currentStep === 'date' ? '50%' :
-                currentStep === 'details' ? '66.6%' :
-                currentStep === 'payment' ? '83.3%' : '100%'
-            }}
-          />
+        {/* Animated Progress Steps */}
+        <div className="px-4 py-3 border-t bg-white">
+          <div className="flex items-center justify-between max-w-md mx-auto">
+            {['service', 'guruji', 'date', 'details', 'payment', 'confirmation'].map((step, index) => {
+              const stepNumber = index + 1;
+              const steps = ['service', 'guruji', 'date', 'details', 'payment', 'confirmation'];
+              const currentStepIndex = steps.indexOf(currentStep);
+              const isCompleted = index < currentStepIndex;
+              const isActive = step === currentStep;
+              const isLast = index === steps.length - 1;
+
+              return (
+                <div key={step} className="flex items-center flex-1">
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      scale: isActive ? 1.2 : 1,
+                      backgroundColor: isCompleted
+                        ? 'rgb(34, 197, 94)'
+                        : isActive
+                        ? 'rgb(59, 130, 246)'
+                        : 'rgb(229, 231, 235)',
+                    }}
+                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
+                    style={{ color: isCompleted || isActive ? 'white' : '#6B7280' }}
+                  >
+                    {isCompleted ? (
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </motion.div>
+                    ) : (
+                      stepNumber
+                    )}
+                  </motion.div>
+                  {!isLast && (
+                    <div className="flex-1 h-0.5 mx-1 bg-gray-200 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={false}
+                        animate={{ width: isCompleted ? '100%' : '0%' }}
+                        transition={{ duration: 0.4, ease: 'easeOut' }}
+                        className="h-full bg-green-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
       

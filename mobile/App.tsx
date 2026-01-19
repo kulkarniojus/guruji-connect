@@ -23,6 +23,7 @@ import PujasListScreen from './src/screens/PujasListScreen';
 import ServicesScreen from './src/screens/ServicesScreen';
 import HowItWorksScreen from './src/screens/HowItWorksScreen';
 import BecomeGurujiScreen from './src/screens/BecomeGurujiScreen';
+import CreateBookingScreen from './src/screens/CreateBookingScreen';
 
 // Navigation types
 export type RootStackParamList = {
@@ -38,6 +39,7 @@ export type RootStackParamList = {
   Services: undefined;
   HowItWorks: undefined;
   BecomeGuruji: undefined;
+  CreateBooking: undefined;
 };
 
 export type MainTabParamList = {
@@ -199,6 +201,13 @@ export default function App() {
               <Stack.Screen 
                 name="BecomeGuruji" 
                 component={BecomeGurujiScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="CreateBooking" 
+                component={CreateBookingScreen}
                 options={{
                   headerShown: false,
                 }}

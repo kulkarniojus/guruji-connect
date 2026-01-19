@@ -16,8 +16,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Clock, MapPin, User, ArrowRight, CreditCard, Calendar as CalendarIcon2, Check, UserX } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, User, ArrowRight, CreditCard, Calendar as CalendarIcon2, Check, UserX, Loader2 } from 'lucide-react';
+import { BookingProgressIndicator, BookingStep } from './BookingProgressIndicator';
 import PaymentPage from '@/components/payments/PaymentPage';
 
 // This component handles different booking types: offline, online puja, and consultation
@@ -261,28 +261,19 @@ export default function BookingPage() {
         )}
       </div>
 
-      {/* Progress steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
-          {[1, 2, 3, 4].map((step) => (
-            <div key={step} className="flex flex-col items-center">
-              <div 
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                  activeStep >= step 
-                    ? 'bg-primary text-white' 
-                    : 'bg-neutral-200 text-neutral-500'
-                }`}
-              >
-                {step}
-              </div>
-              <span className={`text-xs mt-2 ${activeStep >= step ? 'text-primary' : 'text-neutral-500'}`}>
-                {step === 1 ? 'Select Service' : 
-                 step === 2 ? 'Date & Location' : 
-                 step === 3 ? 'Select Guruji' : 'Payment'}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* Animated Progress Indicator */}
+      <div className="mb-8 max-w-3xl mx-auto">
+        <BookingProgressIndicator
+          steps={[
+            { id: 1, label: 'Select Service', description: 'Choose your puja type' },
+            { id: 2, label: 'Date & Location', description: 'Pick date and venue' },
+            { id: 3, label: 'Select Guruji', description: 'Choose your guide' },
+            { id: 4, label: 'Payment', description: 'Complete booking' },
+          ]}
+          currentStep={activeStep}
+          variant="horizontal"
+          size="md"
+        />
       </div>
 
       {activeStep === 1 && (
