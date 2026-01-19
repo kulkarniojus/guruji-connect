@@ -54,7 +54,7 @@ import {
   InsertCity,
 } from "@shared/schema";
 import { eq, and, like, or, lt, gt, gte, desc, inArray } from "drizzle-orm";
-import { genSalt, hash, compare } from "bcrypt";
+import { genSalt, genSaltSync, hash, hashSync, compare } from "bcrypt";
 
 export interface IStorage {
   // User Management
@@ -351,10 +351,10 @@ export class MemStorage implements IStorage {
     this.initializeDefaultAdmin();
   }
 
-  private async initializeDefaultAdmin() {
-    // Create admin user with hashed password
-    const salt = await genSalt(10);
-    const hashedPassword = await hash("admin123", salt);
+  private initializeDefaultAdmin() {
+    // Create admin user with hashed password (sync for constructor)
+    const salt = genSaltSync(10);
+    const hashedPassword = hashSync("admin123", salt);
     
     const adminUser = {
       id: this.userIdCounter++,
