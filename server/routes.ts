@@ -1602,6 +1602,222 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // The video conference API routes are already defined above
 
+  // ── Review / Rating Routes ───────────────────────────────────────────────
+
+  // POST /api/reviews – customer submits a rating after a completed booking
+  app.post('/api/reviews', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const { bookingId, gurujiId, rating, review } = req.body;
+
+      if (!bookingId || !gurujiId || !rating) {
+        return res.status(400).json({ message: 'bookingId, gurujiId and rating are required' });
+      }
+      if (rating < 1 || rating > 5) {
+        return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+      }
+
+      // Ensure booking belongs to this customer and is completed
+      const booking = await storageInstance.getBooking(parseInt(bookingId));
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+      if (booking.customerId !== userId) return res.status(403).json({ message: 'Forbidden' });
+      if (booking.status !== 'completed') {
+        return res.status(400).json({ message: 'You can only rate completed bookings' });
+      }
+
+      // Prevent duplicate reviews
+      const existing = await storageInstance.getReviewByBookingId(parseInt(bookingId));
+      if (existing) return res.status(409).json({ message: 'You have already rated this booking' });
+
+      const created = await storageInstance.createReview({
+        bookingId: parseInt(bookingId),
+        customerId: userId,
+        gurujiId: parseInt(gurujiId),
+        rating: parseInt(rating),
+        review: review || null,
+      });
+
+      res.status(201).json(created);
+    } catch (error) {
+      console.error('Error creating review:', error);
+      res.status(500).json({ message: 'Failed to submit review' });
+    }
+  });
+
+  // GET /api/reviews/booking/:bookingId – check if review exists for a booking
+  app.get('/api/reviews/booking/:bookingId', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const bookingId = parseInt(req.params.bookingId);
+      const review = await storageInstance.getReviewByBookingId(bookingId);
+      res.json(review || null);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch review' });
+    }
+  });
+
+  // GET /api/reviews/guruji/:gurujiId – public list of reviews for a guruji
+  app.get('/api/reviews/guruji/:gurujiId', async (req: Request, res: Response) => {
+    try {
+      const gurujiId = parseInt(req.params.gurujiId);
+      const reviews = await storageInstance.getReviewsByGurujiId(gurujiId);
+      res.json(reviews);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch reviews' });
+    }
+  });
+
+  // ── Sales Rep Routes ─────────────────────────────────────────────────────
+
+  // POST /api/sales-rep/login – dedicated login for sales reps using DB storage
+  app.post('/api/sales-rep/login', async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+
+      const user = await storageInstance.getUserByEmail(email);
+      if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+      if (user.role !== 'sales_rep' && user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied. Not a sales representative.' });
+      }
+      if (user.isBlocked) return res.status(403).json({ message: 'Account is blocked' });
+
+      const isValid = await storageInstance.verifyPassword(user.id, password);
+      if (!isValid) return res.status(401).json({ message: 'Invalid credentials' });
+
+      req.session.userId = user.id;
+      req.session.userRole = user.role;
+
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error('Sales rep login error:', error);
+      res.status(500).json({ message: 'Login failed' });
+    }
+  });
+
+  const isSalesRep = checkRole(['sales_rep', 'admin']);
+
+  // GET /api/sales-rep/registrations – list users registered by this sales rep
+  app.get('/api/sales-rep/registrations', isAuthenticated, isSalesRep, async (req: Request, res: Response) => {
+    try {
+      const salesRepId = req.session.userId!;
+      const users = await storageInstance.getUsersByRegisteredBy(salesRepId);
+      const safe = users.map(({ password: _, ...u }) => u);
+      res.json(safe);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch registrations' });
+    }
+  });
+
+  // POST /api/sales-rep/register-customer – sales rep registers a new customer
+  app.post('/api/sales-rep/register-customer', isAuthenticated, isSalesRep, async (req: Request, res: Response) => {
+    try {
+      const salesRepId = req.session.userId!;
+      const {
+        firstName, lastName, email, mobile, password,
+        age, gender, dob, aadhar, caste, address, city, state, pincode, photoUrl
+      } = req.body;
+
+      if (!firstName || !lastName || !email || !mobile || !password) {
+        return res.status(400).json({ message: 'First name, last name, email, mobile and password are required' });
+      }
+
+      // Check for duplicates
+      const existingEmail = await storageInstance.getUserByEmail(email);
+      if (existingEmail) return res.status(409).json({ message: 'Email already registered' });
+      const existingMobile = await storageInstance.getUserByMobile(mobile);
+      if (existingMobile) return res.status(409).json({ message: 'Mobile number already registered' });
+
+      const user = await storageInstance.createUser({
+        firstName, lastName, email, mobile, password,
+        age: age ? parseInt(age) : 0,
+        gender: gender || 'other',
+        role: 'customer',
+        dob: dob || null,
+        aadhar: aadhar || null,
+        caste: caste || null,
+        address: address || null,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        photoUrl: photoUrl || null,
+        registeredBy: salesRepId,
+      } as any);
+
+      const { password: _, ...safeUser } = user;
+      res.status(201).json(safeUser);
+    } catch (error) {
+      console.error('Error registering customer:', error);
+      res.status(500).json({ message: 'Failed to register customer' });
+    }
+  });
+
+  // POST /api/sales-rep/register-guruji – sales rep registers a new guruji with KYC + profile
+  app.post('/api/sales-rep/register-guruji', isAuthenticated, isSalesRep, async (req: Request, res: Response) => {
+    try {
+      const salesRepId = req.session.userId!;
+      const {
+        firstName, lastName, email, mobile, password,
+        age, gender, dob, aadhar, caste, address, city, state, pincode, photoUrl,
+        bio, experience, location, pricePerHour, cities, pujas, languages,
+        isOnline, isOffline, isConsultation, certificates
+      } = req.body;
+
+      if (!firstName || !lastName || !email || !mobile || !password) {
+        return res.status(400).json({ message: 'First name, last name, email, mobile and password are required' });
+      }
+
+      const existingEmail = await storageInstance.getUserByEmail(email);
+      if (existingEmail) return res.status(409).json({ message: 'Email already registered' });
+      const existingMobile = await storageInstance.getUserByMobile(mobile);
+      if (existingMobile) return res.status(409).json({ message: 'Mobile number already registered' });
+
+      // Create user with guruji role
+      const user = await storageInstance.createUser({
+        firstName, lastName, email, mobile, password,
+        age: age ? parseInt(age) : 0,
+        gender: gender || 'male',
+        role: 'guruji',
+        dob: dob || null,
+        aadhar: aadhar || null,
+        caste: caste || null,
+        address: address || null,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        photoUrl: photoUrl || null,
+        registeredBy: salesRepId,
+      } as any);
+
+      // Create guruji profile
+      const specialities = Array.isArray(pujas) ? pujas : [];
+      const gurujiProfile = await storageInstance.createGurujiProfile({
+        userId: user.id,
+        bio: bio || '',
+        experience: experience ? parseInt(experience) : 0,
+        location: location || city || '',
+        pricePerHour: pricePerHour ? parseInt(pricePerHour) : 500,
+        cities: Array.isArray(cities) ? cities : [],
+        languages: Array.isArray(languages) ? languages : [],
+        specialization: specialities.join(', '),
+        isOnline: isOnline ?? false,
+        isOffline: isOffline ?? true,
+        isConsultation: isConsultation ?? false,
+        status: 'pending',
+        profilePictureUrl: photoUrl || null,
+        certificates: Array.isArray(certificates) ? certificates : [],
+      } as any);
+
+      const { password: _, ...safeUser } = user;
+      res.status(201).json({ user: safeUser, profile: gurujiProfile });
+    } catch (error) {
+      console.error('Error registering guruji:', error);
+      res.status(500).json({ message: 'Failed to register guruji' });
+    }
+  });
+
   // Return the server instance
   return httpServer;
 }

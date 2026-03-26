@@ -150,8 +150,13 @@ export interface IStorage {
   // Review Management
   getReview(id: number): Promise<Review | undefined>;
   getReviewsByGurujiId(gurujiId: number): Promise<Review[]>;
+  getReviewByBookingId(bookingId: number): Promise<Review | undefined>;
   createReview(review: InsertReview): Promise<Review>;
   getAllReviews(): Promise<Review[]>; // For analytics
+
+  // Sales Rep Management
+  getUsersByRole(role: string): Promise<User[]>;
+  getUsersByRegisteredBy(salesRepId: number): Promise<User[]>;
 
   // Notification Management
   getNotifications(userId: number): Promise<Notification[]>;
@@ -1081,6 +1086,18 @@ export class MemStorage implements IStorage {
 
   async getAllReviews(): Promise<Review[]> {
     return Array.from(this.reviews.values());
+  }
+
+  async getReviewByBookingId(bookingId: number): Promise<Review | undefined> {
+    return Array.from(this.reviews.values()).find(r => r.bookingId === bookingId);
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    return Array.from(this.users.values()).filter(u => u.role === role);
+  }
+
+  async getUsersByRegisteredBy(salesRepId: number): Promise<User[]> {
+    return Array.from(this.users.values()).filter(u => (u as any).registeredBy === salesRepId);
   }
 
   async getNotifications(userId: number): Promise<Notification[]> {

@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Enum definitions
-export const userRoleEnum = pgEnum('user_role', ['customer', 'guruji', 'admin']);
+export const userRoleEnum = pgEnum('user_role', ['customer', 'guruji', 'admin', 'sales_rep']);
 export const bookingStatusEnum = pgEnum('booking_status', ['pending', 'pending_approval', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rejected']);
 export const paymentStatusEnum = pgEnum('payment_status', ['unpaid', 'partial', 'paid', 'refunded']);
 export const pujaTypeEnum = pgEnum('puja_type', ['offline', 'online']);
@@ -42,7 +42,10 @@ export const users = pgTable("users", {
   pincode: text("pincode"),
   // Identity details
   aadhar: text("aadhar"),
+  dob: text("dob"),
   caste: text("caste"),
+  photoUrl: text("photo_url"),
+  registeredBy: integer("registered_by"),
   isVerified: boolean("is_verified").default(false),
   isBlocked: boolean("is_blocked").default(false),
   createdAt: timestamp("created_at").defaultNow(),

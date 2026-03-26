@@ -72,8 +72,10 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `INSERT INTO users (
         "firstName", "lastName", email, mobile, password, 
-        role, "isVerified", "isBlocked", "createdAt", "updatedAt"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        role, "isVerified", "isBlocked", "createdAt", "updatedAt",
+        gender, age, dob, aadhar, caste, photo_url, registered_by,
+        address, city, state, pincode
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *`,
       [
         userData.firstName,
@@ -82,10 +84,21 @@ export class DBStorage implements IStorage {
         userData.mobile,
         hashedPassword,
         userData.role || 'customer',
-        false, // isVerified
-        false, // isBlocked
+        false,
+        false,
         new Date(),
-        new Date()
+        new Date(),
+        userData.gender || null,
+        (userData as any).age || null,
+        (userData as any).dob || null,
+        (userData as any).aadhar || null,
+        (userData as any).caste || null,
+        (userData as any).photoUrl || null,
+        (userData as any).registeredBy || null,
+        (userData as any).address || null,
+        (userData as any).city || null,
+        (userData as any).state || null,
+        (userData as any).pincode || null,
       ]
     );
     
@@ -742,7 +755,7 @@ export class DBStorage implements IStorage {
   
   async getReviewsByGurujiId(gurujiId: number): Promise<Review[]> {
     const result = await pool.query(
-      `SELECT * FROM reviews WHERE guruji_id = $1 ORDER BY created_at DESC`,
+      `SELECT * FROM reviews WHERE "gurujiId" = $1 ORDER BY "createdAt" DESC`,
       [gurujiId]
     );
     
@@ -752,7 +765,7 @@ export class DBStorage implements IStorage {
   async createReview(reviewData: InsertReview): Promise<Review> {
     const result = await pool.query(
       `INSERT INTO reviews (
-        customer_id, guruji_id, booking_id, rating, review, created_at
+        "customerId", "gurujiId", "bookingId", rating, comment, "createdAt"
       ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
       [
@@ -776,7 +789,7 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `SELECT AVG(rating) as avg_rating, COUNT(*) as count
        FROM reviews
-       WHERE guruji_id = $1`,
+       WHERE "gurujiId" = $1`,
       [gurujiId]
     );
     
@@ -879,24 +892,27 @@ export class DBStorage implements IStorage {
   private mapUserFromDb(row: any): User {
     return {
       id: row.id,
-      firstName: row.first_name,
-      lastName: row.last_name,
+      firstName: row.firstName || row.first_name || '',
+      lastName: row.lastName || row.last_name || '',
       email: row.email,
       mobile: row.mobile,
       password: row.password,
-      age: row.age,
-      gender: row.gender,
+      age: row.age || 0,
+      gender: row.gender || null,
       role: row.role,
-      aadhar: row.aadhar,
-      caste: row.caste,
+      aadhar: row.aadhar || null,
+      dob: row.dob ? String(row.dob) : null,
+      caste: row.caste || null,
+      photoUrl: row.photo_url || row.profileImage || null,
+      registeredBy: row.registered_by || null,
       address: row.address || null,
       city: row.city || null,
       state: row.state || null,
       pincode: row.pincode || null,
-      isVerified: row.is_verified,
-      isBlocked: row.is_blocked,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      isVerified: row.isVerified ?? row.is_verified ?? false,
+      isBlocked: row.isBlocked ?? row.is_blocked ?? false,
+      createdAt: row.createdAt || row.created_at || new Date(),
+      updatedAt: row.updatedAt || row.updated_at || new Date(),
     };
   }
   
@@ -992,12 +1008,12 @@ export class DBStorage implements IStorage {
   private mapReviewFromDb(row: any): Review {
     return {
       id: row.id,
-      customerId: row.customer_id,
-      gurujiId: row.guruji_id,
-      bookingId: row.booking_id,
+      customerId: row.customerId || row.customer_id,
+      gurujiId: row.gurujiId || row.guruji_id,
+      bookingId: row.bookingId || row.booking_id,
       rating: row.rating,
-      review: row.review,
-      createdAt: row.created_at
+      review: row.comment || row.review || null,
+      createdAt: row.createdAt || row.created_at,
     };
   }
   
@@ -1469,6 +1485,31 @@ export class DBStorage implements IStorage {
   async getAllReviews(): Promise<Review[]> {
     const result = await pool.query(`SELECT * FROM reviews`);
     return result.rows.map(row => this.mapReviewFromDb(row));
+  }
+
+  async getReviewByBookingId(bookingId: number): Promise<Review | undefined> {
+    const result = await pool.query(
+      `SELECT * FROM reviews WHERE "bookingId" = $1 LIMIT 1`,
+      [bookingId]
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapReviewFromDb(result.rows[0]);
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    const result = await pool.query(
+      `SELECT * FROM users WHERE role = $1 ORDER BY "createdAt" DESC`,
+      [role]
+    );
+    return result.rows.map(row => this.mapUserFromDb(row));
+  }
+
+  async getUsersByRegisteredBy(salesRepId: number): Promise<User[]> {
+    const result = await pool.query(
+      `SELECT * FROM users WHERE registered_by = $1 ORDER BY "createdAt" DESC`,
+      [salesRepId]
+    );
+    return result.rows.map(row => this.mapUserFromDb(row));
   }
 
   async getAllNotifications(): Promise<Notification[]> {

@@ -12,6 +12,8 @@ import BecomeGuruji from "@/pages/BecomeGuruji";
 import Services from "@/pages/Services";
 import HowItWorks from "@/pages/HowItWorks";
 import SimpleBookingDemo from "@/pages/SimpleBookingDemo";
+import SalesRepLogin from "@/pages/SalesRepLogin";
+import SalesRepDashboard from "@/pages/SalesRepDashboard";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -102,6 +104,8 @@ function Router() {
         <ProtectedRoute component={VideoCall} />
       </Route>
       <Route path="/demo/booking-notifications" component={SimpleBookingDemo} />
+      <Route path="/sales-rep" component={SalesRepLogin} />
+      <Route path="/sales-rep/dashboard" component={SalesRepDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
