@@ -446,7 +446,7 @@ export class DBStorage implements IStorage {
   
   async getGurujiProfileByUserId(userId: number): Promise<GurujiProfile | undefined> {
     const result = await pool.query(
-      `SELECT * FROM guruji_profiles WHERE "userId" = `,
+      `SELECT * FROM guruji_profiles WHERE "userId" = $1`,
       [userId]
     );
     
@@ -486,7 +486,7 @@ export class DBStorage implements IStorage {
         0,
         false,
         false,
-        profileData.certificates || pd.certificate ? [pd.certificate] : [],
+        profileData.certificates || (pd.certificate ? [pd.certificate] : []),
         profileData.profilePictureUrl || pd.profile_picture_url || null,
         pd.status || 'pending',
         pd.religion || null,
