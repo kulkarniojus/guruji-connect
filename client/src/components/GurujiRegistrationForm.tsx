@@ -20,6 +20,8 @@ import { MapPin, Upload, FileText, UserCheck, AlertCircle, X, Loader2, Video } f
 const gurujiRegistrationSchema = z.object({
   firstName: z.string().min(2, 'First name required'),
   lastName: z.string().min(2, 'Last name required'),
+  email: z.string().optional(),
+  mobile: z.string().optional(),
   age: z.coerce.number().min(18, 'Must be at least 18').max(100, 'Invalid age'),
   religion: z.string().min(2, 'Religion required'),
   bio: z.string().min(50, 'Bio must be at least 50 characters').max(500, 'Bio must be less than 500 characters'),
@@ -115,11 +117,24 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Detect if current user is a sales rep
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+  const isSalesRep = currentUser?.role === 'sales' || currentUser?.role === 'sales_rep';
+
   const form = useForm<GurujiRegistrationFormData>({
     resolver: zodResolver(gurujiRegistrationSchema),
     defaultValues: {
       firstName: '',
       lastName: '',
+      email: '',
+      mobile: '',
       age: 30,
       religion: '',
       bio: '',
@@ -163,7 +178,9 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
     onSuccess: () => {
       toast({
         title: 'Application Submitted!',
-        description: 'Your Guruji application has been submitted for review. You will be notified once approved.',
+        description: isSalesRep
+          ? 'The Guruji has been registered and their application is pending admin review.'
+          : 'Your Guruji application has been submitted for review. You will be notified once approved.',
       });
       form.reset();
       setSelectedPujas([]);
@@ -174,7 +191,7 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
     onError: (err: any) => {
       toast({
         title: 'Submission Failed',
-        description: err?.message || 'Failed to submit your application. Please try again.',
+        description: err?.message || 'Failed to submit the application. Please try again.',
         variant: 'destructive',
       });
     },
@@ -205,6 +222,16 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
   };
 
   const onSubmit = (data: GurujiRegistrationFormData) => {
+    if (isSalesRep) {
+      if (!data.email || !data.email.includes('@')) {
+        toast({ title: 'Email required', description: 'Please enter the Guruji\'s email address.', variant: 'destructive' });
+        return;
+      }
+      if (!data.mobile || data.mobile.length !== 10) {
+        toast({ title: 'Mobile required', description: 'Please enter a valid 10-digit mobile number.', variant: 'destructive' });
+        return;
+      }
+    }
     submitMutation.mutate({
       ...data,
       pujas: selectedPujas,
@@ -218,10 +245,12 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserCheck className="h-6 w-6" />
-          Become a Verified Guruji
+          {isSalesRep ? 'Register a New Guruji' : 'Become a Verified Guruji'}
         </CardTitle>
         <CardDescription>
-          Join our platform as a spiritual guide. Your application will be reviewed by our admin team.
+          {isSalesRep
+            ? 'Register a new spiritual guide on their behalf. They will receive login credentials via their mobile number.'
+            : 'Join our platform as a spiritual guide. Your application will be reviewed by our admin team.'}
         </CardDescription>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
           <div className="flex items-start gap-2">
@@ -273,6 +302,42 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                   )}
                 />
               </div>
+
+              {/* Sales rep: collect email & mobile for the new guruji's account */}
+              {isSalesRep && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-medium text-blue-800 mb-3">Guruji Login Credentials</p>
+                    <p className="text-xs text-blue-600">These will be used to create the Guruji's account. Their initial password will be their mobile number.</p>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Guruji Email *</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="guruji@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="mobile"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Guruji Mobile Number *</FormLabel>
+                        <FormControl>
+                          <Input type="tel" placeholder="10-digit mobile number" maxLength={10} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField

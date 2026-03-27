@@ -364,27 +364,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Guruji Registration Routes
   app.post('/api/guruji/register', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId;
-      if (!userId) {
+      const sessionUserId = req.session.userId;
+      if (!sessionUserId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const sessionUser = await storageInstance.getUser(sessionUserId);
+      if (!sessionUser) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
 
       const {
         bio, experience, location, pricePerHour, cities, pujas, languages,
         isOnline, isOffline, isConsultation, aadharNumber, profilePicture, certificates,
-        // New fields
-        firstName, lastName, age, religion, pincode, city, state, address, videoUrl
+        firstName, lastName, age, religion, pincode, city, state, address, videoUrl,
+        // Extra fields required when a sales rep registers a guruji
+        email, mobile,
       } = req.body;
 
-      // Check if user already has a guruji profile
-      const existingProfile = await storageInstance.getGurujiProfileByUserId(userId);
+      let targetUserId = sessionUserId;
+
+      if (sessionUser.role === 'sales' || sessionUser.role === 'sales_rep') {
+        // Sales rep is registering a new guruji on their behalf
+        if (!email || !mobile) {
+          return res.status(400).json({ message: 'Email and mobile are required when a sales rep registers a Guruji' });
+        }
+
+        // Look up by email first
+        let gurujiUser = await storageInstance.getUserByEmail(email);
+
+        if (!gurujiUser) {
+          // Create a new user account for the guruji
+          const tempPassword = mobile; // use mobile as initial password
+          gurujiUser = await storageInstance.createUser({
+            firstName: firstName || '',
+            lastName: lastName || '',
+            email,
+            mobile,
+            password: tempPassword,
+            role: 'guruji',
+          } as any);
+        } else if (gurujiUser.role === 'customer') {
+          // Upgrade existing customer to guruji role
+          await storageInstance.updateUser(gurujiUser.id, { role: 'guruji' } as any);
+        }
+
+        targetUserId = gurujiUser.id;
+      }
+
+      // Check if target user already has a guruji profile
+      const existingProfile = await storageInstance.getGurujiProfileByUserId(targetUserId);
       if (existingProfile) {
-        return res.status(400).json({ message: 'You already have a Guruji application' });
+        return res.status(400).json({ message: 'This person already has a Guruji application on file' });
       }
 
       // Create guruji profile with pending status
       const profilePayload: any = {
-        userId,
+        userId: targetUserId,
         bio,
         experience,
         specialization: Array.isArray(pujas) ? pujas.join(',') : pujas,
@@ -402,7 +438,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalReviews: 0,
         profilePictureUrl: profilePicture || null,
         certificates: certificates || [],
-        // New fields
         city: city || null,
         state: state || null,
         pincode: pincode || null,
@@ -416,13 +451,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Notify all admins about the new application
       try {
-        const applicantName = `${firstName || ''} ${lastName || ''}`.trim() || 'A new applicant';
+        const applicantName = `${firstName || ''} ${lastName || ''}`.trim() || email || 'A new applicant';
+        const registeredBy = sessionUser.role === 'sales' ? ` (registered by sales rep ${sessionUser.firstName} ${sessionUser.lastName})` : '';
         const admins = await storageInstance.getUsersByRole('admin');
         await Promise.all(admins.map(admin =>
           storageInstance.createNotification({
             userId: admin.id,
             title: 'New Guruji Application',
-            message: `${applicantName} has submitted a Guruji registration application. Please review and approve.`,
+            message: `${applicantName} has submitted a Guruji registration application${registeredBy}. Please review and approve.`,
             type: 'guruji_application',
             isRead: false,
           } as any)
