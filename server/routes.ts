@@ -414,6 +414,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const gurujiProfile = await storageInstance.createGurujiProfile(profilePayload);
 
+      // Notify all admins about the new application
+      try {
+        const applicantName = `${firstName || ''} ${lastName || ''}`.trim() || 'A new applicant';
+        const admins = await storageInstance.getUsersByRole('admin');
+        await Promise.all(admins.map(admin =>
+          storageInstance.createNotification({
+            userId: admin.id,
+            title: 'New Guruji Application',
+            message: `${applicantName} has submitted a Guruji registration application. Please review and approve.`,
+            type: 'guruji_application',
+            isRead: false,
+          } as any)
+        ));
+      } catch (notifErr) {
+        console.error('Failed to create admin notification:', notifErr);
+      }
+
       res.status(201).json({
         message: 'Guruji application submitted successfully',
         profile: gurujiProfile
@@ -427,7 +444,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes for guruji approval
   app.get('/api/admin/gurujis', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
-      const gurujis = await storageInstance.getAllGurujiProfiles();
+      const status = req.query.status as string | undefined;
+      const gurujis = await storageInstance.getAllGurujiProfiles(status);
       res.json(gurujis);
     } catch (error) {
       console.error('Error fetching guruji profiles:', error);
@@ -444,6 +462,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!updatedProfile) {
         return res.status(404).json({ message: 'Guruji profile not found' });
+      }
+
+      // Notify the guruji that their application was approved
+      try {
+        await storageInstance.createNotification({
+          userId: updatedProfile.userId,
+          title: 'Application Approved! 🎉',
+          message: 'Congratulations! Your Guruji registration has been approved. You are now a verified Guruji on GurujiConnect.',
+          type: 'guruji_approved',
+          isRead: false,
+        } as any);
+      } catch (notifErr) {
+        console.error('Failed to create approval notification:', notifErr);
       }
       
       res.json({
@@ -469,6 +500,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!updatedProfile) {
         return res.status(404).json({ message: 'Guruji profile not found' });
+      }
+
+      // Notify the guruji that their application was rejected
+      try {
+        await storageInstance.createNotification({
+          userId: updatedProfile.userId,
+          title: 'Application Requires Attention',
+          message: `Your Guruji application was not approved at this time. Reason: ${reason}. Please contact support for more information.`,
+          type: 'guruji_rejected',
+          isRead: false,
+        } as any);
+      } catch (notifErr) {
+        console.error('Failed to create rejection notification:', notifErr);
       }
       
       res.json({

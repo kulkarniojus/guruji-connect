@@ -435,7 +435,7 @@ export class DBStorage implements IStorage {
   // Guruji Profile Management
   async getGurujiProfile(id: number): Promise<GurujiProfile | undefined> {
     const result = await pool.query(
-      `SELECT * FROM guruji_profiles WHERE id = `,
+      `SELECT * FROM guruji_profiles WHERE id = $1`,
       [id]
     );
     
@@ -1560,9 +1560,43 @@ export class DBStorage implements IStorage {
     }
   }
 
-  async getAllGurujiProfiles(): Promise<GurujiProfile[]> {
-    const result = await pool.query(`SELECT * FROM guruji_profiles`);
-    return result.rows.map(row => this.mapGurujiProfileFromDb(row));
+  async getAllGurujiProfiles(status?: string): Promise<GurujiProfile[]> {
+    let query = `
+      SELECT gp.*, 
+        u."firstName", u."lastName", u.email, u.mobile, u.age, u.gender,
+        u.address AS user_address, u.city AS user_city, u.state AS user_state,
+        u.pincode AS user_pincode, u.aadhar, u.caste, u."isVerified", u."isBlocked", u."createdAt" AS user_created_at
+      FROM guruji_profiles gp
+      LEFT JOIN users u ON u.id = gp."userId"
+    `;
+    const params: any[] = [];
+    if (status) {
+      query += ` WHERE gp.status = $1`;
+      params.push(status);
+    }
+    query += ` ORDER BY gp."createdAt" DESC`;
+    const result = await pool.query(query, params);
+    return result.rows.map(row => ({
+      ...this.mapGurujiProfileFromDb(row),
+      user: {
+        id: row.userId,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        email: row.email,
+        mobile: row.mobile,
+        age: row.age,
+        gender: row.gender,
+        address: row.user_address,
+        city: row.user_city,
+        state: row.user_state,
+        pincode: row.user_pincode,
+        aadhar: row.aadhar,
+        caste: row.caste,
+        isVerified: row.isVerified,
+        isBlocked: row.isBlocked,
+        createdAt: row.user_created_at,
+      }
+    }));
   }
 
   async getAllBookings(): Promise<Booking[]> {

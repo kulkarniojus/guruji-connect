@@ -104,20 +104,19 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Fetch guruji profiles
+  // Fetch guruji profiles from real API
   const { 
     data: gurujiProfiles, 
     isLoading, 
     error 
   } = useQuery<GurujiProfile[]>({
     queryKey: ['/api/admin/gurujis'],
-    // Simulating API behavior - this would be replaced with actual API in production
     queryFn: async () => {
-      // In a real application, this should call the server API
-      // For now we'll return mock data that matches our expected schema
-      // Mock data should include profiles with pending, approved, and rejected status
-      return getMockGurujiProfiles();
-    }
+      const res = await fetch('/api/admin/gurujis', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch guruji applications');
+      return res.json();
+    },
+    refetchInterval: 30000, // auto-refresh every 30 seconds
   });
 
   // Mock guruji profiles for demo purposes
@@ -337,10 +336,10 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
     ];
   };
 
-  // Filter profiles based on the selected status
+  // Filter profiles based on the selected status (use `status` field from DB)
   const filteredProfiles = gurujiProfiles?.filter((profile: any) => {
     if (status === 'all') return true;
-    return profile.applicationStatus === status;
+    return (profile.status || profile.applicationStatus) === status;
   }) || [];
 
   // Further filter profiles based on search query
@@ -363,17 +362,22 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
   // Approve application mutation
   const approveApplicationMutation = useMutation({
     mutationFn: async (id: number) => {
-      // In a real app, this would call the API
-      // For demo purposes, we'll simulate success
-      // apiRequest('PUT', `/api/admin/gurujis/${id}/approve`, {})
-      return { success: true };
+      const res = await fetch(`/api/admin/gurujis/${id}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to approve');
+      }
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/gurujis'] });
       toast({
-        title: 'Success',
-        description: 'Guruji application has been approved',
-        variant: 'default',
+        title: 'Approved!',
+        description: 'Guruji application has been approved. They will be notified.',
       });
       setIsDetailsDialogOpen(false);
     },
@@ -389,18 +393,25 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
   // Reject application mutation
   const rejectApplicationMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: number, reason: string }) => {
-      // In a real app, this would call the API
-      // For demo purposes, we'll simulate success
-      // apiRequest('PUT', `/api/admin/gurujis/${id}/reject`, { reason })
-      return { success: true };
+      const res = await fetch(`/api/admin/gurujis/${id}/reject`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to reject');
+      }
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/gurujis'] });
       toast({
-        title: 'Success',
-        description: 'Guruji application has been rejected',
-        variant: 'default',
+        title: 'Application Rejected',
+        description: 'The applicant has been notified.',
       });
+      setRejectionReason('');
       setIsRejectDialogOpen(false);
       setIsDetailsDialogOpen(false);
     },
@@ -509,19 +520,14 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                   </TableCell>
                   <TableCell>{formatDate(profile.createdAt)}</TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={
-                        profile.applicationStatus === 'approved' 
-                          ? 'default' 
-                          : profile.applicationStatus === 'rejected'
-                            ? 'destructive'
-                            : 'outline'
-                      }
-                    >
-                      {profile.applicationStatus === 'pending' && 'Pending Review'}
-                      {profile.applicationStatus === 'approved' && 'Approved'}
-                      {profile.applicationStatus === 'rejected' && 'Rejected'}
-                    </Badge>
+                    {(() => {
+                      const s = (profile as any).status || profile.applicationStatus;
+                      return (
+                        <Badge variant={s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : 'outline'}>
+                          {s === 'pending' ? 'Pending Review' : s === 'approved' ? 'Approved' : s === 'rejected' ? 'Rejected' : s}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button 
@@ -598,19 +604,14 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                       <span>Applied on {formatDate(selectedProfile.createdAt)}</span>
                     </div>
                     <div className="flex items-center">
-                      <Badge 
-                        variant={
-                          selectedProfile.applicationStatus === 'approved' 
-                            ? 'default' 
-                            : selectedProfile.applicationStatus === 'rejected'
-                              ? 'destructive'
-                              : 'outline'
-                        }
-                      >
-                        {selectedProfile.applicationStatus === 'pending' && 'Pending Review'}
-                        {selectedProfile.applicationStatus === 'approved' && 'Approved'}
-                        {selectedProfile.applicationStatus === 'rejected' && 'Rejected'}
-                      </Badge>
+                      {(() => {
+                        const s = (selectedProfile as any).status || selectedProfile.applicationStatus;
+                        return (
+                          <Badge variant={s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : 'outline'}>
+                            {s === 'pending' ? 'Pending Review' : s === 'approved' ? 'Approved' : s === 'rejected' ? 'Rejected' : s}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -779,40 +780,37 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
           )}
 
           <DialogFooter className="mt-6">
-            {selectedProfile?.applicationStatus === 'pending' && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={handleRejectApplication}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject
-                </Button>
-                <Button
-                  onClick={handleApproveApplication}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve
-                </Button>
-              </>
-            )}
-            {selectedProfile?.applicationStatus === 'approved' && (
-              <Button
-                variant="outline"
-                onClick={handleRejectApplication}
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                Revoke Approval
-              </Button>
-            )}
-            {selectedProfile?.applicationStatus === 'rejected' && (
-              <Button
-                onClick={handleApproveApplication}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Approve
-              </Button>
-            )}
+            {(() => {
+              const s = selectedProfile ? ((selectedProfile as any).status || selectedProfile.applicationStatus) : null;
+              return (
+                <>
+                  {s === 'pending' && (
+                    <>
+                      <Button variant="outline" onClick={handleRejectApplication} disabled={rejectApplicationMutation.isPending}>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Reject
+                      </Button>
+                      <Button onClick={handleApproveApplication} disabled={approveApplicationMutation.isPending}>
+                        {approveApplicationMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                        Approve
+                      </Button>
+                    </>
+                  )}
+                  {s === 'approved' && (
+                    <Button variant="outline" onClick={handleRejectApplication} disabled={rejectApplicationMutation.isPending}>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Revoke Approval
+                    </Button>
+                  )}
+                  {s === 'rejected' && (
+                    <Button onClick={handleApproveApplication} disabled={approveApplicationMutation.isPending}>
+                      {approveApplicationMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                      Re-Approve
+                    </Button>
+                  )}
+                </>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>

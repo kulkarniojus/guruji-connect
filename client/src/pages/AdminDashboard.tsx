@@ -2,19 +2,48 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { Redirect } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import ChatbotManagementTab from '@/components/admin/ChatbotManagementTab';
 import FAQManagementTab from '@/components/admin/FAQManagementTab';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import PujaManagementTab from '@/components/admin/PujaManagementTab';
 import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
 import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell } from 'lucide-react';
 
 export default function AdminDashboard() {
-  // All hooks must be called before any conditional logic
   const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('analytics');
-  
+
+  // Fetch pending guruji count for notification badge
+  const { data: gurujiProfiles } = useQuery<any[]>({
+    queryKey: ['/api/admin/gurujis'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/gurujis', { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 30000,
+    enabled: !!user && user.role === 'admin',
+  });
+
+  const pendingCount = gurujiProfiles?.filter(g => g.status === 'pending').length ?? 0;
+
+  // Fetch unread notification count
+  const { data: notifications } = useQuery<any[]>({
+    queryKey: ['/api/notifications'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications', { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 30000,
+    enabled: !!user && user.role === 'admin',
+  });
+
+  const unreadNotifCount = notifications?.filter(n => !n.isRead).length ?? 0;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -22,18 +51,30 @@ export default function AdminDashboard() {
       </div>
     );
   }
-  
+
   if (!user || user.role !== 'admin') {
     return <Redirect to="/admin" />;
   }
 
-  // Demo mode - no authentication check for demonstration purposes
-  // In a production environment, we would authenticate and verify admin role
-
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
-      
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        {unreadNotifCount > 0 && (
+          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
+            <Bell className="h-5 w-5 text-orange-500" />
+            <span className="text-sm font-medium text-orange-700">
+              {unreadNotifCount} unread notification{unreadNotifCount > 1 ? 's' : ''}
+            </span>
+            {pendingCount > 0 && (
+              <span className="text-sm text-orange-600">
+                — including {pendingCount} pending Guruji application{pendingCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-8 mb-8">
           <TabsTrigger value="analytics" className="flex items-center justify-center">
@@ -42,7 +83,7 @@ export default function AdminDashboard() {
           </TabsTrigger>
           <TabsTrigger value="chatbot" className="flex items-center justify-center">
             <MessageCircle className="h-4 w-4 mr-2" />
-            WhatsApp ChatBot
+            ChatBot
           </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center justify-center">
             <Users className="h-4 w-4 mr-2" />
@@ -54,11 +95,16 @@ export default function AdminDashboard() {
           </TabsTrigger>
           <TabsTrigger value="pujas" className="flex items-center justify-center">
             <Package2 className="h-4 w-4 mr-2" />
-            Puja Management
+            Pujas
           </TabsTrigger>
-          <TabsTrigger value="guruji-registrations" className="flex items-center justify-center">
-            <UserCheck className="h-4 w-4 mr-2" />
-            Guruji Registrations
+          <TabsTrigger value="guruji-registrations" className="flex items-center justify-center gap-1">
+            <UserCheck className="h-4 w-4" />
+            <span>Guruji</span>
+            {pendingCount > 0 && (
+              <Badge className="bg-orange-500 text-white text-xs px-1.5 py-0 h-4 min-w-[16px]">
+                {pendingCount}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="cities" className="flex items-center justify-center">
             <MapPin className="h-4 w-4 mr-2" />
@@ -66,24 +112,24 @@ export default function AdminDashboard() {
           </TabsTrigger>
           <TabsTrigger value="faq" className="flex items-center justify-center">
             <HelpCircle className="h-4 w-4 mr-2" />
-            FAQ Management
+            FAQ
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="analytics">
           <AnalyticsDashboard />
         </TabsContent>
-        
+
         <TabsContent value="chatbot">
           <ChatbotManagementTab />
         </TabsContent>
-        
+
         <TabsContent value="users">
           <div className="p-6 border rounded-lg text-center">
             <p className="text-muted-foreground">User management dashboard will appear here</p>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="bookings">
           <div className="p-6 border rounded-lg text-center">
             <p className="text-muted-foreground">Booking management dashboard will appear here</p>
