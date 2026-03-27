@@ -146,10 +146,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: z.string().min(6, "Password must be at least 6 characters"),
       }).parse(req.body);
 
-      // Check if user exists with this email
-      const user = await storage.getUserByEmail(email);
+      // Check if user exists — try in-memory first, then DB
+      let user: any = await storage.getUserByEmail(email);
+      let isDbUser = false;
+      if (!user) {
+        user = await storageInstance.getUserByEmail(email);
+        isDbUser = true;
+      }
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Redirect admin to admin login
+      if (user.role === 'admin') {
+        return res.status(401).json({ message: "Please use admin login" });
       }
 
       // Check if user is blocked
@@ -157,8 +167,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Your account has been blocked" });
       }
 
-      // Verify password
-      const isPasswordValid = await compare(password, user.password);
+      // Verify password (DB users use DB password verification)
+      let isPasswordValid = false;
+      if (isDbUser) {
+        isPasswordValid = await storageInstance.verifyPassword(user.id, password);
+      } else {
+        isPasswordValid = await compare(password, user.password);
+      }
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
@@ -212,9 +227,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         user: {
           id: user.id,
-          name: user.name,
+          firstName: user.firstName || user.name || 'Admin',
+          lastName: user.lastName || '',
           email: user.email,
-          role: user.role
+          role: user.role,
+          isVerified: true,
         }
       });
     } catch (error) {
@@ -575,14 +592,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/me", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.session.userId as number;
-      const user = await storage.getUser(userId);
+      
+      // Try in-memory storage first, then fall back to DB storage
+      let user = await storage.getUser(userId);
+      if (!user) {
+        user = await storageInstance.getUser(userId) as any;
+      }
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { password, ...userWithoutPassword } = user as any;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error fetching user:", error);

@@ -18,7 +18,6 @@ import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { VideoConferenceProvider } from "@/context/VideoConferenceContext";
-import { useAuth } from "@/context/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 // Mobile Components

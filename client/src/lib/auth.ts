@@ -5,33 +5,43 @@ import { User } from '@shared/schema';
  * Login with email and password
  */
 export async function login(email: string, password: string): Promise<{ success: boolean; message: string; user?: User; isAdmin?: boolean }> {
+  // Helper to extract HTTP status from thrown Error message like "401: ..."
+  const getStatus = (err: any): number => {
+    const msg: string = err?.message || '';
+    const match = msg.match(/^(\d{3}):/);
+    return match ? parseInt(match[1]) : 0;
+  };
+
   try {
     // Try regular login first
     const response = await apiRequest('POST', '/api/auth/login', { email, password });
     const data = await response.json();
-    
     return { success: true, message: 'Login successful', user: data, isAdmin: false };
   } catch (error: any) {
-    // If regular login fails and this looks like an admin email, try admin login
-    if (error.status === 401 && (email.includes('admin') || email === 'admin@gmail.com')) {
+    const status = getStatus(error);
+
+    // If regular login says to use admin login, or is a 401 for an admin-looking email
+    const shouldTryAdmin = status === 401 && (
+      (error.message || '').includes('admin') || email.toLowerCase().includes('admin')
+    );
+
+    if (shouldTryAdmin) {
       try {
         const adminResponse = await apiRequest('POST', '/api/admin/login', { email, password });
         const adminData = await adminResponse.json();
-        
-        return { success: true, message: 'Admin login successful', user: adminData.user, isAdmin: true };
+        return { success: true, message: 'Login successful', user: adminData.user, isAdmin: true };
       } catch (adminError: any) {
-        console.error('Error with admin login:', adminError);
-        const message = adminError.status === 401 
-          ? 'Invalid admin email or password' 
-          : 'Admin login failed. Please try again.';
-        return { success: false, message };
+        // Fall through to report original error
       }
     }
+
+    // Parse error message from server if available
+    let message = 'Login failed. Please try again.';
+    try {
+      const body = JSON.parse((error.message || '').replace(/^\d+: /, ''));
+      message = body.message || message;
+    } catch {}
     
-    console.error('Error logging in:', error);
-    const message = error.status === 401 
-      ? 'Invalid email or password' 
-      : 'Login failed. Please try again.';
     return { success: false, message };
   }
 }
@@ -68,7 +78,15 @@ export async function checkUserExists(email: string): Promise<{ exists: boolean;
  */
 export async function registerUser(userData: any): Promise<{ success: boolean; message: string; user?: User }> {
   try {
-    const response = await apiRequest('POST', '/api/auth/register', userData);
+    // Map registrationType → role (backend expects 'role'), strip frontend-only fields
+    const { registrationType, terms, ...rest } = userData;
+    const payload = {
+      ...rest,
+      role: registrationType || rest.role,
+      age: Number(rest.age),
+    };
+    
+    const response = await apiRequest('POST', '/api/auth/register', payload);
     const data = await response.json();
     
     return { success: true, message: 'Registration successful', user: data };

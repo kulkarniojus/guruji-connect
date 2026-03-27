@@ -25,7 +25,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { registerUser } from '@/lib/auth';
 
 interface RegisterModalProps {
@@ -239,6 +239,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
   const [selectedPujas, setSelectedPujas] = useState<string[]>([]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   // Fetch cities
   const { data: cities = [] } = useQuery({
@@ -277,19 +278,27 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      // Call the actual registration API
       const result = await registerUser(data);
       
-      if (result.success) {
+      if (result.success && result.user) {
+        // Update the auth query cache so Header shows the user
+        queryClient.setQueryData(['/api/auth/me'], result.user);
+        
         toast({
-          title: 'Registration Successful',
-          description: result.message,
+          title: 'Registration Successful!',
+          description: `Welcome to GurujiConnect, ${result.user.firstName}!`,
         });
         onClose();
         form.reset();
-        
-        // Redirect all users to dashboard (both customers and gurujis)
-        setLocation('/dashboard');
+        setSelectedCities([]);
+        setSelectedPujas([]);
+
+        // Redirect based on role
+        if (result.user.role === 'admin') {
+          setLocation('/admin-dashboard');
+        } else {
+          setLocation('/dashboard');
+        }
       } else {
         toast({
           title: 'Registration Failed',

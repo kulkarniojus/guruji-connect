@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Menu, Bell, Search, X } from 'lucide-react';
+import { Menu, Bell, Search, X, LogOut, LayoutDashboard, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -8,34 +8,63 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
+  DropdownMenuSeparator,
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import LoginModal from '../auth/LoginModal';
 import RegisterModal from '../auth/RegisterModal';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+
+interface CurrentUser {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
+}
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [location, setLocation] = useLocation();
-  
-  // Since we can't use useAuth here, we'll create a simple non-authenticated header
-  const user = null;
-  const logout = () => {
-    toast({
-      title: "Login Required",
-      description: "Please login to access this feature",
-    });
+  const queryClient = useQueryClient();
+
+  const { data: user } = useQuery<CurrentUser | null>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+    staleTime: 30000,
+  });
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      queryClient.setQueryData(['/api/auth/me'], null);
+      toast({ title: 'Logged out successfully' });
+      setLocation('/');
+    } catch {
+      toast({ title: 'Logout failed', variant: 'destructive' });
+    }
   };
 
-  const handleLoginClick = () => {
-    setLoginModalOpen(true);
+  const getDashboardPath = () => {
+    if (!user) return '/dashboard';
+    if (user.role === 'admin') return '/admin-dashboard';
+    return '/dashboard';
   };
 
-  const handleRegisterClick = () => {
-    setRegisterModalOpen(true);
+  const getInitials = () => {
+    if (!user) return '?';
+    const first = (user.firstName || '').charAt(0).toUpperCase();
+    const last = (user.lastName || '').charAt(0).toUpperCase();
+    return (first + last) || '?';
   };
 
   return (
@@ -46,11 +75,9 @@ export default function Header() {
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2">
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                <div className="h-6 w-6 text-white">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
               </div>
               <span className="text-xl font-bold text-neutral-900 font-poppins">GurujiConnect</span>
             </Link>
@@ -79,40 +106,52 @@ export default function Header() {
                 </div>
               </div>
 
-              {/* Notification */}
+              {/* Notification bell (logged in only) */}
               {user && (
                 <Button variant="ghost" size="icon" className="p-1 rounded-full text-neutral-600 hover:text-primary">
                   <Bell className="h-6 w-6" />
                 </Button>
               )}
 
-              {/* User dropdown or login/register */}
+              {/* User dropdown or login/register buttons */}
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-1 text-sm">
-                      <Avatar className="w-8 h-8 bg-primary-100">
-                        <AvatarFallback className="font-medium text-primary-800">
-                          {user.firstName?.charAt(0) || ''}
-                          {user.lastName?.charAt(0) || ''}
+                    <Button variant="ghost" className="flex items-center gap-2 px-2">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-orange-100 text-orange-700 font-semibold text-sm">
+                          {getInitials()}
                         </AvatarFallback>
                       </Avatar>
+                      <span className="hidden md:inline text-sm font-medium text-neutral-900">
+                        {user.firstName} {user.lastName}
+                      </span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => window.location.href = '/dashboard'}>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <div className="px-3 py-2 text-xs text-gray-500 border-b border-gray-100">
+                      Signed in as<br />
+                      <span className="font-medium text-gray-800 truncate block">{user.email}</span>
+                    </div>
+                    <DropdownMenuItem onClick={() => setLocation(getDashboardPath())} className="cursor-pointer">
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
                       Dashboard
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
+                    <DropdownMenuItem onClick={() => setLocation('/profile')} className="cursor-pointer">
+                      <UserIcon className="h-4 w-4 mr-2" />
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => logout()}>Logout</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <Button variant="ghost" onClick={handleLoginClick}>Login</Button>
-                  <Button variant="default" onClick={handleRegisterClick}>Register</Button>
+                  <Button variant="ghost" onClick={() => setLoginModalOpen(true)}>Login</Button>
+                  <Button variant="default" onClick={() => setRegisterModalOpen(true)}>Register</Button>
                 </div>
               )}
 
@@ -124,17 +163,13 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label="Toggle menu"
               >
-                {mobileMenuOpen ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Mobile menu - slide in from top with animation */}
+        {/* Mobile menu */}
         <div 
           className={`md:hidden absolute top-16 left-0 right-0 bg-white shadow-lg transform transition-transform duration-200 ease-in-out z-50 ${
             mobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
@@ -148,23 +183,19 @@ export default function Header() {
               <Link href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">About Us</Link>
               <Link href="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Contact</Link>
             </div>
-            
             <div className="pt-3 space-y-3">
-              <div className="relative">
-                <Input 
-                  type="text" 
-                  placeholder="Search pujas, services..." 
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-neutral-100"
-                />
-                <div className="absolute left-3 top-2.5">
-                  <Search className="h-5 w-5 text-neutral-500" />
+              {user ? (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700 px-3">
+                    Hello, {user.firstName} {user.lastName}
+                  </div>
+                  <Button variant="outline" className="w-full" onClick={() => setLocation(getDashboardPath())}>Dashboard</Button>
+                  <Button variant="outline" className="w-full text-red-600" onClick={handleLogout}>Logout</Button>
                 </div>
-              </div>
-              
-              {!user && (
+              ) : (
                 <div className="flex flex-col space-y-2 pt-2">
-                  <Button variant="outline" className="w-full" onClick={handleLoginClick}>Login</Button>
-                  <Button variant="default" className="w-full" onClick={handleRegisterClick}>Register</Button>
+                  <Button variant="outline" className="w-full" onClick={() => setLoginModalOpen(true)}>Login</Button>
+                  <Button variant="default" className="w-full" onClick={() => setRegisterModalOpen(true)}>Register</Button>
                 </div>
               )}
             </div>

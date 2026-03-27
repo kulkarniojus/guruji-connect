@@ -4,10 +4,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -23,7 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useLocation } from 'wouter';
-import { login } from '@/lib/auth';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -38,34 +36,70 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+async function doLogin(email: string, password: string) {
+  // Try regular login first
+  let res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+    credentials: 'include',
+  });
+
+  if (res.ok) {
+    const user = await res.json();
+    return { success: true, user };
+  }
+
+  const errorBody = await res.json().catch(() => ({}));
+  
+  // If it's an admin email, try admin login
+  if (res.status === 401 && (errorBody.message?.includes('admin') || email.toLowerCase().includes('admin'))) {
+    const adminRes = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      credentials: 'include',
+    });
+    if (adminRes.ok) {
+      const adminData = await adminRes.json();
+      return { success: true, user: adminData.user };
+    }
+    const adminError = await adminRes.json().catch(() => ({}));
+    return { success: false, message: adminError.message || 'Invalid credentials' };
+  }
+
+  return { success: false, message: errorBody.message || 'Invalid email or password' };
+}
+
 export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+    defaultValues: { email: '', password: '' },
   });
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     try {
-      const result = await login(values.email, values.password);
+      const result = await doLogin(values.email, values.password);
       
-      if (result.success) {
+      if (result.success && result.user) {
+        // Update the auth query cache
+        queryClient.setQueryData(['/api/auth/me'], result.user);
+        
         toast({
-          title: 'Login Successful',
-          description: result.message,
+          title: 'Welcome back!',
+          description: `Hello, ${result.user.firstName || result.user.name || result.user.email}!`,
         });
         onClose();
         form.reset();
-        
-        // Redirect based on user role or admin flag
-        if (result.isAdmin || result.user?.role === 'admin') {
+
+        // Redirect based on role
+        if (result.user.role === 'admin') {
           setLocation('/admin-dashboard');
         } else {
           setLocation('/dashboard');
@@ -73,14 +107,14 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
       } else {
         toast({
           title: 'Login Failed',
-          description: result.message,
+          description: result.message || 'Invalid email or password',
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to login. Please try again.',
+        description: 'Failed to login. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -95,14 +129,14 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCancel}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-medium text-neutral-900 font-poppins">
+          <DialogTitle className="text-lg font-semibold text-neutral-900">
             Login to GurujiConnect
           </DialogTitle>
         </DialogHeader>
         
-        <div className="mt-6 space-y-6">
+        <div className="mt-4 space-y-4">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <FormField
@@ -112,11 +146,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="Enter your email address" 
-                        {...field} 
-                      />
+                      <Input type="email" placeholder="Enter your email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -130,11 +160,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="Enter your password" 
-                        {...field} 
-                      />
+                      <Input type="password" placeholder="Enter your password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -142,15 +168,14 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
               />
               
               <div className="flex justify-between items-center pt-2">
-                <Button variant="link" type="button" className="px-0">
+                <Button variant="link" type="button" className="px-0 text-sm">
                   Forgot password?
                 </Button>
-                
                 <div className="flex space-x-2">
-                  <Button type="button" variant="outline" onClick={handleCancel}>
+                  <Button type="button" variant="outline" onClick={handleCancel} disabled={isLoading}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isLoading}>
+                  <Button type="submit" disabled={isLoading} className="bg-orange-600 hover:bg-orange-700">
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Login
                   </Button>
@@ -162,11 +187,11 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
         
         <div className="pt-3 text-center border-t border-neutral-200">
           <p className="text-sm text-neutral-600">
-            Don't have an account?{" "}
+            Don't have an account?{' '}
             <Button 
               variant="link" 
               onClick={onRegisterClick} 
-              className="p-0 font-medium text-primary hover:text-primary-500"
+              className="p-0 font-medium text-orange-600 hover:text-orange-700"
             >
               Register now
             </Button>
