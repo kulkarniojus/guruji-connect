@@ -146,13 +146,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: z.string().min(6, "Password must be at least 6 characters"),
       }).parse(req.body);
 
-      // Check if user exists — try in-memory first, then DB
-      let user: any = await storage.getUserByEmail(email);
-      let isDbUser = false;
-      if (!user) {
-        user = await storageInstance.getUserByEmail(email);
-        isDbUser = true;
-      }
+      // Look up user in database
+      const user = await storageInstance.getUserByEmail(email);
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
@@ -167,13 +162,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Your account has been blocked" });
       }
 
-      // Verify password (DB users use DB password verification)
-      let isPasswordValid = false;
-      if (isDbUser) {
-        isPasswordValid = await storageInstance.verifyPassword(user.id, password);
-      } else {
-        isPasswordValid = await compare(password, user.password);
-      }
+      // Verify password via database
+      const isPasswordValid = await storageInstance.verifyPassword(user.id, password);
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
@@ -183,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.userRole = user.role;
 
       // Return user without password
-      const { password: _, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = user as any;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error logging in:", error);
@@ -517,38 +507,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         caste: z.string().optional(),
       }).parse(req.body);
 
-      // Check if user already exists
-      const existingUser = await storage.getUserByMobile(mobile);
+      // Check if user already exists in database
+      const existingUser = await storageInstance.getUserByMobile(mobile);
       if (existingUser) {
         return res.status(409).json({ message: "User already exists with this mobile number" });
       }
 
-      const existingEmail = await storage.getUserByEmail(email);
+      const existingEmail = await storageInstance.getUserByEmail(email);
       if (existingEmail) {
         return res.status(409).json({ message: "User already exists with this email" });
       }
 
-      // Hash the password
-      const salt = await genSalt(10);
-      const hashedPassword = await hash(password, salt);
-
-      // Create user
-      const user = await storage.createUser({
+      // Create user in database (DBStorage hashes the password internally)
+      const user = await storageInstance.createUser({
         firstName,
         lastName,
         email,
         mobile,
         age,
         gender,
-        password: hashedPassword,
+        password,
         role,
         aadhar,
         caste,
-      });
+      } as any);
 
       // If user is guruji, create a default profile
       if (role === "guruji") {
-        await storage.createGurujiProfile({
+        await storageInstance.createGurujiProfile({
           userId: user.id,
           bio: "",
           experience: 0,
@@ -558,7 +544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isOnline: false,
           isOffline: true,
           isConsultation: false,
-        });
+        } as any);
       }
 
       // Set session
@@ -593,12 +579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId as number;
       
-      // Try in-memory storage first, then fall back to DB storage
-      let user = await storage.getUser(userId);
-      if (!user) {
-        user = await storageInstance.getUser(userId) as any;
-      }
-      
+      const user = await storageInstance.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -618,10 +599,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: z.string().email("Invalid email address"),
       }).parse(req.query);
 
-      const user = await storage.getUserByEmail(email as string);
+      const user = await storageInstance.getUserByEmail(email as string);
       
       if (user) {
-        const { password, ...userWithoutPassword } = user;
+        const { password, ...userWithoutPassword } = user as any;
         return res.json({ exists: true, user: userWithoutPassword });
       }
       
@@ -641,7 +622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Puja Routes
   app.get("/api/pujas", async (req: Request, res: Response) => {
     try {
-      const pujas = await storage.getAllPujas();
+      const pujas = await storageInstance.getAllPujas();
       res.json(pujas);
     } catch (error) {
       console.error("Error fetching pujas:", error);
@@ -657,7 +638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const pujaData = req.body;
       console.log("Creating new puja:", pujaData);
-      const newPuja = await storage.createPuja(pujaData);
+      const newPuja = await storageInstance.createPuja(pujaData);
       console.log("Created puja:", newPuja);
       res.status(201).json(newPuja);
     } catch (error) {
@@ -675,7 +656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const pujaData = req.body;
       console.log("Updating puja:", id, pujaData);
-      const updatedPuja = await storage.updatePuja(id, pujaData);
+      const updatedPuja = await storageInstance.updatePuja(id, pujaData);
       if (!updatedPuja) {
         return res.status(404).json({ message: "Puja not found" });
       }
@@ -695,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       console.log("Deleting puja:", id);
-      const success = await storage.deletePuja(id);
+      const success = await storageInstance.deletePuja(id);
       if (!success) {
         return res.status(404).json({ message: "Puja not found" });
       }
@@ -713,7 +694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         query: z.string().min(1),
       }).parse(req.query);
 
-      const pujas = await storage.searchPujas(query as string);
+      const pujas = await storageInstance.searchPujas(query as string);
       res.json(pujas);
     } catch (error) {
       console.error("Error searching pujas:", error);
@@ -735,7 +716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const puja = await storage.getPuja(parseInt(id));
+      const puja = await storageInstance.getPuja(parseInt(id));
       
       if (!puja) {
         return res.status(404).json({ message: "Puja not found" });
@@ -812,14 +793,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let bookings: any[] = [];
       
       if (userRole === "customer") {
-        bookings = await storage.getBookingsByCustomerId(userId);
+        bookings = await storageInstance.getBookingsByCustomerId(userId);
       } else if (userRole === "guruji") {
-        const gurujiProfile = await storage.getGurujiProfileByUserId(userId);
+        const gurujiProfile = await storageInstance.getGurujiProfileByUserId(userId);
         if (!gurujiProfile) {
           return res.status(404).json({ message: "Guruji profile not found" });
         }
         
-        bookings = await storage.getBookingsByGurujiId(gurujiProfile.id);
+        bookings = await storageInstance.getBookingsByGurujiId(gurujiProfile.id);
       } else if (userRole === "admin") {
         // Admin can see all bookings (would implement pagination in a real app)
         // This is a simplified version for the memory storage implementation
@@ -843,7 +824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const booking = await storage.getBooking(parseInt(id));
+      const booking = await storageInstance.getBooking(parseInt(id));
       
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
@@ -858,7 +839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (userRole === "guruji") {
-        const gurujiProfile = await storage.getGurujiProfileByUserId(userId);
+        const gurujiProfile = await storageInstance.getGurujiProfileByUserId(userId);
         if (!gurujiProfile || booking.gurujiId !== gurujiProfile.id) {
           return res.status(403).json({ message: "Forbidden" });
         }
@@ -889,7 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: z.enum(["pending", "confirmed", "in_progress", "completed", "cancelled"]),
       }).parse(req.body);
 
-      const booking = await storage.getBooking(parseInt(id));
+      const booking = await storageInstance.getBooking(parseInt(id));
       
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
@@ -904,13 +885,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (userRole === "guruji") {
-        const gurujiProfile = await storage.getGurujiProfileByUserId(userId);
+        const gurujiProfile = await storageInstance.getGurujiProfileByUserId(userId);
         if (!gurujiProfile || booking.gurujiId !== gurujiProfile.id) {
           return res.status(403).json({ message: "Forbidden" });
         }
       }
       
-      const updatedBooking = await storage.updateBookingStatus(parseInt(id), status);
+      const updatedBooking = await storageInstance.updateBookingStatus(parseInt(id), status);
       
       res.json(updatedBooking);
     } catch (error) {
@@ -937,13 +918,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gurujiId: z.number(),
       }).parse(req.body);
 
-      const booking = await storage.getBooking(parseInt(id));
+      const booking = await storageInstance.getBooking(parseInt(id));
       
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
       
-      const updatedBooking = await storage.assignGurujiToBooking(parseInt(id), gurujiId);
+      const updatedBooking = await storageInstance.assignGurujiToBooking(parseInt(id), gurujiId);
       
       res.json(updatedBooking);
     } catch (error) {
@@ -962,7 +943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.session.userId as number;
-      const notifications = await storage.getNotifications(userId);
+      const notifications = await storageInstance.getNotifications(userId);
       
       res.json(notifications);
     } catch (error) {
@@ -979,7 +960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const success = await storage.markNotificationAsRead(parseInt(id));
+      const success = await storageInstance.markNotificationAsRead(parseInt(id));
       
       if (!success) {
         return res.status(404).json({ message: "Notification not found" });
@@ -1006,7 +987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: z.string().min(1, "Password is required"),
       }).parse(req.body);
 
-      const user = await storage.getUserByEmail(email);
+      const user = await storageInstance.getUserByEmail(email);
       
       if (!user || user.role !== "admin") {
         return res.status(401).json({ message: "Invalid credentials" });
@@ -1041,7 +1022,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // In a real implementation, we would implement pagination
       // Using proper storage method to get all users
-      const users = await storage.getAllUsers();
+      const users = await storageInstance.getAllUsers();
       
       // Remove passwords from the response
       const usersWithoutPasswords = users.map(user => {
@@ -1064,7 +1045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const success = await storage.blockUser(parseInt(id));
+      const success = await storageInstance.blockUser(parseInt(id));
       
       if (!success) {
         return res.status(404).json({ message: "User not found" });
@@ -1091,7 +1072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const success = await storage.unblockUser(parseInt(id));
+      const success = await storageInstance.unblockUser(parseInt(id));
       
       if (!success) {
         return res.status(404).json({ message: "User not found" });
@@ -1117,7 +1098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         key: z.string().min(1, "Key is required"),
       }).parse(req.params);
 
-      const content = await storage.getContent(key);
+      const content = await storageInstance.getContent(key);
       
       if (!content) {
         return res.status(404).json({ message: "Content not found" });
@@ -1147,7 +1128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: z.string().min(1, "Content is required"),
       }).parse(req.body);
 
-      const updatedContent = await storage.updateContent(key, title, content);
+      const updatedContent = await storageInstance.updateContent(key, title, content);
       
       if (!updatedContent) {
         return res.status(404).json({ message: "Content not found" });
@@ -1183,7 +1164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use the storage interface to get guruji users
       const allUsers = await Promise.all(
-        Array.from({ length: 10 }, (_, i) => storage.getUser(i + 1))
+        Array.from({ length: 10 }, (_, i) => storageInstance.getUser(i + 1))
       );
       const users = allUsers.filter(user => user && user.role === 'guruji');
       
@@ -1438,7 +1419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).parse(req.body);
 
       // Get the booking
-      const booking = await storage.getBooking(bookingId);
+      const booking = await storageInstance.getBooking(bookingId);
       
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
@@ -1449,7 +1430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let isGuruji = false;
       if (req.session.userRole === "guruji") {
-        const gurujiProfile = await storage.getGurujiProfileByUserId(userId);
+        const gurujiProfile = await storageInstance.getGurujiProfileByUserId(userId);
         isGuruji = gurujiProfile?.id === booking.gurujiId;
       }
       
@@ -1490,7 +1471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bookingId = parseInt(matches[1]);
       
       // Get the booking
-      const booking = await storage.getBooking(bookingId);
+      const booking = await storageInstance.getBooking(bookingId);
       
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
