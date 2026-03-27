@@ -636,6 +636,30 @@ export class DBStorage implements IStorage {
     return cityResult.rows.map(row => this.mapGurujiProfileFromDb(row));
   }
 
+  // Guruji Approval Management
+  async approveGuruji(id: number, approvedBy: number): Promise<GurujiProfile | undefined> {
+    const result = await pool.query(
+      `UPDATE guruji_profiles 
+       SET status = 'approved', aadhar_verified = true, documents_verified = true,
+           "isAvailable" = true, "isVerified" = true, "updatedAt" = $1
+       WHERE id = $2 RETURNING *`,
+      [new Date(), id]
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapGurujiProfileFromDb(result.rows[0]);
+  }
+
+  async rejectGuruji(id: number, reason: string): Promise<GurujiProfile | undefined> {
+    const result = await pool.query(
+      `UPDATE guruji_profiles 
+       SET status = 'rejected', "isAvailable" = false, "isVerified" = false, "updatedAt" = $1
+       WHERE id = $2 RETURNING *`,
+      [new Date(), id]
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapGurujiProfileFromDb(result.rows[0]);
+  }
+
   // Booking Management
   async getBooking(id: number): Promise<Booking | undefined> {
     const result = await pool.query(
@@ -902,14 +926,15 @@ export class DBStorage implements IStorage {
   async createNotification(notificationData: InsertNotification): Promise<Notification> {
     const result = await pool.query(
       `INSERT INTO notifications (
-        "userId", title, message, "isRead", "createdAt"
-      ) VALUES ($1, $2, $3, $4, $5)
+        "userId", title, message, type, "isRead", "createdAt"
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
       [
         notificationData.userId,
         notificationData.title,
         notificationData.message,
-        false, // is_read
+        (notificationData as any).type || 'general',
+        false,
         new Date()
       ]
     );

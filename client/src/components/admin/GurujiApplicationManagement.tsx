@@ -104,6 +104,30 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Fetch pujas to resolve IDs → names in specialization
+  const { data: allPujas = [] } = useQuery<any[]>({
+    queryKey: ['/api/pujas'],
+    queryFn: async () => {
+      const res = await fetch('/api/pujas');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  // Helper: convert specialization string (may be "1,2,3" or "Puja Name,...")
+  const resolveSpecialization = (spec: string | null | undefined): string => {
+    if (!spec) return 'Not specified';
+    return spec.split(',').map(item => {
+      const trimmed = item.trim();
+      const asNum = parseInt(trimmed);
+      if (!isNaN(asNum)) {
+        const puja = allPujas.find(p => p.id === asNum);
+        return puja ? puja.name : trimmed;
+      }
+      return trimmed;
+    }).join(', ');
+  };
+
   // Fetch guruji profiles from real API
   const { 
     data: gurujiProfiles, 
@@ -516,7 +540,7 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                   <TableCell>{profile.location}</TableCell>
                   <TableCell>{profile.experience} years</TableCell>
                   <TableCell className="max-w-[200px] truncate">
-                    {profile.specialization || 'Not specified'}
+                    {resolveSpecialization(profile.specialization)}
                   </TableCell>
                   <TableCell>{formatDate(profile.createdAt)}</TableCell>
                   <TableCell>
@@ -646,11 +670,15 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                         </div>
                         <div>
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">Age</h4>
-                          <p>{selectedProfile.user?.age} years</p>
+                          <p>{(selectedProfile as any).age || selectedProfile.user?.age ? `${(selectedProfile as any).age || selectedProfile.user?.age} years` : 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Religion</h4>
+                          <p>{(selectedProfile as any).religion || 'Not provided'}</p>
                         </div>
                         <div>
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">Gender</h4>
-                          <p>{selectedProfile.user?.gender}</p>
+                          <p>{selectedProfile.user?.gender || 'Not provided'}</p>
                         </div>
                         <div>
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">Email</h4>
@@ -667,7 +695,13 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                         <div className="md:col-span-2">
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">Address</h4>
                           <p>
-                            {selectedProfile.user?.address}, {selectedProfile.user?.city}, {selectedProfile.user?.state} - {selectedProfile.user?.pincode}
+                            {(() => {
+                              const p = selectedProfile as any;
+                              const parts = [p.address, p.city, p.state].filter(Boolean);
+                              const pincode = p.pincode;
+                              if (parts.length === 0) return 'Not provided';
+                              return parts.join(', ') + (pincode ? ' - ' + pincode : '');
+                            })()}
                           </p>
                         </div>
                         {selectedProfile.user?.caste && (
@@ -712,7 +746,13 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                         </div>
                         <div className="md:col-span-2">
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">Specialization</h4>
-                          <p>{selectedProfile.specialization || 'Not specified'}</p>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {resolveSpecialization(selectedProfile.specialization).split(', ').map((name, i) => (
+                              name !== 'Not specified' ? (
+                                <Badge key={i} variant="outline">{name}</Badge>
+                              ) : <span key={i} className="text-muted-foreground">Not specified</span>
+                            ))}
+                          </div>
                         </div>
                         <div className="md:col-span-2">
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">Languages</h4>
