@@ -456,29 +456,42 @@ export class DBStorage implements IStorage {
   }
   
   async createGurujiProfile(profileData: InsertGurujiProfile): Promise<GurujiProfile> {
+    const pd = profileData as any;
+    const specialitiesArray = pd.specialization 
+      ? (typeof pd.specialization === 'string' ? pd.specialization.split(',').map((s: string) => s.trim()) : pd.specialization)
+      : [];
+
     const result = await pool.query(
       `INSERT INTO guruji_profiles (
-        "userId", bio, experience, specialization, location,
-        radius, languages, availability, certificate, "imageUrl",
-        "isConsultation", "isAvailable", rating, "totalReviews",
-        created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        "userId", description, city, address, state, pincode, experience, "pricePerHour",
+        "isVerified", "isAvailable", languages, specialities, rating, "totalReviews",
+        aadhar_verified, documents_verified, certificates, profile_picture_url, status,
+        religion, age, video_url, "createdAt", "updatedAt"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
       RETURNING *`,
       [
         profileData.userId,
-        profileData.bio || null,
-        profileData.experience || null,
-        profileData.specialization || null,
-        profileData.location,
-        profileData.radius || 10,
-        profileData.languages || null,
-        profileData.availability || null,
-        profileData.certificate || null,
-        profileData.imageUrl || null,
-        profileData.isConsultation || false,
-        profileData.isAvailable || true,
-        0, // Initial rating
-        0, // Initial total reviews
+        profileData.bio || pd.description || null,
+        pd.city || null,
+        profileData.location || pd.address || null,
+        pd.state || null,
+        pd.pincode || null,
+        profileData.experience || 0,
+        profileData.pricePerHour || pd.price_per_hour || 500,
+        false,
+        false,
+        profileData.languages || [],
+        specialitiesArray,
+        0,
+        0,
+        false,
+        false,
+        profileData.certificates || pd.certificate ? [pd.certificate] : [],
+        profileData.profilePictureUrl || pd.profile_picture_url || null,
+        pd.status || 'pending',
+        pd.religion || null,
+        pd.age || null,
+        pd.videoUrl || pd.video_url || null,
         new Date(),
         new Date()
       ]
@@ -576,33 +589,51 @@ export class DBStorage implements IStorage {
     return this.mapGurujiProfileFromDb(result.rows[0]);
   }
   
-  async getNearbyGurujis(city: string, pujaId?: number, radius: number = 10): Promise<GurujiProfile[]> {
-    // For now, just filter by city
-    // In a real implementation, we would use geolocation data and calculate distance
-    
-    let query = `
-      SELECT gp.* FROM guruji_profiles gp
-      JOIN users u ON gp."userId" = u.id
-      WHERE u.is_blocked = false AND gp."isAvailable" = true
-        AND LOWER(gp.location) LIKE LOWER($1)
-    `;
-    
-    const params: any[] = [`%${city}%`];
-    
-    // If pujaId is provided, filter by gurujis who can perform this puja
+  async getNearbyGurujis(city: string, pujaId?: number, radius: number = 10, pincode?: string): Promise<GurujiProfile[]> {
+    let params: any[] = [];
+    let pujaFilter = '';
+
     if (pujaId) {
-      query += ` 
-        AND EXISTS (
-          SELECT 1 FROM guruji_pujas gpu
-          WHERE gpu.guruji_profile_id = gp.id AND gpu.puja_id = $2
-        )
-      `;
       params.push(pujaId);
+      pujaFilter = `AND EXISTS (
+        SELECT 1 FROM guruji_pujas gpu
+        WHERE gpu."gurujiId" = gp.id AND gpu."pujaId" = $${params.length}
+      )`;
     }
+
+    if (pincode) {
+      // First try exact pincode match
+      params.push(pincode);
+      const exactResult = await pool.query(
+        `SELECT gp.* FROM guruji_profiles gp
+         JOIN users u ON gp."userId" = u.id
+         WHERE "isVerified" = true AND "isAvailable" = true
+           AND u."isBlocked" = false
+           AND gp.pincode = $${params.length}
+           ${pujaFilter}
+         ORDER BY gp.rating DESC`,
+        params
+      );
+      
+      if (exactResult.rows.length > 0) {
+        return exactResult.rows.map(row => this.mapGurujiProfileFromDb(row));
+      }
+    }
+
+    // Fallback: match by city name
+    params.push(`%${city}%`);
+    const cityResult = await pool.query(
+      `SELECT gp.* FROM guruji_profiles gp
+       JOIN users u ON gp."userId" = u.id
+       WHERE "isVerified" = true AND "isAvailable" = true
+         AND u."isBlocked" = false
+         AND (LOWER(gp.city) LIKE LOWER($${params.length}) OR LOWER(gp.address) LIKE LOWER($${params.length}))
+         ${pujaFilter}
+       ORDER BY gp.rating DESC`,
+      params
+    );
     
-    const result = await pool.query(query, params);
-    
-    return result.rows.map(row => this.mapGurujiProfileFromDb(row));
+    return cityResult.rows.map(row => this.mapGurujiProfileFromDb(row));
   }
 
   // Booking Management
@@ -619,7 +650,7 @@ export class DBStorage implements IStorage {
   
   async getBookingsByCustomerId(customerId: number): Promise<Booking[]> {
     const result = await pool.query(
-      `SELECT * FROM bookings WHERE customer_id = $1 ORDER BY date DESC`,
+      `SELECT * FROM bookings WHERE "customerId" = $1 ORDER BY "createdAt" DESC`,
       [customerId]
     );
     
@@ -628,7 +659,7 @@ export class DBStorage implements IStorage {
   
   async getBookingsByGurujiId(gurujiId: number): Promise<Booking[]> {
     const result = await pool.query(
-      `SELECT * FROM bookings WHERE guruji_id = $1 ORDER BY date DESC`,
+      `SELECT * FROM bookings WHERE "gurujiId" = $1 ORDER BY "createdAt" DESC`,
       [gurujiId]
     );
     
@@ -638,25 +669,26 @@ export class DBStorage implements IStorage {
   async createBooking(bookingData: InsertBooking): Promise<Booking> {
     const result = await pool.query(
       `INSERT INTO bookings (
-        customer_id, guruji_id, puja_id, address, city, date,
-        time, status, type, duration, amount, consultation_type,
-        notes, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        "customerId", "pujaId", "gurujiId", address, city, state, pincode,
+        date, time, "locationType", "totalAmount", "consultationType",
+        notes, status, "createdAt", "updatedAt"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`,
       [
         bookingData.customerId,
-        bookingData.gurujiId || null,
         bookingData.pujaId || null,
+        bookingData.gurujiId || null,
         bookingData.address || null,
-        bookingData.city,
+        bookingData.city || null,
+        (bookingData as any).state || null,
+        (bookingData as any).pincode || null,
         bookingData.date,
-        bookingData.time || null,
-        bookingData.status || 'pending',
-        bookingData.type,
-        bookingData.duration,
+        (bookingData as any).time || null,
+        bookingData.type || 'offline',
         bookingData.amount,
         bookingData.consultationType || null,
         bookingData.notes || null,
+        bookingData.status || 'pending',
         new Date(),
         new Date()
       ]
@@ -665,9 +697,9 @@ export class DBStorage implements IStorage {
     return this.mapBookingFromDb(result.rows[0]);
   }
   
-  async updateBookingStatus(id: number, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'): Promise<Booking | undefined> {
+  async updateBookingStatus(id: number, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'pending_approval'): Promise<Booking | undefined> {
     const result = await pool.query(
-      `UPDATE bookings SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *`,
+      `UPDATE bookings SET status = $1::booking_status, "updatedAt" = $2 WHERE id = $3 RETURNING *`,
       [status, new Date(), id]
     );
     
@@ -678,7 +710,7 @@ export class DBStorage implements IStorage {
   
   async assignGurujiToBooking(bookingId: number, gurujiId: number): Promise<Booking | undefined> {
     const result = await pool.query(
-      `UPDATE bookings SET guruji_id = $1, status = 'confirmed', updated_at = $2 
+      `UPDATE bookings SET "gurujiId" = $1, status = 'confirmed', "updatedAt" = $2 
        WHERE id = $3 RETURNING *`,
       [gurujiId, new Date(), bookingId]
     );
@@ -686,6 +718,56 @@ export class DBStorage implements IStorage {
     if (result.rows.length === 0) return undefined;
     
     return this.mapBookingFromDb(result.rows[0]);
+  }
+
+  // Booking Requests
+  async createBookingRequest(data: { bookingId: number; gurujiId: number; status?: string }): Promise<any> {
+    const result = await pool.query(
+      `INSERT INTO booking_requests ("bookingId", "gurujiId", status, "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [data.bookingId, data.gurujiId, data.status || 'pending', new Date(), new Date()]
+    );
+    return result.rows[0];
+  }
+
+  async getBookingRequest(id: number): Promise<any | undefined> {
+    const result = await pool.query(
+      `SELECT * FROM booking_requests WHERE id = $1`,
+      [id]
+    );
+    return result.rows[0] || undefined;
+  }
+
+  async getBookingRequestsByBookingId(bookingId: number): Promise<any[]> {
+    const result = await pool.query(
+      `SELECT * FROM booking_requests WHERE "bookingId" = $1 ORDER BY "createdAt" DESC`,
+      [bookingId]
+    );
+    return result.rows;
+  }
+
+  async getBookingRequestsByGurujiId(gurujiId: number): Promise<any[]> {
+    const result = await pool.query(
+      `SELECT * FROM booking_requests WHERE "gurujiId" = $1 ORDER BY "createdAt" DESC`,
+      [gurujiId]
+    );
+    return result.rows;
+  }
+
+  async updateBookingRequestStatus(id: number, status: string, message?: string): Promise<any | undefined> {
+    const result = await pool.query(
+      `UPDATE booking_requests SET status = $1, message = $2, "updatedAt" = $3 WHERE id = $4 RETURNING *`,
+      [status, message || null, new Date(), id]
+    );
+    return result.rows[0] || undefined;
+  }
+
+  async expireOtherBookingRequests(bookingId: number, acceptedRequestId: number): Promise<void> {
+    await pool.query(
+      `UPDATE booking_requests SET status = 'expired', "updatedAt" = $1 
+       WHERE "bookingId" = $2 AND id != $3 AND status = 'pending'`,
+      [new Date(), bookingId, acceptedRequestId]
+    );
   }
 
   // Payment Management
@@ -948,47 +1030,58 @@ export class DBStorage implements IStorage {
     return {
       id: row.id,
       userId: row.userId,
-      bio: row.bio,
+      bio: row.description || row.bio || null,
       experience: row.experience,
-      specialization: row.specialization,
-      location: row.location,
-      radius: row.radius,
-      languages: row.languages,
-      pricePerHour: row.price_per_hour,
-      isOnline: row.is_online,
-      isOffline: row.is_offline,
-      isConsultation: row.is_consultation,
-      isAvailable: row.is_available,
-      aadharVerified: row.aadhar_verified,
-      documentsVerified: row.documents_verified,
-      verificationDate: row.verification_date,
-      rating: row.rating,
-      totalReviews: row.total_reviews,
-      certificates: row.certificates,
-      profilePictureUrl: row.profile_picture_url,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      specialization: Array.isArray(row.specialities) ? row.specialities.join(',') : (row.specialization || null),
+      location: row.address || row.city || null,
+      radius: row.radius || 10,
+      languages: row.languages || [],
+      pricePerHour: row.pricePerHour || row.price_per_hour || 0,
+      isOnline: row.isOnline || row.is_online || false,
+      isOffline: row.isOffline || row.is_offline || true,
+      isConsultation: row.isConsultation || row.is_consultation || false,
+      isAvailable: row.isAvailable || row.is_available || false,
+      aadharVerified: row.aadhar_verified || false,
+      documentsVerified: row.documents_verified || false,
+      verificationDate: row.verification_date || null,
+      rating: row.rating || 0,
+      totalReviews: row.totalReviews || row.total_reviews || 0,
+      certificates: row.certificates || [],
+      profilePictureUrl: row.profile_picture_url || null,
+      city: row.city || null,
+      address: row.address || null,
+      state: row.state || null,
+      pincode: row.pincode || null,
+      religion: row.religion || null,
+      age: row.age || null,
+      videoUrl: row.video_url || null,
+      status: row.status || 'pending',
+      createdAt: row.createdAt || row.created_at,
+      updatedAt: row.updatedAt || row.updated_at,
     };
   }
   
   private mapBookingFromDb(row: any): Booking {
     return {
       id: row.id,
-      customerId: row.customer_id,
-      gurujiId: row.guruji_id,
-      pujaId: row.puja_id,
-      address: row.address,
-      city: row.city,
+      customerId: row.customerId || row.customer_id,
+      gurujiId: row.gurujiId || row.guruji_id || null,
+      pujaId: row.pujaId || row.puja_id,
+      address: row.address || null,
+      city: row.city || null,
+      state: row.state || null,
+      pincode: row.pincode || null,
       date: row.date,
+      time: row.time || null,
       status: row.status,
-      type: row.type,
-      duration: row.duration,
-      amount: row.amount,
-      consultationType: row.consultation_type,
-      isImmediate: row.is_immediate,
-      notes: row.notes,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      type: row.locationType || row.type || 'offline',
+      duration: row.duration || null,
+      amount: row.totalAmount || row.amount || 0,
+      consultationType: row.consultationType || row.consultation_type || null,
+      isImmediate: row.isImmediate || row.is_immediate || false,
+      notes: row.notes || null,
+      createdAt: row.createdAt || row.created_at,
+      updatedAt: row.updatedAt || row.updated_at,
     };
   }
   
@@ -1023,9 +1116,9 @@ export class DBStorage implements IStorage {
       userId: row.userId,
       title: row.title,
       message: row.message,
-      type: row.type || 'general', // Add missing type field with default value
-      isRead: row.is_read,
-      createdAt: row.created_at
+      type: row.type || 'general',
+      isRead: row.isRead || row.is_read || false,
+      createdAt: row.createdAt || row.created_at,
     };
   }
 

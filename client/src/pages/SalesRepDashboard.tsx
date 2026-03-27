@@ -52,6 +52,7 @@ const gurujiSchema = z.object({
   dob: z.string().min(1, 'Date of birth required'),
   aadhar: z.string().length(12, 'Aadhar must be 12 digits'),
   caste: z.string().optional(),
+  religion: z.string().optional(),
   address: z.string().min(5, 'Full address required'),
   city: z.string().min(1, 'City required'),
   state: z.string().min(1, 'State required'),
@@ -200,7 +201,7 @@ function RegisterGurujiTab() {
     resolver: zodResolver(gurujiSchema),
     defaultValues: {
       firstName: '', lastName: '', email: '', mobile: '', password: '',
-      age: 35, gender: 'male', dob: '', aadhar: '', caste: '',
+      age: 35, gender: 'male', dob: '', aadhar: '', caste: '', religion: '',
       address: '', city: '', state: '', pincode: '', photoUrl: '',
       bio: '', experience: 5, location: '', pricePerHour: 500,
       languages: '', pujaSpecialization: '', servesCity: '',
@@ -279,6 +280,9 @@ function RegisterGurujiTab() {
             )} />
             <FormField control={form.control} name="caste" render={({ field }) => (
               <FormItem><FormLabel>Caste / Category</FormLabel><FormControl><Input placeholder="Brahmin / OBC / etc." {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="religion" render={({ field }) => (
+              <FormItem><FormLabel>Religion</FormLabel><FormControl><Input placeholder="Hindu / Buddhist / Jain etc." {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="photoUrl" render={({ field }) => (
               <FormItem className="col-span-2"><FormLabel>Photo URL</FormLabel><FormControl><Input placeholder="https://..." {...field} /></FormControl><FormMessage /></FormItem>

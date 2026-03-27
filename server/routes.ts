@@ -364,7 +364,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const {
         bio, experience, location, pricePerHour, cities, pujas, languages,
-        isOnline, isOffline, isConsultation, aadharNumber, profilePicture, certificates
+        isOnline, isOffline, isConsultation, aadharNumber, profilePicture, certificates,
+        // New fields
+        firstName, lastName, age, religion, pincode, city, state, address, videoUrl
       } = req.body;
 
       // Check if user already has a guruji profile
@@ -374,28 +376,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create guruji profile with pending status
-      const gurujiProfile = await storageInstance.createGurujiProfile({
+      const profilePayload: any = {
         userId,
         bio,
         experience,
-        specialization: pujas.join(','), // Store as comma-separated for now
-        location,
+        specialization: Array.isArray(pujas) ? pujas.join(',') : pujas,
+        location: address || location,
         pricePerHour,
-        cities: cities, // Array of city IDs
-        maxCities: 2,
-        languages: languages,
+        languages: Array.isArray(languages) ? languages : [],
         isOnline: isOnline || false,
-        isOffline: isOffline || true,
+        isOffline: isOffline !== undefined ? isOffline : true,
         isConsultation: isConsultation || false,
-        isAvailable: false, // Not available until approved
-        aadharVerified: false, // Pending verification
-        documentsVerified: false, // Pending verification
+        isAvailable: false,
+        aadharVerified: false,
+        documentsVerified: false,
         status: 'pending',
         rating: 0,
         totalReviews: 0,
         profilePictureUrl: profilePicture || null,
-        certificates: certificates || []
-      });
+        certificates: certificates || [],
+        // New fields
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        address: address || location || null,
+        religion: religion || null,
+        age: age || null,
+        videoUrl: videoUrl || null,
+      };
+
+      const gurujiProfile = await storageInstance.createGurujiProfile(profilePayload);
 
       res.status(201).json({
         message: 'Guruji application submitted successfully',
@@ -733,11 +743,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         consultationType: z.enum(["own_guruji", "auto_select", "immediate"]).optional(),
         amount: z.number().positive(),
         address: z.string().optional(),
-        city: z.string(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        pincode: z.string().optional(),
+        time: z.string().optional(),
         date: z.string().refine((val) => !isNaN(Date.parse(val)), {
           message: "Invalid date format",
         }),
-        duration: z.number().positive(),
+        duration: z.number().positive().optional(),
         isImmediate: z.boolean().default(false),
         notes: z.string().optional(),
         gurujiId: z.number().optional(),
@@ -750,10 +763,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customerId: userId,
         ...bookingData,
         date,
-      });
+        city: bookingData.city || '',
+      } as any);
 
-      // Trigger notifications to all qualified gurujis in the same city
-      await notifyGurujisPujaRequest(booking, bookingData.city);
+      // Trigger notifications to all qualified gurujis nearby
+      await notifyGurujisPujaRequest(booking, bookingData.city || '');
 
       res.status(201).json(booking);
     } catch (error) {
@@ -1545,24 +1559,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Function to notify all qualified gurujis about a new puja request
   async function notifyGurujisPujaRequest(booking: any, city: string) {
     try {
-      console.log(`🔔 Notifying gurujis in ${city} about new booking request #${booking.id}`);
+      console.log(`🔔 Finding gurujis near ${city} (pincode: ${booking.pincode}) for booking #${booking.id}`);
       
-      // For now, we'll use a simplified approach - find gurujis by city name
-      // In a real implementation, this would query the database properly
-      console.log(`✓ Notification system activated for booking ${booking.id} in ${city}`);
+      // Find verified gurujis by pincode (primary) or city (fallback)
+      const nearbyGurujis = await storageInstance.getNearbyGurujis(
+        city, 
+        booking.pujaId, 
+        20,
+        booking.pincode
+      );
       
-      // Emit notification via Socket.IO to all connected gurujis
-      io.emit('newPujaRequest', {
-        bookingId: booking.id,
-        title: '🔔 New Puja Request',
-        message: `New ${booking.type} puja request in ${city}`,
-        amount: booking.amount,
-        date: booking.date,
-        type: booking.type,
-        city: city,
-        timestamp: new Date()
-      });
+      const verifiedGurujis = nearbyGurujis.filter((g: any) => g.aadharVerified && g.documentsVerified);
       
+      console.log(`✓ Found ${verifiedGurujis.length} verified gurujis near ${city}`);
+
+      if (verifiedGurujis.length > 0) {
+        // Update booking status to pending_approval
+        await storageInstance.updateBookingStatus(booking.id, 'pending_approval');
+
+        for (const guruji of verifiedGurujis) {
+          // Create booking request for each guruji
+          await (storageInstance as any).createBookingRequest({
+            bookingId: booking.id,
+            gurujiId: guruji.id,
+            status: 'pending',
+          });
+
+          // In-app notification
+          await storageInstance.createNotification({
+            userId: guruji.userId,
+            title: '🔔 New Puja Request',
+            message: `New ${booking.type === 'offline' ? 'in-person' : 'online'} puja request in ${city}. Tap to view details.`,
+            type: 'booking_request',
+          });
+
+          // Emit Socket.IO notification directly to guruji's room
+          io.to(`user_${guruji.userId}`).emit('newPujaRequest', {
+            bookingId: booking.id,
+            title: '🔔 New Puja Request',
+            message: `New puja request in ${city}`,
+            amount: booking.amount,
+            date: booking.date,
+            type: booking.type,
+            city: city,
+            pincode: booking.pincode,
+            timestamp: new Date()
+          });
+        }
+      } else {
+        // Broadcast to all connected gurujis as fallback
+        io.emit('newPujaRequest', {
+          bookingId: booking.id,
+          title: '🔔 New Puja Request',
+          message: `New puja request in ${city}`,
+          amount: booking.amount,
+          date: booking.date,
+          type: booking.type,
+          city: city,
+          timestamp: new Date()
+        });
+      }
     } catch (error) {
       console.error('Error in notifyGurujisPujaRequest:', error);
     }
@@ -1760,9 +1816,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const salesRepId = req.session.userId!;
       const {
         firstName, lastName, email, mobile, password,
-        age, gender, dob, aadhar, caste, address, city, state, pincode, photoUrl,
+        age, gender, dob, aadhar, caste, religion, address, city, state, pincode, photoUrl,
         bio, experience, location, pricePerHour, cities, pujas, languages,
-        isOnline, isOffline, isConsultation, certificates
+        isOnline, isOffline, isConsultation, certificates, videoUrl
       } = req.body;
 
       if (!firstName || !lastName || !email || !mobile || !password) {
@@ -1797,9 +1853,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id,
         bio: bio || '',
         experience: experience ? parseInt(experience) : 0,
-        location: location || city || '',
+        location: address || location || city || '',
         pricePerHour: pricePerHour ? parseInt(pricePerHour) : 500,
-        cities: Array.isArray(cities) ? cities : [],
         languages: Array.isArray(languages) ? languages : [],
         specialization: specialities.join(', '),
         isOnline: isOnline ?? false,
@@ -1808,6 +1863,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending',
         profilePictureUrl: photoUrl || null,
         certificates: Array.isArray(certificates) ? certificates : [],
+        // Location fields
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        address: address || null,
+        // KYC fields
+        age: age ? parseInt(age) : null,
+        religion: religion || null,
+        videoUrl: videoUrl || null,
       } as any);
 
       const { password: _, ...safeUser } = user;

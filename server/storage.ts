@@ -95,6 +95,7 @@ export interface IStorage {
     city: string,
     pujaId?: number,
     radius?: number,
+    pincode?: string,
   ): Promise<GurujiProfile[]>;
   getAllGurujiProfiles(): Promise<GurujiProfile[]>; // For analytics
 
@@ -854,14 +855,12 @@ export class MemStorage implements IStorage {
     city: string,
     pujaId?: number,
     radius: number = 10,
+    pincode?: string,
   ): Promise<GurujiProfile[]> {
-    // In a real implementation, this would use geolocation data
-    // For this memory storage, we'll just filter by city
     return Array.from(this.gurujiProfiles.values()).filter(
       (profile) =>
-        profile.location.toLowerCase().includes(city.toLowerCase()) &&
-        profile.radius >= radius &&
-        !profile.isBlocked,
+        (pincode ? (profile as any).pincode === pincode : true) ||
+        (profile.location || '').toLowerCase().includes(city.toLowerCase())
     );
   }
 

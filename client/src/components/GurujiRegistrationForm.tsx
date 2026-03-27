@@ -15,14 +15,21 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { MapPin, Upload, FileText, UserCheck, AlertCircle, X, Plus, Loader2 } from 'lucide-react';
+import { MapPin, Upload, FileText, UserCheck, AlertCircle, X, Loader2, Video } from 'lucide-react';
 
 const gurujiRegistrationSchema = z.object({
+  firstName: z.string().min(2, 'First name required'),
+  lastName: z.string().min(2, 'Last name required'),
+  age: z.coerce.number().min(18, 'Must be at least 18').max(100, 'Invalid age'),
+  religion: z.string().min(2, 'Religion required'),
   bio: z.string().min(50, 'Bio must be at least 50 characters').max(500, 'Bio must be less than 500 characters'),
   experience: z.coerce.number().min(1, 'Experience must be at least 1 year').max(50, 'Experience cannot exceed 50 years'),
-  location: z.string().min(5, 'Location must be at least 5 characters'),
-  pricePerHour: z.coerce.number().min(100, 'Price must be at least ₹100').max(10000, 'Price cannot exceed ₹10,000'),
-  cities: z.array(z.string()).min(1, 'Select at least 1 city').max(2, 'Maximum 2 cities allowed'),
+  address: z.string().min(5, 'Full address required'),
+  city: z.string().min(2, 'City required'),
+  state: z.string().min(2, 'State required'),
+  pincode: z.string().length(6, 'Pincode must be 6 digits'),
+  pricePerHour: z.coerce.number().min(100, 'Price must be at least ₹100').max(50000, 'Price cannot exceed ₹50,000'),
+  serviceAreas: z.array(z.string()).min(1, 'Select at least 1 service city'),
   pujas: z.array(z.string()).min(1, 'Select at least 1 puja specialization'),
   languages: z.array(z.string()).min(1, 'Select at least 1 language'),
   isOnline: z.boolean().default(false),
@@ -30,170 +37,99 @@ const gurujiRegistrationSchema = z.object({
   isConsultation: z.boolean().default(false),
   aadharNumber: z.string().length(12, 'Aadhar number must be 12 digits'),
   profilePicture: z.string().optional(),
+  videoUrl: z.string().optional(),
   certificates: z.array(z.string()).optional(),
 });
 
-type GurujiRegistrationForm = z.infer<typeof gurujiRegistrationSchema>;
+type GurujiRegistrationFormData = z.infer<typeof gurujiRegistrationSchema>;
 
 const LANGUAGES = [
   'Hindi', 'English', 'Sanskrit', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 
   'Gujarati', 'Kannada', 'Malayalam', 'Punjabi', 'Urdu', 'Odia'
 ];
 
+const RELIGIONS = ['Hindu', 'Buddhist', 'Jain', 'Sikh', 'Other'];
+
 interface GurujiRegistrationFormProps {
   onSuccess?: () => void;
 }
 
-// City Searchable Dropdown Component
-function CitySearchableDropdown({ cities, selectedCities, onCityToggle, maxSelections }: {
-  cities: any[];
-  selectedCities: string[];
-  onCityToggle: (cityId: string) => void;
-  maxSelections: number;
-}) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-
-  const filteredCities = cities.filter(city => 
-    city.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    city.state.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  return (
-    <div className="relative">
-      <Input
-        type="text"
-        placeholder="Search and select cities (e.g., type 'nag' for Nagpur)..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-        className="w-full"
-      />
-      
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {filteredCities.length > 0 ? (
-            filteredCities.map((city: any) => (
-              <div
-                key={city.id}
-                className={`flex items-center p-3 hover:bg-gray-50 cursor-pointer ${
-                  selectedCities.length >= maxSelections && !selectedCities.includes(city.id.toString()) 
-                    ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                onClick={() => {
-                  if (selectedCities.length < maxSelections || selectedCities.includes(city.id.toString())) {
-                    onCityToggle(city.id.toString());
-                    setSearchTerm('');
-                    setIsOpen(false);
-                  }
-                }}
-              >
-                <Checkbox
-                  checked={selectedCities.includes(city.id.toString())}
-                  className="mr-2"
-                />
-                <span className="text-sm">{city.name}, {city.state}</span>
-              </div>
-            ))
-          ) : (
-            <div className="p-3 text-sm text-gray-500">No cities found</div>
-          )}
-        </div>
-      )}
-      
-      {/* Click outside to close */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-0" 
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-// Puja Searchable Dropdown Component
-function PujaSearchableDropdown({ pujas, selectedPujas, onPujaToggle }: {
+function PujaDropdown({ pujas, selectedPujas, onToggle }: {
   pujas: any[];
   selectedPujas: string[];
-  onPujaToggle: (pujaId: string) => void;
+  onToggle: (id: string) => void;
 }) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
 
-  const filteredPujas = pujas.filter(puja => 
-    puja.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    puja.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = pujas.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="relative">
       <Input
-        type="text"
         placeholder="Search and select puja specializations..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-        className="w-full"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        onFocus={() => setOpen(true)}
       />
-      
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {filteredPujas.length > 0 ? (
-            filteredPujas.map((puja: any) => (
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+            {filtered.length > 0 ? filtered.map((p: any) => (
               <div
-                key={puja.id}
-                className="flex items-center p-3 hover:bg-gray-50 cursor-pointer"
-                onClick={() => {
-                  onPujaToggle(puja.id.toString());
-                  setSearchTerm('');
-                  setIsOpen(false);
+                key={p.id}
+                className="flex items-center gap-2 p-3 hover:bg-orange-50 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle(p.id.toString());
+                  setSearch('');
+                  setOpen(false);
                 }}
               >
                 <Checkbox
-                  checked={selectedPujas.includes(puja.id.toString())}
-                  className="mr-2"
+                  checked={selectedPujas.includes(p.id.toString())}
+                  className="pointer-events-none"
                 />
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{puja.name}</div>
-                  {puja.description && (
-                    <div className="text-xs text-gray-500 truncate">{puja.description}</div>
-                  )}
+                <div>
+                  <div className="text-sm font-medium">{p.name}</div>
+                  {p.description && <div className="text-xs text-gray-500">{p.description}</div>}
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="p-3 text-sm text-gray-500">No pujas found</div>
-          )}
-        </div>
-      )}
-      
-      {/* Click outside to close */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-0" 
-          onClick={() => setIsOpen(false)}
-        />
+            )) : (
+              <div className="p-3 text-sm text-gray-500">No pujas found</div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
 }
 
 export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistrationFormProps) {
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedPujas, setSelectedPujas] = useState<string[]>([]);
+  const [selectedServiceAreas, setSelectedServiceAreas] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const form = useForm<GurujiRegistrationForm>({
+  const form = useForm<GurujiRegistrationFormData>({
     resolver: zodResolver(gurujiRegistrationSchema),
     defaultValues: {
+      firstName: '',
+      lastName: '',
+      age: 30,
+      religion: '',
       bio: '',
       experience: 1,
-      location: '',
+      address: '',
+      city: '',
+      state: '',
+      pincode: '',
       pricePerHour: 500,
-      cities: [],
+      serviceAreas: [],
       pujas: [],
       languages: [],
       isOnline: false,
@@ -201,78 +137,80 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
       isConsultation: false,
       aadharNumber: '',
       profilePicture: '',
+      videoUrl: '',
       certificates: [],
     },
   });
 
-  // Fetch cities
-  const { data: cities = [], isLoading: citiesLoading, error: citiesError } = useQuery({
+  const { data: cities = [], isLoading: citiesLoading } = useQuery({
     queryKey: ['/api/cities'],
     select: (data: any[]) => data || [],
   });
 
-  // Fetch pujas
-  const { data: pujas = [], isLoading: pujasLoading, error: pujasError } = useQuery({
+  const { data: pujas = [], isLoading: pujasLoading } = useQuery({
     queryKey: ['/api/pujas'],
     select: (data: any[]) => data || [],
   });
 
-  // Debug logs
-  console.log('Cities data:', cities, 'Loading:', citiesLoading, 'Error:', citiesError);
-  console.log('Pujas data:', pujas, 'Loading:', pujasLoading, 'Error:', pujasError);
-
-  // Submit mutation
   const submitMutation = useMutation({
-    mutationFn: (data: GurujiRegistrationForm) =>
-      apiRequest('POST', '/api/guruji/register', data),
+    mutationFn: (data: GurujiRegistrationFormData) =>
+      apiRequest('POST', '/api/guruji/register', {
+        ...data,
+        pujas: selectedPujas,
+        cities: selectedServiceAreas,
+        languages: selectedLanguages,
+      }),
     onSuccess: () => {
       toast({
         title: 'Application Submitted!',
         description: 'Your Guruji application has been submitted for review. You will be notified once approved.',
       });
       form.reset();
+      setSelectedPujas([]);
+      setSelectedServiceAreas([]);
+      setSelectedLanguages([]);
       onSuccess?.();
     },
-    onError: () => {
+    onError: (err: any) => {
       toast({
         title: 'Submission Failed',
-        description: 'Failed to submit your application. Please try again.',
+        description: err?.message || 'Failed to submit your application. Please try again.',
         variant: 'destructive',
       });
     },
   });
 
-  const handleCityToggle = (cityId: string) => {
-    const newCities = selectedCities.includes(cityId)
-      ? selectedCities.filter(id => id !== cityId)
-      : selectedCities.length < 2 
-        ? [...selectedCities, cityId]
-        : selectedCities;
-    
-    setSelectedCities(newCities);
-    form.setValue('cities', newCities);
+  const handlePujaToggle = (id: string) => {
+    const updated = selectedPujas.includes(id)
+      ? selectedPujas.filter(x => x !== id)
+      : [...selectedPujas, id];
+    setSelectedPujas(updated);
+    form.setValue('pujas', updated);
   };
 
-  const handlePujaToggle = (pujaId: string) => {
-    const newPujas = selectedPujas.includes(pujaId)
-      ? selectedPujas.filter(id => id !== pujaId)
-      : [...selectedPujas, pujaId];
-    
-    setSelectedPujas(newPujas);
-    form.setValue('pujas', newPujas);
+  const handleServiceAreaToggle = (cityId: string) => {
+    const updated = selectedServiceAreas.includes(cityId)
+      ? selectedServiceAreas.filter(x => x !== cityId)
+      : [...selectedServiceAreas, cityId];
+    setSelectedServiceAreas(updated);
+    form.setValue('serviceAreas', updated);
   };
 
-  const handleLanguageToggle = (language: string) => {
-    const newLanguages = selectedLanguages.includes(language)
-      ? selectedLanguages.filter(lang => lang !== language)
-      : [...selectedLanguages, language];
-    
-    setSelectedLanguages(newLanguages);
-    form.setValue('languages', newLanguages);
+  const handleLanguageToggle = (lang: string) => {
+    const updated = selectedLanguages.includes(lang)
+      ? selectedLanguages.filter(x => x !== lang)
+      : [...selectedLanguages, lang];
+    setSelectedLanguages(updated);
+    form.setValue('languages', updated);
   };
 
-  const onSubmit = (data: GurujiRegistrationForm) => {
-    submitMutation.mutate(data);
+  const onSubmit = (data: GurujiRegistrationFormData) => {
+    submitMutation.mutate({
+      ...data,
+      pujas: selectedPujas,
+      serviceAreas: selectedServiceAreas,
+      languages: selectedLanguages,
+    });
   };
 
   return (
@@ -302,10 +240,78 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+
             {/* Personal Information */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <h3 className="text-lg font-semibold">Personal Information</h3>
-              
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter first name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter last name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="age"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Age</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="18" max="100" placeholder="Enter your age" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="religion"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Religion</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select religion" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {RELIGIONS.map(r => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
                 name="bio"
@@ -319,15 +325,13 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                         {...field} 
                       />
                     </FormControl>
-                    <FormDescription>
-                      Minimum 50 characters. This will be shown to customers.
-                    </FormDescription>
+                    <FormDescription>Minimum 50 characters. This will be shown to customers.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="experience"
@@ -341,7 +345,6 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="pricePerHour"
@@ -349,153 +352,198 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                     <FormItem>
                       <FormLabel>Price per Hour (₹)</FormLabel>
                       <FormControl>
-                        <Input type="number" min="100" max="10000" {...field} />
+                        <Input type="number" min="100" max="50000" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+            </div>
+
+            <Separator />
+
+            {/* Location */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Location Details
+              </h3>
 
               <FormField
                 control={form.control}
-                name="location"
+                name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Current Location</FormLabel>
+                    <FormLabel>Full Address</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Andheri West, Mumbai, Maharashtra" {...field} />
+                      <Input placeholder="e.g., 123 Laxmi Nagar, Near Temple" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Nagpur" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Maharashtra" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pincode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pincode</FormLabel>
+                      <FormControl>
+                        <Input placeholder="6-digit pincode" maxLength={6} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <Separator />
 
             {/* Service Areas */}
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Service Areas (Maximum 2 cities)
-              </h3>
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Service Areas</h3>
+              <FormDescription>Select cities where you can provide services</FormDescription>
               
-              <div className="space-y-4">
-                {citiesLoading ? (
-                  <div className="text-sm text-gray-500">Loading cities...</div>
-                ) : citiesError ? (
-                  <div className="text-sm text-red-500">Error loading cities</div>
-                ) : (
-                  <CitySearchableDropdown 
-                    cities={cities} 
-                    selectedCities={selectedCities}
-                    onCityToggle={handleCityToggle}
-                    maxSelections={2}
-                  />
-                )}
-                
-                {selectedCities.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedCities.map((cityId) => {
-                      const city = cities.find((c: any) => c.id.toString() === cityId);
-                      return city ? (
-                        <Badge key={cityId} variant="secondary" className="flex items-center gap-1">
-                          {city.name}, {city.state}
-                          <X 
-                            className="h-3 w-3 cursor-pointer"
-                            onClick={() => handleCityToggle(cityId)}
-                          />
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </div>
+              {citiesLoading ? (
+                <div className="text-sm text-gray-500">Loading cities...</div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 border rounded-lg p-4 max-h-48 overflow-y-auto">
+                  {cities.map((c: any) => (
+                    <div key={c.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`city-${c.id}`}
+                        checked={selectedServiceAreas.includes(c.id.toString())}
+                        onCheckedChange={() => handleServiceAreaToggle(c.id.toString())}
+                      />
+                      <Label htmlFor={`city-${c.id}`} className="text-sm cursor-pointer">
+                        {c.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedServiceAreas.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedServiceAreas.map(id => {
+                    const city = cities.find((c: any) => c.id.toString() === id);
+                    return city ? (
+                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
+                        {city.name}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => handleServiceAreaToggle(id)} />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+              {form.formState.errors.serviceAreas && (
+                <p className="text-sm text-red-500">{form.formState.errors.serviceAreas.message}</p>
+              )}
             </div>
 
             <Separator />
 
             {/* Puja Specializations */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <h3 className="text-lg font-semibold">Puja Specializations</h3>
-              
-              <div className="space-y-4">
-                {pujasLoading ? (
-                  <div className="text-sm text-gray-500">Loading pujas...</div>
-                ) : pujasError ? (
-                  <div className="text-sm text-red-500">Error loading pujas</div>
-                ) : (
-                  <PujaSearchableDropdown 
-                    pujas={pujas} 
-                    selectedPujas={selectedPujas}
-                    onPujaToggle={handlePujaToggle}
-                  />
-                )}
-                
-                {selectedPujas.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPujas.map((pujaId) => {
-                      const puja = pujas.find((p: any) => p.id.toString() === pujaId);
-                      return puja ? (
-                        <Badge key={pujaId} variant="secondary" className="flex items-center gap-1">
-                          {puja.name}
-                          <X 
-                            className="h-3 w-3 cursor-pointer"
-                            onClick={() => handlePujaToggle(pujaId)}
-                          />
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </div>
+
+              {pujasLoading ? (
+                <div className="text-sm text-gray-500">Loading pujas...</div>
+              ) : (
+                <PujaDropdown
+                  pujas={pujas}
+                  selectedPujas={selectedPujas}
+                  onToggle={handlePujaToggle}
+                />
+              )}
+
+              {selectedPujas.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedPujas.map(id => {
+                    const puja = pujas.find((p: any) => p.id.toString() === id);
+                    return puja ? (
+                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
+                        {puja.name}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => handlePujaToggle(id)} />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+              {form.formState.errors.pujas && (
+                <p className="text-sm text-red-500">{form.formState.errors.pujas.message}</p>
+              )}
             </div>
 
             <Separator />
 
             {/* Languages */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <h3 className="text-lg font-semibold">Languages</h3>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {LANGUAGES.map((language) => (
-                    <div key={language} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`lang-${language}`}
-                        checked={selectedLanguages.includes(language)}
-                        onCheckedChange={() => handleLanguageToggle(language)}
-                      />
-                      <Label htmlFor={`lang-${language}`} className="text-sm">
-                        {language}
-                      </Label>
-                    </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {LANGUAGES.map(lang => (
+                  <div key={lang} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`lang-${lang}`}
+                      checked={selectedLanguages.includes(lang)}
+                      onCheckedChange={() => handleLanguageToggle(lang)}
+                    />
+                    <Label htmlFor={`lang-${lang}`} className="text-sm cursor-pointer">
+                      {lang}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {selectedLanguages.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedLanguages.map(lang => (
+                    <Badge key={lang} variant="secondary" className="flex items-center gap-1">
+                      {lang}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => handleLanguageToggle(lang)} />
+                    </Badge>
                   ))}
                 </div>
-                
-                {selectedLanguages.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedLanguages.map((language) => (
-                      <Badge key={language} variant="secondary" className="flex items-center gap-1">
-                        {language}
-                        <X 
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => handleLanguageToggle(language)}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
+              {form.formState.errors.languages && (
+                <p className="text-sm text-red-500">{form.formState.errors.languages.message}</p>
+              )}
             </div>
 
             <Separator />
 
             {/* Service Types */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <h3 className="text-lg font-semibold">Service Types</h3>
-              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -503,64 +551,41 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                       <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Offline Services
-                        </FormLabel>
-                        <FormDescription>
-                          Visit customer location for pujas
-                        </FormDescription>
+                        <FormLabel>Offline Services</FormLabel>
+                        <FormDescription>Visit customer location for pujas</FormDescription>
                       </div>
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="isOnline"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                       <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Online Services
-                        </FormLabel>
-                        <FormDescription>
-                          Conduct pujas via video call
-                        </FormDescription>
+                        <FormLabel>Online Services</FormLabel>
+                        <FormDescription>Conduct pujas via video call</FormDescription>
                       </div>
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="isConsultation"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                       <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Consultations
-                        </FormLabel>
-                        <FormDescription>
-                          Provide spiritual guidance
-                        </FormDescription>
+                        <FormLabel>Consultations</FormLabel>
+                        <FormDescription>Provide spiritual guidance</FormDescription>
                       </div>
                     </FormItem>
                   )}
@@ -571,12 +596,12 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
             <Separator />
 
             {/* Verification Documents */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Verification Documents
               </h3>
-              
+
               <FormField
                 control={form.control}
                 name="aadharNumber"
@@ -584,52 +609,82 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                   <FormItem>
                     <FormLabel>Aadhar Number</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
                         placeholder="Enter 12-digit Aadhar number"
                         maxLength={12}
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      Required for identity verification. Your Aadhar details are kept secure and confidential.
+                      Required for identity verification. Kept secure and confidential.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <Label>Profile Picture (Optional)</Label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
                   <p className="text-sm text-gray-600">Upload your profile picture</p>
                   <p className="text-xs text-gray-500 mt-1">JPG, PNG up to 5MB</p>
-                  <Button type="button" variant="outline" className="mt-2" size="sm">
+                  <Button type="button" variant="outline" size="sm" className="mt-3">
                     Choose File
+                  </Button>
+                </div>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="videoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Video className="h-4 w-4" />
+                      Introduction Video URL (Optional)
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Paste YouTube or Google Drive video link"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Share a short video (1-3 min) introducing yourself and your services. This helps customers connect with you.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="space-y-2">
+                <Label>Certificates / Documents (Optional)</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <FileText className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600">Upload certificates or qualification documents</p>
+                  <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG up to 10MB each</p>
+                  <Button type="button" variant="outline" size="sm" className="mt-3">
+                    Choose Files
                   </Button>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-4">
-              <Button type="button" variant="outline">
-                Save as Draft
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={submitMutation.isPending}
-                className="min-w-[150px]"
-              >
-                {submitMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Application'
-                )}
-              </Button>
-            </div>
+            <Button 
+              type="submit" 
+              className="w-full bg-orange-600 hover:bg-orange-700"
+              disabled={submitMutation.isPending}
+            >
+              {submitMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting Application...
+                </>
+              ) : (
+                'Submit Guruji Application'
+              )}
+            </Button>
           </form>
         </Form>
       </CardContent>
