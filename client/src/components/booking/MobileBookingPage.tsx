@@ -1,520 +1,616 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import { motion } from 'framer-motion';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Users,
-  Loader2,
-  Check
+import {
+  ChevronLeft, ChevronRight, Calendar, Clock, MapPin,
+  Loader2, Check, Star, Phone, User as UserIcon, Wifi,
+  Home, MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Card, 
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter 
-} from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
-type BookingStep = 'service' | 'guruji' | 'date' | 'details' | 'payment' | 'confirmation';
+type BookingStep = 'service' | 'datetime' | 'guruji' | 'review';
+
+const STEPS: BookingStep[] = ['service', 'datetime', 'guruji', 'review'];
+
+const STEP_LABELS: Record<BookingStep, string> = {
+  service:  'Select Service',
+  datetime: 'Date & Location',
+  guruji:   'Select Guruji',
+  review:   'Review & Confirm',
+};
+
+const TIME_SLOTS = [
+  '06:00 AM', '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM',
+  '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM',
+  '06:00 PM', '07:00 PM', '08:00 PM',
+];
+
+function generateDates(count = 14) {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i + 1);
+    return d;
+  });
+}
 
 export function MobileBookingPage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const searchParams = new URLSearchParams(window.location.search);
+
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
-  
-  // Fetch available pujas from API (same as desktop version)
-  const { data: services = [], isLoading: isServicesLoading } = useQuery({
-    queryKey: ['/api/pujas'],
-    staleTime: 0, // Always refetch to ensure fresh data
-    gcTime: 0, // Don't cache to avoid stale data (renamed from cacheTime in v5)
+  const [bookingType, setBookingType] = useState<'offline' | 'online' | 'consultation'>('offline');
+  const [consultationType, setConsultationType] = useState<'own_guruji' | 'auto_select' | 'immediate'>('auto_select');
+  const [selectedPujaId, setSelectedPujaId] = useState<string>(searchParams.get('puja') || '');
+  const [withSamagri, setWithSamagri] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [address, setAddress] = useState<string>('');
+  const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch pujas, cities, auth
+  const { data: pujas = [], isLoading: pujasLoading } = useQuery({ queryKey: ['/api/pujas'] });
+  const { data: cities = [] } = useQuery({ queryKey: ['/api/cities'] });
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
   });
-  
-  // Mock data for Guruji selection
-  const gurujis = [
-    { id: 1, name: 'Pandit Ramesh Shastri', experience: 15, rating: 4.9, price: 2500, location: 'Mumbai', specialty: 'Vastu', availability: true },
-    { id: 2, name: 'Pandit Suresh Joshi', experience: 20, rating: 4.8, price: 3000, location: 'Delhi', specialty: 'Vedic', availability: true },
-    { id: 3, name: 'Pandit Kailash Trivedi', experience: 12, rating: 4.7, price: 2200, location: 'Pune', specialty: 'Jyotish', availability: false },
-    { id: 4, name: 'Acharya Vishal Sharma', experience: 18, rating: 4.9, price: 2800, location: 'Bangalore', specialty: 'Tantra', availability: true }
-  ];
-  
-  const [selectedService, setSelectedService] = useState<number | null>(null);
-  const [selectedGuruji, setSelectedGuruji] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  
-  const timeSlots = ['08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'];
-  
-  const dates = [
-    { date: new Date().toISOString().split('T')[0], label: 'Today' },
-    { date: new Date(Date.now() + 86400000).toISOString().split('T')[0], label: 'Tomorrow' },
-    { date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], label: new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) },
-    { date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0], label: new Date(Date.now() + 86400000 * 3).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) },
-    { date: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0], label: new Date(Date.now() + 86400000 * 4).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) },
-  ];
-  
-  const goToNextStep = () => {
-    if (currentStep === 'service') setCurrentStep('guruji');
-    else if (currentStep === 'guruji') setCurrentStep('date');
-    else if (currentStep === 'date') setCurrentStep('details');
-    else if (currentStep === 'details') setCurrentStep('payment');
-    else if (currentStep === 'payment') setCurrentStep('confirmation');
-    else if (currentStep === 'confirmation') setLocation('/dashboard');
+
+  const selectedPuja = (pujas as any[]).find((p: any) => p.id.toString() === selectedPujaId) || null;
+
+  // Fetch gurujis only on step 3
+  const gurujiQueryUrl = `/api/gurujis?city=${encodeURIComponent(selectedCity)}&pujaId=${selectedPujaId}&specialization=${encodeURIComponent(selectedPuja?.name || '')}`;
+  const { data: gurujis = [], isLoading: gurujisLoading } = useQuery<any[]>({
+    queryKey: [gurujiQueryUrl],
+    enabled: currentStep === 'guruji' && !!selectedPujaId && !!selectedCity &&
+      (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
+  });
+
+  const selectedGuruji = (gurujis as any[]).find((g: any) => g.id?.toString() === selectedGurujiId) || null;
+
+  const calculateAmount = () => {
+    if (!selectedPuja) return 0;
+    if (bookingType === 'consultation' && consultationType === 'immediate') return selectedPuja.price * 3;
+    let total = selectedPuja.price || 0;
+    if (withSamagri && selectedPuja.samagriPrice) total += selectedPuja.samagriPrice;
+    return total;
   };
-  
-  const goToPreviousStep = () => {
-    if (currentStep === 'guruji') setCurrentStep('service');
-    else if (currentStep === 'date') setCurrentStep('guruji');
-    else if (currentStep === 'details') setCurrentStep('date');
-    else if (currentStep === 'payment') setCurrentStep('details');
-    else if (currentStep === 'confirmation') setCurrentStep('payment');
+
+  const stepIndex = STEPS.indexOf(currentStep);
+
+  const validate = (): boolean => {
+    if (currentStep === 'service') {
+      if (!selectedPujaId) { toast({ title: 'Select a puja', variant: 'destructive' }); return false; }
+    }
+    if (currentStep === 'datetime') {
+      if (!selectedDate) { toast({ title: 'Select a date', variant: 'destructive' }); return false; }
+      if (!selectedTime) { toast({ title: 'Select a time', variant: 'destructive' }); return false; }
+      if (bookingType === 'offline') {
+        if (!selectedCity) { toast({ title: 'Select a city', variant: 'destructive' }); return false; }
+        if (!address) { toast({ title: 'Enter your address', variant: 'destructive' }); return false; }
+      }
+    }
+    if (currentStep === 'guruji') {
+      const needsGuruji = bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji');
+      if (needsGuruji && !selectedGurujiId) {
+        toast({ title: 'Select a Guruji', variant: 'destructive' }); return false;
+      }
+    }
+    return true;
   };
-  
-  const isNextDisabled = () => {
-    if (currentStep === 'service' && !selectedService) return true;
-    if (currentStep === 'guruji' && !selectedGuruji) return true;
-    if (currentStep === 'date' && (!selectedDate || !selectedTime)) return true;
-    return false;
+
+  const goNext = () => {
+    if (!validate()) return;
+    const next = STEPS[stepIndex + 1];
+    if (next) setCurrentStep(next);
   };
-  
-  const getStepTitle = () => {
-    switch (currentStep) {
-      case 'service': return 'Select Service';
-      case 'guruji': return 'Choose Guruji';
-      case 'date': return 'Select Date & Time';
-      case 'details': return 'Your Details';
-      case 'payment': return 'Payment';
-      case 'confirmation': return 'Confirmation';
-      default: return '';
+
+  const goPrev = () => {
+    const prev = STEPS[stepIndex - 1];
+    if (prev) setCurrentStep(prev);
+  };
+
+  const handleSubmit = async () => {
+    if (!currentUser) {
+      toast({ title: 'Login required', description: 'Please login to book a puja', variant: 'destructive' });
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      const dt = new Date(selectedDate!);
+      const parts = selectedTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (parts) {
+        let h = parseInt(parts[1]);
+        const m = parseInt(parts[2]);
+        if (parts[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (parts[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        dt.setHours(h, m, 0, 0);
+      }
+
+      const bookingData: any = {
+        pujaId: parseInt(selectedPujaId),
+        type: bookingType,
+        amount: calculateAmount(),
+        city: selectedCity,
+        address,
+        date: dt.toISOString(),
+        duration: selectedPuja?.duration || 120,
+        notes: '',
+        isImmediate: bookingType === 'consultation' && consultationType === 'immediate',
+      };
+      if (bookingType === 'consultation') bookingData.consultationType = consultationType;
+      if (selectedGurujiId) bookingData.gurujiId = parseInt(selectedGurujiId);
+
+      await apiRequest('POST', '/api/bookings', bookingData);
+      toast({ title: 'Booking submitted!', description: 'Our team will contact you for payment confirmation.' });
+      setLocation('/dashboard');
+    } catch {
+      toast({ title: 'Booking failed', description: 'Please try again.', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
-  
-  const getNextButtonText = () => {
-    switch (currentStep) {
-      case 'service': return 'Choose Guruji';
-      case 'guruji': return 'Select Date & Time';
-      case 'date': return 'Continue to Details';
-      case 'details': return 'Proceed to Payment';
-      case 'payment': return 'Complete Booking';
-      case 'confirmation': return 'Go to Dashboard';
-      default: return 'Next';
-    }
-  };
-  
-  const selectedServiceData = selectedService ? (services as any[]).find((s: any) => s.id === selectedService) : null;
-  const selectedGurujiData = selectedGuruji ? gurujis.find(g => g.id === selectedGuruji) : null;
-  
+
+  const dates = generateDates();
+
   return (
-    <div className="min-h-screen bg-neutral-50 pb-16">
-      {/* Mobile header with back button and title */}
+    <div className="min-h-screen bg-neutral-50 pb-24">
+
+      {/* Sticky header */}
       <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-        <div className="container px-4 py-3 flex items-center">
-          {currentStep !== 'service' && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={goToPreviousStep}
-              className="mr-2"
-            >
+        <div className="flex items-center px-4 py-3">
+          {stepIndex > 0 && (
+            <Button variant="ghost" size="icon" onClick={goPrev} className="mr-2 shrink-0">
               <ChevronLeft className="h-5 w-5" />
             </Button>
           )}
-          <h1 className="text-lg font-medium">{getStepTitle()}</h1>
-        </div>
-        
-        {/* Animated Progress Steps */}
-        <div className="px-4 py-3 border-t bg-white">
-          <div className="flex items-center justify-between max-w-md mx-auto">
-            {['service', 'guruji', 'date', 'details', 'payment', 'confirmation'].map((step, index) => {
-              const stepNumber = index + 1;
-              const steps = ['service', 'guruji', 'date', 'details', 'payment', 'confirmation'];
-              const currentStepIndex = steps.indexOf(currentStep);
-              const isCompleted = index < currentStepIndex;
-              const isActive = step === currentStep;
-              const isLast = index === steps.length - 1;
-
-              return (
-                <div key={step} className="flex items-center flex-1">
-                  <motion.div
-                    initial={false}
-                    animate={{
-                      scale: isActive ? 1.2 : 1,
-                      backgroundColor: isCompleted
-                        ? 'rgb(34, 197, 94)'
-                        : isActive
-                        ? 'rgb(59, 130, 246)'
-                        : 'rgb(229, 231, 235)',
-                    }}
-                    transition={{ duration: 0.3, ease: 'easeOut' }}
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
-                    style={{ color: isCompleted || isActive ? 'white' : '#6B7280' }}
-                  >
-                    {isCompleted ? (
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </motion.div>
-                    ) : (
-                      stepNumber
-                    )}
-                  </motion.div>
-                  {!isLast && (
-                    <div className="flex-1 h-0.5 mx-1 bg-gray-200 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={false}
-                        animate={{ width: isCompleted ? '100%' : '0%' }}
-                        transition={{ duration: 0.4, ease: 'easeOut' }}
-                        className="h-full bg-green-500"
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div>
+            <h1 className="text-base font-semibold leading-tight">{STEP_LABELS[currentStep]}</h1>
+            <p className="text-xs text-muted-foreground">Step {stepIndex + 1} of {STEPS.length}</p>
           </div>
         </div>
+
+        {/* Animated progress dots */}
+        <div className="flex items-center gap-1 px-4 pb-3">
+          {STEPS.map((step, i) => {
+            const done = i < stepIndex;
+            const active = i === stepIndex;
+            return (
+              <div key={step} className="flex items-center flex-1">
+                <motion.div
+                  animate={{
+                    scale: active ? 1.15 : 1,
+                    backgroundColor: done ? '#22c55e' : active ? '#6d28d9' : '#e5e7eb',
+                  }}
+                  transition={{ duration: 0.25 }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                  style={{ color: done || active ? 'white' : '#9ca3af' }}
+                >
+                  {done ? <Check className="w-3 h-3" /> : i + 1}
+                </motion.div>
+                {i < STEPS.length - 1 && (
+                  <div className="flex-1 h-0.5 mx-1 bg-gray-200 rounded-full overflow-hidden">
+                    <motion.div
+                      animate={{ width: done ? '100%' : '0%' }}
+                      transition={{ duration: 0.3 }}
+                      className="h-full bg-green-500"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-      
-      <div className="container px-4 py-6">
-        {/* Service selection step */}
+
+      <div className="px-4 py-5 space-y-4">
+
+        {/* ── STEP 1: Select Service ── */}
         {currentStep === 'service' && (
-          <div className="space-y-4">
-            <p className="text-neutral-600 mb-4">Select the service you need:</p>
-            
-            {isServicesLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <motion.div key="service" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
+
+            {/* Service type tabs */}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Service Type</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { val: 'offline', icon: <Home className="h-4 w-4" />, label: 'Offline Puja' },
+                  { val: 'online', icon: <Wifi className="h-4 w-4" />, label: 'Online Puja' },
+                  { val: 'consultation', icon: <MessageSquare className="h-4 w-4" />, label: 'Consultation' },
+                ] as const).map(({ val, icon, label }) => (
+                  <button
+                    key={val}
+                    onClick={() => setBookingType(val)}
+                    className={`flex flex-col items-center gap-1 rounded-xl border p-3 text-xs font-medium transition-all
+                      ${bookingType === val
+                        ? 'border-violet-600 bg-violet-50 text-violet-700 ring-1 ring-violet-400'
+                        : 'border-gray-200 bg-white text-gray-600'}`}
+                  >
+                    {icon}
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Consultation sub-type */}
+            {bookingType === 'consultation' && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                <p className="text-sm font-medium text-amber-800">Consultation Type</p>
+                {([
+                  { val: 'own_guruji', label: 'Select your own Guruji' },
+                  { val: 'auto_select', label: 'Auto-select best Guruji' },
+                  { val: 'immediate', label: 'Immediate (3× price)' },
+                ] as const).map(({ val, label }) => (
+                  <label key={val} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="consultationType"
+                      checked={consultationType === val}
+                      onChange={() => setConsultationType(val)}
+                      className="accent-violet-600"
+                    />
+                    <span className="text-sm text-amber-900">{label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Offline samagri option */}
+            {bookingType === 'offline' && (
+              <label className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={withSamagri}
+                  onChange={e => setWithSamagri(e.target.checked)}
+                  className="accent-orange-500 w-4 h-4"
+                />
+                <div>
+                  <p className="text-sm font-medium text-orange-800">Include Puja Samagri</p>
+                  <p className="text-xs text-orange-600">All required puja materials delivered</p>
+                </div>
+              </label>
+            )}
+
+            {/* Puja selection */}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Select Puja</p>
+              {pujasLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-violet-600" /></div>
+              ) : (
+                <div className="space-y-2">
+                  {(pujas as any[]).map((puja: any) => (
+                    <button
+                      key={puja.id}
+                      onClick={() => setSelectedPujaId(puja.id.toString())}
+                      className={`w-full text-left rounded-xl border p-3 transition-all
+                        ${selectedPujaId === puja.id.toString()
+                          ? 'border-violet-600 bg-violet-50 ring-1 ring-violet-400'
+                          : 'border-gray-200 bg-white'}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-2">
+                          <p className="font-medium text-sm">{puja.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{puja.description}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{puja.duration} min</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-semibold text-violet-700">₹{puja.price}</p>
+                          {withSamagri && puja.samagriPrice && (
+                            <p className="text-xs text-orange-600">+₹{puja.samagriPrice} samagri</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── STEP 2: Date & Location ── */}
+        {currentStep === 'datetime' && (
+          <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
+
+            {/* Summary chip */}
+            <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-xl p-3">
+              <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                <Check className="h-4 w-4 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Selected Puja</p>
+                <p className="text-sm font-medium">{selectedPuja?.name} · ₹{calculateAmount()}</p>
+              </div>
+            </div>
+
+            {/* Date picker */}
+            <div>
+              <p className="text-sm font-medium mb-2 flex items-center gap-1">
+                <Calendar className="h-4 w-4" /> Select Date
+              </p>
+              <div className="flex overflow-x-auto gap-2 pb-1 -mx-1 px-1">
+                {dates.map(date => {
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  const isTomorrow = date.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                  const label = isToday ? 'Today' : isTomorrow ? 'Tomorrow'
+                    : date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+                  const selected = selectedDate?.toDateString() === date.toDateString();
+                  return (
+                    <button
+                      key={date.toISOString()}
+                      onClick={() => setSelectedDate(date)}
+                      className={`flex-shrink-0 rounded-xl border px-3 py-2 text-center text-xs font-medium transition-all
+                        ${selected ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-200 bg-white text-gray-700'}`}
+                    >
+                      <p className="font-semibold">{label.split(' ')[0]}</p>
+                      <p className="opacity-80">{label.split(' ').slice(1).join(' ')}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Time picker */}
+            <div>
+              <p className="text-sm font-medium mb-2 flex items-center gap-1">
+                <Clock className="h-4 w-4" /> Select Time
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {TIME_SLOTS.map(time => (
+                  <button
+                    key={time}
+                    onClick={() => setSelectedTime(time)}
+                    className={`rounded-lg border py-2 text-xs font-medium transition-all
+                      ${selectedTime === time ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-200 bg-white text-gray-700'}`}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Location (offline only) */}
+            {bookingType === 'offline' && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium flex items-center gap-1">
+                  <MapPin className="h-4 w-4" /> Location
+                </p>
+                <div>
+                  <Label className="text-xs text-muted-foreground">City</Label>
+                  <select
+                    value={selectedCity}
+                    onChange={e => setSelectedCity(e.target.value)}
+                    className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  >
+                    <option value="">Select city…</option>
+                    {(cities as any[]).map((c: any) => (
+                      <option key={c.id} value={c.name.toLowerCase().replace(/\s+/g, '-')}>
+                        {c.name}, {c.state}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Full Address</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="House no., street, area…"
+                    value={address}
+                    onChange={e => setAddress(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── STEP 3: Select Guruji ── */}
+        {currentStep === 'guruji' && (
+          <motion.div key="guruji" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+
+            {/* Summary */}
+            <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 text-sm space-y-0.5">
+              <p className="font-medium">{selectedPuja?.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedDate?.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} · {selectedTime}
+                {selectedCity && ` · ${selectedCity}`}
+              </p>
+            </div>
+
+            {/* Auto-select / online: no guruji picking needed */}
+            {(bookingType === 'online' || (bookingType === 'consultation' && consultationType !== 'own_guruji')) ? (
+              <div className="text-center py-10 space-y-3">
+                <div className="w-16 h-16 rounded-full bg-violet-100 flex items-center justify-center mx-auto">
+                  <Check className="h-8 w-8 text-violet-600" />
+                </div>
+                <p className="font-medium">
+                  {bookingType === 'consultation' && consultationType === 'immediate'
+                    ? 'Immediate booking — the first available Guruji will be assigned'
+                    : 'The best available Guruji will be auto-assigned for your booking'}
+                </p>
+                <p className="text-sm text-muted-foreground">You can proceed to review your booking</p>
+              </div>
+            ) : gurujisLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
+              </div>
+            ) : (gurujis as any[]).length === 0 ? (
+              <div className="text-center py-10 space-y-2">
+                <UserIcon className="h-12 w-12 text-muted-foreground mx-auto" />
+                <p className="font-medium">No Gurujis available</p>
+                <p className="text-sm text-muted-foreground">No verified Gurujis found for {selectedCity}. Try a different city or puja.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {(services as any[]).map((service: any) => (
-                  <Card 
-                    key={service.id}
-                    className={`cursor-pointer transition-all hover:border-primary ${selectedService === service.id ? 'border-primary ring-2 ring-primary-50' : ''}`}
-                    onClick={() => setSelectedService(service.id)}
+                {(gurujis as any[]).map((g: any) => (
+                  <button
+                    key={g.id}
+                    onClick={() => setSelectedGurujiId(g.id.toString())}
+                    className={`w-full text-left rounded-xl border p-3 transition-all
+                      ${selectedGurujiId === g.id.toString()
+                        ? 'border-violet-600 bg-violet-50 ring-1 ring-violet-400'
+                        : 'border-gray-200 bg-white'}`}
                   >
-                    <CardContent className="p-4 flex justify-between items-center">
-                      <div>
-                        <h3 className="font-medium">{service.name}</h3>
-                        <div className="text-sm text-neutral-500">
-                          <span>{service.duration} min</span> • 
-                          <span className="ml-1 capitalize">{service.type}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-primary">₹{service.basePrice || service.price}</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Guruji selection step */}
-        {currentStep === 'guruji' && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2 bg-primary-50 text-primary p-3 rounded-lg mb-4">
-              <div>
-                <p className="font-medium">Selected Service</p>
-                <p className="text-sm">{selectedServiceData?.name} • ₹{selectedServiceData?.price}</p>
-              </div>
-            </div>
-            
-            <p className="text-neutral-600 mb-2">Choose a Guruji for your service:</p>
-            
-            <div className="space-y-3">
-              {gurujis.map(guruji => (
-                <Card 
-                  key={guruji.id}
-                  className={`cursor-pointer transition-all hover:border-primary ${selectedGuruji === guruji.id ? 'border-primary ring-2 ring-primary-50' : ''} ${!guruji.availability ? 'opacity-60' : ''}`}
-                  onClick={() => guruji.availability && setSelectedGuruji(guruji.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <Avatar className="h-12 w-12 border">
-                        <AvatarFallback className="bg-primary-100 text-primary-800">
-                          {guruji.name.split(' ').map(n => n[0]).join('')}
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-12 w-12 shrink-0">
+                        {g.profilePictureUrl && <AvatarImage src={g.profilePictureUrl} />}
+                        <AvatarFallback className="bg-violet-100 text-violet-700 font-semibold">
+                          {(g.user?.firstName?.[0] || g.firstName?.[0] || 'G')}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <h3 className="font-medium">{guruji.name}</h3>
-                        <div className="text-sm text-neutral-500">
-                          {guruji.experience} years exp • {guruji.rating} ★
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">
+                          {g.user?.firstName || g.firstName} {g.user?.lastName || g.lastName}
+                        </p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
+                          <span>{g.experience} yrs exp</span>
+                          {g.rating > 0 && (
+                            <span className="flex items-center gap-0.5">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> {Number(g.rating).toFixed(1)}
+                              {g.totalReviews > 0 && ` (${g.totalReviews})`}
+                            </span>
+                          )}
+                          {g.languages?.length > 0 && <span>{g.languages.join(', ')}</span>}
+                        </div>
+                        <div className="flex items-center justify-between mt-1.5">
+                          <div className="flex gap-1">
+                            {g.isOffline && <Badge variant="outline" className="text-[10px] py-0 px-1.5">In-Person</Badge>}
+                            {g.isOnline && <Badge variant="outline" className="text-[10px] py-0 px-1.5">Online</Badge>}
+                          </div>
+                          <p className="font-semibold text-sm text-violet-700">₹{g.pricePerHour}/hr</p>
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="flex justify-between items-center mt-2">
-                      <div className="flex items-center text-sm text-neutral-500">
-                        <MapPin className="h-3.5 w-3.5 mr-1" />
-                        {guruji.location}
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-primary">₹{guruji.price}</div>
-                        {!guruji.availability && (
-                          <Badge variant="outline" className="text-xs mt-1">Not Available</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* Date and time selection step */}
-        {currentStep === 'date' && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2 bg-primary-50 text-primary p-3 rounded-lg mb-4">
-              <div>
-                <p className="font-medium">Selected Service & Guruji</p>
-                <p className="text-sm">
-                  {selectedServiceData?.name} with {selectedGurujiData?.name}
-                </p>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-medium flex items-center">
-                <Calendar className="mr-2 h-5 w-5" />
-                Select Date
-              </h3>
-              
-              <div className="flex overflow-x-auto space-x-2 pb-2">
-                {dates.map(date => (
-                  <Button
-                    key={date.date}
-                    variant={selectedDate === date.date ? "default" : "outline"}
-                    className="flex-shrink-0 h-auto py-2"
-                    onClick={() => setSelectedDate(date.date)}
-                  >
-                    {date.label}
-                  </Button>
+                  </button>
                 ))}
               </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── STEP 4: Review & Confirm ── */}
+        {currentStep === 'review' && (
+          <motion.div key="review" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm space-y-1">
+              <p className="font-semibold text-amber-800">Payment Process</p>
+              <p className="text-amber-700">
+                Our team will contact you after booking to confirm payment via UPI, bank transfer, or cash.
+              </p>
             </div>
-            
-            {selectedDate && (
-              <div className="space-y-2 mt-6">
-                <h3 className="font-medium flex items-center">
-                  <Clock className="mr-2 h-5 w-5" />
-                  Select Time
-                </h3>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  {timeSlots.map(time => (
-                    <Button
-                      key={time}
-                      variant={selectedTime === time ? "default" : "outline"}
-                      className="text-sm"
-                      onClick={() => setSelectedTime(time)}
-                    >
-                      {time}
-                    </Button>
-                  ))}
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Booking Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Puja</span>
+                  <span className="font-medium">{selectedPuja?.name}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="font-medium capitalize">{bookingType}</span>
+                </div>
+                {bookingType === 'consultation' && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Consultation</span>
+                    <span className="font-medium capitalize">{consultationType.replace('_', ' ')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date</span>
+                  <span className="font-medium">
+                    {selectedDate?.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Time</span>
+                  <span className="font-medium">{selectedTime}</span>
+                </div>
+                {selectedCity && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">City</span>
+                    <span className="font-medium capitalize">{selectedCity.replace(/-/g, ' ')}</span>
+                  </div>
+                )}
+                {address && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Address</span>
+                    <span className="font-medium text-right max-w-[55%]">{address}</span>
+                  </div>
+                )}
+                {selectedGuruji && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Guruji</span>
+                    <span className="font-medium">
+                      {selectedGuruji.user?.firstName || selectedGuruji.firstName} {selectedGuruji.user?.lastName || selectedGuruji.lastName}
+                    </span>
+                  </div>
+                )}
+                {!selectedGuruji && bookingType !== 'offline' && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Guruji</span>
+                    <span className="font-medium text-muted-foreground italic">Auto-assigned</span>
+                  </div>
+                )}
+                {withSamagri && selectedPuja?.samagriPrice && (
+                  <div className="flex justify-between text-orange-700">
+                    <span>Samagri</span>
+                    <span className="font-medium">+₹{selectedPuja.samagriPrice}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between font-semibold text-base">
+                  <span>Total</span>
+                  <span className="text-violet-700">₹{calculateAmount()}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {!currentUser && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+                You must be logged in to submit a booking.{' '}
+                <button onClick={() => setLocation('/login')} className="underline font-medium">Login now</button>
               </div>
             )}
-          </div>
-        )}
-        
-        {/* Details form step */}
-        {currentStep === 'details' && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2 bg-primary-50 text-primary p-3 rounded-lg mb-4">
-              <div>
-                <p className="font-medium">Booking Summary</p>
-                <p className="text-sm">
-                  {selectedServiceData?.name} with {selectedGurujiData?.name}
-                </p>
-                <p className="text-sm">
-                  {selectedDate && new Date(selectedDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} at {selectedTime}
-                </p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Location/Address
-                </label>
-                <Input placeholder="Enter your complete address" />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Number of Attendees
-                </label>
-                <div className="flex items-center">
-                  <Users className="h-5 w-5 mr-2 text-neutral-500" />
-                  <Input type="number" min="1" defaultValue="2" />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Special Instructions (optional)
-                </label>
-                <Input placeholder="Any specific requirements or notes" />
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Payment step */}
-        {currentStep === 'payment' && (
-          <div className="space-y-4">
-            <div className="bg-primary-50 p-4 rounded-lg">
-              <h3 className="font-medium mb-2">Booking Summary</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Service Fee ({selectedServiceData?.name})</span>
-                  <span>₹{selectedServiceData?.price}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Guruji Fee ({selectedGurujiData?.name})</span>
-                  <span>₹{selectedGurujiData?.price}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Platform Fee</span>
-                  <span>₹299</span>
-                </div>
-                <div className="flex justify-between font-medium pt-2 border-t">
-                  <span>Total Amount</span>
-                  <span>₹{(selectedServiceData?.price || 0) + (selectedGurujiData?.price || 0) + 299}</span>
-                </div>
-              </div>
-            </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Method</CardTitle>
-                <CardDescription>Choose your preferred payment method</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="card">
-                  <TabsList className="w-full">
-                    <TabsTrigger value="card" className="flex-1">Card</TabsTrigger>
-                    <TabsTrigger value="upi" className="flex-1">UPI</TabsTrigger>
-                    <TabsTrigger value="cash" className="flex-1">Cash</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="card" className="space-y-3 pt-3">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1">
-                        Card Number
-                      </label>
-                      <Input placeholder="1234 5678 9012 3456" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Expiry Date
-                        </label>
-                        <Input placeholder="MM/YY" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          CVV
-                        </label>
-                        <Input placeholder="123" />
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="upi" className="space-y-3 pt-3">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1">
-                        UPI ID
-                      </label>
-                      <Input placeholder="example@upi" />
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="cash" className="pt-3">
-                    <p className="text-sm text-neutral-600">
-                      Pay cash directly to the Guruji at the time of service. 
-                      A booking confirmation will be sent to your phone.
-                    </p>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        
-        {/* Confirmation step */}
-        {currentStep === 'confirmation' && (
-          <div className="text-center space-y-4">
-            <div className="mx-auto w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-              <svg className="h-10 w-10 text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-            
-            <h2 className="text-2xl font-bold text-neutral-900">Booking Confirmed!</h2>
-            
-            <p className="text-neutral-600">
-              Your puja booking has been confirmed. A confirmation has been sent to your mobile.
-            </p>
-            
-            <Card className="bg-primary-50 text-left mt-8">
-              <CardHeader>
-                <CardTitle>Booking Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div>
-                  <p className="text-sm text-neutral-500">Service</p>
-                  <p className="font-medium">{selectedServiceData?.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-neutral-500">Guruji</p>
-                  <p className="font-medium">{selectedGurujiData?.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-neutral-500">Date & Time</p>
-                  <p className="font-medium">
-                    {selectedDate && new Date(selectedDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} at {selectedTime}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-neutral-500">Booking ID</p>
-                  <p className="font-medium">GC{Math.floor(100000 + Math.random() * 900000)}</p>
-                </div>
-              </CardContent>
-              <CardFooter className="border-t bg-white">
-                <div className="w-full flex justify-between items-center">
-                  <span className="text-sm text-neutral-500">Total Amount</span>
-                  <span className="font-medium">₹{(selectedServiceData?.price || 0) + (selectedGurujiData?.price || 0) + 299}</span>
-                </div>
-              </CardFooter>
-            </Card>
-          </div>
+          </motion.div>
         )}
       </div>
-      
-      {/* Fixed bottom action buttons */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
-        <Button 
-          className="w-full"
-          onClick={goToNextStep}
-          disabled={isNextDisabled()}
-        >
-          {getNextButtonText()}
-          {currentStep !== 'confirmation' && <ChevronRight className="ml-1 h-5 w-5" />}
-        </Button>
+
+      {/* Fixed bottom button */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-20">
+        {currentStep === 'review' ? (
+          <Button
+            className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+            onClick={handleSubmit}
+            disabled={isSubmitting || !currentUser}
+          >
+            {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+            {isSubmitting ? 'Submitting…' : 'Confirm Booking Request'}
+          </Button>
+        ) : (
+          <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white" onClick={goNext}>
+            Continue
+            <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
