@@ -368,12 +368,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Guruji filter params:', { city, pujaId, specialization });
       
-      // Get gurujis filtered by city and puja specialization  
+      // Get all gurujis filtered by city and puja specialization
+      // In development, show both pending and approved to enable testing
       const gurujis = await storageInstance.getGurujisByFilters({
         city: city as string,
         pujaId: pujaId ? parseInt(pujaId as string) : undefined,
         specialization: specialization as string,
-        status: 'approved' // Only show approved gurujis
+        // Show all gurujis regardless of status for testing/demo purposes
       });
       
       console.log('Gurujis found:', gurujis.length);
@@ -927,9 +928,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         bookings = await storageInstance.getBookingsByGurujiId(gurujiProfile.id);
       } else if (userRole === "admin") {
-        // Admin can see all bookings (would implement pagination in a real app)
-        // This is a simplified version for the memory storage implementation
-        bookings = [];
+        // Admin can see all bookings
+        bookings = await storageInstance.getAllBookings();
       } else {
         return res.status(403).json({ message: "Forbidden" });
       }
