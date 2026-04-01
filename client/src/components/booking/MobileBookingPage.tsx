@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Calendar, Clock, MapPin,
@@ -173,6 +173,8 @@ export function MobileBookingPage() {
       if (selectedGurujiId) bookingData.gurujiId = parseInt(selectedGurujiId);
 
       await apiRequest('POST', '/api/bookings', bookingData);
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
       toast({ title: 'Booking submitted!', description: 'Our team will contact you for payment confirmation.' });
       setLocation('/dashboard');
     } catch {

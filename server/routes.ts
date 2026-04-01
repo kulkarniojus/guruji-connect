@@ -877,8 +877,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         city: bookingData.city || '',
       } as any);
 
-      // Trigger notifications to all qualified gurujis nearby
-      await notifyGurujisPujaRequest(booking, bookingData.city || '');
+      // If a specific guruji was selected, assign directly and notify only that guruji
+      if (bookingData.gurujiId) {
+        await storageInstance.assignGurujiToBooking(booking.id, bookingData.gurujiId);
+        await storageInstance.updateBookingStatus(booking.id, 'confirmed');
+        
+        const guruji = await storageInstance.getGurujiProfile(bookingData.gurujiId);
+        if (guruji) {
+          const customer = await storageInstance.getUser(userId);
+          await storageInstance.createNotification({
+            userId: guruji.userId,
+            title: 'New Booking Assigned',
+            message: `A new puja booking has been assigned to you by ${customer?.firstName || 'a customer'}`,
+            type: 'booking_confirmed',
+          });
+        }
+      } else {
+        // Auto-select or send to nearby gurujis
+        await notifyGurujisPujaRequest(booking, bookingData.city || '');
+      }
 
       res.status(201).json(booking);
     } catch (error) {

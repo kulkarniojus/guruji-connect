@@ -433,10 +433,36 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader className="pb-0">
                 <CardTitle>Booking Management</CardTitle>
-                <CardDescription>Manage all bookings on the platform</CardDescription>
+                <CardDescription>Manage and assign bookings to gurujis</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-center py-4 text-neutral-500">Booking data will be displayed here</p>
+                {isBookingsLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : bookings.length === 0 ? (
+                  <p className="text-center py-4 text-neutral-500">No bookings found</p>
+                ) : (
+                  <div className="space-y-4">
+                    {bookings.slice(0, 10).map((booking: any) => (
+                      <div key={booking.id} className="border rounded-lg p-4 flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">Booking #{booking.id}</p>
+                          <p className="text-sm text-neutral-500">
+                            {booking.pujaName || 'Puja'} · {booking.city} · Status: <Badge variant="outline">{booking.status}</Badge>
+                          </p>
+                          <p className="text-xs text-neutral-400 mt-1">
+                            Date: {new Date(booking.date).toLocaleDateString('en-IN')} {booking.time && `· Time: ${booking.time}`}
+                          </p>
+                          {booking.gurujiId && (
+                            <p className="text-xs text-green-600 mt-1">✓ Assigned to Guruji ID: {booking.gurujiId}</p>
+                          )}
+                        </div>
+                        <Button variant="outline" size="sm">Manage</Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

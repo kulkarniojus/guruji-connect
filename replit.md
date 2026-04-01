@@ -182,6 +182,12 @@ Changelog:
 - April 01, 2026. Added mandatory phone number field to guruji registration (both self-registration and sales rep
   registration). Phone number must be 10 digits. When sales rep registers a guruji, the initial password is
   automatically set to the 10-digit phone number (no separate password field).
+- April 01, 2026. Fixed multiple booking flow issues:
+  • When customer selects a specific guruji during booking, that guruji is now immediately assigned (status: confirmed)
+  • Notification is sent directly to the selected guruji (instead of all nearby gurujis)
+  • Cache invalidation after booking creation ensures customer dashboard updates immediately
+  • View Details button now links to booking detail page
+  • Admin Bookings tab now displays all bookings with assignment status and manage options
 ```
 
 ## User Preferences
