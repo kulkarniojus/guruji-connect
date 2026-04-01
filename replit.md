@@ -168,7 +168,11 @@ mobile/
 Changelog:
 - July 05, 2025. Initial setup
 - July 05, 2025. Added comprehensive React Native mobile application with all web features
-- January 19, 2026. Mobile-web frontend alignment: Added 6 new mobile screens (Dashboard, Notifications, PujasList, Services, HowItWorks, BecomeGuruji) to match web functionality
+- January 19, 2026. Mobile-web frontend alignment: Added 6 new mobile screens
+- April 01, 2026. Fixed booking time null error (added time field to POST /api/bookings payload)
+- April 01, 2026. Admin payment settings: new app_settings table, Payment tab in admin dashboard,
+  configurable UPI ID/QR code, enable/disable payment switch. When enabled, customers see UPI QR
+  and must confirm payment before booking is sent to Guruji. Works on both web and mobile booking flows.
 ```
 
 ## User Preferences

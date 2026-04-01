@@ -9,8 +9,9 @@ import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import PujaManagementTab from '@/components/admin/PujaManagementTab';
 import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
 import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
+import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell } from 'lucide-react';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
@@ -76,7 +77,7 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-8 mb-8">
+        <TabsList className="grid w-full grid-cols-9 mb-8">
           <TabsTrigger value="analytics" className="flex items-center justify-center">
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
@@ -114,6 +115,10 @@ export default function AdminDashboard() {
             <HelpCircle className="h-4 w-4 mr-2" />
             FAQ
           </TabsTrigger>
+          <TabsTrigger value="payment-settings" className="flex items-center justify-center">
+            <CreditCard className="h-4 w-4 mr-2" />
+            Payment
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics">
@@ -150,6 +155,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="faq">
           <FAQManagementTab />
+        </TabsContent>
+
+        <TabsContent value="payment-settings">
+          <PaymentSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

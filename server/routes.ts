@@ -39,6 +39,29 @@ declare module 'express-session' {
 const SessionStore = MemoryStore(session);
 
 // Initialize admin user if it doesn't exist (ONLY in development)
+// Ensure app_settings table exists and has a seed row
+async function initializeAppSettings() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        id SERIAL PRIMARY KEY,
+        payment_required BOOLEAN NOT NULL DEFAULT FALSE,
+        upi_id TEXT,
+        upi_name TEXT,
+        upi_qr_image_url TEXT,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`
+      INSERT INTO app_settings (payment_required)
+      SELECT FALSE WHERE NOT EXISTS (SELECT 1 FROM app_settings LIMIT 1)
+    `);
+  } catch (err) {
+    console.error("Warning: could not initialize app_settings:", err);
+  }
+}
+
 async function initializeAdminUser() {
   // Only create admin user in development environment
   if (process.env.NODE_ENV === 'production') {
@@ -72,8 +95,9 @@ async function initializeAdminUser() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Initialize admin user
+  // Initialize admin user and app settings
   await initializeAdminUser();
+  await initializeAppSettings();
 
   // Set up session middleware
   app.use(
@@ -1472,6 +1496,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/admin/pujas', pujaRoutes);
   app.use('/api/demo', demoRoutes);
   
+  // ── Payment Settings (public read, admin write) ──────────────────────────
+  app.get('/api/settings/payment', async (req: Request, res: Response) => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        return res.json({ paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+      }
+      const result = await pool.query('SELECT * FROM app_settings LIMIT 1');
+      if (result.rows.length === 0) {
+        return res.json({ paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+      }
+      const row = result.rows[0];
+      res.json({
+        paymentRequired: row.payment_required,
+        upiId: row.upi_id,
+        upiName: row.upi_name,
+        upiQrImageUrl: row.upi_qr_image_url,
+      });
+    } catch (err) {
+      console.error('Error fetching payment settings:', err);
+      res.json({ paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+    }
+  });
+
+  app.put('/api/admin/settings/payment', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { paymentRequired, upiId, upiName, upiQrImageUrl } = req.body;
+      if (!process.env.DATABASE_URL) {
+        return res.status(503).json({ message: 'Database not available' });
+      }
+      await pool.query(
+        `UPDATE app_settings SET payment_required=$1, upi_id=$2, upi_name=$3, upi_qr_image_url=$4, updated_at=NOW()`,
+        [!!paymentRequired, upiId || null, upiName || null, upiQrImageUrl || null]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Error updating payment settings:', err);
+      res.status(500).json({ message: 'Failed to update payment settings' });
+    }
+  });
+
   // Register booking request routes
   app.post('/api/bookings/:id/send-requests', isAuthenticated, checkRole(['customer']), sendBookingRequests);
   app.post('/api/booking-requests/:id/respond', isAuthenticated, checkRole(['guruji']), respondToBookingRequest);

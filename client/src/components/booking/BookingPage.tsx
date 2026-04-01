@@ -229,6 +229,7 @@ export default function BookingPage() {
         address: address,
         pincode: pincode || undefined,
         date: dateTime.toISOString(),
+        time: selectedTime,
         duration: selectedPuja?.duration || 120,
         notes: '',
         isImmediate: bookingType === 'consultation' && consultationType === 'immediate',

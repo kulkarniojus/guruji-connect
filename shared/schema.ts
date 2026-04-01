@@ -543,6 +543,23 @@ export type InsertUserJourneyItem = z.infer<typeof insertUserJourneyItemSchema>;
 export type City = typeof cities.$inferSelect;
 export type InsertCity = z.infer<typeof insertCitySchema>;
 
+// App settings table — single-row config managed by admin
+export const appSettings = pgTable("app_settings", {
+  id: serial("id").primaryKey(),
+  paymentRequired: boolean("payment_required").notNull().default(false),
+  upiId: text("upi_id"),
+  upiName: text("upi_name"),
+  upiQrImageUrl: text("upi_qr_image_url"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+export type AppSettings = typeof appSettings.$inferSelect;
+export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
+
 // Add schema and types for booking requests
 export const insertBookingRequestSchema = createInsertSchema(bookingRequests).omit({
   id: true,

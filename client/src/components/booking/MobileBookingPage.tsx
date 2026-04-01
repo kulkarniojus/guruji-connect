@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Calendar, Clock, MapPin,
   Loader2, Check, Star, Phone, User as UserIcon, Wifi,
-  Home, MessageSquare
+  Home, MessageSquare, QrCode, Copy
 } from 'lucide-react';
 import LoginModal from '@/components/auth/LoginModal';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type BookingStep = 'service' | 'datetime' | 'guruji' | 'review';
 
@@ -61,6 +62,7 @@ export function MobileBookingPage() {
   const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
   // Fetch pujas, cities, auth
   const { data: pujas = [], isLoading: pujasLoading } = useQuery({ queryKey: ['/api/pujas'] });
@@ -72,6 +74,15 @@ export function MobileBookingPage() {
       if (!res.ok) return null;
       return res.json();
     },
+  });
+
+  const { data: paymentSettings } = useQuery<any>({
+    queryKey: ['/api/settings/payment'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings/payment');
+      return res.json();
+    },
+    staleTime: 60000,
   });
 
   const selectedPuja = (pujas as any[]).find((p: any) => p.id.toString() === selectedPujaId) || null;
@@ -153,6 +164,7 @@ export function MobileBookingPage() {
         address,
         pincode: pincode || undefined,
         date: dt.toISOString(),
+        time: selectedTime,
         duration: selectedPuja?.duration || 120,
         notes: '',
         isImmediate: bookingType === 'consultation' && consultationType === 'immediate',
@@ -524,12 +536,63 @@ export function MobileBookingPage() {
         {currentStep === 'review' && (
           <motion.div key="review" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm space-y-1">
-              <p className="font-semibold text-amber-800">Payment Process</p>
-              <p className="text-amber-700">
-                Our team will contact you after booking to confirm payment via UPI, bank transfer, or cash.
-              </p>
-            </div>
+            {paymentSettings?.paymentRequired ? (
+              /* ── Payment required: show UPI QR ── */
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-3">
+                <p className="font-semibold text-violet-900 flex items-center gap-2">
+                  <QrCode className="h-4 w-4" />
+                  Pay via UPI to confirm booking
+                </p>
+                <p className="text-sm text-violet-700">
+                  Pay <strong>₹{calculateAmount()}</strong> to complete your booking request.
+                </p>
+                {paymentSettings?.upiQrImageUrl && (
+                  <div className="flex justify-center">
+                    <img
+                      src={paymentSettings.upiQrImageUrl}
+                      alt="UPI QR Code"
+                      className="w-40 h-40 object-contain bg-white rounded-lg border p-2"
+                    />
+                  </div>
+                )}
+                {paymentSettings?.upiId && (
+                  <div className="flex items-center justify-between bg-white border rounded-lg px-3 py-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{paymentSettings.upiName ?? 'UPI ID'}</p>
+                      <p className="font-mono text-sm font-medium">{paymentSettings.upiId}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(paymentSettings.upiId);
+                        toast({ title: 'UPI ID copied!' });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                <div className="flex items-start gap-2 pt-1">
+                  <Checkbox
+                    id="mobPayConfirm"
+                    checked={paymentConfirmed}
+                    onCheckedChange={(val) => setPaymentConfirmed(!!val)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="mobPayConfirm" className="text-xs text-violet-800 cursor-pointer">
+                    I have completed the UPI payment and understand it will be verified before my booking is confirmed.
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm space-y-1">
+                <p className="font-semibold text-amber-800">Payment Process</p>
+                <p className="text-amber-700">
+                  Our team will contact you after booking to confirm payment via UPI, bank transfer, or cash.
+                </p>
+              </div>
+            )}
 
             <Card>
               <CardHeader className="pb-3">
@@ -616,10 +679,10 @@ export function MobileBookingPage() {
           <Button
             className="w-full bg-violet-600 hover:bg-violet-700 text-white"
             onClick={handleSubmit}
-            disabled={isSubmitting || !currentUser}
+            disabled={isSubmitting || !currentUser || (paymentSettings?.paymentRequired && !paymentConfirmed)}
           >
             {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-            {isSubmitting ? 'Submitting…' : 'Confirm Booking Request'}
+            {isSubmitting ? 'Submitting…' : paymentSettings?.paymentRequired ? 'I have paid — Confirm Booking' : 'Confirm Booking Request'}
           </Button>
         ) : (
           <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white" onClick={goNext}>
