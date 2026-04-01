@@ -189,7 +189,8 @@ Changelog:
   • If a guruji rejects, others still see the request (can accept later)
   • Notification sent only to selected guruji (specific mode) or all nearby gurujis (auto-search mode)
   • Cache invalidation after booking ensures customer dashboard updates immediately
-  • View Details button now links to booking detail page
+  • Created BookingDetail page: customers can view full booking details with guruji assignment, location, date/time
+  • "View Details" button now functional and links to dedicated booking detail page (/booking/:id)
   • Admin Bookings tab displays all bookings with assignment status and manage options
 ```
 
