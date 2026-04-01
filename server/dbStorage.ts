@@ -710,7 +710,7 @@ export class DBStorage implements IStorage {
         (bookingData as any).time || null,
         bookingData.type || 'offline',
         bookingData.amount,
-        bookingData.consultationType || null,
+        bookingData.consultationType || 'own_guruji',
         bookingData.notes || null,
         bookingData.status || 'pending',
         new Date(),
