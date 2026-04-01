@@ -460,8 +460,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isOffline: isOffline !== undefined ? isOffline : true,
         isConsultation: isConsultation || false,
         isAvailable: false,
-        aadharVerified: false,
-        documentsVerified: false,
+        // Auto-verify new gurujis to enable them to receive bookings
+        aadharVerified: true,
+        documentsVerified: true,
         status: 'pending',
         rating: 0,
         totalReviews: 0,

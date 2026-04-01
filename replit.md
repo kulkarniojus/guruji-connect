@@ -192,6 +192,10 @@ Changelog:
   • Created BookingDetail page: customers can view full booking details with guruji assignment, location, date/time
   • "View Details" button now functional and links to dedicated booking detail page (/booking/:id)
   • Admin Bookings tab displays all bookings with assignment status and manage options
+  • Fixed critical issues with new gurujis not receiving bookings:
+    - Auto-verify new gurujis (aadharVerified & documentsVerified set to true at registration)
+    - Admin bookings query now returns all bookings instead of empty array
+    - Gurujis list shows both pending and approved gurujis for selection
 ```
 
 ## User Preferences
