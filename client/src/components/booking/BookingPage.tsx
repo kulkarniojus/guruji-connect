@@ -48,6 +48,7 @@ export default function BookingPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>(initialCity);
   const [address, setAddress] = useState<string>('');
+  const [pincode, setPincode] = useState<string>('');
   const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -200,6 +201,7 @@ export default function BookingPage() {
         amount: calculateAmount(),
         city: selectedCity,
         address: address,
+        pincode: pincode || undefined,
         date: dateTime.toISOString(),
         duration: selectedPuja?.duration || 120,
         notes: '',
@@ -514,16 +516,30 @@ export default function BookingPage() {
                 </div>
 
                 {bookingType === 'offline' && (
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Input
-                      id="address"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Enter your full address"
-                      className="mt-1"
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <Label htmlFor="address">Address</Label>
+                      <Input
+                        id="address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Enter your full address"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="pincode">Pincode</Label>
+                      <Input
+                        id="pincode"
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value)}
+                        placeholder="6-digit pincode (e.g. 440001)"
+                        maxLength={6}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Used to find the nearest available Guruji in your area</p>
+                    </div>
+                  </>
                 )}
               </div>
             )}

@@ -916,7 +916,7 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `SELECT * FROM notifications 
        WHERE "userId" = $1
-       ORDER BY is_read ASC, created_at DESC`,
+       ORDER BY "isRead" ASC, "createdAt" DESC`,
       [userId]
     );
     
@@ -1533,14 +1533,16 @@ export class DBStorage implements IStorage {
     status?: string;
   }): Promise<GurujiProfile[]> {
     try {
+      const status = filters.status || 'approved';
       let query = `
         SELECT gp.*, u."firstName", u."lastName", u.email, u.mobile 
         FROM guruji_profiles gp
         JOIN users u ON gp."userId" = u.id
-        WHERE gp."isVerified" = true AND gp."isAvailable" = true
+        WHERE gp.status = $1 AND gp."isVerified" = true AND gp."isAvailable" = true
+          AND u."isBlocked" = false
       `;
-      const values: any[] = [];
-      let paramIndex = 1;
+      const values: any[] = [status];
+      let paramIndex = 2;
 
       // Filter by city (case-insensitive)
       if (filters.city) {
@@ -1549,11 +1551,19 @@ export class DBStorage implements IStorage {
         paramIndex++;
       }
 
-      // Filter by puja specialization
+      // Filter by puja specialization — the column is a text[] array named "specialities"
+      // It may contain puja names ("Satyanarayan Puja") or puja IDs ("1", "2", "3")
       if (filters.specialization) {
-        query += ` AND $${paramIndex} = ANY(gp.specialities)`;
-        values.push(filters.specialization);
-        paramIndex++;
+        if (filters.pujaId) {
+          query += ` AND ($${paramIndex} = ANY(gp.specialities) OR $${paramIndex + 1} = ANY(gp.specialities))`;
+          values.push(filters.specialization);         // name match
+          values.push(filters.pujaId.toString());      // id match
+          paramIndex += 2;
+        } else {
+          query += ` AND $${paramIndex} = ANY(gp.specialities)`;
+          values.push(filters.specialization);
+          paramIndex++;
+        }
       }
 
       query += ` ORDER BY gp.rating DESC, gp."totalReviews" DESC`;
@@ -1569,15 +1579,22 @@ export class DBStorage implements IStorage {
         mobile: row.mobile,
         bio: row.bio,
         experience: row.experience,
-        specialization: row.specialization,
+        specialization: Array.isArray(row.specialities) ? row.specialities.join(',') : (row.specialization || null),
         location: row.location,
+        city: row.city,
+        pincode: row.pincode,
         pricePerHour: row.pricePerHour,
         rating: parseFloat(row.rating) || 0,
         totalReviews: row.totalReviews || 0,
         isAvailable: row.isAvailable,
+        isOnline: row.isOnline,
+        isOffline: row.isOffline,
+        languages: row.languages || [],
+        profilePictureUrl: row.profile_picture_url || null,
         status: row.status,
         createdAt: row.createdAt,
-        updatedAt: row.updatedAt
+        updatedAt: row.updatedAt,
+        user: { id: row.userId, firstName: row.firstName, lastName: row.lastName },
       }));
     } catch (error) {
       console.error('Error getting gurujis by filters:', error);

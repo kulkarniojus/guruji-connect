@@ -56,6 +56,7 @@ export function MobileBookingPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [address, setAddress] = useState<string>('');
+  const [pincode, setPincode] = useState<string>('');
   const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -148,6 +149,7 @@ export function MobileBookingPage() {
         amount: calculateAmount(),
         city: selectedCity,
         address,
+        pincode: pincode || undefined,
         date: dt.toISOString(),
         duration: selectedPuja?.duration || 120,
         notes: '',
@@ -414,6 +416,18 @@ export function MobileBookingPage() {
                     value={address}
                     onChange={e => setAddress(e.target.value)}
                   />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Pincode</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="6-digit pincode (e.g. 440001)"
+                    value={pincode}
+                    onChange={e => setPincode(e.target.value)}
+                    maxLength={6}
+                    inputMode="numeric"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">We use this to find the nearest Guruji in your area</p>
                 </div>
               </div>
             )}
