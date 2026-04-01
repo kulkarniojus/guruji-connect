@@ -182,12 +182,15 @@ Changelog:
 - April 01, 2026. Added mandatory phone number field to guruji registration (both self-registration and sales rep
   registration). Phone number must be 10 digits. When sales rep registers a guruji, the initial password is
   automatically set to the 10-digit phone number (no separate password field).
-- April 01, 2026. Fixed multiple booking flow issues:
-  • When customer selects a specific guruji during booking, that guruji is now immediately assigned (status: confirmed)
-  • Notification is sent directly to the selected guruji (instead of all nearby gurujis)
-  • Cache invalidation after booking creation ensures customer dashboard updates immediately
+- April 01, 2026. Fixed multiple booking flow issues and added auto-search guruji feature:
+  • When customer selects a specific guruji, that guruji is immediately assigned (status: confirmed)
+  • Added "Auto-Search Nearby Gurujis" option: sends request to all nearby gurujis for the location & puja type
+  • First guruji to accept gets the booking locked; other requests are auto-expired
+  • If a guruji rejects, others still see the request (can accept later)
+  • Notification sent only to selected guruji (specific mode) or all nearby gurujis (auto-search mode)
+  • Cache invalidation after booking ensures customer dashboard updates immediately
   • View Details button now links to booking detail page
-  • Admin Bookings tab now displays all bookings with assignment status and manage options
+  • Admin Bookings tab displays all bookings with assignment status and manage options
 ```
 
 ## User Preferences

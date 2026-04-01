@@ -44,6 +44,7 @@ export default function BookingPage() {
   const [activeStep, setActiveStep] = useState<number>(1);
   const [bookingType, setBookingType] = useState<'offline' | 'online' | 'consultation'>(initialType as any);
   const [consultationType, setConsultationType] = useState<'own_guruji' | 'auto_select' | 'immediate'>('auto_select');
+  const [gurujiSelectionMode, setGurujiSelectionMode] = useState<'specific' | 'auto_nearby'>('specific');
   const [selectedPujaId, setSelectedPujaId] = useState<string>(initialPujaId);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -239,9 +240,11 @@ export default function BookingPage() {
         bookingData.consultationType = consultationType;
       }
 
-      if (selectedGurujiId) {
+      // Only assign guruji directly if user selected a specific guruji (not auto-search)
+      if (selectedGurujiId && gurujiSelectionMode === 'specific') {
         bookingData.gurujiId = parseInt(selectedGurujiId);
       }
+      // If auto-search mode, don't set gurujiId - it will be handled by the API
 
       const response = await apiRequest('POST', '/api/bookings', bookingData);
       const data = await response.json();
@@ -598,14 +601,52 @@ export default function BookingPage() {
           </CardHeader>
           <CardContent>
             {(bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')) ? (
-              <div>
-                {isGurujiLoading ? (
-                  <div className="flex justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="space-y-6">
+                {/* Guruji Selection Mode Toggle */}
+                <div className="bg-neutral-50 p-4 rounded-lg border">
+                  <p className="text-sm font-medium mb-4">How would you like to find your Guruji?</p>
+                  <div className="space-y-3">
+                    <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors" style={{borderColor: gurujiSelectionMode === 'specific' ? '#7c3aed' : '#e5e7eb', backgroundColor: gurujiSelectionMode === 'specific' ? '#f3e8ff' : 'white'}}>
+                      <input
+                        type="radio"
+                        name="gurujiMode"
+                        value="specific"
+                        checked={gurujiSelectionMode === 'specific'}
+                        onChange={(e) => setGurujiSelectionMode(e.target.value as 'specific' | 'auto_nearby')}
+                        className="mr-3"
+                      />
+                      <div>
+                        <p className="font-medium text-sm">Select a Specific Guruji</p>
+                        <p className="text-xs text-neutral-500">Choose from available Gurujis in your area</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors" style={{borderColor: gurujiSelectionMode === 'auto_nearby' ? '#7c3aed' : '#e5e7eb', backgroundColor: gurujiSelectionMode === 'auto_nearby' ? '#f3e8ff' : 'white'}}>
+                      <input
+                        type="radio"
+                        name="gurujiMode"
+                        value="auto_nearby"
+                        checked={gurujiSelectionMode === 'auto_nearby'}
+                        onChange={(e) => setGurujiSelectionMode(e.target.value as 'specific' | 'auto_nearby')}
+                        className="mr-3"
+                      />
+                      <div>
+                        <p className="font-medium text-sm">Auto-Search Nearby Gurujis</p>
+                        <p className="text-xs text-neutral-500">Send request to all available Gurujis in your location (first to accept gets the booking)</p>
+                      </div>
+                    </label>
                   </div>
-                ) : gurujis && gurujis.length > 0 ? (
-                  <div className="space-y-4">
-                    {gurujis.map((guruji) => (
+                </div>
+
+                {/* Show guruji list only in specific mode */}
+                {gurujiSelectionMode === 'specific' && (
+                  <div>
+                    {isGurujiLoading ? (
+                      <div className="flex justify-center p-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : gurujis && gurujis.length > 0 ? (
+                      <div className="space-y-4">
+                        {gurujis.map((guruji) => (
                       <div
                         key={guruji.id}
                         className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors ${
@@ -646,6 +687,26 @@ export default function BookingPage() {
                       There are no Gurujis available in the selected location for the chosen service.
                       Please try a different location or date.
                     </p>
+                  </div>
+                )}
+                    </div>
+                  )}
+
+                {/* Show auto-search summary when auto-search is selected */}
+                {gurujiSelectionMode === 'auto_nearby' && (
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <div className="flex">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mr-4">
+                        <Check className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-blue-800">Auto-Search Active</h3>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Your request will be sent to all available Gurujis in <strong>{selectedCity}</strong> for the <strong>{selectedPuja?.name}</strong>. 
+                          The first Guruji to accept will be assigned to your booking.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
