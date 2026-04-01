@@ -441,13 +441,16 @@ export class MemStorage implements IStorage {
 
   private initializeSampleGurujis() {
     // First create sample users for the Gurujis
+    // Password for each guruji = their mobile number
     const sampleGurujiUsers = [
       {
         id: this.userIdCounter++,
+        firstName: "Pandit Ramesh",
+        lastName: "Sharma",
         name: "Pandit Ramesh Sharma",
         email: "ramesh.sharma@gurujiconnect.com",
         mobile: "9876543210",
-        password: "hashed_password",
+        password: "placeholder",
         role: "guruji" as const,
         isBlocked: false,
         createdAt: new Date(),
@@ -455,10 +458,12 @@ export class MemStorage implements IStorage {
       },
       {
         id: this.userIdCounter++,
+        firstName: "Acharya Priya",
+        lastName: "Devi",
         name: "Acharya Priya Devi",
         email: "priya.devi@gurujiconnect.com",
         mobile: "9876543211",
-        password: "hashed_password",
+        password: "placeholder",
         role: "guruji" as const,
         isBlocked: false,
         createdAt: new Date(),
@@ -466,10 +471,12 @@ export class MemStorage implements IStorage {
       },
       {
         id: this.userIdCounter++,
+        firstName: "Pandit Suresh",
+        lastName: "Kumar",
         name: "Pandit Suresh Kumar",
         email: "suresh.kumar@gurujiconnect.com",
         mobile: "9876543212",
-        password: "hashed_password",
+        password: "placeholder",
         role: "guruji" as const,
         isBlocked: false,
         createdAt: new Date(),
@@ -477,10 +484,12 @@ export class MemStorage implements IStorage {
       },
       {
         id: this.userIdCounter++,
+        firstName: "Pandit Vijay",
+        lastName: "Mishra",
         name: "Pandit Vijay Mishra",
         email: "vijay.mishra@gurujiconnect.com",
         mobile: "9876543213",
-        password: "hashed_password",
+        password: "placeholder",
         role: "guruji" as const,
         isBlocked: false,
         createdAt: new Date(),
@@ -491,6 +500,23 @@ export class MemStorage implements IStorage {
     for (const user of sampleGurujiUsers) {
       this.users.set(user.id, user as User);
     }
+
+    // Hash each guruji's password asynchronously (password = mobile number)
+    genSalt(10).then(salt => {
+      for (const u of sampleGurujiUsers) {
+        hash(u.mobile, salt).then(hashedPwd => {
+          const stored = this.users.get(u.id);
+          if (stored) {
+            (stored as any).password = hashedPwd;
+            this.users.set(u.id, stored);
+          }
+        });
+      }
+      console.log("Sample guruji accounts created (password = mobile number):");
+      for (const u of sampleGurujiUsers) {
+        console.log(`  ${u.email} / ${u.mobile}`);
+      }
+    });
 
     // Now create Guruji profiles linked to these users
     const sampleGurujis = [
