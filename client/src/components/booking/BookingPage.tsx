@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon, Clock, MapPin, User, ArrowRight, CreditCard, Calendar as CalendarIcon2, Check, UserX, Loader2 } from 'lucide-react';
 import { BookingProgressIndicator, BookingStep } from './BookingProgressIndicator';
 import PaymentPage from '@/components/payments/PaymentPage';
+import LoginModal from '@/components/auth/LoginModal';
 
 // This component handles different booking types: offline, online puja, and consultation
 export default function BookingPage() {
@@ -51,11 +52,22 @@ export default function BookingPage() {
   const [pincode, setPincode] = useState<string>('');
   const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   const { toast } = useToast();
-  // Temporarily disabled auth for fixing the error
-  const user = null;
   const [, setLocation] = useLocation();
+
+  // Real auth check
+  const { data: user } = useQuery<any>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+    staleTime: 30000,
+  });
 
   // Fetch available pujas
   const { data: pujas = [], isLoading: isPujasLoading } = useQuery({
@@ -102,6 +114,20 @@ export default function BookingPage() {
     selectedPujaId
   });
   console.log("DEBUG: Selected puja result:", selectedPuja || "Not found");
+
+  // Resolve specialization string ("1,4" or "Puja Name") to human-readable names
+  const resolveSpecialization = (spec: string | null | undefined): string => {
+    if (!spec) return '';
+    const parts = spec.split(',').map(s => s.trim()).filter(Boolean);
+    if (!Array.isArray(pujas) || pujas.length === 0) return spec;
+    const names = parts.map(part => {
+      const byId = (pujas as any[]).find((p: any) => p.id?.toString() === part);
+      if (byId) return byId.name;
+      const byName = (pujas as any[]).find((p: any) => p.name?.toLowerCase() === part.toLowerCase());
+      return byName ? byName.name : part;
+    });
+    return names.join(', ');
+  };
 
   // Calculate booking amount based on type and consultation type
   const [withSamagri, setWithSamagri] = useState(false);
@@ -238,17 +264,12 @@ export default function BookingPage() {
     }
   };
 
-  // Check if the user is logged in before proceeding to payment
+  // Show login modal if user reaches payment step without being logged in
   useEffect(() => {
-    if (activeStep === 4 && !user) {
-      toast({
-        title: "Login required",
-        description: "Please login to continue with the booking",
-        variant: "destructive",
-      });
-      setActiveStep(3);
+    if (activeStep === 4 && user === null) {
+      setShowLoginModal(true);
     }
-  }, [activeStep, user, toast]);
+  }, [activeStep, user]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -603,7 +624,7 @@ export default function BookingPage() {
                               Experience: {guruji.experience || 5} years • {guruji.location || selectedCity}
                             </p>
                             <p className="text-sm text-neutral-600 mt-1">
-                              {guruji.specialization || `Specializes in ${selectedPuja?.name || 'various pujas'}`}
+                              {resolveSpecialization(guruji.specialization) || `Specializes in ${selectedPuja?.name || 'various pujas'}`}
                             </p>
                           </div>
                         </div>
@@ -711,6 +732,21 @@ export default function BookingPage() {
           }}
         />
       )}
+
+      {/* Login modal — shown when user tries to proceed to payment without being logged in */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => {
+          setShowLoginModal(false);
+          // If user still not logged in after closing, go back to step 3
+          if (!user) setActiveStep(3);
+        }}
+        onRegisterClick={() => setShowLoginModal(false)}
+        onLoginSuccess={() => {
+          setShowLoginModal(false);
+          // Stay on step 4 (payment) — user is now logged in
+        }}
+      />
     </div>
   );
 }

@@ -27,6 +27,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRegisterClick: () => void;
+  onLoginSuccess?: (user: any) => void;
 }
 
 const loginSchema = z.object({
@@ -71,7 +72,7 @@ async function doLogin(email: string, password: string) {
   return { success: false, message: errorBody.message || 'Invalid email or password' };
 }
 
-export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSuccess }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -98,11 +99,16 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick }: LoginMo
         onClose();
         form.reset();
 
-        // Redirect based on role
-        if (result.user.role === 'admin') {
-          setLocation('/admin-dashboard');
+        if (onLoginSuccess) {
+          // Caller handles what happens after login (e.g. stay on booking page)
+          onLoginSuccess(result.user);
         } else {
-          setLocation('/dashboard');
+          // Default: redirect based on role
+          if (result.user.role === 'admin') {
+            setLocation('/admin-dashboard');
+          } else {
+            setLocation('/dashboard');
+          }
         }
       } else {
         toast({

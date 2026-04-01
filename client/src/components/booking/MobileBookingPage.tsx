@@ -9,6 +9,7 @@ import {
   Loader2, Check, Star, Phone, User as UserIcon, Wifi,
   Home, MessageSquare
 } from 'lucide-react';
+import LoginModal from '@/components/auth/LoginModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,6 +60,7 @@ export function MobileBookingPage() {
   const [pincode, setPincode] = useState<string>('');
   const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Fetch pujas, cities, auth
   const { data: pujas = [], isLoading: pujasLoading } = useQuery({ queryKey: ['/api/pujas'] });
@@ -601,7 +603,7 @@ export function MobileBookingPage() {
             {!currentUser && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
                 You must be logged in to submit a booking.{' '}
-                <button onClick={() => setLocation('/login')} className="underline font-medium">Login now</button>
+                <button onClick={() => setShowLoginModal(true)} className="underline font-medium">Login now</button>
               </div>
             )}
           </motion.div>
@@ -626,6 +628,14 @@ export function MobileBookingPage() {
           </Button>
         )}
       </div>
+
+      {/* Login modal — shown when user is not logged in at review step */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onRegisterClick={() => setShowLoginModal(false)}
+        onLoginSuccess={() => setShowLoginModal(false)}
+      />
     </div>
   );
 }
