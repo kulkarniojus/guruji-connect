@@ -406,26 +406,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email, mobile,
       } = req.body;
 
+      // Phone number is mandatory for all guruji registrations
+      if (!mobile || !/^\d{10}$/.test(mobile)) {
+        return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
+      }
+
       let targetUserId = sessionUserId;
 
       if (sessionUser.role === 'sales' || sessionUser.role === 'sales_rep') {
         // Sales rep is registering a new guruji on their behalf
-        if (!email || !mobile) {
-          return res.status(400).json({ message: 'Email and mobile are required when a sales rep registers a Guruji' });
+        if (!email) {
+          return res.status(400).json({ message: 'Email is required when a sales rep registers a Guruji' });
         }
 
         // Look up by email first
         let gurujiUser = await storageInstance.getUserByEmail(email);
 
         if (!gurujiUser) {
-          // Create a new user account for the guruji
-          const tempPassword = mobile; // use mobile as initial password
+          // Create a new user account for the guruji - password is the 10-digit mobile number
           gurujiUser = await storageInstance.createUser({
             firstName: firstName || '',
             lastName: lastName || '',
             email,
             mobile,
-            password: tempPassword,
+            password: mobile, // use mobile as initial password
             role: 'guruji',
           } as any);
         } else if (gurujiUser.role === 'customer') {
@@ -1962,14 +1966,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const salesRepId = req.session.userId!;
       const {
-        firstName, lastName, email, mobile, password,
+        firstName, lastName, email, mobile,
         age, gender, dob, aadhar, caste, religion, address, city, state, pincode, photoUrl,
         bio, experience, location, pricePerHour, cities, pujas, languages,
         isOnline, isOffline, isConsultation, certificates, videoUrl
       } = req.body;
 
-      if (!firstName || !lastName || !email || !mobile || !password) {
-        return res.status(400).json({ message: 'First name, last name, email, mobile and password are required' });
+      if (!firstName || !lastName || !email || !mobile || !/^\d{10}$/.test(mobile)) {
+        return res.status(400).json({ message: 'First name, last name, email, and valid 10-digit mobile are required' });
       }
 
       const existingEmail = await storageInstance.getUserByEmail(email);
@@ -1977,9 +1981,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingMobile = await storageInstance.getUserByMobile(mobile);
       if (existingMobile) return res.status(409).json({ message: 'Mobile number already registered' });
 
-      // Create user with guruji role
+      // Create user with guruji role - password is 10-digit mobile number
       const user = await storageInstance.createUser({
-        firstName, lastName, email, mobile, password,
+        firstName, lastName, email, mobile, password: mobile,
         age: age ? parseInt(age) : 0,
         gender: gender || 'male',
         role: 'guruji',

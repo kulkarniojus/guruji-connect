@@ -179,6 +179,9 @@ Changelog:
 - April 01, 2026. Rewrote GurujiDashboard.tsx with real API calls: fetches pending booking requests
   from /api/guruji/booking-requests, allows accept/decline via /api/booking-requests/:id/respond,
   shows upcoming/completed bookings from /api/bookings, displays live earnings total.
+- April 01, 2026. Added mandatory phone number field to guruji registration (both self-registration and sales rep
+  registration). Phone number must be 10 digits. When sales rep registers a guruji, the initial password is
+  automatically set to the 10-digit phone number (no separate password field).
 ```
 
 ## User Preferences

@@ -21,7 +21,7 @@ const gurujiRegistrationSchema = z.object({
   firstName: z.string().min(2, 'First name required'),
   lastName: z.string().min(2, 'Last name required'),
   email: z.string().optional(),
-  mobile: z.string().optional(),
+  mobile: z.string().regex(/^\d{10}$/, 'Phone number must be 10 digits'),
   age: z.coerce.number().min(18, 'Must be at least 18').max(100, 'Invalid age'),
   religion: z.string().min(2, 'Religion required'),
   bio: z.string().min(50, 'Bio must be at least 50 characters').max(500, 'Bio must be less than 500 characters'),
@@ -302,6 +302,22 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                   )}
                 />
               </div>
+
+              {/* Phone number - required for all gurujis */}
+              <FormField
+                control={form.control}
+                name="mobile"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number *</FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="10-digit mobile number" maxLength={10} {...field} />
+                    </FormControl>
+                    <FormDescription>Enter your 10-digit phone number. This will be used as your password.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* Sales rep: collect email & mobile for the new guruji's account */}
               {isSalesRep && (
