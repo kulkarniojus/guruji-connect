@@ -853,6 +853,8 @@ export class MemStorage implements IStorage {
       id: this.gurujiProfileIdCounter++,
       rating: 0,
       totalReviews: 0,
+      aadharVerified: true,
+      documentsVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
