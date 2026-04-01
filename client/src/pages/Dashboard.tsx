@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Helmet } from 'react-helmet';
 import Header from '@/components/landing/Header';
@@ -8,19 +7,39 @@ import GurujiDashboard from '@/components/dashboard/GurujiDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import { MobileDashboard } from '@/components/dashboard/MobileDashboard';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
-  // For demo purposes, create a mock user
-  const mockUser = { role: 'customer', firstName: 'Demo', lastName: 'User' };
   const isMobile = useIsMobile();
   const [, setLocation] = useLocation();
-  
-  // Mock user data for demonstration
-  const user = mockUser;
 
-  // On mobile, render the mobile-optimized version without header/footer
+  // Use real authenticated user
+  const { data: user, isLoading } = useQuery<any>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+    staleTime: 30000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    setLocation('/');
+    return null;
+  }
+
+  // On mobile, render the mobile-optimized version
   if (isMobile) {
     return (
       <div className="min-h-screen bg-neutral-50">
@@ -29,13 +48,11 @@ export default function Dashboard() {
           <meta name="description" content="Manage your bookings and profile on GurujiConnect" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         </Helmet>
-        
         <MobileDashboard />
       </div>
     );
   }
 
-  // On desktop, render the regular dashboard with header/footer
   return (
     <div className="min-h-screen bg-neutral-50">
       <Helmet>
@@ -44,15 +61,16 @@ export default function Dashboard() {
       </Helmet>
 
       <Header />
-      
+
       <main className="py-8">
         <div className="container mx-auto px-4">
-          {user.role === 'customer' && <CustomerDashboard />}
           {user.role === 'guruji' && <GurujiDashboard />}
           {user.role === 'admin' && <AdminDashboard />}
+          {(user.role === 'customer' || !user.role) && <CustomerDashboard />}
+          {(user.role === 'sales_rep' || user.role === 'sales') && <CustomerDashboard />}
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

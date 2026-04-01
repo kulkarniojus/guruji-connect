@@ -173,6 +173,12 @@ Changelog:
 - April 01, 2026. Admin payment settings: new app_settings table, Payment tab in admin dashboard,
   configurable UPI ID/QR code, enable/disable payment switch. When enabled, customers see UPI QR
   and must confirm payment before booking is sent to Guruji. Works on both web and mobile booking flows.
+- April 01, 2026. Fixed Dashboard.tsx: replaced hardcoded mockUser (role: 'customer') with real
+  authenticated user fetched from /api/auth/me; now correctly routes Gurujis to GurujiDashboard,
+  Admins to AdminDashboard, Customers to CustomerDashboard.
+- April 01, 2026. Rewrote GurujiDashboard.tsx with real API calls: fetches pending booking requests
+  from /api/guruji/booking-requests, allows accept/decline via /api/booking-requests/:id/respond,
+  shows upcoming/completed bookings from /api/bookings, displays live earnings total.
 ```
 
 ## User Preferences
