@@ -10,6 +10,7 @@ import PujaManagementTab from '@/components/admin/PujaManagementTab';
 import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
 import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
 import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
+import BookingManagementTab from '@/components/admin/BookingManagementTab';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard } from 'lucide-react';
 
@@ -136,9 +137,7 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="bookings">
-          <div className="p-6 border rounded-lg text-center">
-            <p className="text-muted-foreground">Booking management dashboard will appear here</p>
-          </div>
+          <BookingManagementTab />
         </TabsContent>
 
         <TabsContent value="pujas">

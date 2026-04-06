@@ -472,7 +472,7 @@ export class DBStorage implements IStorage {
       [
         profileData.userId,
         profileData.bio || pd.description || null,
-        pd.city || null,
+        pd.city || '',
         profileData.location || pd.address || null,
         pd.state || null,
         pd.pincode || null,

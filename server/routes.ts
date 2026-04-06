@@ -591,6 +591,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Get all bookings with full enriched details
+  app.get('/api/admin/bookings', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const bookings = await storageInstance.getAllBookings();
+      const enriched = await Promise.all(bookings.map(async (b: any) => {
+        const customer = b.customerId ? await storageInstance.getUser(b.customerId) : null;
+        let gurujiUser = null;
+        let gurujiProfile = null;
+        if (b.gurujiId) {
+          gurujiProfile = await storageInstance.getGurujiProfile(b.gurujiId);
+          if (gurujiProfile) {
+            gurujiUser = await storageInstance.getUser(gurujiProfile.userId);
+          }
+        }
+        const puja = b.pujaId ? await storageInstance.getPuja(b.pujaId) : null;
+        const requests = await storageInstance.getBookingRequestsByBookingId(b.id);
+        return {
+          ...b,
+          customerName: customer ? `${customer.firstName} ${customer.lastName}`.trim() || customer.email : 'Unknown',
+          gurujiName: gurujiUser ? `${gurujiUser.firstName} ${gurujiUser.lastName}`.trim() || gurujiUser.email : null,
+          pujaName: puja?.name || 'Unknown Puja',
+          requestCount: requests.length,
+          pendingRequestCount: requests.filter((r: any) => r.status === 'pending').length,
+        };
+      }));
+      res.json(enriched);
+    } catch (error) {
+      console.error('Error fetching admin bookings:', error);
+      res.status(500).json({ message: 'Failed to fetch bookings' });
+    }
+  });
+
+  // Admin: Assign a specific guruji to a booking
+  app.post('/api/admin/bookings/:id/assign', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      const { gurujiId } = req.body;
+      if (!gurujiId) return res.status(400).json({ message: 'gurujiId is required' });
+
+      const booking = await storageInstance.assignGurujiToBooking(bookingId, gurujiId);
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+      await storageInstance.updateBookingStatus(bookingId, 'confirmed');
+
+      const guruji = await storageInstance.getGurujiProfile(gurujiId);
+      if (guruji) {
+        await storageInstance.createNotification({
+          userId: guruji.userId,
+          title: '📋 Booking Assigned by Admin',
+          message: `A booking has been assigned to you directly by admin.`,
+          type: 'booking_confirmed',
+          isRead: false,
+        } as any);
+      }
+
+      res.json({ message: 'Guruji assigned successfully', booking });
+    } catch (error) {
+      console.error('Error assigning guruji:', error);
+      res.status(500).json({ message: 'Failed to assign guruji' });
+    }
+  });
+
+  // Admin: Send/resend booking requests to all verified gurujis
+  app.post('/api/admin/bookings/:id/send-requests', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      const booking = await storageInstance.getBooking(bookingId);
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+      const allGurujis = await storageInstance.getAllGurujiProfiles();
+      const verifiedGurujis = allGurujis.filter((g: any) => g.aadharVerified && g.documentsVerified);
+
+      if (verifiedGurujis.length === 0) {
+        return res.status(400).json({ message: 'No verified gurujis available to send requests to' });
+      }
+
+      await storageInstance.updateBookingStatus(bookingId, 'pending_approval' as any);
+
+      let requestCount = 0;
+      for (const guruji of verifiedGurujis) {
+        const existing = await storageInstance.getBookingRequestsByBookingId(bookingId);
+        const alreadyHasRequest = existing.some((r: any) => r.gurujiId === guruji.id);
+        if (!alreadyHasRequest) {
+          await storageInstance.createBookingRequest({
+            bookingId,
+            gurujiId: guruji.id,
+            status: 'pending',
+          });
+          await storageInstance.createNotification({
+            userId: guruji.userId,
+            title: '🔔 New Puja Request Available',
+            message: `A new booking request is available in ${(booking as any).city || 'your area'}. Please check your dashboard.`,
+            type: 'booking_request',
+            isRead: false,
+          } as any);
+          requestCount++;
+        }
+      }
+
+      res.json({ message: `Requests sent to ${requestCount} guruji(s)`, requestCount });
+    } catch (error) {
+      console.error('Error sending requests:', error);
+      res.status(500).json({ message: 'Failed to send booking requests' });
+    }
+  });
+
+  // Admin: Get all verified gurujis (for assign dialog)
+  app.get('/api/admin/gurujis/verified', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const allGurujis = await storageInstance.getAllGurujiProfiles();
+      const verified = await Promise.all(
+        allGurujis
+          .filter((g: any) => g.aadharVerified && g.documentsVerified)
+          .map(async (g: any) => {
+            const user = await storageInstance.getUser(g.userId);
+            return {
+              ...g,
+              name: user ? `${user.firstName} ${user.lastName}`.trim() || user.email : 'Unknown',
+              email: user?.email,
+            };
+          })
+      );
+      res.json(verified);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch verified gurujis' });
+    }
+  });
+
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const {
@@ -650,6 +778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           experience: 0,
           specialization: "",
           location: "",
+          city: "",
           radius: 10,
           isOnline: false,
           isOffline: true,
