@@ -1545,17 +1545,23 @@ export class DBStorage implements IStorage {
       const values: any[] = [status];
       let paramIndex = 2;
 
-      // Filter by city (case-insensitive)
+      // Filter by city: match primary city OR service cities array (case-insensitive)
       if (filters.city) {
-        query += ` AND LOWER(gp.city) = LOWER($${paramIndex})`;
+        query += ` AND (LOWER(gp.city) = LOWER($${paramIndex}) OR EXISTS (
+          SELECT 1 FROM unnest(gp.cities) c WHERE LOWER(c) = LOWER($${paramIndex})
+        ))`;
         values.push(filters.city);
         paramIndex++;
       }
 
-      // Note: specialization filter is intentionally not applied as a hard WHERE clause.
-      // We show all available gurujis in the city and sort matching ones first.
-      // This ensures customers always see options and aren't left with "No Gurujis available"
-      // when no guruji has explicitly set their specialization list.
+      // Filter by puja specialization: guruji must have the puja in their specialities array
+      if (filters.specialization && filters.specialization.trim()) {
+        query += ` AND EXISTS (
+          SELECT 1 FROM unnest(gp.specialities) s WHERE LOWER(s) = LOWER($${paramIndex})
+        )`;
+        values.push(filters.specialization.trim());
+        paramIndex++;
+      }
 
       query += ` ORDER BY gp.rating DESC, gp."totalReviews" DESC`;
 
