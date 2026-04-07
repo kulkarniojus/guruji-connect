@@ -28,7 +28,7 @@ export default function BookingPage() {
   const initialType = searchParams.get('type') || 'offline';
   const initialPujaId = searchParams.get('puja') || '';
   const initialPujaName = searchParams.get('pujaName') || '';
-  const initialCity = searchParams.get('city') || 'mumbai'; // Default to Mumbai if not specified
+  const initialCity = searchParams.get('city') || ''; // Will be auto-populated from user profile
   const initialDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : undefined;
   
   // Log search parameters for debugging
@@ -271,6 +271,13 @@ export default function BookingPage() {
       setIsSubmitting(false);
     }
   };
+
+  // Auto-populate city from user's profile city if not specified in URL
+  useEffect(() => {
+    if (user && !searchParams.get('city') && user.city) {
+      setSelectedCity(user.city.toLowerCase());
+    }
+  }, [user]);
 
   // Show login modal if user reaches payment step without being logged in
   useEffect(() => {

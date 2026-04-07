@@ -1551,20 +1551,10 @@ export class DBStorage implements IStorage {
         paramIndex++;
       }
 
-      // Filter by puja specialization — the column is a text[] array named "specialities"
-      // It may contain puja names ("Satyanarayan Puja") or puja IDs ("1", "2", "3")
-      if (filters.specialization) {
-        if (filters.pujaId) {
-          query += ` AND ($${paramIndex} = ANY(gp.specialities) OR $${paramIndex + 1} = ANY(gp.specialities))`;
-          values.push(filters.specialization);         // name match
-          values.push(filters.pujaId.toString());      // id match
-          paramIndex += 2;
-        } else {
-          query += ` AND $${paramIndex} = ANY(gp.specialities)`;
-          values.push(filters.specialization);
-          paramIndex++;
-        }
-      }
+      // Note: specialization filter is intentionally not applied as a hard WHERE clause.
+      // We show all available gurujis in the city and sort matching ones first.
+      // This ensures customers always see options and aren't left with "No Gurujis available"
+      // when no guruji has explicitly set their specialization list.
 
       query += ` ORDER BY gp.rating DESC, gp."totalReviews" DESC`;
 
