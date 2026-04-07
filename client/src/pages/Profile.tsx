@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
 import { Helmet } from 'react-helmet';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
@@ -8,240 +7,169 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { apiRequest } from '@/lib/queryClient';
-import { Loader2, User, Phone, Mail, MapPin, Calendar, AlertCircle, Save, UserX, CreditCard, CheckCircle, ChevronRight } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
-} from '@/components/ui/dialog';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-// Extend the User type to include the new fields
-declare module '@/context/AuthContext' {
-  interface User {
-    address?: string;
-    city?: string;
-    state?: string;
-    pincode?: string;
-  }
-}
-
-// Booking type for TypeScript
-interface Booking {
-  id: number;
-  pujaId: number;
-  pujaName?: string;
-  customerId: number;
-  gurujiId?: number;
-  gurujiName?: string;
-  type: string;
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
-  amount: number;
-  date: string;
-  duration: number;
-  city?: string;
-  address?: string;
-  notes?: string;
-  isImmediate?: boolean;
-}
-
-// Profile update form schema
-const profileFormSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  mobile: z.string().length(10, "Mobile number must be 10 digits"),
-  age: z.coerce.number().min(18, "You must be at least 18 years old"),
-  // Address fields
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  pincode: z.string().optional(),
-});
-
-// Password change form schema
-const passwordFormSchema = z.object({
-  currentPassword: z.string().min(6, "Password must be at least 6 characters"),
-  newPassword: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Loader2, User, Calendar, Shield, BookOpen, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
 
 export default function Profile() {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
-  const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, logout } = useAuth();
-  const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isGuruji = user?.role === 'guruji';
+  const isCustomer = user?.role === 'customer';
 
-  // Redirect if not logged in
+  // ── Basic info form ─────────────────────────────────────────────────
+  const [basicForm, setBasicForm] = useState({
+    firstName: '', lastName: '', age: '', address: '', city: '', state: '', pincode: '',
+  });
+
   useEffect(() => {
-    if (!user && !isLoading) {
-      setLocation('/');
+    if (user) {
+      setBasicForm({
+        firstName: (user as any).firstName || '',
+        lastName: (user as any).lastName || '',
+        age: String((user as any).age || ''),
+        address: (user as any).address || '',
+        city: (user as any).city || '',
+        state: (user as any).state || '',
+        pincode: (user as any).pincode || '',
+      });
     }
-  }, [user, isLoading, setLocation]);
+  }, [user]);
 
-  const profileForm = useForm<z.infer<typeof profileFormSchema>>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-      mobile: user?.mobile || '',
-      age: user?.age || 18,
-      // Address fields
-      address: user?.address || '',
-      city: user?.city || '',
-      state: user?.state || '',
-      pincode: user?.pincode || '',
+  const updateBasicMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('PUT', `/api/users/${user?.id}`, {
+        firstName: basicForm.firstName.trim(),
+        lastName: basicForm.lastName.trim(),
+        age: basicForm.age ? Number(basicForm.age) : undefined,
+        address: basicForm.address,
+        city: basicForm.city,
+        state: basicForm.state,
+        pincode: basicForm.pincode,
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed'); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      toast({ title: 'Profile updated', description: 'Your basic info has been saved.' });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  // ── Password form ────────────────────────────────────────────────────
+  const [pwdForm, setPwdForm] = useState({ current: '', newPwd: '', confirm: '' });
+  const [pwdError, setPwdError] = useState('');
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      if (pwdForm.newPwd !== pwdForm.confirm) throw new Error('New passwords do not match');
+      if (pwdForm.newPwd.length < 6) throw new Error('New password must be at least 6 characters');
+      const res = await apiRequest('POST', '/api/auth/change-password', {
+        currentPassword: pwdForm.current,
+        newPassword: pwdForm.newPwd,
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed'); }
+      return res.json();
+    },
+    onSuccess: () => {
+      setPwdForm({ current: '', newPwd: '', confirm: '' });
+      setPwdError('');
+      toast({ title: 'Password changed', description: 'Your password has been updated.' });
+    },
+    onError: (e: any) => {
+      setPwdError(e.message);
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
     },
   });
 
-  const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
-    resolver: zodResolver(passwordFormSchema),
-    defaultValues: {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
+  const handlePasswordSubmit = () => {
+    setPwdError('');
+    if (!pwdForm.current || !pwdForm.newPwd || !pwdForm.confirm) {
+      setPwdError('All fields are required');
+      return;
+    }
+    changePasswordMutation.mutate();
+  };
+
+  // ── Guruji profile form ──────────────────────────────────────────────
+  const [gurujiForm, setGurujiForm] = useState({
+    bio: '', experience: '', pricePerHour: '', religion: '', age: '',
+  });
+  const [gurujiPujas, setGurujiPujas] = useState<string[]>([]);
+  const [gurujiCities, setGurujiCities] = useState<string[]>([]);
+
+  const { data: myGurujiProfile, isLoading: gurujiLoading } = useQuery<any>({
+    queryKey: ['/api/guruji/my-profile'],
+    queryFn: async () => {
+      const res = await fetch('/api/guruji/profile', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
     },
+    enabled: isGuruji,
   });
 
-  // Fetch bookings for the user
-  const { data: bookings = [] as Booking[], isLoading: isBookingsLoading } = useQuery<Booking[]>({
+  useEffect(() => {
+    if (myGurujiProfile) {
+      setGurujiForm({
+        bio: myGurujiProfile.bio || '',
+        experience: String(myGurujiProfile.experience || ''),
+        pricePerHour: String(myGurujiProfile.pricePerHour || ''),
+        religion: myGurujiProfile.religion || '',
+        age: String(myGurujiProfile.age || ''),
+      });
+      const specStr = myGurujiProfile.specialization || '';
+      setGurujiPujas(specStr ? specStr.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+      setGurujiCities(Array.isArray(myGurujiProfile.cities) ? myGurujiProfile.cities : []);
+    }
+  }, [myGurujiProfile]);
+
+  const updateGurujiMutation = useMutation({
+    mutationFn: async () => {
+      const data: any = {
+        pujas: gurujiPujas,
+        serviceCities: gurujiCities,
+      };
+      if (gurujiForm.bio) data.bio = gurujiForm.bio;
+      if (gurujiForm.experience) data.experience = Number(gurujiForm.experience);
+      if (gurujiForm.pricePerHour) data.pricePerHour = Number(gurujiForm.pricePerHour);
+      if (gurujiForm.religion) data.religion = gurujiForm.religion;
+      if (gurujiForm.age) data.age = Number(gurujiForm.age);
+      const res = await apiRequest('PUT', '/api/guruji/profile', data);
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed'); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji/my-profile'] });
+      toast({ title: 'Guruji profile updated', description: 'Your profile has been saved and resubmitted for review.' });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  // ── Bookings ─────────────────────────────────────────────────────────
+  const { data: bookings = [], isLoading: bookingsLoading } = useQuery<any[]>({
     queryKey: ['/api/bookings'],
     enabled: !!user,
   });
 
-  // Update profile mutation
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof profileFormSchema>) => {
-      const response = await apiRequest('PUT', `/api/users/${user?.id}`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Update failed",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Change password mutation
-  const changePasswordMutation = useMutation({
-    mutationFn: async (data: { currentPassword: string, newPassword: string }) => {
-      const response = await apiRequest('POST', `/api/auth/change-password`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      setIsPasswordChangeOpen(false);
-      passwordForm.reset();
-      toast({
-        title: "Password changed",
-        description: "Your password has been changed successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Password change failed",
-        description: "Failed to change password. Please check your current password and try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Deactivate account mutation
-  const deactivateAccountMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/users/${user?.id}/deactivate`, {});
-      return response.json();
-    },
-    onSuccess: () => {
-      logout();
-      setLocation('/');
-      toast({
-        title: "Account deactivated",
-        description: "Your account has been deactivated",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Deactivation failed",
-        description: "Failed to deactivate account. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Set form values when user data is available
-  useEffect(() => {
-    if (user) {
-      profileForm.reset({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        mobile: user.mobile || '',
-        age: user.age || 18,
-        // Address fields
-        address: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        pincode: user.pincode || '',
-      });
-    }
-  }, [user, profileForm]);
-
-  const onProfileSubmit = async (data: z.infer<typeof profileFormSchema>) => {
-    updateProfileMutation.mutate(data);
+  const statusIcon = (status: string) => {
+    if (status === 'completed') return <CheckCircle className="h-4 w-4 text-green-600" />;
+    if (status === 'cancelled') return <XCircle className="h-4 w-4 text-red-500" />;
+    return <Clock className="h-4 w-4 text-amber-500" />;
   };
 
-  const onPasswordSubmit = async (data: z.infer<typeof passwordFormSchema>) => {
-    changePasswordMutation.mutate({
-      currentPassword: data.currentPassword,
-      newPassword: data.newPassword,
-    });
-  };
-
-  const onDeactivateAccount = async () => {
-    deactivateAccountMutation.mutate();
+  const statusColor = (status: string) => {
+    if (status === 'completed') return 'bg-green-100 text-green-800';
+    if (status === 'cancelled') return 'bg-red-100 text-red-800';
+    if (status === 'confirmed') return 'bg-blue-100 text-blue-800';
+    return 'bg-amber-100 text-amber-800';
   };
 
   if (!user) {
@@ -252,695 +180,349 @@ export default function Profile() {
     );
   }
 
+  const userName = `${(user as any).firstName || ''} ${(user as any).lastName || ''}`.trim() || user.email;
+  const initials = [(user as any).firstName?.[0], (user as any).lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'U';
+
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Helmet>
-        <title>Profile | PujaConnect</title>
-        <meta name="description" content="Manage your profile and account settings" />
+        <title>My Profile | GurujiConnect</title>
       </Helmet>
-
       <Header />
-      
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 font-poppins">Your Profile</h1>
-          <p className="text-neutral-600">Manage your profile and account settings</p>
+
+      <main className="flex-grow container mx-auto px-4 py-8 max-w-5xl">
+        <div className="mb-8 flex items-center gap-4">
+          <Avatar className="h-16 w-16">
+            <AvatarFallback className="text-xl font-semibold bg-orange-100 text-orange-700">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-2xl font-bold">{userName}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline" className="capitalize">{user?.role}</Badge>
+              {(user as any).email && <span className="text-sm text-gray-500">{(user as any).email}</span>}
+              {(user as any).mobile && <span className="text-sm text-gray-500">· {(user as any).mobile}</span>}
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Profile sidebar */}
-          <div className="lg:col-span-1">
+        <Tabs defaultValue="basic">
+          <TabsList className={`grid w-full ${isGuruji ? 'grid-cols-4' : 'grid-cols-3'} mb-6`}>
+            <TabsTrigger value="basic" className="flex items-center gap-2">
+              <User className="h-4 w-4" /> Personal Info
+            </TabsTrigger>
+            {isGuruji && (
+              <TabsTrigger value="guruji" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" /> Guruji Profile
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="bookings" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" /> Bookings
+            </TabsTrigger>
+            <TabsTrigger value="security" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" /> Security
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Personal Info Tab ── */}
+          <TabsContent value="basic">
             <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col items-center text-center mb-6">
-                  <Avatar className="h-24 w-24 mb-4">
-                    <AvatarFallback className="text-xl font-semibold">
-                      {user.firstName?.charAt(0) || ''}
-                      {user.lastName?.charAt(0) || ''}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h2 className="text-xl font-semibold">{user.firstName} {user.lastName}</h2>
-                  <p className="text-neutral-500 mt-1">{user.role}</p>
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>Update your basic profile details</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>First Name</Label>
+                    <Input
+                      className="mt-1"
+                      value={basicForm.firstName}
+                      onChange={e => setBasicForm(f => ({ ...f, firstName: e.target.value }))}
+                      placeholder="First name"
+                    />
+                  </div>
+                  <div>
+                    <Label>Last Name</Label>
+                    <Input
+                      className="mt-1"
+                      value={basicForm.lastName}
+                      onChange={e => setBasicForm(f => ({ ...f, lastName: e.target.value }))}
+                      placeholder="Last name"
+                    />
+                  </div>
+                  <div>
+                    <Label>Age</Label>
+                    <Input
+                      className="mt-1"
+                      type="number"
+                      min="1"
+                      value={basicForm.age}
+                      onChange={e => setBasicForm(f => ({ ...f, age: e.target.value }))}
+                      placeholder="Your age"
+                    />
+                  </div>
+                  <div>
+                    <Label>City</Label>
+                    <Input
+                      className="mt-1"
+                      value={basicForm.city}
+                      onChange={e => setBasicForm(f => ({ ...f, city: e.target.value }))}
+                      placeholder="City"
+                    />
+                  </div>
+                  <div>
+                    <Label>State</Label>
+                    <Input
+                      className="mt-1"
+                      value={basicForm.state}
+                      onChange={e => setBasicForm(f => ({ ...f, state: e.target.value }))}
+                      placeholder="State"
+                    />
+                  </div>
+                  <div>
+                    <Label>Pincode</Label>
+                    <Input
+                      className="mt-1"
+                      value={basicForm.pincode}
+                      onChange={e => setBasicForm(f => ({ ...f, pincode: e.target.value }))}
+                      placeholder="Pincode"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label>Address</Label>
+                    <Textarea
+                      className="mt-1"
+                      value={basicForm.address}
+                      onChange={e => setBasicForm(f => ({ ...f, address: e.target.value }))}
+                      placeholder="Full address"
+                      rows={2}
+                    />
+                  </div>
                 </div>
 
-                <Separator className="my-4" />
+                <Separator />
 
-                <div className="space-y-3">
-                  <Button 
-                    variant={activeTab === 'profile' ? "default" : "ghost"} 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('profile')}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Email (cannot be changed)</Label>
+                    <Input className="mt-1 bg-gray-50" value={(user as any).email || ''} disabled readOnly />
+                  </div>
+                  <div>
+                    <Label>Mobile (cannot be changed)</Label>
+                    <Input className="mt-1 bg-gray-50" value={(user as any).mobile || ''} disabled readOnly />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={() => updateBasicMutation.mutate()}
+                    disabled={updateBasicMutation.isPending || !basicForm.firstName.trim()}
                   >
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Button>
-                  <Button 
-                    variant={activeTab === 'bookings' ? "default" : "ghost"} 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('bookings')}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Bookings
-                  </Button>
-                  <Button 
-                    variant={activeTab === 'security' ? "default" : "ghost"} 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('security')}
-                  >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Payment Methods
-                  </Button>
-                  <Button 
-                    variant={activeTab === 'security' ? "default" : "ghost"} 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('security')}
-                  >
-                    <AlertCircle className="mr-2 h-4 w-4" />
-                    Security
+                    {updateBasicMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Save Changes
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          {/* Main content */}
-          <div className="lg:col-span-3">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsContent value="profile">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Profile Information</CardTitle>
-                    <CardDescription>Update your personal information</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      <div className="lg:col-span-2">
-                        <Form {...profileForm}>
-                          <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <FormField
-                                control={profileForm.control}
-                                name="firstName"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>First Name</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              
-                              <FormField
-                                control={profileForm.control}
-                                name="lastName"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Last Name</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              
-                              <FormField
-                                control={profileForm.control}
-                                name="email"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Email</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              
-                              <FormField
-                                control={profileForm.control}
-                                name="mobile"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Mobile Number</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        {...field} 
-                                        readOnly 
-                                        disabled 
-                                        className="bg-neutral-100" 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              
-                              <FormField
-                                control={profileForm.control}
-                                name="age"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Age</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        type="number" 
-                                        {...field} 
-                                        onChange={(e) => field.onChange(parseInt(e.target.value))} 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-
-                              {/* Address Fields */}
-                              <div className="md:col-span-2">
-                                <h3 className="text-lg font-medium mb-2">Address Information</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                  <FormField
-                                    control={profileForm.control}
-                                    name="address"
-                                    render={({ field }) => (
-                                      <FormItem className="md:col-span-2">
-                                        <FormLabel>Address</FormLabel>
-                                        <FormControl>
-                                          <Input {...field} placeholder="Street address" />
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  
-                                  <FormField
-                                    control={profileForm.control}
-                                    name="city"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>City</FormLabel>
-                                        <FormControl>
-                                          <Input {...field} placeholder="City" />
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  
-                                  <FormField
-                                    control={profileForm.control}
-                                    name="state"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>State</FormLabel>
-                                        <FormControl>
-                                          <Input {...field} placeholder="State" />
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  
-                                  <FormField
-                                    control={profileForm.control}
-                                    name="pincode"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Pincode</FormLabel>
-                                        <FormControl>
-                                          <Input {...field} placeholder="Pincode" />
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            <Button 
-                              type="submit" 
-                              disabled={updateProfileMutation.isPending}
-                            >
-                              {updateProfileMutation.isPending ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Updating...
-                                </>
-                              ) : (
-                                <>
-                                  <Save className="mr-2 h-4 w-4" />
-                                  Save Changes
-                                </>
-                              )}
-                            </Button>
-                          </form>
-                        </Form>
-                      </div>
-                      
-                      {/* User Info Card - Similar to the provided design */}
-                      <div>
-                        <div className="flex flex-col items-center justify-center">
-                          <Avatar className="h-32 w-32 mb-4">
-                            <AvatarFallback className="text-2xl font-semibold">
-                              {user.firstName?.charAt(0) || ''}
-                              {user.lastName?.charAt(0) || ''}
-                            </AvatarFallback>
-                          </Avatar>
-                          <h2 className="text-xl font-bold mb-2">{user.firstName} {user.lastName}</h2>
-                          <p className="text-gray-600 mb-1">{user.role === 'customer' ? 'Hindu' : 'Guruji'}</p>
-                        </div>
-                        
-                        <div className="mt-6 space-y-3">
-                          <div className="flex items-start">
-                            <Phone className="h-5 w-5 text-primary mt-0.5 mr-2" />
-                            <div>
-                              <p className="text-sm text-gray-500">Mobile</p>
-                              <p>+91 {user.mobile}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-start">
-                            <Mail className="h-5 w-5 text-primary mt-0.5 mr-2" />
-                            <div>
-                              <p className="text-sm text-gray-500">Email</p>
-                              <p>{user.email}</p>
-                            </div>
-                          </div>
-                          
-                          {user?.address && (
-                            <div className="flex items-start">
-                              <MapPin className="h-5 w-5 text-primary mt-0.5 mr-2" />
-                              <div>
-                                <p className="text-sm text-gray-500">Address</p>
-                                <p>{user.address}</p>
-                                <p>{user?.city || ''}, {user?.state || ''} {user?.pincode || ''}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Add address button if no address */}
-                        {!user?.address && (
-                          <Button className="w-full mt-4" variant="outline">
-                            <MapPin className="mr-2 h-4 w-4" />
-                            Add Address
-                          </Button>
-                        )}
-                      </div>
+          {/* ── Guruji Profile Tab (guruji only) ── */}
+          {isGuruji && (
+            <TabsContent value="guruji">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Guruji Profile</CardTitle>
+                  <CardDescription>
+                    Update your specializations, pricing, and service areas. Changes will be resubmitted for admin review.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {gurujiLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
                     </div>
-                  </CardContent>
-                </Card>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label>Years of Experience *</Label>
+                          <Input
+                            className="mt-1"
+                            type="number"
+                            min="1"
+                            value={gurujiForm.experience}
+                            onChange={e => setGurujiForm(f => ({ ...f, experience: e.target.value }))}
+                            placeholder="e.g. 5"
+                          />
+                        </div>
+                        <div>
+                          <Label>Price Per Hour (₹)</Label>
+                          <Input
+                            className="mt-1"
+                            type="number"
+                            min="100"
+                            value={gurujiForm.pricePerHour}
+                            onChange={e => setGurujiForm(f => ({ ...f, pricePerHour: e.target.value }))}
+                            placeholder="e.g. 500"
+                          />
+                        </div>
+                        <div>
+                          <Label>Religion</Label>
+                          <Input
+                            className="mt-1"
+                            value={gurujiForm.religion}
+                            onChange={e => setGurujiForm(f => ({ ...f, religion: e.target.value }))}
+                            placeholder="e.g. Hindu"
+                          />
+                        </div>
+                        <div>
+                          <Label>Age</Label>
+                          <Input
+                            className="mt-1"
+                            type="number"
+                            value={gurujiForm.age}
+                            onChange={e => setGurujiForm(f => ({ ...f, age: e.target.value }))}
+                            placeholder="Your age"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Label>Bio / Description</Label>
+                          <Textarea
+                            className="mt-1"
+                            value={gurujiForm.bio}
+                            onChange={e => setGurujiForm(f => ({ ...f, bio: e.target.value }))}
+                            placeholder="Describe your background and spiritual expertise..."
+                            rows={3}
+                          />
+                        </div>
+                      </div>
 
-                {user.role === 'guruji' && (
-                  <Card className="mt-8">
-                    <CardHeader>
-                      <CardTitle>Guruji Profile</CardTitle>
-                      <CardDescription>Update your professional information</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div>
-                          <Label htmlFor="bio">Bio</Label>
-                          <textarea
-                            id="bio"
-                            rows={4}
-                            className="mt-1 w-full p-2 border border-neutral-300 rounded-md focus:ring-primary focus:border-primary"
-                            placeholder="Tell clients about yourself"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="specialization">Specialization</Label>
-                          <Input
-                            id="specialization"
-                            className="mt-1"
-                            placeholder="What pujas do you specialize in?"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="experience">Experience (years)</Label>
-                          <Input
-                            id="experience"
-                            type="number"
-                            className="mt-1"
-                            min={0}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="location">Location</Label>
-                          <Input
-                            id="location"
-                            className="mt-1"
-                            placeholder="Your city"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="service-radius">Service Radius (km)</Label>
-                          <Input
-                            id="service-radius"
-                            type="number"
-                            className="mt-1"
-                            min={1}
-                            max={50}
-                            defaultValue={10}
-                          />
-                        </div>
+                      <div>
+                        <Label className="mb-1 block">Puja Specializations</Label>
+                        <PujaMultiSelect selectedPujas={gurujiPujas} onChange={setGurujiPujas} />
                       </div>
-                      
-                      <Button>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Guruji Profile
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="bookings">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Your Bookings</CardTitle>
-                    <CardDescription>View and manage your booking history</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {isBookingsLoading ? (
-                      <div className="flex justify-center p-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+
+                      <div>
+                        <Label className="mb-1 block">Service Cities</Label>
+                        <CityMultiSelect selectedCities={gurujiCities} onChange={setGurujiCities} />
                       </div>
-                    ) : bookings.length > 0 ? (
-                      <div className="space-y-6">
-                        {/* Puja Cards Section based on the provided design */}
-                        {bookings.map((booking: any) => (
-                          <div key={booking.id} className="border rounded-lg overflow-hidden">
-                            <div className="bg-neutral-200 p-4">
-                              <h3 className="text-xl font-semibold mb-2">Puja Card</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div>
-                                  <p className="text-sm text-neutral-600">Puja Name</p>
-                                  <p className="font-medium">{booking.pujaName || 'Puja Service'}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-neutral-600">Puja Date</p>
-                                  <p className="font-medium">
-                                    {new Date(booking.date).toLocaleDateString('en-US', { 
-                                      month: 'long', 
-                                      day: 'numeric', 
-                                      year: 'numeric' 
-                                    })} at {new Date(booking.date).toLocaleTimeString('en-US', { 
-                                      hour: '2-digit', 
-                                      minute: '2-digit' 
-                                    })}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-neutral-600">Guruji's Name</p>
-                                  <p className="font-medium">{booking.gurujiName || 'To be assigned'}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-neutral-600">Other Puja details</p>
-                                  <p className="font-medium">{booking.notes || 'No additional details'}</p>
-                                </div>
-                              </div>
-                              
-                              <div className="flex justify-between items-center mt-4">
-                                <div className="flex items-center">
-                                  <div className={`px-3 py-1 rounded-md text-sm font-medium ${
-                                    booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                    booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                    booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                                    'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    Status - {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1) || 'Pending'}
-                                  </div>
-                                </div>
-                                
-                                {booking.status === 'completed' && (
-                                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
-                                    Request Same Guruji
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="p-4 flex justify-between items-center">
-                              <div>
-                                <p className="font-bold text-lg">Total Amount: ₹{booking.amount}</p>
-                              </div>
-                              <div className="flex space-x-2">
-                                <Button variant="outline" size="sm">View Details</Button>
-                                {booking.status === 'pending' && (
-                                  <Button variant="destructive" size="sm">Cancel</Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Calendar className="h-8 w-8 text-neutral-400" />
-                        </div>
-                        <h3 className="text-lg font-medium mb-2">No bookings yet</h3>
-                        <p className="text-neutral-600 mb-6">
-                          You haven't made any bookings yet. Start by booking a puja or consultation.
-                        </p>
-                        <Button onClick={() => setLocation('/booking')}>
-                          Book a Puja
+
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          onClick={() => updateGurujiMutation.mutate()}
+                          disabled={updateGurujiMutation.isPending}
+                        >
+                          {updateGurujiMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                          Save Guruji Profile
                         </Button>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="security">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Payment Methods</CardTitle>
-                    <CardDescription>Manage your payment methods</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-4 border rounded-lg">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-neutral-100 rounded-full flex items-center justify-center mr-4">
-                            <CreditCard className="h-5 w-5 text-neutral-600" />
-                          </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* ── Bookings Tab ── */}
+          <TabsContent value="bookings">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Bookings</CardTitle>
+                <CardDescription>Your booking history</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {bookingsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+                  </div>
+                ) : bookings.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-500">No bookings yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {bookings.map((b: any) => (
+                      <div key={b.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center gap-3">
+                          {statusIcon(b.status)}
                           <div>
-                            <p className="font-medium">Add New Payment Method</p>
-                            <p className="text-sm text-neutral-500">Add a credit card or other payment method</p>
+                            <p className="font-medium">{b.pujaName || `Booking #${b.id}`}</p>
+                            <p className="text-sm text-gray-500">
+                              {b.date ? new Date(b.date).toLocaleDateString('en-IN') : 'Date TBD'}
+                              {b.city ? ` · ${b.city}` : ''}
+                            </p>
                           </div>
                         </div>
-                        <Button variant="outline">
-                          Add Method
-                        </Button>
+                        <div className="flex items-center gap-3">
+                          {b.amount > 0 && <span className="text-sm font-medium">₹{b.amount}</span>}
+                          <Badge className={statusColor(b.status)}>{b.status}</Badge>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                <Card className="mt-8">
-                  <CardHeader>
-                    <CardTitle>Account Security</CardTitle>
-                    <CardDescription>Manage your account security settings</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">Change Password</p>
-                        <p className="text-sm text-neutral-500">Update your account password</p>
-                      </div>
-                      <Button variant="outline" onClick={() => setIsPasswordChangeOpen(true)}>
-                        Change
-                      </Button>
-                    </div>
-                    
-                    <div className="flex justify-between items-center p-4 border rounded-lg border-red-200 bg-red-50">
-                      <div>
-                        <p className="font-medium text-red-800">Deactivate Account</p>
-                        <p className="text-sm text-red-700">Temporarily disable your account</p>
-                      </div>
-                      <Button variant="destructive" onClick={() => setIsDeactivateOpen(true)}>
-                        Deactivate
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
-      </main>
-      
-      <Footer />
-
-      {/* Password Change Dialog */}
-      <Dialog open={isPasswordChangeOpen} onOpenChange={setIsPasswordChangeOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
-            <DialogDescription>
-              Enter your current password and a new password to change it.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...passwordForm}>
-            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
-              <FormField
-                control={passwordForm.control}
-                name="currentPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Current Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+          {/* ── Security Tab ── */}
+          <TabsContent value="security">
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Password</CardTitle>
+                <CardDescription>Update your account password</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 max-w-md">
+                <div>
+                  <Label>Current Password</Label>
+                  <Input
+                    className="mt-1"
+                    type="password"
+                    value={pwdForm.current}
+                    onChange={e => setPwdForm(f => ({ ...f, current: e.target.value }))}
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div>
+                  <Label>New Password</Label>
+                  <Input
+                    className="mt-1"
+                    type="password"
+                    value={pwdForm.newPwd}
+                    onChange={e => setPwdForm(f => ({ ...f, newPwd: e.target.value }))}
+                    placeholder="At least 6 characters"
+                  />
+                </div>
+                <div>
+                  <Label>Confirm New Password</Label>
+                  <Input
+                    className="mt-1"
+                    type="password"
+                    value={pwdForm.confirm}
+                    onChange={e => setPwdForm(f => ({ ...f, confirm: e.target.value }))}
+                    placeholder="Repeat new password"
+                  />
+                </div>
+                {pwdError && (
+                  <p className="text-sm text-red-600">{pwdError}</p>
                 )}
-              />
-              
-              <FormField
-                control={passwordForm.control}
-                name="newPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>New Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={passwordForm.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm New Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter className="mt-6">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsPasswordChangeOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
+                <Button
+                  onClick={handlePasswordSubmit}
                   disabled={changePasswordMutation.isPending}
                 >
-                  {changePasswordMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Changing...
-                    </>
-                  ) : (
-                    "Change Password"
-                  )}
+                  {changePasswordMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  Change Password
                 </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
 
-      {/* Deactivate Account Dialog */}
-      <Dialog open={isDeactivateOpen} onOpenChange={setIsDeactivateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Deactivate Account</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to deactivate your account? This action is reversible but will disable your account temporarily.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mt-2">
-            <div className="flex">
-              <AlertCircle className="h-5 w-5 text-amber-600 mr-2 flex-shrink-0" />
-              <p className="text-sm text-amber-800">
-                Your bookings and personal information will be preserved, but you won't be able to login until you contact support to reactivate your account.
-              </p>
-            </div>
-          </div>
-          <DialogFooter className="mt-6">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setIsDeactivateOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="button"
-              variant="destructive"
-              onClick={onDeactivateAccount}
-              disabled={deactivateAccountMutation.isPending}
-            >
-              {deactivateAccountMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Deactivate Account"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Footer />
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  let color;
-  let label;
-
-  switch (status) {
-    case 'pending':
-      color = 'bg-amber-50 text-amber-700 border-amber-200';
-      label = 'Pending';
-      break;
-    case 'confirmed':
-      color = 'bg-blue-50 text-blue-700 border-blue-200';
-      label = 'Confirmed';
-      break;
-    case 'in_progress':
-      color = 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      label = 'In Progress';
-      break;
-    case 'completed':
-      color = 'bg-green-50 text-green-700 border-green-200';
-      label = 'Completed';
-      break;
-    case 'cancelled':
-      color = 'bg-red-50 text-red-700 border-red-200';
-      label = 'Cancelled';
-      break;
-    default:
-      color = 'bg-neutral-50 text-neutral-700 border-neutral-200';
-      label = status;
-  }
-
-  return (
-    <span className={`px-2 py-1 rounded text-xs font-medium border ${color}`}>
-      {label}
-    </span>
   );
 }

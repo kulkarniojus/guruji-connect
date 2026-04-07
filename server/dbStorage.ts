@@ -1081,6 +1081,7 @@ export class DBStorage implements IStorage {
       age: row.age || null,
       videoUrl: row.video_url || null,
       status: row.status || 'pending',
+      cities: Array.isArray(row.cities) ? row.cities : [],
       createdAt: row.createdAt || row.created_at,
       updatedAt: row.updatedAt || row.updated_at,
     };
@@ -1582,6 +1583,7 @@ export class DBStorage implements IStorage {
         languages: row.languages || [],
         profilePictureUrl: row.profile_picture_url || null,
         status: row.status,
+        cities: Array.isArray(row.cities) ? row.cities : [],
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         user: { id: row.userId, firstName: row.firstName, lastName: row.lastName },

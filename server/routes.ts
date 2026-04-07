@@ -1110,6 +1110,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update own user profile (basic info)
+  app.put("/api/users/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const targetId = parseInt(req.params.id);
+      // Only allow users to update their own profile (unless admin)
+      const sessionUser = await storageInstance.getUser(userId);
+      if (userId !== targetId && (sessionUser as any)?.role !== 'admin') {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const { firstName, lastName, age, address, city, state, pincode } = req.body;
+      const setClauses: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+      if (firstName !== undefined) { setClauses.push(`"firstName" = $${idx++}`); values.push(firstName.trim()); }
+      if (lastName !== undefined) { setClauses.push(`"lastName" = $${idx++}`); values.push(lastName.trim()); }
+      if (age !== undefined) { setClauses.push(`age = $${idx++}`); values.push(Number(age)); }
+      if (address !== undefined) { setClauses.push(`address = $${idx++}`); values.push(address); }
+      if (city !== undefined) { setClauses.push(`city = $${idx++}`); values.push(city); }
+      if (state !== undefined) { setClauses.push(`state = $${idx++}`); values.push(state); }
+      if (pincode !== undefined) { setClauses.push(`pincode = $${idx++}`); values.push(pincode); }
+      if (setClauses.length === 0) return res.status(400).json({ message: 'No fields to update' });
+      values.push(targetId);
+      const { pool } = await import('./db');
+      await pool.query(`UPDATE users SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+      const updated = await storageInstance.getUser(targetId);
+      const { password, ...safeUser } = updated as any;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Change own password
+  app.post("/api/auth/change-password", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "currentPassword and newPassword are required" });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "New password must be at least 6 characters" });
+      }
+      const user = await storageInstance.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const bcrypt = await import('bcrypt');
+      const valid = await bcrypt.compare(currentPassword, (user as any).password);
+      if (!valid) return res.status(400).json({ message: "Current password is incorrect" });
+      const hashed = await bcrypt.hash(newPassword, 10);
+      const { pool } = await import('./db');
+      await pool.query(`UPDATE users SET password = $1 WHERE id = $2`, [hashed, userId]);
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
   app.get("/api/auth/check-user", async (req: Request, res: Response) => {
     try {
       const { email } = z.object({

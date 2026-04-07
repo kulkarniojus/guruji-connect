@@ -196,6 +196,7 @@ Changelog:
     - Auto-verify new gurujis (aadharVerified & documentsVerified set to true at registration)
     - Admin bookings query now returns all bookings instead of empty array
     - Gurujis list shows both pending and approved gurujis for selection
+- April 07, 2026. Fixed admin guruji edit save error (missing cities column in DB - added via SQL). Rewrote Profile.tsx: now role-aware, always available for all users. Customer tab: basic info edit. Guruji tab: puja specializations, service cities, pricing, bio. Security tab: password change. Added PUT /api/users/:id and POST /api/auth/change-password backend routes. Updated guruji DB mapper to return cities[] array.
 ```
 
 ## User Preferences
