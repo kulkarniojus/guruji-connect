@@ -297,7 +297,7 @@ export class DBStorage implements IStorage {
   // Puja Management
   async getPuja(id: number): Promise<Puja | undefined> {
     const result = await pool.query(
-      `SELECT * FROM pujas WHERE id = `,
+      `SELECT * FROM pujas WHERE id = $1`,
       [id]
     );
     

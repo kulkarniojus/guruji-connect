@@ -512,7 +512,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const status = req.query.status as string | undefined;
       const gurujis = await storageInstance.getAllGurujiProfiles(status);
-      res.json(gurujis);
+      const enriched = await Promise.all(gurujis.map(async (g: any) => {
+        const user = await storageInstance.getUser(g.userId);
+        return {
+          ...g,
+          user: user || { firstName: '', lastName: '', email: '', mobile: '' },
+        };
+      }));
+      res.json(enriched);
     } catch (error) {
       console.error('Error fetching guruji profiles:', error);
       res.status(500).json({ message: 'Failed to fetch guruji profiles' });

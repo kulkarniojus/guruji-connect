@@ -369,17 +369,17 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
   // Further filter profiles based on search query
   const searchedProfiles = filteredProfiles.filter((profile) => {
     const searchText = searchQuery.toLowerCase();
-    const userFullName = `${profile.user?.firstName} ${profile.user?.lastName}`.toLowerCase();
-    const userEmail = profile.user?.email.toLowerCase();
-    const userMobile = profile.user?.mobile.toLowerCase();
-    const location = profile.location.toLowerCase();
+    const userFullName = `${profile.user?.firstName || ''} ${profile.user?.lastName || ''}`.toLowerCase();
+    const userEmail = (profile.user?.email || '').toLowerCase();
+    const userMobile = (profile.user?.mobile || '').toLowerCase();
+    const location = (profile.location || '').toLowerCase();
     
     return (
       userFullName.includes(searchText) ||
       userEmail.includes(searchText) ||
       userMobile.includes(searchText) ||
       location.includes(searchText) ||
-      profile.specialization?.toLowerCase().includes(searchText)
+      (profile.specialization?.toLowerCase() || '').includes(searchText)
     );
   });
 
