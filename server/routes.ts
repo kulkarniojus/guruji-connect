@@ -531,6 +531,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
       }
 
+      // City and experience are mandatory
+      if (!city || city.trim().length < 2) {
+        return res.status(400).json({ message: 'City is required (minimum 2 characters)' });
+      }
+      const expNum = Number(experience);
+      if (!experience || isNaN(expNum) || expNum < 1) {
+        return res.status(400).json({ message: 'Years of experience must be at least 1' });
+      }
+
       let targetUserId = sessionUserId;
 
       if (sessionUser.role === 'sales' || sessionUser.role === 'sales_rep') {
@@ -824,6 +833,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Get all verified gurujis (for assign dialog)
+  // Admin: edit a guruji's profile details
+  app.put('/api/admin/gurujis/:id', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const gurujiId = parseInt(req.params.id);
+      const { city, state, address, pincode, experience, pricePerHour, bio, languages, religion, age } = req.body;
+
+      if (city !== undefined && city.trim().length < 2) {
+        return res.status(400).json({ message: 'City must be at least 2 characters' });
+      }
+      if (experience !== undefined && (isNaN(Number(experience)) || Number(experience) < 1)) {
+        return res.status(400).json({ message: 'Years of experience must be at least 1' });
+      }
+      if (pricePerHour !== undefined && (isNaN(Number(pricePerHour)) || Number(pricePerHour) < 100)) {
+        return res.status(400).json({ message: 'Price per hour must be at least ₹100' });
+      }
+
+      const updates: any = {};
+      if (city !== undefined) updates.city = city.trim();
+      if (state !== undefined) updates.state = state.trim();
+      if (address !== undefined) updates.address = address.trim();
+      if (pincode !== undefined) updates.pincode = pincode.trim();
+      if (experience !== undefined) updates.experience = Number(experience);
+      if (pricePerHour !== undefined) updates.pricePerHour = Number(pricePerHour);
+      if (bio !== undefined) updates.bio = bio.trim();
+      if (languages !== undefined) updates.languages = Array.isArray(languages) ? languages : [];
+      if (religion !== undefined) updates.religion = religion;
+      if (age !== undefined) updates.age = Number(age);
+
+      // Use raw DB update with correct column names
+      const { pool } = await import('./db');
+      const setClauses: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+      if (updates.city !== undefined) { setClauses.push(`city = $${idx++}`); values.push(updates.city); }
+      if (updates.state !== undefined) { setClauses.push(`state = $${idx++}`); values.push(updates.state); }
+      if (updates.address !== undefined) { setClauses.push(`address = $${idx++}`); values.push(updates.address); }
+      if (updates.pincode !== undefined) { setClauses.push(`pincode = $${idx++}`); values.push(updates.pincode); }
+      if (updates.experience !== undefined) { setClauses.push(`experience = $${idx++}`); values.push(updates.experience); }
+      if (updates.pricePerHour !== undefined) { setClauses.push(`"pricePerHour" = $${idx++}`); values.push(updates.pricePerHour); }
+      if (updates.bio !== undefined) { setClauses.push(`description = $${idx++}`); values.push(updates.bio); }
+      if (updates.languages !== undefined) { setClauses.push(`languages = $${idx++}`); values.push(updates.languages); }
+      if (updates.religion !== undefined) { setClauses.push(`religion = $${idx++}`); values.push(updates.religion); }
+      if (updates.age !== undefined) { setClauses.push(`age = $${idx++}`); values.push(updates.age); }
+      setClauses.push(`"updatedAt" = $${idx++}`); values.push(new Date());
+
+      if (setClauses.length === 1) {
+        return res.status(400).json({ message: 'No fields to update' });
+      }
+      values.push(gurujiId);
+      await pool.query(`UPDATE guruji_profiles SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+
+      const updated = await storageInstance.getGurujiProfile(gurujiId);
+      if (!updated) return res.status(404).json({ message: 'Guruji profile not found' });
+      const user = await storageInstance.getUser(updated.userId);
+      res.json({ ...updated, user: user || {} });
+    } catch (error) {
+      console.error('Error updating guruji profile:', error);
+      res.status(500).json({ message: 'Failed to update guruji profile' });
+    }
+  });
+
+  // Guruji: get their own profile
+  app.get('/api/guruji/profile', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const profile = await storageInstance.getGurujiProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ message: 'Profile not found' });
+      res.json(profile);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch profile' });
+    }
+  });
+
+  // Guruji self-edit: update their own profile (allowed when pending or rejected)
+  app.put('/api/guruji/profile', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const profile = await storageInstance.getGurujiProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ message: 'Guruji profile not found' });
+
+      const { city, state, address, pincode, experience, pricePerHour, bio, languages, religion, age } = req.body;
+
+      if (city !== undefined && city.trim().length < 2) {
+        return res.status(400).json({ message: 'City must be at least 2 characters' });
+      }
+      if (experience !== undefined && (isNaN(Number(experience)) || Number(experience) < 1)) {
+        return res.status(400).json({ message: 'Years of experience must be at least 1' });
+      }
+
+      const { pool } = await import('./db');
+      const setClauses: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+      if (city !== undefined) { setClauses.push(`city = $${idx++}`); values.push(city.trim()); }
+      if (state !== undefined) { setClauses.push(`state = $${idx++}`); values.push(state.trim()); }
+      if (address !== undefined) { setClauses.push(`address = $${idx++}`); values.push(address.trim()); }
+      if (pincode !== undefined) { setClauses.push(`pincode = $${idx++}`); values.push(pincode.trim()); }
+      if (experience !== undefined) { setClauses.push(`experience = $${idx++}`); values.push(Number(experience)); }
+      if (pricePerHour !== undefined) { setClauses.push(`"pricePerHour" = $${idx++}`); values.push(Number(pricePerHour)); }
+      if (bio !== undefined) { setClauses.push(`description = $${idx++}`); values.push(bio.trim()); }
+      if (languages !== undefined) { setClauses.push(`languages = $${idx++}`); values.push(Array.isArray(languages) ? languages : []); }
+      if (religion !== undefined) { setClauses.push(`religion = $${idx++}`); values.push(religion); }
+      if (age !== undefined) { setClauses.push(`age = $${idx++}`); values.push(Number(age)); }
+      // Reset status to pending so admin reviews the updated profile
+      setClauses.push(`status = $${idx++}`); values.push('pending');
+      setClauses.push(`"updatedAt" = $${idx++}`); values.push(new Date());
+
+      if (setClauses.length === 2) {
+        return res.status(400).json({ message: 'No fields to update' });
+      }
+      values.push(profile.id);
+      await pool.query(`UPDATE guruji_profiles SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+
+      const updated = await storageInstance.getGurujiProfile(profile.id);
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating guruji profile:', error);
+      res.status(500).json({ message: 'Failed to update profile' });
+    }
+  });
+
   app.get('/api/admin/gurujis/verified', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const allGurujis = await storageInstance.getAllGurujiProfiles();

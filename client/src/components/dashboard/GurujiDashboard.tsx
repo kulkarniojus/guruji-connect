@@ -5,12 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import {
   Loader2, Calendar, Clock, MapPin, Check, X,
   User, IndianRupee, Phone, Bell, CheckCircle2,
-  XCircle, Package2, AlertCircle
+  XCircle, Package2, AlertCircle, Edit, Save
 } from 'lucide-react';
 
 function statusBadge(status: string) {
@@ -39,6 +41,11 @@ export default function GurujiDashboard() {
   const { toast } = useToast();
   const [declineReason, setDeclineReason] = useState<Record<number, string>>({});
   const [showDeclineFor, setShowDeclineFor] = useState<number | null>(null);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    city: '', state: '', address: '', pincode: '',
+    experience: '', pricePerHour: '', bio: '',
+  });
 
   // Fetch current user
   const { data: user } = useQuery<any>({
@@ -50,6 +57,65 @@ export default function GurujiDashboard() {
     },
     staleTime: 30000,
   });
+
+  // Fetch guruji's own profile to get approval status
+  const { data: myProfile, refetch: refetchProfile } = useQuery<any>({
+    queryKey: ['/api/guruji/my-profile'],
+    queryFn: async () => {
+      const res = await fetch('/api/guruji/profile', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  // Self-edit profile mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('PUT', '/api/guruji/profile', data);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to update profile');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been updated and resubmitted for admin review.',
+      });
+      setShowEditProfile(false);
+      refetchProfile();
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    },
+  });
+
+  const handleOpenProfileEdit = () => {
+    setProfileForm({
+      city: myProfile?.city || '',
+      state: myProfile?.state || '',
+      address: myProfile?.address || '',
+      pincode: myProfile?.pincode || '',
+      experience: String(myProfile?.experience || ''),
+      pricePerHour: String(myProfile?.pricePerHour || ''),
+      bio: myProfile?.bio || '',
+    });
+    setShowEditProfile(true);
+  };
+
+  const handleSaveProfile = () => {
+    const data: any = {};
+    if (profileForm.city) data.city = profileForm.city;
+    if (profileForm.state) data.state = profileForm.state;
+    if (profileForm.address) data.address = profileForm.address;
+    if (profileForm.pincode) data.pincode = profileForm.pincode;
+    if (profileForm.experience) data.experience = Number(profileForm.experience);
+    if (profileForm.pricePerHour) data.pricePerHour = Number(profileForm.pricePerHour);
+    if (profileForm.bio) data.bio = profileForm.bio;
+    updateProfileMutation.mutate(data);
+  };
 
   // Fetch pending booking requests sent to this guruji
   const { data: bookingRequests = [], isLoading: reqLoading, refetch: refetchRequests } = useQuery<any[]>({
@@ -138,6 +204,227 @@ export default function GurujiDashboard() {
         <h1 className="text-3xl font-bold mb-1">Welcome, {user?.firstName || 'Guruji'}!</h1>
         <p className="text-neutral-600">Manage your booking requests and upcoming services.</p>
       </div>
+
+      {/* Rejection / pending banner with self-edit option */}
+      {myProfile && myProfile.status === 'rejected' && (
+        <Card className="mb-6 border-red-300 bg-red-50">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <XCircle className="h-6 w-6 text-red-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold text-red-800">Your application was rejected</p>
+                <p className="text-sm text-red-700 mt-1">
+                  Please update your profile details (especially city and years of experience) and resubmit for review.
+                </p>
+                {!showEditProfile && (
+                  <Button className="mt-3" size="sm" onClick={handleOpenProfileEdit}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Update My Profile
+                  </Button>
+                )}
+              </div>
+            </div>
+            {showEditProfile && (
+              <div className="mt-5 space-y-4 border-t border-red-200 pt-4">
+                <h4 className="font-semibold text-red-900">Update Profile Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>City *</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="e.g. Mumbai"
+                      value={profileForm.city}
+                      onChange={e => setProfileForm(f => ({ ...f, city: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>State</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="e.g. Maharashtra"
+                      value={profileForm.state}
+                      onChange={e => setProfileForm(f => ({ ...f, state: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Full Address</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="Street address"
+                      value={profileForm.address}
+                      onChange={e => setProfileForm(f => ({ ...f, address: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Pincode</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="6-digit pincode"
+                      maxLength={6}
+                      value={profileForm.pincode}
+                      onChange={e => setProfileForm(f => ({ ...f, pincode: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Years of Experience *</Label>
+                    <Input
+                      className="mt-1"
+                      type="number"
+                      min="1"
+                      max="50"
+                      placeholder="e.g. 5"
+                      value={profileForm.experience}
+                      onChange={e => setProfileForm(f => ({ ...f, experience: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Price Per Hour (₹)</Label>
+                    <Input
+                      className="mt-1"
+                      type="number"
+                      min="100"
+                      placeholder="e.g. 500"
+                      value={profileForm.pricePerHour}
+                      onChange={e => setProfileForm(f => ({ ...f, pricePerHour: e.target.value }))}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label>Bio / Description</Label>
+                    <Textarea
+                      className="mt-1 min-h-[80px]"
+                      placeholder="Describe your background and expertise..."
+                      value={profileForm.bio}
+                      onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={updateProfileMutation.isPending || !profileForm.city.trim() || !profileForm.experience}
+                  >
+                    {updateProfileMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Save & Resubmit
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowEditProfile(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {myProfile && myProfile.status === 'pending' && (
+        <Card className="mb-6 border-amber-300 bg-amber-50">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-6 w-6 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold text-amber-800">Application under review</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  Your Guruji application is pending admin approval. You can update your profile details while you wait.
+                </p>
+                {!showEditProfile && (
+                  <Button variant="outline" className="mt-3 border-amber-400 text-amber-800 hover:bg-amber-100" size="sm" onClick={handleOpenProfileEdit}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Update Profile
+                  </Button>
+                )}
+              </div>
+            </div>
+            {showEditProfile && (
+              <div className="mt-5 space-y-4 border-t border-amber-200 pt-4">
+                <h4 className="font-semibold text-amber-900">Update Profile Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>City *</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="e.g. Mumbai"
+                      value={profileForm.city}
+                      onChange={e => setProfileForm(f => ({ ...f, city: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>State</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="e.g. Maharashtra"
+                      value={profileForm.state}
+                      onChange={e => setProfileForm(f => ({ ...f, state: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Full Address</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="Street address"
+                      value={profileForm.address}
+                      onChange={e => setProfileForm(f => ({ ...f, address: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Pincode</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="6-digit pincode"
+                      maxLength={6}
+                      value={profileForm.pincode}
+                      onChange={e => setProfileForm(f => ({ ...f, pincode: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Years of Experience *</Label>
+                    <Input
+                      className="mt-1"
+                      type="number"
+                      min="1"
+                      max="50"
+                      placeholder="e.g. 5"
+                      value={profileForm.experience}
+                      onChange={e => setProfileForm(f => ({ ...f, experience: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Price Per Hour (₹)</Label>
+                    <Input
+                      className="mt-1"
+                      type="number"
+                      min="100"
+                      placeholder="e.g. 500"
+                      value={profileForm.pricePerHour}
+                      onChange={e => setProfileForm(f => ({ ...f, pricePerHour: e.target.value }))}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label>Bio / Description</Label>
+                    <Textarea
+                      className="mt-1 min-h-[80px]"
+                      placeholder="Describe your background and expertise..."
+                      value={profileForm.bio}
+                      onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={updateProfileMutation.isPending || !profileForm.city.trim() || !profileForm.experience}
+                  >
+                    {updateProfileMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Save Changes
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowEditProfile(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

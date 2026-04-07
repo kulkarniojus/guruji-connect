@@ -100,6 +100,11 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [activeTab, setActiveTab] = useState('personal');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    city: '', state: '', address: '', pincode: '',
+    experience: '', pricePerHour: '', bio: '', age: '', religion: '',
+  });
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -447,6 +452,65 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
       });
     }
   });
+
+  // Edit guruji profile mutation
+  const editGurujiMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await fetch(`/api/admin/gurujis/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to update');
+      }
+      return res.json();
+    },
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/gurujis'] });
+      setSelectedProfile((prev: any) => prev ? { ...prev, ...updated } : prev);
+      toast({ title: 'Profile Updated', description: 'Guruji profile has been updated successfully.' });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'Failed to update profile', variant: 'destructive' });
+    },
+  });
+
+  // Open edit dialog pre-filled with current data
+  const handleOpenEdit = () => {
+    if (!selectedProfile) return;
+    const p = selectedProfile as any;
+    setEditForm({
+      city: p.city || '',
+      state: p.state || '',
+      address: p.address || '',
+      pincode: p.pincode || '',
+      experience: String(p.experience || ''),
+      pricePerHour: String(p.pricePerHour || ''),
+      bio: p.bio || '',
+      age: String(p.age || ''),
+      religion: p.religion || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedProfile) return;
+    const data: any = {};
+    if (editForm.city) data.city = editForm.city;
+    if (editForm.state) data.state = editForm.state;
+    if (editForm.address) data.address = editForm.address;
+    if (editForm.pincode) data.pincode = editForm.pincode;
+    if (editForm.experience) data.experience = Number(editForm.experience);
+    if (editForm.pricePerHour) data.pricePerHour = Number(editForm.pricePerHour);
+    if (editForm.bio) data.bio = editForm.bio;
+    if (editForm.age) data.age = Number(editForm.age);
+    if (editForm.religion) data.religion = editForm.religion;
+    editGurujiMutation.mutate({ id: selectedProfile.id, data });
+  };
 
   // View application details
   const handleViewDetails = (profile: GurujiProfile) => {
@@ -824,6 +888,9 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
               const s = selectedProfile ? ((selectedProfile as any).status || selectedProfile.applicationStatus) : null;
               return (
                 <>
+                  <Button variant="outline" onClick={handleOpenEdit}>
+                    Edit Details
+                  </Button>
                   {s === 'pending' && (
                     <>
                       <Button variant="outline" onClick={handleRejectApplication} disabled={rejectApplicationMutation.isPending}>
@@ -883,6 +950,113 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
               disabled={!rejectionReason.trim()}
             >
               Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Guruji Profile — {selectedProfile?.user?.firstName} {selectedProfile?.user?.lastName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>City *</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Mumbai"
+                  value={editForm.city}
+                  onChange={e => setEditForm(f => ({ ...f, city: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>State</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Maharashtra"
+                  value={editForm.state}
+                  onChange={e => setEditForm(f => ({ ...f, state: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Full Address</Label>
+              <Input
+                className="mt-1"
+                placeholder="Street address"
+                value={editForm.address}
+                onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Pincode</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="6-digit pincode"
+                  maxLength={6}
+                  value={editForm.pincode}
+                  onChange={e => setEditForm(f => ({ ...f, pincode: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Religion</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Hindu"
+                  value={editForm.religion}
+                  onChange={e => setEditForm(f => ({ ...f, religion: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Years of Experience *</Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  min="1"
+                  max="50"
+                  placeholder="e.g. 5"
+                  value={editForm.experience}
+                  onChange={e => setEditForm(f => ({ ...f, experience: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Price Per Hour (₹)</Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  min="100"
+                  placeholder="e.g. 500"
+                  value={editForm.pricePerHour}
+                  onChange={e => setEditForm(f => ({ ...f, pricePerHour: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Bio / Description</Label>
+              <textarea
+                className="mt-1 w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Describe the guruji's background and expertise..."
+                value={editForm.bio}
+                onChange={e => setEditForm(f => ({ ...f, bio: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={editGurujiMutation.isPending || !editForm.city.trim() || !editForm.experience}
+            >
+              {editGurujiMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
