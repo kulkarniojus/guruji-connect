@@ -62,6 +62,124 @@ async function initializeAppSettings() {
   }
 }
 
+// Seed sample gurujis into DB if they don't exist (for demo/testing)
+async function seedSampleGurujisToDB() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const { genSalt, hash: bcryptHash } = await import('bcrypt');
+    const salt = await genSalt(10);
+
+    const sampleGurujis = [
+      {
+        email: "ramesh.sharma@gurujiconnect.com",
+        mobile: "9876543210",
+        firstName: "Pandit Ramesh", lastName: "Sharma",
+        bio: "Experienced Vedic priest with deep knowledge of Sanskrit shlokas and traditional rituals.",
+        city: "mumbai", location: "Mumbai", experience: 15, pricePerHour: 1200,
+        specialities: ["Satyanarayan Puja", "Griha Pravesh", "Navgraha Shanti", "Ganesh Puja"],
+        languages: ["Hindi", "Sanskrit", "Marathi"], rating: 4.8, totalReviews: 156,
+        profilePic: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
+      },
+      {
+        email: "priya.devi@gurujiconnect.com",
+        mobile: "9876543211",
+        firstName: "Acharya Priya", lastName: "Devi",
+        bio: "Spiritual guide specializing in meditation, yoga, and holistic wellness practices.",
+        city: "delhi", location: "Delhi", experience: 12, pricePerHour: 1500,
+        specialities: ["Navgraha Shanti", "Mahalakshmi Puja", "Satyanarayan Puja", "Ganesh Puja"],
+        languages: ["Hindi", "English", "Sanskrit"], rating: 4.9, totalReviews: 203,
+        profilePic: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop",
+      },
+      {
+        email: "suresh.kumar@gurujiconnect.com",
+        mobile: "9876543212",
+        firstName: "Pandit Suresh", lastName: "Kumar",
+        bio: "Expert astrologer and Vastu consultant with 20+ years of experience.",
+        city: "bangalore", location: "Bangalore", experience: 20, pricePerHour: 1000,
+        specialities: ["Griha Pravesh", "Navgraha Shanti", "Satyanarayan Puja", "Ganesh Puja"],
+        languages: ["Hindi", "Kannada", "Tamil", "English"], rating: 4.7, totalReviews: 178,
+        profilePic: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop",
+      },
+      {
+        email: "vijay.mishra@gurujiconnect.com",
+        mobile: "9876543213",
+        firstName: "Pandit Vijay", lastName: "Mishra",
+        bio: "Traditional priest specializing in wedding ceremonies, Navgraha Shanti, and Ganesh Puja.",
+        city: "ahmedabad", location: "Ahmedabad", experience: 18, pricePerHour: 1100,
+        specialities: ["Ganesh Puja", "Navgraha Shanti", "Satyanarayan Puja", "Mahalakshmi Puja"],
+        languages: ["Hindi", "Gujarati", "Sanskrit"], rating: 4.6, totalReviews: 134,
+        profilePic: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop",
+      },
+      {
+        email: "anita.joshi@gurujiconnect.com",
+        mobile: "9876543214",
+        firstName: "Pandit Anita", lastName: "Joshi",
+        bio: "Vedic pandit specializing in all types of pujas for families across Mumbai and Pune.",
+        city: "mumbai", location: "Mumbai", experience: 10, pricePerHour: 900,
+        specialities: ["Satyanarayan Puja", "Ganesh Puja", "Mahalakshmi Puja", "Griha Pravesh"],
+        languages: ["Hindi", "Marathi", "English"], rating: 4.5, totalReviews: 98,
+        profilePic: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop",
+      },
+      {
+        email: "krishna.sharma@gurujiconnect.com",
+        mobile: "9876543215",
+        firstName: "Pandit Krishna", lastName: "Sharma",
+        bio: "Renowned Vedic scholar available for all ceremonies in Delhi NCR.",
+        city: "delhi", location: "Delhi", experience: 22, pricePerHour: 2000,
+        specialities: ["Satyanarayan Puja", "Navgraha Shanti", "Griha Pravesh", "Ganesh Puja"],
+        languages: ["Hindi", "Sanskrit", "English"], rating: 5.0, totalReviews: 312,
+        profilePic: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop",
+      },
+    ];
+
+    for (const g of sampleGurujis) {
+      // Check if user already exists by email OR mobile
+      const existing = await pool.query(
+        `SELECT id FROM users WHERE email = $1 OR mobile = $2`,
+        [g.email, g.mobile]
+      );
+      if (existing.rows.length > 0) {
+        // User exists — make sure their guruji profile is approved/verified
+        const userId = existing.rows[0].id;
+        await pool.query(
+          `UPDATE guruji_profiles SET "isVerified" = true, "isAvailable" = true, 
+           aadhar_verified = true, documents_verified = true, status = 'approved',
+           city = CASE WHEN city = '' OR city IS NULL THEN $2 ELSE city END,
+           specialities = CASE WHEN specialities = '{}' OR specialities IS NULL THEN $3 ELSE specialities END,
+           "updatedAt" = NOW()
+           WHERE "userId" = $1`,
+          [userId, g.city, g.specialities]
+        );
+        continue;
+      }
+
+      const hashedPwd = await bcryptHash(g.mobile, salt);
+      const userRes = await pool.query(
+        `INSERT INTO users ("firstName", "lastName", email, mobile, password, role, "isVerified", "isBlocked", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, 'guruji', true, false, NOW(), NOW()) RETURNING id`,
+        [g.firstName, g.lastName, g.email, g.mobile, hashedPwd]
+      );
+      const userId = userRes.rows[0].id;
+
+      await pool.query(
+        `INSERT INTO guruji_profiles ("userId", description, city, address, experience, "pricePerHour",
+          "isVerified", "isAvailable", languages, specialities, rating, "totalReviews",
+          aadhar_verified, documents_verified, status, profile_picture_url, "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, true, true, $7, $8, $9, $10, true, true, 'approved', $11, NOW(), NOW())`,
+        [userId, g.bio, g.city, g.location, g.experience, g.pricePerHour,
+         g.languages, g.specialities, g.rating, g.totalReviews, g.profilePic]
+      );
+    }
+
+    console.log("Sample guruji accounts created (password = mobile number):");
+    for (const g of sampleGurujis) {
+      console.log(`  ${g.email} / ${g.mobile}`);
+    }
+  } catch (err) {
+    console.error("Warning: could not seed sample gurujis:", err);
+  }
+}
+
 async function initializeAdminUser() {
   // Only create admin user in development environment
   if (process.env.NODE_ENV === 'production') {
@@ -98,6 +216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize admin user and app settings
   await initializeAdminUser();
   await initializeAppSettings();
+  await seedSampleGurujisToDB();
 
   // Set up session middleware
   app.use(
