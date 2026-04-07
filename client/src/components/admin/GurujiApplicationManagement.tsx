@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
 
 // Types
 interface User {
@@ -105,6 +106,8 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
     city: '', state: '', address: '', pincode: '',
     experience: '', pricePerHour: '', bio: '', age: '', religion: '',
   });
+  const [editPujas, setEditPujas] = useState<string[]>([]);
+  const [editServiceCities, setEditServiceCities] = useState<string[]>([]);
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -494,6 +497,13 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
       age: String(p.age || ''),
       religion: p.religion || '',
     });
+    // Pre-populate pujas from specialization string (comma-separated names)
+    const specStr = p.specialization || '';
+    const pujaNames = specStr ? specStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+    setEditPujas(pujaNames);
+    // Pre-populate service cities from cities array
+    const citiesArr = Array.isArray(p.cities) ? p.cities : [];
+    setEditServiceCities(citiesArr);
     setIsEditDialogOpen(true);
   };
 
@@ -509,6 +519,8 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
     if (editForm.bio) data.bio = editForm.bio;
     if (editForm.age) data.age = Number(editForm.age);
     if (editForm.religion) data.religion = editForm.religion;
+    data.pujas = editPujas;
+    data.serviceCities = editServiceCities;
     editGurujiMutation.mutate({ id: selectedProfile.id, data });
   };
 
@@ -1045,6 +1057,16 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                 value={editForm.bio}
                 onChange={e => setEditForm(f => ({ ...f, bio: e.target.value }))}
               />
+            </div>
+
+            <div>
+              <Label className="mb-1 block">Puja Specializations</Label>
+              <PujaMultiSelect selectedPujas={editPujas} onChange={setEditPujas} />
+            </div>
+
+            <div>
+              <Label className="mb-1 block">Service Cities (where they can serve)</Label>
+              <CityMultiSelect selectedCities={editServiceCities} onChange={setEditServiceCities} />
             </div>
           </div>
           <DialogFooter>

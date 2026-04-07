@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import {
   Loader2, Calendar, Clock, MapPin, Check, X,
@@ -46,6 +47,8 @@ export default function GurujiDashboard() {
     city: '', state: '', address: '', pincode: '',
     experience: '', pricePerHour: '', bio: '',
   });
+  const [profilePujas, setProfilePujas] = useState<string[]>([]);
+  const [profileServiceCities, setProfileServiceCities] = useState<string[]>([]);
 
   // Fetch current user
   const { data: user } = useQuery<any>({
@@ -102,6 +105,11 @@ export default function GurujiDashboard() {
       pricePerHour: String(myProfile?.pricePerHour || ''),
       bio: myProfile?.bio || '',
     });
+    // Pre-populate pujas from specialization
+    const specStr = myProfile?.specialization || '';
+    setProfilePujas(specStr ? specStr.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+    // Pre-populate service cities
+    setProfileServiceCities(Array.isArray(myProfile?.cities) ? myProfile.cities : []);
     setShowEditProfile(true);
   };
 
@@ -114,6 +122,8 @@ export default function GurujiDashboard() {
     if (profileForm.experience) data.experience = Number(profileForm.experience);
     if (profileForm.pricePerHour) data.pricePerHour = Number(profileForm.pricePerHour);
     if (profileForm.bio) data.bio = profileForm.bio;
+    data.pujas = profilePujas;
+    data.serviceCities = profileServiceCities;
     updateProfileMutation.mutate(data);
   };
 
@@ -298,6 +308,14 @@ export default function GurujiDashboard() {
                     />
                   </div>
                 </div>
+                <div>
+                  <Label className="mb-1 block">Puja Specializations</Label>
+                  <PujaMultiSelect selectedPujas={profilePujas} onChange={setProfilePujas} />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Service Cities</Label>
+                  <CityMultiSelect selectedCities={profileServiceCities} onChange={setProfileServiceCities} />
+                </div>
                 <div className="flex gap-3">
                   <Button
                     onClick={handleSaveProfile}
@@ -407,6 +425,14 @@ export default function GurujiDashboard() {
                       onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))}
                     />
                   </div>
+                </div>
+                <div>
+                  <Label className="mb-1 block">Puja Specializations</Label>
+                  <PujaMultiSelect selectedPujas={profilePujas} onChange={setProfilePujas} />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Service Cities</Label>
+                  <CityMultiSelect selectedCities={profileServiceCities} onChange={setProfileServiceCities} />
                 </div>
                 <div className="flex gap-3">
                   <Button

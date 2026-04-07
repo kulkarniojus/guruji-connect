@@ -876,6 +876,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (updates.languages !== undefined) { setClauses.push(`languages = $${idx++}`); values.push(updates.languages); }
       if (updates.religion !== undefined) { setClauses.push(`religion = $${idx++}`); values.push(updates.religion); }
       if (updates.age !== undefined) { setClauses.push(`age = $${idx++}`); values.push(updates.age); }
+
+      // Pujas → update specialities TEXT[]
+      if (req.body.pujas !== undefined) {
+        const pujaNames = Array.isArray(req.body.pujas) ? req.body.pujas : [];
+        setClauses.push(`specialities = $${idx++}`); values.push(pujaNames);
+      }
+      // Service cities → update cities TEXT[]
+      if (req.body.serviceCities !== undefined) {
+        const svcCities = Array.isArray(req.body.serviceCities) ? req.body.serviceCities : [];
+        setClauses.push(`cities = $${idx++}`); values.push(svcCities);
+      }
+
       setClauses.push(`"updatedAt" = $${idx++}`); values.push(new Date());
 
       if (setClauses.length === 1) {
@@ -936,6 +948,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (languages !== undefined) { setClauses.push(`languages = $${idx++}`); values.push(Array.isArray(languages) ? languages : []); }
       if (religion !== undefined) { setClauses.push(`religion = $${idx++}`); values.push(religion); }
       if (age !== undefined) { setClauses.push(`age = $${idx++}`); values.push(Number(age)); }
+      // Pujas → update specialities TEXT[]
+      if (req.body.pujas !== undefined) {
+        const pujaNames = Array.isArray(req.body.pujas) ? req.body.pujas : [];
+        setClauses.push(`specialities = $${idx++}`); values.push(pujaNames);
+      }
+      // Service cities → update cities TEXT[]
+      if (req.body.serviceCities !== undefined) {
+        const svcCities = Array.isArray(req.body.serviceCities) ? req.body.serviceCities : [];
+        setClauses.push(`cities = $${idx++}`); values.push(svcCities);
+      }
       // Reset status to pending so admin reviews the updated profile
       setClauses.push(`status = $${idx++}`); values.push('pending');
       setClauses.push(`"updatedAt" = $${idx++}`); values.push(new Date());
