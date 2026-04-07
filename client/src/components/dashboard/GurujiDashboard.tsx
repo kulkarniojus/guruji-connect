@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -95,21 +95,38 @@ export default function GurujiDashboard() {
     },
   });
 
+  // Auto-populate profile form whenever myProfile data arrives
+  useEffect(() => {
+    if (myProfile) {
+      setProfileForm({
+        city: myProfile.city || '',
+        state: myProfile.state || '',
+        address: myProfile.address || '',
+        pincode: myProfile.pincode || '',
+        experience: String(myProfile.experience || ''),
+        pricePerHour: String(myProfile.pricePerHour || ''),
+        bio: myProfile.bio || '',
+      });
+      const specStr = myProfile.specialization || '';
+      setProfilePujas(specStr ? specStr.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+      setProfileServiceCities(Array.isArray(myProfile.cities) ? myProfile.cities : []);
+    }
+  }, [myProfile]);
+
   const handleOpenProfileEdit = () => {
+    if (!myProfile) return;
     setProfileForm({
-      city: myProfile?.city || '',
-      state: myProfile?.state || '',
-      address: myProfile?.address || '',
-      pincode: myProfile?.pincode || '',
-      experience: String(myProfile?.experience || ''),
-      pricePerHour: String(myProfile?.pricePerHour || ''),
-      bio: myProfile?.bio || '',
+      city: myProfile.city || '',
+      state: myProfile.state || '',
+      address: myProfile.address || '',
+      pincode: myProfile.pincode || '',
+      experience: String(myProfile.experience || ''),
+      pricePerHour: String(myProfile.pricePerHour || ''),
+      bio: myProfile.bio || '',
     });
-    // Pre-populate pujas from specialization
-    const specStr = myProfile?.specialization || '';
+    const specStr = myProfile.specialization || '';
     setProfilePujas(specStr ? specStr.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
-    // Pre-populate service cities
-    setProfileServiceCities(Array.isArray(myProfile?.cities) ? myProfile.cities : []);
+    setProfileServiceCities(Array.isArray(myProfile.cities) ? myProfile.cities : []);
     setShowEditProfile(true);
   };
 
@@ -531,6 +548,10 @@ export default function GurujiDashboard() {
             <Package2 className="h-4 w-4 mr-2" />
             All Requests
           </TabsTrigger>
+          <TabsTrigger value="my-profile">
+            <User className="h-4 w-4 mr-2" />
+            My Profile
+          </TabsTrigger>
         </TabsList>
 
         {/* ── PENDING BOOKING REQUESTS ── */}
@@ -738,6 +759,101 @@ export default function GurujiDashboard() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* ── MY PROFILE (always visible) ── */}
+        <TabsContent value="my-profile">
+          <div className="space-y-6">
+            {/* Basic Guruji Fields */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Guruji Profile Details</CardTitle>
+                <CardDescription>Update your specializations, pricing, and service areas. You can edit at any time.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>City *</Label>
+                    <Input
+                      className="mt-1"
+                      value={profileForm.city}
+                      onChange={e => setProfileForm(f => ({ ...f, city: e.target.value }))}
+                      placeholder="Your city"
+                    />
+                  </div>
+                  <div>
+                    <Label>State</Label>
+                    <Input
+                      className="mt-1"
+                      value={profileForm.state}
+                      onChange={e => setProfileForm(f => ({ ...f, state: e.target.value }))}
+                      placeholder="Your state"
+                    />
+                  </div>
+                  <div>
+                    <Label>Pincode</Label>
+                    <Input
+                      className="mt-1"
+                      value={profileForm.pincode}
+                      onChange={e => setProfileForm(f => ({ ...f, pincode: e.target.value }))}
+                      placeholder="Pincode"
+                    />
+                  </div>
+                  <div>
+                    <Label>Years of Experience *</Label>
+                    <Input
+                      className="mt-1"
+                      type="number"
+                      min="1"
+                      value={profileForm.experience}
+                      onChange={e => setProfileForm(f => ({ ...f, experience: e.target.value }))}
+                      placeholder="e.g. 5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Price Per Hour (₹)</Label>
+                    <Input
+                      className="mt-1"
+                      type="number"
+                      min="100"
+                      value={profileForm.pricePerHour}
+                      onChange={e => setProfileForm(f => ({ ...f, pricePerHour: e.target.value }))}
+                      placeholder="e.g. 500"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label>Bio / Description</Label>
+                    <Textarea
+                      className="mt-1 min-h-[80px]"
+                      value={profileForm.bio}
+                      onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))}
+                      placeholder="Describe your background and expertise..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="mb-1 block">Puja Specializations</Label>
+                  <PujaMultiSelect selectedPujas={profilePujas} onChange={setProfilePujas} />
+                </div>
+
+                <div>
+                  <Label className="mb-1 block">Service Cities</Label>
+                  <CityMultiSelect selectedCities={profileServiceCities} onChange={setProfileServiceCities} />
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={updateProfileMutation.isPending || !profileForm.city.trim() || !profileForm.experience}
+                  >
+                    {updateProfileMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Save Profile
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, User, Calendar, Shield, BookOpen, CheckCircle, Clock, XCircle } from 'lucide-react';
@@ -20,9 +19,19 @@ import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEdi
 
 export default function Profile() {
   const { toast } = useToast();
-  const { user } = useAuth();
+
+  // Fetch current user via API (avoids AuthContext dependency)
+  const { data: user, isLoading: userLoading } = useQuery<any>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+  });
+
   const isGuruji = user?.role === 'guruji';
-  const isCustomer = user?.role === 'customer';
 
   // ── Basic info form ─────────────────────────────────────────────────
   const [basicForm, setBasicForm] = useState({
@@ -32,13 +41,13 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       setBasicForm({
-        firstName: (user as any).firstName || '',
-        lastName: (user as any).lastName || '',
-        age: String((user as any).age || ''),
-        address: (user as any).address || '',
-        city: (user as any).city || '',
-        state: (user as any).state || '',
-        pincode: (user as any).pincode || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        age: String(user.age || ''),
+        address: user.address || '',
+        city: user.city || '',
+        state: user.state || '',
+        pincode: user.pincode || '',
       });
     }
   }, [user]);
@@ -133,10 +142,7 @@ export default function Profile() {
 
   const updateGurujiMutation = useMutation({
     mutationFn: async () => {
-      const data: any = {
-        pujas: gurujiPujas,
-        serviceCities: gurujiCities,
-      };
+      const data: any = { pujas: gurujiPujas, serviceCities: gurujiCities };
       if (gurujiForm.bio) data.bio = gurujiForm.bio;
       if (gurujiForm.experience) data.experience = Number(gurujiForm.experience);
       if (gurujiForm.pricePerHour) data.pricePerHour = Number(gurujiForm.pricePerHour);
@@ -148,7 +154,7 @@ export default function Profile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/my-profile'] });
-      toast({ title: 'Guruji profile updated', description: 'Your profile has been saved and resubmitted for review.' });
+      toast({ title: 'Guruji profile updated', description: 'Your profile changes have been saved.' });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -172,7 +178,7 @@ export default function Profile() {
     return 'bg-amber-100 text-amber-800';
   };
 
-  if (!user) {
+  if (userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -180,8 +186,22 @@ export default function Profile() {
     );
   }
 
-  const userName = `${(user as any).firstName || ''} ${(user as any).lastName || ''}`.trim() || user.email;
-  const initials = [(user as any).firstName?.[0], (user as any).lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'U';
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-500 mb-4">Please log in to view your profile.</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+  const initials = [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'U';
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
@@ -201,27 +221,27 @@ export default function Profile() {
             <h1 className="text-2xl font-bold">{userName}</h1>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline" className="capitalize">{user?.role}</Badge>
-              {(user as any).email && <span className="text-sm text-gray-500">{(user as any).email}</span>}
-              {(user as any).mobile && <span className="text-sm text-gray-500">· {(user as any).mobile}</span>}
+              {user.email && <span className="text-sm text-gray-500">{user.email}</span>}
+              {user.mobile && <span className="text-sm text-gray-500">· {user.mobile}</span>}
             </div>
           </div>
         </div>
 
         <Tabs defaultValue="basic">
           <TabsList className={`grid w-full ${isGuruji ? 'grid-cols-4' : 'grid-cols-3'} mb-6`}>
-            <TabsTrigger value="basic" className="flex items-center gap-2">
-              <User className="h-4 w-4" /> Personal Info
+            <TabsTrigger value="basic" className="flex items-center gap-1 text-xs sm:text-sm">
+              <User className="h-4 w-4 hidden sm:block" /> Personal Info
             </TabsTrigger>
             {isGuruji && (
-              <TabsTrigger value="guruji" className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4" /> Guruji Profile
+              <TabsTrigger value="guruji" className="flex items-center gap-1 text-xs sm:text-sm">
+                <BookOpen className="h-4 w-4 hidden sm:block" /> Guruji Profile
               </TabsTrigger>
             )}
-            <TabsTrigger value="bookings" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" /> Bookings
+            <TabsTrigger value="bookings" className="flex items-center gap-1 text-xs sm:text-sm">
+              <Calendar className="h-4 w-4 hidden sm:block" /> Bookings
             </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" /> Security
+            <TabsTrigger value="security" className="flex items-center gap-1 text-xs sm:text-sm">
+              <Shield className="h-4 w-4 hidden sm:block" /> Security
             </TabsTrigger>
           </TabsList>
 
@@ -306,12 +326,12 @@ export default function Profile() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label>Email (cannot be changed)</Label>
-                    <Input className="mt-1 bg-gray-50" value={(user as any).email || ''} disabled readOnly />
+                    <Label>Email (read-only)</Label>
+                    <Input className="mt-1 bg-gray-50" value={user.email || ''} disabled readOnly />
                   </div>
                   <div>
-                    <Label>Mobile (cannot be changed)</Label>
-                    <Input className="mt-1 bg-gray-50" value={(user as any).mobile || ''} disabled readOnly />
+                    <Label>Mobile (read-only)</Label>
+                    <Input className="mt-1 bg-gray-50" value={user.mobile || ''} disabled readOnly />
                   </div>
                 </div>
 
@@ -320,7 +340,7 @@ export default function Profile() {
                     onClick={() => updateBasicMutation.mutate()}
                     disabled={updateBasicMutation.isPending || !basicForm.firstName.trim()}
                   >
-                    {updateBasicMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    {updateBasicMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Save Changes
                   </Button>
                 </div>
@@ -328,14 +348,14 @@ export default function Profile() {
             </Card>
           </TabsContent>
 
-          {/* ── Guruji Profile Tab (guruji only) ── */}
+          {/* ── Guruji Profile Tab ── */}
           {isGuruji && (
             <TabsContent value="guruji">
               <Card>
                 <CardHeader>
                   <CardTitle>Guruji Profile</CardTitle>
                   <CardDescription>
-                    Update your specializations, pricing, and service areas. Changes will be resubmitted for admin review.
+                    Update your specializations, pricing, and service areas
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -347,7 +367,7 @@ export default function Profile() {
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <Label>Years of Experience *</Label>
+                          <Label>Years of Experience</Label>
                           <Input
                             className="mt-1"
                             type="number"
@@ -414,7 +434,7 @@ export default function Profile() {
                           onClick={() => updateGurujiMutation.mutate()}
                           disabled={updateGurujiMutation.isPending}
                         >
-                          {updateGurujiMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                          {updateGurujiMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                           Save Guruji Profile
                         </Button>
                       </div>
@@ -506,14 +526,12 @@ export default function Profile() {
                     placeholder="Repeat new password"
                   />
                 </div>
-                {pwdError && (
-                  <p className="text-sm text-red-600">{pwdError}</p>
-                )}
+                {pwdError && <p className="text-sm text-red-600">{pwdError}</p>}
                 <Button
                   onClick={handlePasswordSubmit}
                   disabled={changePasswordMutation.isPending}
                 >
-                  {changePasswordMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  {changePasswordMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Change Password
                 </Button>
               </CardContent>
