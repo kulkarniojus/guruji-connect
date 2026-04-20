@@ -2045,8 +2045,200 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register booking request routes
   app.post('/api/bookings/:id/send-requests', isAuthenticated, checkRole(['customer']), sendBookingRequests);
   app.post('/api/booking-requests/:id/respond', isAuthenticated, checkRole(['guruji']), respondToBookingRequest);
-  app.post('/api/bookings/:id/cancel', isAuthenticated, checkRole(['guruji']), cancelBookingByGuruji);
   app.get('/api/guruji/booking-requests', isAuthenticated, checkRole(['guruji']), getGurujiBookingRequests);
+
+  // ── CANCELLATION RULES (Admin) ────────────────────────────────────
+  app.get('/api/admin/cancellation-rules', isAuthenticated, checkRole(['admin']), async (req, res) => {
+    try {
+      const result = await pool.query(`SELECT * FROM cancellation_rules ORDER BY user_type, hours_threshold DESC`);
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post('/api/admin/cancellation-rules', isAuthenticated, checkRole(['admin']), async (req, res) => {
+    try {
+      const { userType, name, hoursThreshold, chargeType, chargeValue, description } = req.body;
+      if (!userType || !name || hoursThreshold === undefined || !chargeType) {
+        return res.status(400).json({ message: 'userType, name, hoursThreshold and chargeType are required' });
+      }
+      const r = await pool.query(
+        `INSERT INTO cancellation_rules (user_type, name, hours_threshold, charge_type, charge_value, description)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [userType, name, parseInt(hoursThreshold), chargeType, parseInt(chargeValue || 0), description || null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.put('/api/admin/cancellation-rules/:id', isAuthenticated, checkRole(['admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userType, name, hoursThreshold, chargeType, chargeValue, description, isActive } = req.body;
+      const r = await pool.query(
+        `UPDATE cancellation_rules SET
+          user_type = COALESCE($1, user_type),
+          name = COALESCE($2, name),
+          hours_threshold = COALESCE($3, hours_threshold),
+          charge_type = COALESCE($4, charge_type),
+          charge_value = COALESCE($5, charge_value),
+          description = COALESCE($6, description),
+          is_active = COALESCE($7, is_active)
+         WHERE id = $8 RETURNING *`,
+        [userType, name, hoursThreshold ? parseInt(hoursThreshold) : null,
+         chargeType, chargeValue !== undefined ? parseInt(chargeValue) : null,
+         description, isActive !== undefined ? isActive : null, parseInt(id)]
+      );
+      if (r.rows.length === 0) return res.status(404).json({ message: 'Rule not found' });
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete('/api/admin/cancellation-rules/:id', isAuthenticated, checkRole(['admin']), async (req, res) => {
+    try {
+      await pool.query(`DELETE FROM cancellation_rules WHERE id = $1`, [parseInt(req.params.id)]);
+      res.json({ message: 'Rule deleted' });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Public endpoint — return applicable rule + charge for a potential cancellation
+  app.get('/api/bookings/:id/cancellation-preview', isAuthenticated, async (req, res) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      const booking = await storageInstance.getBooking(bookingId);
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+      const userId = req.session.userId as number;
+      const user = await storageInstance.getUser(userId);
+      const userType = user?.role === 'guruji' ? 'guruji' : 'customer';
+
+      // Calculate hours until booking
+      const bookingDate = new Date(booking.date);
+      const now = new Date();
+      const hoursUntil = (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      // Find the most restrictive applicable rule (lowest threshold that still applies)
+      const rulesRes = await pool.query(
+        `SELECT * FROM cancellation_rules
+         WHERE user_type = $1 AND is_active = true AND hours_threshold <= $2
+         ORDER BY hours_threshold DESC LIMIT 1`,
+        [userType, Math.max(0, hoursUntil)]
+      );
+
+      const rule = rulesRes.rows[0] || null;
+      let charge = 0;
+      let chargeDescription = 'Free cancellation';
+
+      if (rule) {
+        if (rule.charge_type === 'full') {
+          charge = booking.totalAmount || 0;
+          chargeDescription = `Full amount ₹${charge} will be charged`;
+        } else if (rule.charge_type === 'percentage') {
+          charge = Math.round((booking.totalAmount || 0) * rule.charge_value / 100);
+          chargeDescription = `${rule.charge_value}% of booking amount (₹${charge}) will be charged`;
+        } else if (rule.charge_type === 'fixed') {
+          charge = rule.charge_value;
+          chargeDescription = `Fixed charge of ₹${charge}`;
+        } else {
+          chargeDescription = 'Free cancellation — no charges apply';
+        }
+      }
+
+      res.json({ hoursUntil: Math.round(hoursUntil), rule, charge, chargeDescription });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Cancel booking — works for both guruji and customer
+  app.post('/api/bookings/:id/cancel', isAuthenticated, async (req, res) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      const { reason } = req.body;
+      if (!reason || reason.trim().length < 5) {
+        return res.status(400).json({ message: 'Please provide a reason for cancellation (min 5 characters)' });
+      }
+      const booking = await storageInstance.getBooking(bookingId);
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+      const userId = req.session.userId as number;
+      const user = await storageInstance.getUser(userId);
+      const userType = user?.role === 'guruji' ? 'guruji' : (user?.role === 'admin' ? 'admin' : 'customer');
+
+      // Auth check
+      if (userType === 'guruji') {
+        const guruji = await storageInstance.getGurujiProfileByUserId(userId);
+        if (!guruji || booking.gurujiId !== guruji.id) {
+          return res.status(403).json({ message: 'Not authorized to cancel this booking' });
+        }
+      } else if (userType === 'customer') {
+        if (booking.customerId !== userId) {
+          return res.status(403).json({ message: 'Not authorized to cancel this booking' });
+        }
+      }
+
+      if (!['confirmed', 'pending', 'pending_approval'].includes(booking.status)) {
+        return res.status(400).json({ message: `Cannot cancel a booking with status: ${booking.status}` });
+      }
+
+      // Calculate charge
+      const bookingDate = new Date(booking.date);
+      const hoursUntil = (bookingDate.getTime() - new Date().getTime()) / (1000 * 60 * 60);
+      const rulesRes = await pool.query(
+        `SELECT * FROM cancellation_rules
+         WHERE user_type = $1 AND is_active = true AND hours_threshold <= $2
+         ORDER BY hours_threshold DESC LIMIT 1`,
+        [userType, Math.max(0, hoursUntil)]
+      );
+      const rule = rulesRes.rows[0];
+      let charge = 0;
+      if (rule) {
+        if (rule.charge_type === 'full') charge = booking.totalAmount || 0;
+        else if (rule.charge_type === 'percentage') charge = Math.round((booking.totalAmount || 0) * rule.charge_value / 100);
+        else if (rule.charge_type === 'fixed') charge = rule.charge_value;
+      }
+
+      // Update booking
+      await pool.query(
+        `UPDATE bookings SET status = 'cancelled', cancellation_reason = $1, cancelled_by = $2, cancellation_charge = $3 WHERE id = $4`,
+        [reason, userType, charge, bookingId]
+      );
+
+      // Notify the other party
+      const notifyUserId = userType === 'guruji' ? booking.customerId : (booking.gurujiId ? (await storageInstance.getGurujiProfile(booking.gurujiId))?.userId : null);
+      if (notifyUserId) {
+        await storageInstance.createNotification({
+          userId: notifyUserId,
+          title: 'Booking Cancelled',
+          message: `Booking #${bookingId} has been cancelled by the ${userType}. Reason: ${reason}${charge > 0 ? `. Cancellation charge: ₹${charge}` : ''}`,
+          type: 'booking_cancelled',
+        });
+      }
+      // Also notify the cancelling user about the charge
+      if (charge > 0) {
+        await storageInstance.createNotification({
+          userId,
+          title: 'Cancellation Charge Applied',
+          message: `A cancellation charge of ₹${charge} has been applied for booking #${bookingId}.`,
+          type: 'cancellation_charge',
+        });
+      }
+
+      res.json({ message: 'Booking cancelled', charge, reason });
+    } catch (e: any) {
+      console.error('Error cancelling booking:', e);
+      res.status(500).json({ message: e.message || 'Failed to cancel booking' });
+    }
+  });
+
+  // Public endpoint — get cancellation rules for display
+  app.get('/api/cancellation-rules', async (req, res) => {
+    try {
+      const { userType } = req.query;
+      const q = userType
+        ? `SELECT * FROM cancellation_rules WHERE user_type = $1 AND is_active = true ORDER BY hours_threshold DESC`
+        : `SELECT * FROM cancellation_rules WHERE is_active = true ORDER BY user_type, hours_threshold DESC`;
+      const r = await pool.query(q, userType ? [userType] : []);
+      res.json(r.rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
   
   // Create HTTP server
   const httpServer = createServer(app);

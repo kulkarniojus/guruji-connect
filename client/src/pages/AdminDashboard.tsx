@@ -11,8 +11,9 @@ import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
 import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
 import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
 import BookingManagementTab from '@/components/admin/BookingManagementTab';
+import CancellationRulesTab from '@/components/admin/CancellationRulesTab';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard } from 'lucide-react';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
@@ -120,6 +121,10 @@ export default function AdminDashboard() {
             <CreditCard className="h-4 w-4 mr-2" />
             Payment
           </TabsTrigger>
+          <TabsTrigger value="cancellation-rules" className="flex items-center justify-center">
+            <XCircle className="h-4 w-4 mr-2" />
+            Cancellation
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics">
@@ -158,6 +163,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="payment-settings">
           <PaymentSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="cancellation-rules">
+          <CancellationRulesTab />
         </TabsContent>
       </Tabs>
     </div>

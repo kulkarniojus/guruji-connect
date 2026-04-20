@@ -11,9 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+} from '@/components/ui/dialog';
+import {
   Loader2, Calendar, Clock, MapPin, Check, X,
   User, IndianRupee, Phone, Bell, CheckCircle2,
-  XCircle, Package2, AlertCircle, Edit, Save
+  XCircle, Package2, AlertCircle, Edit, Save, Ban, AlertTriangle
 } from 'lucide-react';
 
 function statusBadge(status: string) {
@@ -861,11 +864,35 @@ export default function GurujiDashboard() {
 }
 
 function BookingCard({ booking }: { booking: any }) {
+  const { toast } = useToast();
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+
+  const { data: preview, isLoading: previewLoading } = useQuery<any>({
+    queryKey: ['/api/bookings', booking.id, 'cancellation-preview'],
+    queryFn: () => apiRequest('GET', `/api/bookings/${booking.id}/cancellation-preview`).then(r => r.json()),
+    enabled: showCancel,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/bookings/${booking.id}/cancel`, { reason: cancelReason }),
+    onSuccess: () => {
+      toast({ title: 'Booking Cancelled', description: preview?.charge > 0 ? `A charge of ₹${preview.charge} has been applied.` : 'No cancellation charges applied.' });
+      setShowCancel(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const canCancel = booking.status === 'confirmed' || booking.status === 'in_progress';
+
   return (
     <Card>
       <CardContent className="p-5">
         <div className="flex items-start justify-between flex-wrap gap-4">
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1">
             <div className="flex items-center gap-2">
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(booking.status)}`}>
                 {booking.status.replace('_', ' ')}
@@ -889,13 +916,71 @@ function BookingCard({ booking }: { booking: any }) {
               )}
             </div>
           </div>
-          {booking.amount != null && (
-            <div className="text-right">
+          <div className="text-right flex flex-col items-end gap-2">
+            {booking.amount != null && (
               <p className="text-lg font-bold text-violet-700">₹{booking.amount.toLocaleString('en-IN')}</p>
-            </div>
-          )}
+            )}
+            {canCancel && (
+              <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => setShowCancel(true)}>
+                <Ban className="h-3.5 w-3.5 mr-1" /> Cancel Booking
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
+
+      {/* Cancel Dialog */}
+      <Dialog open={showCancel} onOpenChange={setShowCancel}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" /> Cancel Booking #{booking.id}
+            </DialogTitle>
+            <DialogDescription>Please provide a reason. Cancellation charges may apply based on admin rules.</DialogDescription>
+          </DialogHeader>
+
+          {/* Charge Preview */}
+          {previewLoading ? (
+            <div className="flex items-center gap-2 text-sm text-neutral-500 py-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Calculating charges...
+            </div>
+          ) : preview && (
+            <div className={`rounded-lg p-3 text-sm border ${preview.charge > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+              <p className="font-medium mb-1">
+                {preview.charge > 0 ? `⚠️ Charge: ₹${preview.charge}` : '✅ Free Cancellation'}
+              </p>
+              <p className="text-neutral-600">{preview.chargeDescription}</p>
+              {preview.hoursUntil !== undefined && (
+                <p className="text-neutral-500 mt-1 text-xs">
+                  Booking is {preview.hoursUntil > 0 ? `${preview.hoursUntil} hours away` : 'in the past'}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Reason for cancellation *</Label>
+            <Textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              placeholder="Briefly explain why you are cancelling this booking..."
+              className="min-h-[80px]"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancel(false)}>Keep Booking</Button>
+            <Button
+              variant="destructive"
+              disabled={cancelReason.trim().length < 5 || cancelMutation.isPending}
+              onClick={() => cancelMutation.mutate()}
+            >
+              {cancelMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Ban className="h-4 w-4 mr-2" />}
+              Confirm Cancellation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

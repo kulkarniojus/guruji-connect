@@ -544,6 +544,23 @@ export type City = typeof cities.$inferSelect;
 export type InsertCity = z.infer<typeof insertCitySchema>;
 
 // App settings table — single-row config managed by admin
+// Cancellation rules table — admin-defined rules for guruji and customer cancellations
+export const cancellationRules = pgTable("cancellation_rules", {
+  id: serial("id").primaryKey(),
+  userType: text("user_type").notNull(), // 'guruji' | 'customer'
+  name: text("name").notNull(),
+  hoursThreshold: integer("hours_threshold").notNull(), // cancel must happen AT LEAST this many hours before booking
+  chargeType: text("charge_type").notNull(), // 'free' | 'percentage' | 'fixed' | 'full'
+  chargeValue: integer("charge_value").default(0), // % or fixed ₹ amount (0 for free/full)
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCancellationRuleSchema = createInsertSchema(cancellationRules).omit({ id: true, createdAt: true });
+export type CancellationRule = typeof cancellationRules.$inferSelect;
+export type InsertCancellationRule = z.infer<typeof insertCancellationRuleSchema>;
+
 export const appSettings = pgTable("app_settings", {
   id: serial("id").primaryKey(),
   paymentRequired: boolean("payment_required").notNull().default(false),

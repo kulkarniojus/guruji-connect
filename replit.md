@@ -197,6 +197,12 @@ Changelog:
     - Admin bookings query now returns all bookings instead of empty array
     - Gurujis list shows both pending and approved gurujis for selection
 - April 07, 2026. Fixed admin guruji edit save error (missing cities column in DB - added via SQL). Rewrote Profile.tsx: now role-aware, always available for all users. Customer tab: basic info edit. Guruji tab: puja specializations, service cities, pricing, bio. Security tab: password change. Added PUT /api/users/:id and POST /api/auth/change-password backend routes. Updated guruji DB mapper to return cities[] array.
+- April 20, 2026. Completed cancellation rules system:
+  • Admin Cancellation tab in AdminDashboard: full CRUD UI for time-based rules (guruji + customer), supports free/percentage/fixed/full charge types, toggle active/inactive, edit/delete
+  • Backend endpoints: GET/POST/PUT/DELETE /api/admin/cancellation-rules, GET /api/cancellation-rules (public), GET /api/bookings/:id/cancellation-preview (charge preview)
+  • Updated POST /api/bookings/:id/cancel: works for both guruji and customer, calculates charge based on rules, records cancellation_charge/reason/cancelled_by, sends notifications to both parties
+  • GurujiDashboard BookingCard: "Cancel Booking" button for confirmed/in-progress bookings, shows charge preview dialog with reason input before confirming
+  • Notification bell in Header: live unread count badge (red dot), polls /api/notifications every 30s, links to /notifications page
 ```
 
 ## User Preferences
