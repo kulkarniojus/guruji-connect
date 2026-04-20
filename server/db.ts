@@ -13,3 +13,8 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle({ client: pool, schema });
+
+// Prevent pool errors (e.g. Neon connection termination) from crashing the process
+pool.on('error', (err) => {
+  console.error('Database pool error (non-fatal):', err.message);
+});

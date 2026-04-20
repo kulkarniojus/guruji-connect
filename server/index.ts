@@ -3,6 +3,14 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { MemStorage } from "./storage";
 
+// Prevent unhandled DB/network errors (e.g. Neon connection drops) from crashing the process
+process.on('unhandledRejection', (reason: any) => {
+  console.error('Unhandled promise rejection (non-fatal):', reason?.message || reason);
+});
+process.on('uncaughtException', (err: any) => {
+  console.error('Uncaught exception (non-fatal):', err?.message || err);
+});
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
