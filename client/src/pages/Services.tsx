@@ -23,28 +23,28 @@ const services = [
     title: "Online Consultation",
     description:
       "Get expert guidance from verified pandits via video call for astrological or spiritual advice. Receive personalized solutions for various life challenges based on ancient scriptures and astrological calculations.",
-    image: "/images/onlinepuja.png",
+    image: "/images/onlineconsultation.png",
   },
   {
     id: "brahmin-booking",
     title: "Brahmin Booking",
     description:
       "Book experienced Brahmins for various religious ceremonies at your home or preferred location. Our verified Brahmins are well-versed in traditional rituals and can perform ceremonies according to your family customs.",
-    image: "/images/onlinepuja.png",
+    image: "/images/brahmanbooking.png",
   },
   {
     id: "special-occasions",
     title: "Special Occasions",
     description:
       "Book for special occasions like Varsha shradha, Kumarika, Vat Savitri puja, Mangalagaur, and more. We provide comprehensive services including all necessary materials and detailed guidance for these important life events.",
-    image: "/images/onlinepuja.png",
+    image: "/images/specialoccasion_puja.png",
   },
   {
     id: "traditional-puja",
     title: "Traditional Puja Ceremony",
     description:
       "Experience authentic traditional pujas performed with precise rituals and mantras. Our services include Griha Pravesh, Naamkaran, Mundan, Upanayana, and many more life ceremonies.",
-    image: "/images/onlinepuja.png",
+    image: "/images/traditional_puja.png",
   },
   {
     id: "training",

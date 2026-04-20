@@ -18,28 +18,28 @@ const services = [
     title: "Online Consultation",
     description:
       "Get expert guidance from verified pandits via video call for astrological or spiritual advice",
-    image: "/images/onlinepuja.png",
+    image: "/images/onlineconsultation.png",
   },
   {
     id: "brahmin-booking",
     title: "Brahmin Booking",
     description:
       "Book experienced Brahmins for various religious ceremonies at your home or preferred location",
-    image: "/images/onlinepuja.png",
+    image: "/images/brahmanbooking.png",
   },
   {
     id: "special-occasions",
     title: "Special Occasions",
     description:
       "Book for special occasions like Varsha shradha, Kumarika, Vat Savitri puja, Mangalagaur, and more",
-    image: "/images/onlinepuja.png",
+    image: "/images/specialoccasion_puja.png",
   },
   {
     id: "traditional-puja",
     title: "Traditional Puja Ceremony",
     description:
       "Experience authentic Hindu rituals performed by trained priests following ancient Vedic traditions",
-    image: "/images/onlinepuja.png",
+    image: "/images/traditional_puja.png",
   },
 ];
 

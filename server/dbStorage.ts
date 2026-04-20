@@ -1554,10 +1554,17 @@ export class DBStorage implements IStorage {
         paramIndex++;
       }
 
-      // Filter by puja specialization: guruji must have the puja in their specialities array
+      // Filter by puja specialization: match by name OR by legacy numeric puja ID
       if (filters.specialization && filters.specialization.trim()) {
-        query += ` AND EXISTS (
-          SELECT 1 FROM unnest(gp.specialities) s WHERE LOWER(s) = LOWER($${paramIndex})
+        query += ` AND (
+          EXISTS (
+            SELECT 1 FROM unnest(gp.specialities) s WHERE LOWER(s) = LOWER($${paramIndex})
+          )
+          OR EXISTS (
+            SELECT 1 FROM pujas p
+            JOIN unnest(gp.specialities) s ON s ~ '^[0-9]+$' AND p.id = s::int
+            WHERE LOWER(p.name) = LOWER($${paramIndex})
+          )
         )`;
         values.push(filters.specialization.trim());
         paramIndex++;

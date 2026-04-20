@@ -212,6 +212,22 @@ async function initializeAdminUser() {
   }
 }
 
+// Convert puja IDs (numeric strings) to puja names for consistent storage
+async function resolvePujaNames(pujas: any[]): Promise<string[]> {
+  if (!pujas || pujas.length === 0) return [];
+  // Check if values look like numeric IDs
+  const allNumeric = pujas.every(p => !isNaN(Number(p)));
+  if (allNumeric && process.env.DATABASE_URL) {
+    const ids = pujas.map(p => Number(p));
+    const result = await pool.query(`SELECT id, name FROM pujas WHERE id = ANY($1)`, [ids]);
+    const nameMap: Record<number, string> = {};
+    result.rows.forEach((r: any) => { nameMap[r.id] = r.name; });
+    return ids.map(id => nameMap[id]).filter(Boolean);
+  }
+  // Already strings/names — return as-is
+  return pujas.map(String).filter(Boolean);
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize admin user and app settings
   await initializeAdminUser();
@@ -576,11 +592,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create guruji profile with pending status
+      const resolvedPujaNames = await resolvePujaNames(Array.isArray(pujas) ? pujas : []);
       const profilePayload: any = {
         userId: targetUserId,
         bio,
         experience,
-        specialization: Array.isArray(pujas) ? pujas.join(',') : pujas,
+        specialization: resolvedPujaNames.join(','),
         location: address || location,
         pricePerHour,
         languages: Array.isArray(languages) ? languages : [],
@@ -2484,7 +2501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } as any);
 
       // Create guruji profile
-      const specialities = Array.isArray(pujas) ? pujas : [];
+      const specialities = await resolvePujaNames(Array.isArray(pujas) ? pujas : []);
       const gurujiProfile = await storageInstance.createGurujiProfile({
         userId: user.id,
         bio: bio || '',
