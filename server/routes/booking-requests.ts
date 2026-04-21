@@ -110,6 +110,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
       const guruji = await db.getGurujiProfile(bookingRequest.gurujiId);
       const gurujiUser = guruji ? await db.getUser(guruji.userId) : null;
       
+      // Notify customer — include guruji name since it's their own booking
       if (customer) {
         await db.createNotification({
           userId: customer.id,
@@ -121,8 +122,19 @@ export async function respondToBookingRequest(req: Request, res: Response) {
         });
       }
       
+      // Notify the accepting guruji — confirmation for themselves only, no other names
+      if (guruji) {
+        await db.createNotification({
+          userId: guruji.userId,
+          title: 'Booking Accepted',
+          message: `You have accepted booking #${booking.id} for ${booking.type === 'offline' ? 'in-person' : 'online'} puja in ${booking.city || 'your area'}. Please be ready on the scheduled date.`,
+          type: 'booking_confirmed',
+        });
+      }
+      
       await db.expireOtherBookingRequests(booking.id, requestId);
       
+      // Notify other gurujis — do NOT mention who accepted it
       const otherRequests = await db.getBookingRequestsByBookingId(booking.id);
       for (const req of otherRequests) {
         if (req.id !== requestId && req.status === 'expired') {
@@ -130,8 +142,8 @@ export async function respondToBookingRequest(req: Request, res: Response) {
           if (otherGuruji) {
             await db.createNotification({
               userId: otherGuruji.userId,
-              title: 'Booking Already Accepted',
-              message: 'A booking request you received has been accepted by another guruji',
+              title: 'Booking Request Closed',
+              message: `The booking request you received for puja in ${booking.city || 'your area'} has been confirmed by another guruji. No action required on your part.`,
               type: 'booking_expired',
             });
           }

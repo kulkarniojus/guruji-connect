@@ -1589,6 +1589,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/notifications/read-all", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      await pool.query(`UPDATE notifications SET is_read = true WHERE user_id = $1`, [userId]);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.session.userId as number;
+      await pool.query(`DELETE FROM notifications WHERE id = $1 AND user_id = $2`, [id, userId]);
+      res.json({ message: "Notification deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete notification" });
+    }
+  });
+
   // Admin Routes
   app.post("/api/admin/login", async (req: Request, res: Response) => {
     try {
