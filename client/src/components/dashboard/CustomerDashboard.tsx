@@ -210,11 +210,16 @@ export default function CustomerDashboard() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
         <h2 className="text-2xl font-bold font-poppins">Your Bookings</h2>
-        <Button asChild>
-          <Link href="/booking">Book a Puja</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/my-bookings">View All</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/booking">Book a Puja</Link>
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="upcoming" value={activeTab} onValueChange={setActiveTab}>

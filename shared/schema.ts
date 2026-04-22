@@ -214,6 +214,25 @@ export const contents = pgTable("contents", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Booking Queries table - customer questions to admin about a booking
+export const bookingQueries = pgTable("booking_queries", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").notNull().references(() => bookings.id),
+  customerId: integer("customer_id").notNull().references(() => users.id),
+  message: text("message").notNull(),
+  adminReply: text("admin_reply"),
+  repliedBy: integer("replied_by").references(() => users.id),
+  repliedAt: timestamp("replied_at"),
+  status: text("status").notNull().default('open'),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBookingQuerySchema = createInsertSchema(bookingQueries).omit({
+  id: true, adminReply: true, repliedBy: true, repliedAt: true, status: true, createdAt: true,
+});
+export type InsertBookingQuery = z.infer<typeof insertBookingQuerySchema>;
+export type BookingQuery = typeof bookingQueries.$inferSelect;
+
 // Notifications table
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),

@@ -1,6 +1,7 @@
 import { Helmet } from 'react-helmet';
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import BookingPage from '@/components/booking/BookingPage';
@@ -9,30 +10,51 @@ import { useToast } from '@/hooks/use-toast';
 import LoginModal from '@/components/auth/LoginModal';
 import { useState } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Loader2 } from 'lucide-react';
 
 export default function Booking() {
-  // Temporarily disabled auth check to fix the error
-  const user = null;
-  const isLoading = false;
   const isMobile = useIsMobile();
-  
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-  // If not logged in, show login modal (temporarily disabled)
+  const { data: user, isLoading } = useQuery<any>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+    staleTime: 30000,
+  });
+
+  // Redirect gurujis and admins away from the customer booking flow
   useEffect(() => {
-    // Disabled for now to prevent auth errors
-    /*
-    if (!isLoading && !user) {
-      toast({
-        title: "Login Required",
-        description: "Please login to book a puja",
-      });
-      setLoginModalOpen(true);
+    if (!isLoading && user) {
+      if (user.role === 'guruji') {
+        toast({
+          title: 'Guruji Dashboard',
+          description: 'Bookings come to you as requests on your dashboard.',
+        });
+        setLocation('/dashboard');
+      } else if (user.role === 'admin') {
+        setLocation('/admin-dashboard');
+      }
     }
-    */
-  }, [isLoading, user, toast]);
+  }, [isLoading, user, setLocation, toast]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+      </div>
+    );
+  }
+
+  if (user && (user.role === 'guruji' || user.role === 'admin')) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
@@ -43,17 +65,17 @@ export default function Booking() {
       </Helmet>
 
       {!isMobile && <Header />}
-      
+
       <main className="flex-grow">
         {isMobile ? <MobileBookingPage /> : <BookingPage />}
       </main>
-      
+
       {!isMobile && <Footer />}
 
-      <LoginModal 
-        isOpen={loginModalOpen} 
-        onClose={() => setLoginModalOpen(false)} 
-        onRegisterClick={() => setLoginModalOpen(false)} 
+      <LoginModal
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        onRegisterClick={() => setLoginModalOpen(false)}
       />
     </div>
   );

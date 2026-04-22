@@ -155,7 +155,8 @@ export default function GurujiDashboard() {
       if (!res.ok) return [];
       return res.json();
     },
-    refetchInterval: 30000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
   });
 
   // Fetch this guruji's confirmed / completed bookings
@@ -166,7 +167,8 @@ export default function GurujiDashboard() {
       if (!res.ok) return [];
       return res.json();
     },
-    refetchInterval: 30000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
   });
 
   const pendingRequests = bookingRequests.filter((r: any) => r.status === 'pending');

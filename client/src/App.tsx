@@ -5,6 +5,7 @@ import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Booking from "@/pages/Booking";
 import BookingDetail from "@/pages/BookingDetail";
+import MyBookings from "@/pages/MyBookings";
 import Profile from "@/pages/Profile";
 import AdminLogin from "@/pages/AdminLogin";
 import PujaDetails from "@/pages/PujaDetails";
@@ -78,6 +79,9 @@ function Router() {
       </Route>
       <Route path="/booking/:id">
         <ProtectedRoute component={BookingDetail} />
+      </Route>
+      <Route path="/my-bookings">
+        <ProtectedRoute component={MyBookings} />
       </Route>
       <Route path="/profile">
         <ProtectedRoute component={ResponsiveProfile} />

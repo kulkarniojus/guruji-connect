@@ -7,13 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { 
-  Users, 
-  BookOpen, 
-  Calendar, 
-  DollarSign, 
-  Search, 
-  UserX, 
+import {
+  Users,
+  BookOpen,
+  Calendar,
+  DollarSign,
+  Search,
+  UserX,
   Clock,
   BarChart,
   Settings,
@@ -21,8 +21,11 @@ import {
   Lock,
   Unlock,
   Check,
-  X
+  X,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { DataTable } from '../ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { useAuth } from '@/context/AuthContext';
@@ -384,6 +387,7 @@ export default function AdminDashboard() {
               <TabsTrigger value="gurujis">Gurujis</TabsTrigger>
               <TabsTrigger value="customers">Customers</TabsTrigger>
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
+              <TabsTrigger value="queries">Queries</TabsTrigger>
             </TabsList>
 
             <div className="relative">
@@ -465,6 +469,10 @@ export default function AdminDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="queries">
+            <QueriesTab />
           </TabsContent>
         </Tabs>
       </div>
@@ -602,5 +610,106 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ── Queries Tab — admin views and replies to customer queries ──────────────
+function QueriesTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [replies, setReplies] = useState<Record<number, string>>({});
+
+  const { data: queries = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/queries'],
+    queryFn: async () => {
+      const r = await fetch('/api/admin/queries', { credentials: 'include' });
+      return r.ok ? r.json() : [];
+    },
+    refetchInterval: 30000,
+  });
+
+  const replyMutation = useMutation({
+    mutationFn: async ({ id, reply }: { id: number; reply: string }) => {
+      const r = await apiRequest('POST', `/api/admin/queries/${id}/reply`, { reply });
+      return r.json();
+    },
+    onSuccess: (_d, vars) => {
+      toast({ title: 'Reply sent', description: 'Customer has been notified.' });
+      setReplies(prev => { const n = { ...prev }; delete n[vars.id]; return n; });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/queries'] });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  if (isLoading) {
+    return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  const open = queries.filter((q: any) => q.status === 'open');
+  const answered = queries.filter((q: any) => q.status !== 'open');
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-violet-500" />
+          Customer Queries
+        </CardTitle>
+        <CardDescription>
+          {open.length} open · {answered.length} answered
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {queries.length === 0 ? (
+          <p className="text-center text-neutral-500 py-12">No customer queries yet</p>
+        ) : (
+          <div className="space-y-4">
+            {queries.map((q: any) => (
+              <div key={q.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-start flex-wrap gap-2">
+                  <div>
+                    <p className="font-medium">{q.customer_name || 'Customer'}</p>
+                    <p className="text-xs text-neutral-500">
+                      {q.customer_mobile} · Booking #{q.booking_id} · {q.puja_name || 'Puja'}
+                    </p>
+                  </div>
+                  <Badge variant={q.status === 'open' ? 'default' : 'outline'}
+                    className={q.status === 'open' ? 'bg-amber-500' : ''}>
+                    {q.status}
+                  </Badge>
+                </div>
+                <div className="bg-neutral-50 p-3 rounded text-sm">{q.message}</div>
+                {q.admin_reply ? (
+                  <div className="border-l-2 border-violet-400 pl-3">
+                    <p className="text-xs font-medium text-violet-600 mb-1">Your reply:</p>
+                    <p className="text-sm">{q.admin_reply}</p>
+                    <p className="text-xs text-neutral-400 mt-1">
+                      {q.replied_at ? new Date(q.replied_at).toLocaleString('en-IN') : ''}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={replies[q.id] || ''}
+                      onChange={e => setReplies(prev => ({ ...prev, [q.id]: e.target.value }))}
+                      placeholder="Type your reply..."
+                      rows={2}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={() => replyMutation.mutate({ id: q.id, reply: replies[q.id] || '' })}
+                      disabled={!replies[q.id]?.trim() || replyMutation.isPending}
+                      className="self-end"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

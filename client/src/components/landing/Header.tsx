@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Menu, Bell, Search, X, LogOut, LayoutDashboard, User as UserIcon } from 'lucide-react';
+import { Menu, Bell, Search, X, LogOut, LayoutDashboard, User as UserIcon, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -155,6 +155,12 @@ export default function Header() {
                       <LayoutDashboard className="h-4 w-4 mr-2" />
                       Dashboard
                     </DropdownMenuItem>
+                    {(!user.role || user.role === 'customer') && (
+                      <DropdownMenuItem onClick={() => setLocation('/my-bookings')} className="cursor-pointer">
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        My Bookings
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => setLocation('/profile')} className="cursor-pointer">
                       <UserIcon className="h-4 w-4 mr-2" />
                       Profile

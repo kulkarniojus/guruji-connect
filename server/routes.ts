@@ -2249,6 +2249,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Booking Queries (customer ↔ admin messages per booking) ─────────────
+
+  // POST /api/bookings/:id/query — customer asks a question to admin
+  app.post('/api/bookings/:id/query', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const bookingId = parseInt(req.params.id);
+      const { message } = req.body;
+      if (!message || !String(message).trim()) {
+        return res.status(400).json({ message: 'Message is required' });
+      }
+
+      const booking = await storageInstance.getBooking(bookingId);
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+      if (booking.customerId !== userId) {
+        return res.status(403).json({ message: 'You can only ask queries on your own bookings' });
+      }
+
+      const r = await pool.query(
+        `INSERT INTO booking_queries (booking_id, customer_id, message, status)
+         VALUES ($1, $2, $3, 'open') RETURNING *`,
+        [bookingId, userId, String(message).trim()]
+      );
+
+      // Notify all admins
+      try {
+        const admins = await pool.query(`SELECT id FROM users WHERE role = 'admin'`);
+        for (const a of admins.rows) {
+          await storageInstance.createNotification({
+            userId: a.id,
+            title: 'New Customer Query',
+            message: `Customer query on booking #${bookingId}: ${String(message).slice(0, 80)}`,
+            type: 'query',
+          });
+        }
+      } catch (e) { /* ignore notification errors */ }
+
+      res.status(201).json(r.rows[0]);
+    } catch (e: any) {
+      console.error('Error creating query:', e);
+      res.status(500).json({ message: e.message || 'Failed to create query' });
+    }
+  });
+
+  // GET /api/bookings/:id/queries — list queries for a booking (customer or admin)
+  app.get('/api/bookings/:id/queries', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const bookingId = parseInt(req.params.id);
+      const user = await storageInstance.getUser(userId);
+      const booking = await storageInstance.getBooking(bookingId);
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+      if (user?.role !== 'admin' && booking.customerId !== userId) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+      const r = await pool.query(
+        `SELECT * FROM booking_queries WHERE booking_id = $1 ORDER BY created_at DESC`,
+        [bookingId]
+      );
+      res.json(r.rows);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // GET /api/admin/queries — admin lists all queries
+  app.get('/api/admin/queries', isAuthenticated, checkRole(['admin']), async (req: Request, res: Response) => {
+    try {
+      const r = await pool.query(`
+        SELECT q.*,
+               u.first_name || ' ' || u.last_name AS customer_name,
+               u.mobile AS customer_mobile,
+               b.date AS booking_date,
+               b.city AS booking_city,
+               p.name AS puja_name
+        FROM booking_queries q
+        LEFT JOIN users u ON u.id = q.customer_id
+        LEFT JOIN bookings b ON b.id = q.booking_id
+        LEFT JOIN pujas p ON p.id = b."pujaId"
+        ORDER BY q.created_at DESC
+      `);
+      res.json(r.rows);
+    } catch (e: any) {
+      console.error('Error listing queries:', e);
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // POST /api/admin/queries/:id/reply — admin replies to a query
+  app.post('/api/admin/queries/:id/reply', isAuthenticated, checkRole(['admin']), async (req: Request, res: Response) => {
+    try {
+      const adminId = req.session.userId!;
+      const queryId = parseInt(req.params.id);
+      const { reply } = req.body;
+      if (!reply || !String(reply).trim()) {
+        return res.status(400).json({ message: 'Reply is required' });
+      }
+      const r = await pool.query(
+        `UPDATE booking_queries
+         SET admin_reply = $1, replied_by = $2, replied_at = NOW(), status = 'answered'
+         WHERE id = $3 RETURNING *`,
+        [String(reply).trim(), adminId, queryId]
+      );
+      if (r.rowCount === 0) return res.status(404).json({ message: 'Query not found' });
+
+      // Notify customer
+      const q = r.rows[0];
+      try {
+        await storageInstance.createNotification({
+          userId: q.customer_id,
+          title: 'Admin replied to your query',
+          message: `Reply on booking #${q.booking_id}: ${String(reply).slice(0, 80)}`,
+          type: 'query_reply',
+        });
+      } catch (e) { /* ignore */ }
+
+      res.json(q);
+    } catch (e: any) {
+      console.error('Error replying to query:', e);
+      res.status(500).json({ message: e.message || 'Failed to reply' });
+    }
+  });
+
   // Public endpoint — get cancellation rules for display
   app.get('/api/cancellation-rules', async (req, res) => {
     try {
