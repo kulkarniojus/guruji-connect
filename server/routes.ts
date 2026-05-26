@@ -2237,11 +2237,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate charge
       const bookingDate = new Date(booking.date);
       const hoursUntil = (bookingDate.getTime() - new Date().getTime()) / (1000 * 60 * 60);
+      const hoursUntilInt = Math.floor(Math.max(0, hoursUntil));
       const rulesRes = await pool.query(
         `SELECT * FROM cancellation_rules
          WHERE user_type = $1 AND is_active = true AND hours_threshold <= $2
          ORDER BY hours_threshold DESC LIMIT 1`,
-        [userType, Math.max(0, hoursUntil)]
+        [userType, hoursUntilInt]
       );
       const rule = rulesRes.rows[0];
       let charge = 0;
