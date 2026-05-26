@@ -12,9 +12,10 @@ import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
 import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
 import BookingManagementTab from '@/components/admin/BookingManagementTab';
 import CancellationRulesTab from '@/components/admin/CancellationRulesTab';
+import CustomerQueriesTab from '@/components/admin/CustomerQueriesTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle } from 'lucide-react';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle, Inbox } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 export default function AdminDashboard() {
@@ -22,7 +23,6 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('analytics');
   const [, setLocation] = useLocation();
 
-  // Fetch pending guruji count for notification badge
   const { data: gurujiProfiles } = useQuery<any[]>({
     queryKey: ['/api/admin/gurujis'],
     queryFn: async () => {
@@ -36,7 +36,6 @@ export default function AdminDashboard() {
 
   const pendingCount = gurujiProfiles?.filter(g => g.status === 'pending').length ?? 0;
 
-  // Fetch unread notification count
   const { data: notifications } = useQuery<any[]>({
     queryKey: ['/api/notifications'],
     queryFn: async () => {
@@ -49,6 +48,19 @@ export default function AdminDashboard() {
   });
 
   const unreadNotifCount = notifications?.filter(n => !n.isRead).length ?? 0;
+
+  const { data: queries } = useQuery<any[]>({
+    queryKey: ['/api/admin/queries'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/queries', { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 30000,
+    enabled: !!user && user.role === 'admin',
+  });
+
+  const openQueryCount = queries?.filter(q => q.status === 'open').length ?? 0;
 
   if (isLoading) {
     return (
@@ -64,7 +76,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         {unreadNotifCount > 0 && (
           <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
@@ -90,56 +102,69 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-9 mb-8">
-          <TabsTrigger value="analytics" className="flex items-center justify-center">
-            <BarChart3 className="h-4 w-4 mr-2" />
+        <TabsList className="flex flex-wrap h-auto gap-1 mb-8 bg-muted p-1 rounded-lg">
+          <TabsTrigger value="analytics" className="flex items-center gap-1.5">
+            <BarChart3 className="h-4 w-4" />
             Analytics
           </TabsTrigger>
-          <TabsTrigger value="chatbot" className="flex items-center justify-center">
-            <MessageCircle className="h-4 w-4 mr-2" />
-            ChatBot
+          <TabsTrigger value="messages" className="flex items-center gap-1.5">
+            <Inbox className="h-4 w-4" />
+            Messages
+            {openQueryCount > 0 && (
+              <Badge className="bg-amber-500 text-white text-xs px-1.5 py-0 h-4 min-w-[16px] ml-0.5">
+                {openQueryCount}
+              </Badge>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center justify-center">
-            <Users className="h-4 w-4 mr-2" />
-            Users
-          </TabsTrigger>
-          <TabsTrigger value="bookings" className="flex items-center justify-center">
-            <Calendar className="h-4 w-4 mr-2" />
+          <TabsTrigger value="bookings" className="flex items-center gap-1.5">
+            <Calendar className="h-4 w-4" />
             Bookings
           </TabsTrigger>
-          <TabsTrigger value="pujas" className="flex items-center justify-center">
-            <Package2 className="h-4 w-4 mr-2" />
-            Pujas
-          </TabsTrigger>
-          <TabsTrigger value="guruji-registrations" className="flex items-center justify-center gap-1">
+          <TabsTrigger value="guruji-registrations" className="flex items-center gap-1.5">
             <UserCheck className="h-4 w-4" />
-            <span>Guruji</span>
+            Guruji
             {pendingCount > 0 && (
               <Badge className="bg-orange-500 text-white text-xs px-1.5 py-0 h-4 min-w-[16px]">
                 {pendingCount}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="cities" className="flex items-center justify-center">
-            <MapPin className="h-4 w-4 mr-2" />
+          <TabsTrigger value="pujas" className="flex items-center gap-1.5">
+            <Package2 className="h-4 w-4" />
+            Pujas
+          </TabsTrigger>
+          <TabsTrigger value="cities" className="flex items-center gap-1.5">
+            <MapPin className="h-4 w-4" />
             Cities
           </TabsTrigger>
-          <TabsTrigger value="faq" className="flex items-center justify-center">
-            <HelpCircle className="h-4 w-4 mr-2" />
-            FAQ
-          </TabsTrigger>
-          <TabsTrigger value="payment-settings" className="flex items-center justify-center">
-            <CreditCard className="h-4 w-4 mr-2" />
+          <TabsTrigger value="payment-settings" className="flex items-center gap-1.5">
+            <CreditCard className="h-4 w-4" />
             Payment
           </TabsTrigger>
-          <TabsTrigger value="cancellation-rules" className="flex items-center justify-center">
-            <XCircle className="h-4 w-4 mr-2" />
+          <TabsTrigger value="cancellation-rules" className="flex items-center gap-1.5">
+            <XCircle className="h-4 w-4" />
             Cancellation
+          </TabsTrigger>
+          <TabsTrigger value="chatbot" className="flex items-center gap-1.5">
+            <MessageCircle className="h-4 w-4" />
+            ChatBot
+          </TabsTrigger>
+          <TabsTrigger value="faq" className="flex items-center gap-1.5">
+            <HelpCircle className="h-4 w-4" />
+            FAQ
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-1.5">
+            <Users className="h-4 w-4" />
+            Users
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics">
           <AnalyticsDashboard />
+        </TabsContent>
+
+        <TabsContent value="messages">
+          <CustomerQueriesTab />
         </TabsContent>
 
         <TabsContent value="chatbot">
