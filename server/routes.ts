@@ -13,7 +13,7 @@ import { genSalt, hash, compare } from "bcrypt";
 import { generateOTP, isValidOTP } from "./services/otp";
 import { sendSMS, sendEmail } from "./services/notification";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import { fromZodError } from "zod-validation-error";
 import { registerPaymentRoutes } from "./routes/payment";
 import chatbotRoutes from "./routes/chatbot";
@@ -36,7 +36,7 @@ declare module 'express-session' {
   }
 }
 
-const SessionStore = MemoryStore(session);
+const PgStore = connectPgSimple(session);
 
 // Initialize admin user if it doesn't exist (ONLY in development)
 // Ensure app_settings table exists and has a seed row
@@ -234,18 +234,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeAppSettings();
   await seedSampleGurujisToDB();
 
-  // Set up session middleware
+  // Set up session middleware — use PostgreSQL store so sessions survive restarts
   app.use(
     session({
-      store: new SessionStore({
-        checkPeriod: 86400000, // Clear expired sessions every 24h
+      store: new PgStore({
+        pool,
+        tableName: "user_sessions",
+        createTableIfMissing: true,
       }),
       secret: process.env.SESSION_SECRET || "pujaconnect-secret",
       resave: false,
       saveUninitialized: false,
       cookie: {
         secure: process.env.NODE_ENV === "production",
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        httpOnly: true,
       },
     })
   );

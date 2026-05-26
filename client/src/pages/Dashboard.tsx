@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Helmet } from 'react-helmet';
 import Header from '@/components/landing/Header';
@@ -15,7 +16,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
 
   // Use real authenticated user
-  const { data: user, isLoading } = useQuery<any>({
+  const { data: user, isLoading, isPending } = useQuery<any>({
     queryKey: ['/api/auth/me'],
     queryFn: async () => {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
@@ -26,7 +27,13 @@ export default function Dashboard() {
     staleTime: 30000,
   });
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && !isPending && !user) {
+      setLocation('/');
+    }
+  }, [isLoading, isPending, user, setLocation]);
+
+  if (isLoading || isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
@@ -35,7 +42,6 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    setLocation('/');
     return null;
   }
 

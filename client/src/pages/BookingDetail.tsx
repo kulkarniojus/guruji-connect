@@ -49,15 +49,23 @@ export default function BookingDetail() {
     staleTime: 30000,
   });
 
-  const { data: booking, isLoading, error } = useQuery<any>({
+  const { data: booking, isLoading, isPending: isBookingPending, error } = useQuery<any>({
     queryKey: [`/api/bookings/${id}`],
     queryFn: async () => {
       const res = await fetch(`/api/bookings/${id}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch booking');
+      if (res.status === 401) {
+        setLocation('/');
+        throw new Error('Please log in to view this booking');
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to fetch booking');
+      }
       return res.json();
     },
     enabled: !!id,
     refetchInterval: 15000,
+    retry: false,
   });
 
   const { data: existingReview } = useQuery<any>({
@@ -134,7 +142,7 @@ export default function BookingDetail() {
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
-  if (isLoading) {
+  if (isLoading || isBookingPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
