@@ -1332,6 +1332,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper: enrich bookings with puja name and guruji name
+  async function enrichBookings(bookings: any[]): Promise<any[]> {
+    const pujaIds = [...new Set(bookings.map(b => b.pujaId).filter(Boolean))];
+    const gurujiIds = [...new Set(bookings.map(b => b.gurujiId).filter(Boolean))];
+
+    const [pujas, gurujiProfiles] = await Promise.all([
+      Promise.all(pujaIds.map(id => storageInstance.getPuja(id))),
+      Promise.all(gurujiIds.map(id => storageInstance.getGurujiProfile(id))),
+    ]);
+
+    const pujaMap = new Map(pujas.filter(Boolean).map((p: any) => [p!.id, p!.name]));
+    
+    const gurujiUserMap = new Map<number, string>();
+    for (const gp of gurujiProfiles.filter(Boolean)) {
+      const u = await storageInstance.getUser((gp as any).userId);
+      if (u) gurujiUserMap.set((gp as any).id, `${u.firstName} ${u.lastName}`.trim());
+    }
+
+    return bookings.map(b => ({
+      ...b,
+      pujaName: pujaMap.get(b.pujaId) || null,
+      gurujiName: b.gurujiId ? (gurujiUserMap.get(b.gurujiId) || null) : null,
+    }));
+  }
+
   // Booking Routes
   app.post("/api/bookings", isAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -1427,7 +1452,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
       
-      res.json(bookings);
+      const enriched = await enrichBookings(bookings);
+      res.json(enriched);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       res.status(500).json({ message: "Failed to fetch bookings" });
@@ -1462,8 +1488,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden" });
         }
       }
-      
-      res.json(booking);
+
+      const [enriched] = await enrichBookings([booking]);
+      res.json(enriched);
     } catch (error) {
       console.error("Error fetching booking:", error);
       if (error instanceof ZodError) {

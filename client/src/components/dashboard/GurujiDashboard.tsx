@@ -590,12 +590,6 @@ export default function GurujiDashboard() {
                               {req.customer.firstName} {req.customer.lastName}
                             </span>
                           )}
-                          {req.customer?.mobile && (
-                            <span className="flex items-center gap-1.5">
-                              <Phone className="h-4 w-4 text-neutral-400 flex-shrink-0" />
-                              {req.customer.mobile}
-                            </span>
-                          )}
                           {req.booking?.date && (
                             <span className="flex items-center gap-1.5">
                               <Calendar className="h-4 w-4 text-neutral-400 flex-shrink-0" />

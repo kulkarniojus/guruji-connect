@@ -115,14 +115,7 @@ export default function CustomerDashboard() {
     queryKey: ['/api/bookings'],
     queryFn: async () => {
       const res = await fetch('/api/bookings', { credentials: 'include' });
-      if (!res.ok) {
-        // Return mock data if not authenticated
-        return [
-          { id: 1, pujaName: 'Satyanarayan Puja', city: 'Mumbai', date: new Date().toISOString(), amount: 1500, gurujiName: 'Pandit Ramesh Ji', status: 'confirmed' },
-          { id: 2, pujaName: 'Ganesh Puja', city: 'Online', date: new Date(Date.now() + 86400000).toISOString(), amount: 1200, status: 'pending' },
-          { id: 3, pujaName: 'Griha Pravesh Puja', city: 'Pune', date: new Date(Date.now() - 15 * 86400000).toISOString(), amount: 2500, gurujiName: 'Pandit Suresh Ji', gurujiId: 1, status: 'completed' },
-        ];
-      }
+      if (!res.ok) return [];
       return res.json();
     },
   });
