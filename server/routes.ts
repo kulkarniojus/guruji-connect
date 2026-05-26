@@ -1366,19 +1366,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         city: bookingData.city || '',
       } as any);
 
-      // If a specific guruji was selected, assign directly and notify only that guruji
+      // If a specific guruji was selected, send a booking request (requires guruji to accept/reject)
       if (bookingData.gurujiId) {
         await storageInstance.assignGurujiToBooking(booking.id, bookingData.gurujiId);
-        await storageInstance.updateBookingStatus(booking.id, 'confirmed');
+        await storageInstance.updateBookingStatus(booking.id, 'pending_approval');
         
         const guruji = await storageInstance.getGurujiProfile(bookingData.gurujiId);
         if (guruji) {
+          await (storageInstance as any).createBookingRequest({
+            bookingId: booking.id,
+            gurujiId: bookingData.gurujiId,
+            status: 'pending',
+          });
           const customer = await storageInstance.getUser(userId);
           await storageInstance.createNotification({
             userId: guruji.userId,
-            title: 'New Booking Assigned',
-            message: `A new puja booking has been assigned to you by ${customer?.firstName || 'a customer'}`,
-            type: 'booking_confirmed',
+            title: 'New Booking Request',
+            message: `${customer?.firstName || 'A customer'} has requested your services for a puja in ${bookingData.city || 'your area'}. Please accept or decline.`,
+            type: 'booking_request',
           });
         }
       } else {
@@ -2318,6 +2323,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/admin/queries — admin lists all queries
+  // GET /api/admin/pending-bookings — bookings awaiting guruji acceptance
+  app.get('/api/admin/pending-bookings', isAuthenticated, checkRole(['admin']), async (req: Request, res: Response) => {
+    try {
+      const r = await pool.query(`
+        SELECT 
+          b.id,
+          b.status,
+          b.date,
+          b.time,
+          b.city,
+          b.address,
+          b."totalAmount" AS amount,
+          b."createdAt",
+          p.name AS puja_name,
+          cu.first_name || ' ' || cu.last_name AS customer_name,
+          cu.mobile AS customer_mobile,
+          (SELECT COUNT(*) FROM booking_requests br WHERE br."bookingId" = b.id AND br.status = 'pending') AS pending_requests,
+          (SELECT COUNT(*) FROM booking_requests br WHERE br."bookingId" = b.id AND br.status = 'declined') AS declined_requests,
+          (SELECT COUNT(*) FROM booking_requests br WHERE br."bookingId" = b.id) AS total_requests
+        FROM bookings b
+        LEFT JOIN pujas p ON p.id = b."pujaId"
+        LEFT JOIN users cu ON cu.id = b."customerId"
+        WHERE b.status IN ('pending', 'pending_approval')
+        ORDER BY b."createdAt" DESC
+      `);
+      res.json(r.rows);
+    } catch (err) {
+      console.error('Error fetching pending bookings:', err);
+      res.status(500).json({ message: 'Failed to fetch pending bookings' });
+    }
+  });
+
   app.get('/api/admin/queries', isAuthenticated, checkRole(['admin']), async (req: Request, res: Response) => {
     try {
       const r = await pool.query(`

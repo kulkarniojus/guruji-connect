@@ -24,6 +24,9 @@ import {
   X,
   MessageSquare,
   Send,
+  AlertTriangle,
+  MapPin,
+  Phone,
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { DataTable } from '../ui/data-table';
@@ -76,6 +79,17 @@ export default function AdminDashboard() {
     enabled: !!user && user.role === 'admin',
   });
 
+  // Fetch bookings awaiting guruji acceptance
+  const { data: pendingAcceptanceBookings = [], isLoading: isPendingLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/pending-bookings'],
+    queryFn: async () => {
+      const r = await fetch('/api/admin/pending-bookings', { credentials: 'include' });
+      return r.ok ? r.json() : [];
+    },
+    enabled: !!user && user.role === 'admin',
+    refetchInterval: 30000,
+  });
+
   // Block/unblock user mutations
   const blockUserMutation = useMutation({
     mutationFn: (userId: number) => 
@@ -122,7 +136,9 @@ export default function AdminDashboard() {
   const totalGurujis = users.filter((user: any) => user.role === 'guruji').length;
   const totalBookings = bookings.length;
   const totalRevenue = bookings.reduce((sum: number, booking: any) => sum + (booking.amount || 0), 0);
-  const pendingBookings = bookings.filter((booking: any) => booking.status === 'pending').length;
+  const pendingBookings = bookings.filter((booking: any) => 
+    booking.status === 'pending' || booking.status === 'pending_approval'
+  ).length;
 
   // Filter users based on search
   const filteredUsers = searchQuery
@@ -387,6 +403,14 @@ export default function AdminDashboard() {
               <TabsTrigger value="gurujis">Gurujis</TabsTrigger>
               <TabsTrigger value="customers">Customers</TabsTrigger>
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
+              <TabsTrigger value="awaiting" className="relative">
+                Awaiting Acceptance
+                {pendingAcceptanceBookings.length > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-orange-500 text-white text-xs font-bold px-1.5 min-w-[18px] h-[18px]">
+                    {pendingAcceptanceBookings.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="queries">Queries</TabsTrigger>
             </TabsList>
 
@@ -469,6 +493,10 @@ export default function AdminDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="awaiting">
+            <AwaitingAcceptanceTab bookings={pendingAcceptanceBookings} isLoading={isPendingLoading} />
           </TabsContent>
 
           <TabsContent value="queries">
@@ -610,6 +638,125 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ── Awaiting Acceptance Tab — admin tracks bookings not yet accepted by any guruji ──
+function AwaitingAcceptanceTab({ bookings, isLoading }: { bookings: any[]; isLoading: boolean }) {
+  if (isLoading) {
+    return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  const getTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hrs = Math.floor(mins / 60);
+    const days = Math.floor(hrs / 24);
+    if (days > 0) return `${days}d ago`;
+    if (hrs > 0) return `${hrs}h ago`;
+    return `${mins}m ago`;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-orange-500" />
+          Bookings Awaiting Guruji Acceptance
+        </CardTitle>
+        <CardDescription>
+          {bookings.length === 0
+            ? 'All bookings are attended to.'
+            : `${bookings.length} booking${bookings.length > 1 ? 's' : ''} raised but not yet accepted by a guruji`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {bookings.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-50 mb-4">
+              <Check className="h-7 w-7 text-green-500" />
+            </div>
+            <p className="text-lg font-medium text-neutral-700">All clear!</p>
+            <p className="text-sm text-neutral-500 mt-1">No bookings are waiting for guruji acceptance right now.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {bookings.map((b: any) => {
+              const isPendingApproval = b.status === 'pending_approval';
+              const waitTime = getTimeAgo(b.createdat || b.createdAt);
+              const pendingReqs = parseInt(b.pending_requests || '0');
+              const declinedReqs = parseInt(b.declined_requests || '0');
+              const totalReqs = parseInt(b.total_requests || '0');
+              return (
+                <div
+                  key={b.id}
+                  className="border-l-4 border-orange-400 bg-orange-50 rounded-r-lg p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
+                >
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-neutral-800">#{b.id} — {b.puja_name || 'Puja Service'}</span>
+                      <Badge
+                        variant="outline"
+                        className={isPendingApproval
+                          ? 'border-orange-400 text-orange-700 bg-white'
+                          : 'border-amber-400 text-amber-700 bg-white'}
+                      >
+                        {isPendingApproval ? 'Awaiting guruji response' : 'No guruji assigned yet'}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-neutral-700">
+                      <span className="flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-neutral-400" />
+                        {b.customer_name || 'Customer'}
+                      </span>
+                      {b.customer_mobile && (
+                        <span className="flex items-center gap-1.5">
+                          <Phone className="h-3.5 w-3.5 text-neutral-400" />
+                          {b.customer_mobile}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-neutral-400" />
+                        {b.date ? new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                        {b.time ? ` · ${b.time}` : ''}
+                      </span>
+                      {b.city && (
+                        <span className="flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-neutral-400" />
+                          {b.city}
+                        </span>
+                      )}
+                    </div>
+
+                    {totalReqs > 0 && (
+                      <div className="flex items-center gap-3 text-xs text-neutral-600 pt-1">
+                        <span className="bg-white border rounded px-2 py-0.5">
+                          {pendingReqs} guruji{pendingReqs !== 1 ? 's' : ''} notified — awaiting reply
+                        </span>
+                        {declinedReqs > 0 && (
+                          <span className="bg-red-50 border border-red-200 text-red-600 rounded px-2 py-0.5">
+                            {declinedReqs} declined
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-right shrink-0 space-y-1">
+                    <p className="text-sm font-semibold text-neutral-800">₹{Number(b.amount || 0).toLocaleString('en-IN')}</p>
+                    <p className="text-xs text-orange-600 flex items-center justify-end gap-1">
+                      <Clock className="h-3 w-3" />
+                      Raised {waitTime}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
