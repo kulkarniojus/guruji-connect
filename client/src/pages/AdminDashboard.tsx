@@ -13,11 +13,14 @@ import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
 import BookingManagementTab from '@/components/admin/BookingManagementTab';
 import CancellationRulesTab from '@/components/admin/CancellationRulesTab';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle } from 'lucide-react';
+import { useLocation } from 'wouter';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('analytics');
+  const [, setLocation] = useLocation();
 
   // Fetch pending guruji count for notification badge
   const { data: gurujiProfiles } = useQuery<any[]>({
@@ -64,8 +67,8 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         {unreadNotifCount > 0 && (
-          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
-            <Bell className="h-5 w-5 text-orange-500" />
+          <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
+            <Bell className="h-5 w-5 text-orange-500 shrink-0" />
             <span className="text-sm font-medium text-orange-700">
               {unreadNotifCount} unread notification{unreadNotifCount > 1 ? 's' : ''}
             </span>
@@ -74,6 +77,14 @@ export default function AdminDashboard() {
                 — including {pendingCount} pending Guruji application{pendingCount > 1 ? 's' : ''}
               </span>
             )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-2 border-orange-300 text-orange-700 hover:bg-orange-100 text-xs h-7"
+              onClick={() => setLocation('/notifications')}
+            >
+              View &amp; Clear
+            </Button>
           </div>
         )}
       </div>
