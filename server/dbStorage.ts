@@ -623,7 +623,7 @@ export class DBStorage implements IStorage {
       const exactResult = await pool.query(
         `SELECT gp.* FROM guruji_profiles gp
          JOIN users u ON gp."userId" = u.id
-         WHERE "isVerified" = true AND "isAvailable" = true
+         WHERE gp."isVerified" = true AND gp."isAvailable" = true
            AND u."isBlocked" = false
            AND gp.pincode = $${params.length}
            ${pujaFilter}
@@ -641,7 +641,7 @@ export class DBStorage implements IStorage {
     const cityResult = await pool.query(
       `SELECT gp.* FROM guruji_profiles gp
        JOIN users u ON gp."userId" = u.id
-       WHERE "isVerified" = true AND "isAvailable" = true
+       WHERE gp."isVerified" = true AND gp."isAvailable" = true
          AND u."isBlocked" = false
          AND (LOWER(gp.city) LIKE LOWER($${params.length}) OR LOWER(gp.address) LIKE LOWER($${params.length}))
          ${pujaFilter}
