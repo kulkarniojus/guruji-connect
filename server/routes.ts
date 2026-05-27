@@ -2695,6 +2695,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update booking status to pending_approval
         await storageInstance.updateBookingStatus(booking.id, 'pending_approval');
 
+        // Notify customer that their request was sent out
+        await storageInstance.createNotification({
+          userId: booking.customerId,
+          title: '📋 Booking Request Sent',
+          message: `Your puja booking request has been sent to ${verifiedGurujis.length} available Guruji${verifiedGurujis.length > 1 ? 's' : ''} in ${city}. You will be notified once a Guruji accepts.`,
+          type: 'booking_update',
+        });
+
         for (const guruji of verifiedGurujis) {
           // Create booking request for each guruji
           await (storageInstance as any).createBookingRequest({
