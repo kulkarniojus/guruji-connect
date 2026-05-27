@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Menu, Bell, Search, X, LogOut, LayoutDashboard, User as UserIcon, BookOpen } from 'lucide-react';
+import { Menu, Bell, X, LogOut, LayoutDashboard, User as UserIcon, BookOpen, CalendarDays, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   DropdownMenu, 
@@ -27,7 +26,7 @@ interface CurrentUser {
 function NotificationBell({ userId }: { userId: number }) {
   const { data: notifications = [] } = useQuery<any[]>({
     queryKey: ['/api/notifications'],
-    refetchInterval: 30000, // poll every 30 seconds
+    refetchInterval: 30000,
   });
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
   return (
@@ -87,13 +86,16 @@ export default function Header() {
     return (first + last) || '?';
   };
 
+  const isGuruji = user?.role === 'guruji';
+  const isAdmin = user?.role === 'admin';
+
   return (
     <>
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href={isGuruji ? '/dashboard' : '/'} className="flex items-center space-x-2">
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -102,59 +104,80 @@ export default function Header() {
               <span className="text-xl font-bold text-neutral-900 font-poppins">GurujiConnect</span>
             </Link>
 
-            {/* Navigation */}
-            <nav className="hidden md:flex space-x-8">
-              <Link href="/" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Home</Link>
-              <Link href="/services" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Services</Link>
-              <Link href="/become-guruji" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Become a Guruji</Link>
-              <Link href="/availability" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Availability</Link>
-              <Link href="/about" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">About Us</Link>
-              <Link href="/contact" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Contact</Link>
+            {/* Navigation — role-aware */}
+            <nav className="hidden md:flex space-x-1">
+              {isGuruji ? (
+                /* Guruji-specific nav */
+                <>
+                  <Link href="/dashboard" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    <LayoutDashboard className="h-4 w-4" /> Dashboard
+                  </Link>
+                  <Link href="/dashboard?tab=calendar" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    <CalendarDays className="h-4 w-4" /> My Calendar
+                  </Link>
+                  <Link href="/profile" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    <UserIcon className="h-4 w-4" /> Profile
+                  </Link>
+                </>
+              ) : isAdmin ? (
+                /* Admin nav */
+                <>
+                  <Link href="/admin-dashboard" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    <LayoutDashboard className="h-4 w-4" /> Admin Dashboard
+                  </Link>
+                </>
+              ) : (
+                /* Customer / public nav */
+                <>
+                  <Link href="/" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Home</Link>
+                  <Link href="/services" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Services</Link>
+                  <Link href="/become-guruji" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Become a Guruji</Link>
+                  <Link href="/availability" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Availability</Link>
+                  <Link href="/about" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">About Us</Link>
+                  <Link href="/contact" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Contact</Link>
+                </>
+              )}
             </nav>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-4">
-              {/* Search */}
-              <div className="relative hidden md:block">
-                <Input 
-                  type="text" 
-                  placeholder="Search pujas, services..." 
-                  className="w-56 pl-10 pr-4 py-2 rounded-lg bg-neutral-100"
-                />
-                <div className="absolute left-3 top-2.5">
-                  <Search className="h-5 w-5 text-neutral-500" />
-                </div>
-              </div>
+            <div className="flex items-center space-x-3">
+              {user && <NotificationBell userId={user.id} />}
 
-              {/* Notification bell with unread count */}
-              {user && (
-                <NotificationBell userId={user.id} />
-              )}
-
-              {/* User dropdown or login/register buttons */}
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center gap-2 px-2">
                       <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-orange-100 text-orange-700 font-semibold text-sm">
+                        <AvatarFallback className={`font-semibold text-sm ${isGuruji ? 'bg-violet-100 text-violet-700' : 'bg-orange-100 text-orange-700'}`}>
                           {getInitials()}
                         </AvatarFallback>
                       </Avatar>
                       <span className="hidden md:inline text-sm font-medium text-neutral-900">
                         {user.firstName} {user.lastName}
                       </span>
+                      {isGuruji && (
+                        <span className="hidden md:inline text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium">
+                          Guruji
+                        </span>
+                      )}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-52">
                     <div className="px-3 py-2 text-xs text-gray-500 border-b border-gray-100">
                       Signed in as<br />
                       <span className="font-medium text-gray-800 truncate block">{user.email}</span>
+                      {isGuruji && <span className="text-violet-600 font-medium">Guruji Account</span>}
                     </div>
                     <DropdownMenuItem onClick={() => setLocation(getDashboardPath())} className="cursor-pointer">
                       <LayoutDashboard className="h-4 w-4 mr-2" />
                       Dashboard
                     </DropdownMenuItem>
+                    {isGuruji && (
+                      <DropdownMenuItem onClick={() => setLocation('/dashboard?tab=calendar')} className="cursor-pointer">
+                        <CalendarDays className="h-4 w-4 mr-2" />
+                        My Calendar
+                      </DropdownMenuItem>
+                    )}
                     {(!user.role || user.role === 'customer') && (
                       <DropdownMenuItem onClick={() => setLocation('/my-bookings')} className="cursor-pointer">
                         <BookOpen className="h-4 w-4 mr-2" />
@@ -200,20 +223,41 @@ export default function Header() {
           }`}
         >
           <div className="px-4 py-3 space-y-3 divide-y divide-gray-100">
-            <div className="space-y-2">
-              <Link href="/" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Home</Link>
-              <Link href="/services" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Services</Link>
-              <Link href="/availability" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Availability</Link>
-              <Link href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">About Us</Link>
-              <Link href="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Contact</Link>
+            <div className="space-y-1">
+              {isGuruji ? (
+                <>
+                  <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
+                    <LayoutDashboard className="h-4 w-4" /> Dashboard
+                  </Link>
+                  <Link href="/dashboard?tab=calendar" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
+                    <CalendarDays className="h-4 w-4" /> My Calendar
+                  </Link>
+                  <Link href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
+                    <UserIcon className="h-4 w-4" /> Profile
+                  </Link>
+                </>
+              ) : isAdmin ? (
+                <Link href="/admin-dashboard" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
+                  <LayoutDashboard className="h-4 w-4" /> Admin Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link href="/" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Home</Link>
+                  <Link href="/services" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Services</Link>
+                  <Link href="/availability" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Availability</Link>
+                  <Link href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">About Us</Link>
+                  <Link href="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Contact</Link>
+                </>
+              )}
             </div>
             <div className="pt-3 space-y-3">
               {user ? (
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-gray-700 px-3">
                     Hello, {user.firstName} {user.lastName}
+                    {isGuruji && <span className="ml-2 text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Guruji</span>}
                   </div>
-                  <Button variant="outline" className="w-full" onClick={() => setLocation(getDashboardPath())}>Dashboard</Button>
+                  <Button variant="outline" className="w-full" onClick={() => { setLocation(getDashboardPath()); setMobileMenuOpen(false); }}>Dashboard</Button>
                   <Button variant="outline" className="w-full text-red-600" onClick={handleLogout}>Logout</Button>
                 </div>
               ) : (

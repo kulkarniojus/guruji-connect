@@ -16,8 +16,10 @@ import {
 import {
   Loader2, Calendar, Clock, MapPin, Check, X,
   User, IndianRupee, Phone, Bell, CheckCircle2,
-  XCircle, Package2, AlertCircle, Edit, Save, Ban, AlertTriangle
+  XCircle, Package2, AlertCircle, Edit, Save, Ban, AlertTriangle,
+  ChevronLeft, ChevronRight, CalendarDays
 } from 'lucide-react';
+import { useLocation } from 'wouter';
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -43,9 +45,22 @@ function formatDate(dateStr: string) {
 
 export default function GurujiDashboard() {
   const { toast } = useToast();
+  const [location] = useLocation();
   const [declineReason, setDeclineReason] = useState<Record<number, string>>({});
   const [showDeclineFor, setShowDeclineFor] = useState<number | null>(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
+
+  // calendar state
+  const now = new Date();
+  const [calMonth, setCalMonth] = useState(now.getMonth());
+  const [calYear, setCalYear] = useState(now.getFullYear());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  // read ?tab= from URL to auto-select tab
+  const urlTab = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('tab')
+    : null;
+  const [activeTab, setActiveTab] = useState(urlTab || 'requests');
   const [profileForm, setProfileForm] = useState({
     city: '', state: '', address: '', pincode: '',
     experience: '', pricePerHour: '', bio: '',
@@ -530,31 +545,35 @@ export default function GurujiDashboard() {
         </Card>
       </div>
 
-      <Tabs defaultValue="requests">
-        <TabsList className="mb-6">
-          <TabsTrigger value="requests" className="flex items-center gap-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6 flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="requests" className="flex items-center gap-1.5">
             <Bell className="h-4 w-4" />
-            Booking Requests
+            Requests
             {pendingRequests.length > 0 && (
-              <span className="ml-1 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5">
+              <span className="ml-0.5 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
                 {pendingRequests.length}
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="upcoming">
-            <Calendar className="h-4 w-4 mr-2" />
+          <TabsTrigger value="calendar" className="flex items-center gap-1.5">
+            <CalendarDays className="h-4 w-4" />
+            Calendar
+          </TabsTrigger>
+          <TabsTrigger value="upcoming" className="flex items-center gap-1.5">
+            <Calendar className="h-4 w-4" />
             Upcoming
           </TabsTrigger>
-          <TabsTrigger value="completed">
-            <CheckCircle2 className="h-4 w-4 mr-2" />
+          <TabsTrigger value="completed" className="flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4" />
             Completed
           </TabsTrigger>
-          <TabsTrigger value="all-requests">
-            <Package2 className="h-4 w-4 mr-2" />
+          <TabsTrigger value="all-requests" className="flex items-center gap-1.5">
+            <Package2 className="h-4 w-4" />
             All Requests
           </TabsTrigger>
-          <TabsTrigger value="my-profile">
-            <User className="h-4 w-4 mr-2" />
+          <TabsTrigger value="my-profile" className="flex items-center gap-1.5">
+            <User className="h-4 w-4" />
             My Profile
           </TabsTrigger>
         </TabsList>
@@ -681,6 +700,19 @@ export default function GurujiDashboard() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* ── CALENDAR VIEW ── */}
+        <TabsContent value="calendar">
+          <BookingCalendar
+            bookings={myBookings}
+            calMonth={calMonth}
+            calYear={calYear}
+            setCalMonth={setCalMonth}
+            setCalYear={setCalYear}
+            selectedDay={selectedDay}
+            setSelectedDay={setSelectedDay}
+          />
         </TabsContent>
 
         {/* ── UPCOMING BOOKINGS ── */}
@@ -855,6 +887,225 @@ export default function GurujiDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+const STATUS_DOT: Record<string, string> = {
+  confirmed: 'bg-blue-500',
+  in_progress: 'bg-violet-500',
+  completed: 'bg-green-500',
+  pending: 'bg-amber-500',
+  pending_approval: 'bg-orange-500',
+  cancelled: 'bg-red-400',
+};
+const STATUS_LABEL: Record<string, string> = {
+  confirmed: 'Confirmed',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  pending: 'Pending',
+  pending_approval: 'Pending Approval',
+  cancelled: 'Cancelled',
+};
+
+function BookingCalendar({
+  bookings, calMonth, calYear, setCalMonth, setCalYear, selectedDay, setSelectedDay
+}: {
+  bookings: any[];
+  calMonth: number; calYear: number;
+  setCalMonth: (m: number) => void; setCalYear: (y: number) => void;
+  selectedDay: number | null; setSelectedDay: (d: number | null) => void;
+}) {
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  // build map: day -> bookings
+  const bookingsByDay: Record<number, any[]> = {};
+  bookings.forEach(b => {
+    if (!b.date) return;
+    const d = new Date(b.date);
+    if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+      const day = d.getDate();
+      if (!bookingsByDay[day]) bookingsByDay[day] = [];
+      bookingsByDay[day].push(b);
+    }
+  });
+
+  const prevMonth = () => {
+    if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
+    else setCalMonth(calMonth - 1);
+    setSelectedDay(null);
+  };
+  const nextMonth = () => {
+    if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
+    else setCalMonth(calMonth + 1);
+    setSelectedDay(null);
+  };
+
+  const today = new Date();
+  const isToday = (day: number) =>
+    day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+
+  const selectedBookings = selectedDay ? (bookingsByDay[selectedDay] || []) : [];
+
+  // Summary counts for this month
+  const monthConfirmed = bookings.filter(b => {
+    if (!b.date) return false;
+    const d = new Date(b.date);
+    return d.getFullYear() === calYear && d.getMonth() === calMonth && (b.status === 'confirmed' || b.status === 'in_progress');
+  }).length;
+  const monthCompleted = bookings.filter(b => {
+    if (!b.date) return false;
+    const d = new Date(b.date);
+    return d.getFullYear() === calYear && d.getMonth() === calMonth && b.status === 'completed';
+  }).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Month header */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-neutral-900">{monthNames[calMonth]} {calYear}</h2>
+              <p className="text-sm text-neutral-500">
+                {monthConfirmed > 0 && <span className="mr-3 text-blue-600 font-medium">{monthConfirmed} upcoming</span>}
+                {monthCompleted > 0 && <span className="text-green-600 font-medium">{monthCompleted} completed</span>}
+                {monthConfirmed === 0 && monthCompleted === 0 && 'No bookings this month'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={prevMonth}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => { setCalMonth(today.getMonth()); setCalYear(today.getFullYear()); setSelectedDay(null); }}>
+                Today
+              </Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={nextMonth}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 mb-4 text-xs">
+            {Object.entries(STATUS_DOT).filter(([k]) => k !== 'cancelled').map(([status, dotClass]) => (
+              <span key={status} className="flex items-center gap-1.5 text-neutral-600">
+                <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+                {STATUS_LABEL[status]}
+              </span>
+            ))}
+          </div>
+
+          {/* Day headers */}
+          <div className="grid grid-cols-7 mb-1">
+            {dayNames.map(d => (
+              <div key={d} className="text-center text-xs font-medium text-neutral-500 py-1">{d}</div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: firstDay }).map((_, i) => (
+              <div key={`empty-${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dayBookings = bookingsByDay[day] || [];
+              const isSelected = selectedDay === day;
+              const isTodayDay = isToday(day);
+              const isPast = new Date(calYear, calMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
+                  className={`
+                    relative rounded-lg p-1.5 min-h-[52px] text-left flex flex-col transition-all
+                    ${isSelected ? 'bg-primary/10 ring-2 ring-primary' : 'hover:bg-neutral-50'}
+                    ${isTodayDay ? 'border-2 border-primary' : 'border border-transparent'}
+                    ${isPast && !dayBookings.length ? 'opacity-40' : ''}
+                  `}
+                >
+                  <span className={`text-xs font-semibold mb-1 ${isTodayDay ? 'text-primary' : isPast ? 'text-neutral-400' : 'text-neutral-800'}`}>
+                    {day}
+                  </span>
+                  <div className="flex flex-wrap gap-0.5">
+                    {dayBookings.slice(0, 3).map((b, bi) => (
+                      <span
+                        key={bi}
+                        className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[b.status] || 'bg-neutral-400'}`}
+                        title={b.pujaName || b.status}
+                      />
+                    ))}
+                    {dayBookings.length > 3 && (
+                      <span className="text-[9px] text-neutral-500 leading-none">+{dayBookings.length - 3}</span>
+                    )}
+                  </div>
+                  {dayBookings.length > 0 && (
+                    <span className="text-[9px] text-neutral-500 mt-auto leading-tight truncate w-full">
+                      {dayBookings[0].pujaName || 'Booking'}
+                      {dayBookings.length > 1 ? ` +${dayBookings.length - 1}` : ''}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Selected day detail */}
+      {selectedDay !== null && (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-primary" />
+              {monthNames[calMonth]} {selectedDay}, {calYear}
+              <Badge variant="secondary">{selectedBookings.length} booking{selectedBookings.length !== 1 ? 's' : ''}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {selectedBookings.length === 0 ? (
+              <p className="text-sm text-neutral-500 py-4 text-center">No bookings on this day. Enjoy the rest!</p>
+            ) : (
+              <div className="space-y-3">
+                {selectedBookings.map((b: any) => (
+                  <div key={b.id} className="flex items-start gap-3 p-3 rounded-lg bg-neutral-50 border">
+                    <div className={`h-3 w-3 rounded-full mt-1.5 shrink-0 ${STATUS_DOT[b.status] || 'bg-neutral-400'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-sm">{b.pujaName || 'Puja Service'}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(b.status)}`}>
+                          {(b.status || '').replace('_', ' ')}
+                        </span>
+                      </div>
+                      <div className="text-xs text-neutral-600 mt-1 space-y-0.5">
+                        {b.time && (
+                          <p className="flex items-center gap-1"><Clock className="h-3 w-3" /> {b.time}</p>
+                        )}
+                        {b.city && (
+                          <p className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {b.city}{b.address ? ` — ${b.address}` : ''}</p>
+                        )}
+                        {b.gurujiName && (
+                          <p className="flex items-center gap-1"><User className="h-3 w-3" /> {b.gurujiName}</p>
+                        )}
+                      </div>
+                    </div>
+                    {b.amount != null && (
+                      <p className="text-sm font-bold text-violet-700 shrink-0">₹{b.amount.toLocaleString('en-IN')}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
