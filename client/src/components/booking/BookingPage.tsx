@@ -669,8 +669,14 @@ export default function BookingPage() {
                             <div className="flex justify-between">
                               <h3 className="font-medium">Pandit {guruji.firstName} {guruji.lastName}</h3>
                               <div className="flex items-center">
-                                <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                <span className="ml-1 text-sm">{guruji.rating || 4.8} ({guruji.totalReviews || 24})</span>
+                                {guruji.totalReviews > 0 ? (
+                                  <>
+                                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                                    <span className="ml-1 text-sm">{Number(guruji.rating).toFixed(1)} ({guruji.totalReviews} reviews)</span>
+                                  </>
+                                ) : (
+                                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">✨ New on portal</span>
+                                )}
                               </div>
                             </div>
                             <p className="text-sm text-neutral-600 mt-1">
