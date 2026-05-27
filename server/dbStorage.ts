@@ -461,13 +461,18 @@ export class DBStorage implements IStorage {
       ? (typeof pd.specialization === 'string' ? pd.specialization.split(',').map((s: string) => s.trim()) : pd.specialization)
       : [];
 
+    // Build cities array: prefer explicit cities field, else derive from city string
+    const citiesArr: string[] = Array.isArray(pd.cities) && pd.cities.length > 0
+      ? pd.cities
+      : (pd.city ? [pd.city] : []);
+
     const result = await pool.query(
       `INSERT INTO guruji_profiles (
         "userId", description, city, address, state, pincode, experience, "pricePerHour",
         "isVerified", "isAvailable", languages, specialities, rating, "totalReviews",
         aadhar_verified, documents_verified, certificates, profile_picture_url, status,
-        religion, age, video_url, "createdAt", "updatedAt"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+        religion, age, video_url, cities, "createdAt", "updatedAt"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
       RETURNING *`,
       [
         profileData.userId,
@@ -492,6 +497,7 @@ export class DBStorage implements IStorage {
         pd.religion || null,
         pd.age || null,
         pd.videoUrl || pd.video_url || null,
+        citiesArr,
         new Date(),
         new Date()
       ]

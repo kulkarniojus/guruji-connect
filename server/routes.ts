@@ -1082,23 +1082,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If user is guruji, create profile with all submitted details
       if (role === "guruji") {
         // `specialization` = comma-separated puja IDs (e.g. "1,2,3")
-        // `location` = comma-separated city IDs (e.g. "5,7")
+        // `location` = comma-separated city IDs (e.g. "5,7") — resolve to names
         // `languages` = comma-separated string (e.g. "Hindi, English")
-        const citiesArray = location
+        const rawCityIds = location
           ? location.split(',').map(s => s.trim()).filter(Boolean)
           : [];
         const languagesArray = languages
           ? languages.split(',').map(s => s.trim()).filter(Boolean)
           : [];
 
+        // Resolve city IDs → city names so DB queries can match by name
+        let cityNames: string[] = rawCityIds;
+        try {
+          const allCities = await storageInstance.getAllCities();
+          cityNames = rawCityIds.map(id => {
+            const asNum = parseInt(id);
+            if (!isNaN(asNum)) {
+              const found = allCities.find(c => c.id === asNum);
+              return found ? found.name : id;
+            }
+            return id; // already a name
+          });
+        } catch (e) {
+          console.error("Could not resolve city IDs during registration:", e);
+        }
+
         await storageInstance.createGurujiProfile({
           userId: user.id,
           bio: qualification ? `Qualification: ${qualification}` : "",
           experience: experience ?? 0,
           specialization: specialization || "",
-          location: location || "",
-          city: citiesArray[0] || "",
-          cities: citiesArray,
+          location: cityNames.join(', '),
+          city: cityNames[0] || "",
+          cities: cityNames,
           languages: languagesArray,
           radius: 10,
           isOnline: false,
