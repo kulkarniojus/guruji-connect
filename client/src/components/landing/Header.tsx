@@ -118,6 +118,12 @@ export default function Header() {
                   <Link href="/profile" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                     <UserIcon className="h-4 w-4" /> Profile
                   </Link>
+                  <Link href="/about" className="text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    About Us
+                  </Link>
+                  <Link href="/contact" className="text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    Contact
+                  </Link>
                 </>
               ) : isAdmin ? (
                 /* Admin nav */
@@ -131,7 +137,9 @@ export default function Header() {
                 <>
                   <Link href="/" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Home</Link>
                   <Link href="/services" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Services</Link>
-                  <Link href="/become-guruji" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Become a Guruji</Link>
+                  {!user && (
+                    <Link href="/become-guruji" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Become a Guruji</Link>
+                  )}
                   <Link href="/availability" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Availability</Link>
                   <Link href="/about" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">About Us</Link>
                   <Link href="/contact" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Contact</Link>
@@ -235,6 +243,8 @@ export default function Header() {
                   <Link href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
                     <UserIcon className="h-4 w-4" /> Profile
                   </Link>
+                  <Link href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>About Us</Link>
+                  <Link href="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>Contact</Link>
                 </>
               ) : isAdmin ? (
                 <Link href="/admin-dashboard" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
@@ -244,6 +254,9 @@ export default function Header() {
                 <>
                   <Link href="/" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Home</Link>
                   <Link href="/services" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Services</Link>
+                  {!user && (
+                    <Link href="/become-guruji" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Become a Guruji</Link>
+                  )}
                   <Link href="/availability" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Availability</Link>
                   <Link href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">About Us</Link>
                   <Link href="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Contact</Link>
