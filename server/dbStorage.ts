@@ -601,9 +601,19 @@ export class DBStorage implements IStorage {
 
     if (pujaId) {
       params.push(pujaId);
-      pujaFilter = `AND EXISTS (
-        SELECT 1 FROM guruji_pujas gpu
-        WHERE gpu."gurujiId" = gp.id AND gpu."pujaId" = $${params.length}
+      pujaFilter = `AND (
+        EXISTS (
+          SELECT 1 FROM guruji_pujas gpu
+          WHERE gpu."gurujiId" = gp.id AND gpu."pujaId" = $${params.length}
+        )
+        OR EXISTS (
+          SELECT 1 FROM unnest(gp.specialities) s
+          WHERE s ~ '^[0-9]+$' AND s::int = $${params.length}
+        )
+        OR EXISTS (
+          SELECT 1 FROM pujas p
+          WHERE p.id = $${params.length} AND gp.specialities @> ARRAY[p.name]
+        )
       )`;
     }
 

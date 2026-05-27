@@ -1107,7 +1107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Could not resolve city IDs during registration:", e);
         }
 
-        await storageInstance.createGurujiProfile({
+        const gurujiProfile = await storageInstance.createGurujiProfile({
           userId: user.id,
           bio: qualification ? `Qualification: ${qualification}` : "",
           experience: experience ?? 0,
@@ -1121,6 +1121,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isOffline: true,
           isConsultation: false,
         } as any);
+
+        // Populate guruji_pujas relationship table from specialization IDs
+        if (specialization && gurujiProfile) {
+          const pujaIds = specialization.split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n));
+          for (const pujaId of pujaIds) {
+            try {
+              await pool.query(
+                `INSERT INTO guruji_pujas ("gurujiId", "pujaId", "isAvailable", "createdAt", "updatedAt")
+                 VALUES ($1, $2, true, NOW(), NOW())
+                 ON CONFLICT DO NOTHING`,
+                [gurujiProfile.id, pujaId]
+              );
+            } catch (e) {
+              // Non-fatal — specialities text[] is the source of truth fallback
+            }
+          }
+        }
       }
 
       // Set session
