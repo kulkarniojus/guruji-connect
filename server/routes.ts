@@ -1430,28 +1430,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         city: bookingData.city || '',
       } as any);
 
-      // If a specific guruji was selected, send a booking request (requires guruji to accept/reject)
+      // If a specific guruji was selected, directly confirm the booking — no accept/decline needed
       if (bookingData.gurujiId) {
         await storageInstance.assignGurujiToBooking(booking.id, bookingData.gurujiId);
-        await storageInstance.updateBookingStatus(booking.id, 'pending_approval');
-        
+        await storageInstance.updateBookingStatus(booking.id, 'confirmed');
+
         const guruji = await storageInstance.getGurujiProfile(bookingData.gurujiId);
         if (guruji) {
-          await (storageInstance as any).createBookingRequest({
-            bookingId: booking.id,
-            gurujiId: bookingData.gurujiId,
-            status: 'pending',
-          });
           const customer = await storageInstance.getUser(userId);
+          // Notify guruji of the confirmed booking directly
           await storageInstance.createNotification({
             userId: guruji.userId,
-            title: 'New Booking Request',
-            message: `${customer?.firstName || 'A customer'} has requested your services for a puja in ${bookingData.city || 'your area'}. Please accept or decline.`,
-            type: 'booking_request',
+            title: 'New Booking Confirmed',
+            message: `${customer?.firstName || 'A customer'} has booked your services for a puja in ${bookingData.city || 'your area'} on ${new Date(bookingData.date).toLocaleDateString()}. The booking is confirmed.`,
+            type: 'booking_confirmed',
+          });
+          // Notify customer of confirmation
+          await storageInstance.createNotification({
+            userId,
+            title: 'Booking Confirmed',
+            message: `Your booking with Pandit ${customer?.firstName || ''} has been confirmed for ${new Date(bookingData.date).toLocaleDateString()}.`,
+            type: 'booking_confirmed',
           });
         }
       } else {
-        // Auto-select or send to nearby gurujis
+        // Auto-search mode — send request to all nearby gurujis, first to accept gets the booking
         await notifyGurujisPujaRequest(booking, bookingData.city || '');
       }
 
