@@ -2675,7 +2675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Function to notify all qualified gurujis about a new puja request
   async function notifyGurujisPujaRequest(booking: any, city: string) {
     try {
-      console.log(`🔔 Finding gurujis near ${city} (pincode: ${booking.pincode}) for booking #${booking.id}`);
+      console.log(`🔔 AUTO-SEARCH: booking #${booking.id}, city="${city}", pujaId=${booking.pujaId}, pincode=${booking.pincode}`);
       
       // Find verified gurujis by pincode (primary) or city (fallback)
       const nearbyGurujis = await storageInstance.getNearbyGurujis(
@@ -2685,6 +2685,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         booking.pincode
       );
       
+      console.log(`🔍 getNearbyGurujis returned ${nearbyGurujis.length} total: ${nearbyGurujis.map((g: any) => `${g.firstName}(verified:${g.aadharVerified}/${g.documentsVerified})`).join(', ')}`);
+
       const verifiedGurujis = nearbyGurujis.filter((g: any) => g.aadharVerified && g.documentsVerified);
       
       console.log(`✓ Found ${verifiedGurujis.length} verified gurujis near ${city}`);
@@ -2700,12 +2702,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             gurujiId: guruji.id,
             status: 'pending',
           });
+          console.log(`📨 Booking request created for guruji ${guruji.id} (userId=${guruji.userId})`);
 
           // In-app notification
           await storageInstance.createNotification({
             userId: guruji.userId,
             title: '🔔 New Puja Request',
-            message: `New ${booking.type === 'offline' ? 'in-person' : 'online'} puja request in ${city}. Tap to view details.`,
+            message: `New puja request in ${city} for ${new Date(booking.date).toLocaleDateString()}. Tap to accept or decline.`,
             type: 'booking_request',
           });
 
@@ -2716,13 +2719,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `New puja request in ${city}`,
             amount: booking.amount,
             date: booking.date,
-            type: booking.type,
             city: city,
             pincode: booking.pincode,
             timestamp: new Date()
           });
         }
       } else {
+        console.log(`⚠️ No verified gurujis found near "${city}" for pujaId=${booking.pujaId} — broadcasting to all`);
         // Broadcast to all connected gurujis as fallback
         io.emit('newPujaRequest', {
           bookingId: booking.id,
