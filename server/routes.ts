@@ -1030,6 +1030,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role,
         aadhar,
         caste,
+        // Guruji-specific fields (optional, only used when role === 'guruji')
+        experience,
+        specialization,
+        location,
+        languages,
+        qualification,
       } = z.object({
         firstName: z.string().min(1, "First name is required"),
         lastName: z.string().min(1, "Last name is required"),
@@ -1041,6 +1047,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: z.enum(["customer", "guruji"]),
         aadhar: z.string().optional(),
         caste: z.string().optional(),
+        experience: z.number().optional(),
+        specialization: z.string().optional(),
+        location: z.string().optional(),
+        languages: z.string().optional(),
+        qualification: z.string().optional(),
       }).parse(req.body);
 
       // Check if user already exists in database
@@ -1068,15 +1079,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         caste,
       } as any);
 
-      // If user is guruji, create a default profile
+      // If user is guruji, create profile with all submitted details
       if (role === "guruji") {
+        // `specialization` = comma-separated puja IDs (e.g. "1,2,3")
+        // `location` = comma-separated city IDs (e.g. "5,7")
+        // `languages` = comma-separated string (e.g. "Hindi, English")
+        const citiesArray = location
+          ? location.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+        const languagesArray = languages
+          ? languages.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+
         await storageInstance.createGurujiProfile({
           userId: user.id,
-          bio: "",
-          experience: 0,
-          specialization: "",
-          location: "",
-          city: "",
+          bio: qualification ? `Qualification: ${qualification}` : "",
+          experience: experience ?? 0,
+          specialization: specialization || "",
+          location: location || "",
+          city: citiesArray[0] || "",
+          cities: citiesArray,
+          languages: languagesArray,
           radius: 10,
           isOnline: false,
           isOffline: true,

@@ -122,6 +122,16 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
     },
   });
 
+  // Fetch cities to resolve IDs → names in location/cities
+  const { data: allCities = [] } = useQuery<any[]>({
+    queryKey: ['/api/cities'],
+    queryFn: async () => {
+      const res = await fetch('/api/cities');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
   // Helper: convert specialization string (may be "1,2,3" or "Puja Name,...")
   const resolveSpecialization = (spec: string | null | undefined): string => {
     if (!spec) return 'Not specified';
@@ -134,6 +144,25 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
       }
       return trimmed;
     }).join(', ');
+  };
+
+  // Helper: resolve cities array or location string (may have city IDs) → readable city names
+  const resolveCities = (profile: any): string => {
+    // Prefer the `cities` array if available
+    const citiesArr: string[] = Array.isArray(profile.cities) && profile.cities.length > 0
+      ? profile.cities
+      : profile.location ? profile.location.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+
+    if (citiesArr.length === 0) return 'Not specified';
+
+    return citiesArr.map(item => {
+      const asNum = parseInt(item);
+      if (!isNaN(asNum)) {
+        const city = allCities.find((c: any) => c.id === asNum);
+        return city ? `${city.name}, ${city.state}` : item;
+      }
+      return item;
+    }).join(' | ');
   };
 
   // Fetch guruji profiles from real API
@@ -613,8 +642,8 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                   <TableCell className="font-medium">
                     {profile.user?.firstName} {profile.user?.lastName}
                   </TableCell>
-                  <TableCell>{profile.location}</TableCell>
-                  <TableCell>{profile.experience} years</TableCell>
+                  <TableCell>{resolveCities(profile)}</TableCell>
+                  <TableCell>{profile.experience ? `${profile.experience} years` : '—'}</TableCell>
                   <TableCell className="max-w-[200px] truncate">
                     {resolveSpecialization(profile.specialization)}
                   </TableCell>
@@ -677,7 +706,7 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                   </h2>
                   <div className="flex items-center text-muted-foreground mb-2">
                     <MapPin className="h-4 w-4 mr-1" />
-                    <span>{selectedProfile.location}</span>
+                    <span>{resolveCities(selectedProfile)}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-3">
                     <Badge variant="outline">
@@ -808,9 +837,15 @@ export function GurujiApplicationManagement({ status }: ApplicationStatus) {
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">Experience</h4>
                           <p>{selectedProfile.experience} years</p>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Service Location</h4>
-                          <p>{selectedProfile.location}</p>
+                        <div className="md:col-span-2">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Service Cities</h4>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {resolveCities(selectedProfile).split(' | ').map((city, i) => (
+                              <Badge key={i} variant="outline" className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />{city}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
                         <div>
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">Service Radius</h4>
