@@ -2787,11 +2787,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── Review / Rating Routes ───────────────────────────────────────────────
 
-  // POST /api/reviews – customer submits a rating after a completed booking
+  // POST /api/reviews – submit a rating (customer→guruji or guruji→customer)
   app.post('/api/reviews', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.session.userId!;
-      const { bookingId, gurujiId, rating, review } = req.body;
+      const { bookingId, gurujiId, rating, review, fromRole } = req.body;
+      const role = fromRole || 'customer';
 
       if (!bookingId || !gurujiId || !rating) {
         return res.status(400).json({ message: 'bookingId, gurujiId and rating are required' });
@@ -2800,25 +2801,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Rating must be between 1 and 5' });
       }
 
-      // Ensure booking belongs to this customer and is completed
       const booking = await storageInstance.getBooking(parseInt(bookingId));
       if (!booking) return res.status(404).json({ message: 'Booking not found' });
-      if (booking.customerId !== userId) return res.status(403).json({ message: 'Forbidden' });
       if (booking.status !== 'completed') {
         return res.status(400).json({ message: 'You can only rate completed bookings' });
       }
 
-      // Prevent duplicate reviews
-      const existing = await storageInstance.getReviewByBookingId(parseInt(bookingId));
-      if (existing) return res.status(409).json({ message: 'You have already rated this booking' });
+      if (role === 'guruji') {
+        // Guruji rating a customer — verify the guruji owns this booking
+        const user = await storageInstance.getUser(userId);
+        if (!user || user.role !== 'guruji') return res.status(403).json({ message: 'Only gurujis can submit guruji ratings' });
+        // Check booking assignment via guruji profile
+        const gurujiProfile = await pool.query(
+          `SELECT id FROM guruji_profiles WHERE user_id = $1 LIMIT 1`, [userId]
+        );
+        if (gurujiProfile.rows.length === 0 || booking.gurujiId !== gurujiProfile.rows[0].id) {
+          return res.status(403).json({ message: 'You are not assigned to this booking' });
+        }
+        // Prevent duplicate guruji review
+        const existing = await storageInstance.getReviewByBookingAndRole(parseInt(bookingId), 'guruji');
+        if (existing) return res.status(409).json({ message: 'You have already rated this customer' });
+      } else {
+        // Customer rating a guruji
+        if (booking.customerId !== userId) return res.status(403).json({ message: 'Forbidden' });
+        const existing = await storageInstance.getReviewByBookingId(parseInt(bookingId));
+        if (existing) return res.status(409).json({ message: 'You have already rated this booking' });
+      }
 
       const created = await storageInstance.createReview({
         bookingId: parseInt(bookingId),
-        customerId: userId,
+        customerId: booking.customerId,
         gurujiId: parseInt(gurujiId),
         rating: parseInt(rating),
         review: review || null,
-      });
+        fromRole: role,
+      } as any);
 
       res.status(201).json(created);
     } catch (error) {
@@ -2827,7 +2844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/reviews/booking/:bookingId – check if review exists for a booking
+  // GET /api/reviews/booking/:bookingId – check if customer review exists for a booking
   app.get('/api/reviews/booking/:bookingId', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const bookingId = parseInt(req.params.bookingId);
@@ -2838,7 +2855,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/reviews/guruji/:gurujiId – public list of reviews for a guruji
+  // GET /api/reviews/booking/:bookingId/both – get both customer and guruji reviews for a booking
+  app.get('/api/reviews/booking/:bookingId/both', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const bookingId = parseInt(req.params.bookingId);
+      const [customerReview, gurujiReview] = await Promise.all([
+        storageInstance.getReviewByBookingAndRole(bookingId, 'customer'),
+        storageInstance.getReviewByBookingAndRole(bookingId, 'guruji'),
+      ]);
+      res.json({ customerReview: customerReview || null, gurujiReview: gurujiReview || null });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch reviews' });
+    }
+  });
+
+  // GET /api/reviews/guruji/:gurujiId – public list of customer reviews for a guruji
   app.get('/api/reviews/guruji/:gurujiId', async (req: Request, res: Response) => {
     try {
       const gurujiId = parseInt(req.params.gurujiId);
@@ -2846,6 +2877,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(reviews);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch reviews' });
+    }
+  });
+
+  // GET /api/reviews/my-customer-ratings – customer sees ratings given to them by gurujis
+  app.get('/api/reviews/my-customer-ratings', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const ratings = await storageInstance.getReviewsByCustomerId(userId);
+      res.json(ratings);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch customer ratings' });
+    }
+  });
+
+  // GET /api/admin/ratings – admin analytics for all ratings
+  app.get('/api/admin/ratings', isAdmin, async (req: Request, res: Response) => {
+    try {
+      // Guruji ratings summary (customer→guruji reviews)
+      const gurujiRatings = await pool.query(`
+        SELECT
+          gp.id AS guruji_id,
+          u.first_name || ' ' || u.last_name AS guruji_name,
+          gp.specialization,
+          COUNT(r.id)::int AS total_reviews,
+          ROUND(AVG(r.rating)::numeric, 2)::float AS avg_rating,
+          SUM(CASE WHEN r.rating = 5 THEN 1 ELSE 0 END)::int AS five_star,
+          SUM(CASE WHEN r.rating = 4 THEN 1 ELSE 0 END)::int AS four_star,
+          SUM(CASE WHEN r.rating = 3 THEN 1 ELSE 0 END)::int AS three_star,
+          SUM(CASE WHEN r.rating <= 2 THEN 1 ELSE 0 END)::int AS low_star
+        FROM guruji_profiles gp
+        JOIN users u ON u.id = gp.user_id
+        LEFT JOIN reviews r ON r."gurujiId" = gp.id AND r.from_role = 'customer'
+        GROUP BY gp.id, u.first_name, u.last_name, gp.specialization
+        ORDER BY avg_rating DESC NULLS LAST, total_reviews DESC
+      `);
+
+      // Customer ratings summary (guruji→customer reviews)
+      const customerRatings = await pool.query(`
+        SELECT
+          cu.id AS customer_id,
+          cu.first_name || ' ' || cu.last_name AS customer_name,
+          COUNT(r.id)::int AS total_ratings,
+          ROUND(AVG(r.rating)::numeric, 2)::float AS avg_rating
+        FROM users cu
+        LEFT JOIN reviews r ON r."customerId" = cu.id AND r.from_role = 'guruji'
+        WHERE cu.role = 'customer'
+        GROUP BY cu.id, cu.first_name, cu.last_name
+        HAVING COUNT(r.id) > 0
+        ORDER BY avg_rating DESC
+      `);
+
+      // Rating distribution for gurujis (customer→guruji)
+      const distribution = await pool.query(`
+        SELECT rating, COUNT(*)::int AS count
+        FROM reviews WHERE from_role = 'customer'
+        GROUP BY rating ORDER BY rating DESC
+      `);
+
+      // Distribution for customer ratings (guruji→customer)
+      const customerDistribution = await pool.query(`
+        SELECT rating, COUNT(*)::int AS count
+        FROM reviews WHERE from_role = 'guruji'
+        GROUP BY rating ORDER BY rating DESC
+      `);
+
+      // Recent guruji reviews (customer→guruji)
+      const recentGurujiReviews = await pool.query(`
+        SELECT r.id, r.rating, r.review, r."createdAt",
+               cu.first_name || ' ' || cu.last_name AS customer_name,
+               gu.first_name || ' ' || gu.last_name AS guruji_name,
+               p.name AS puja_name
+        FROM reviews r
+        JOIN users cu ON cu.id = r."customerId"
+        JOIN guruji_profiles gp ON gp.id = r."gurujiId"
+        JOIN users gu ON gu.id = gp.user_id
+        LEFT JOIN bookings b ON b.id = r."bookingId"
+        LEFT JOIN pujas p ON p.id = b.puja_id
+        WHERE r.from_role = 'customer'
+        ORDER BY r."createdAt" DESC LIMIT 10
+      `);
+
+      // Recent customer ratings (guruji→customer)
+      const recentCustomerRatings = await pool.query(`
+        SELECT r.id, r.rating, r.review, r."createdAt",
+               cu.first_name || ' ' || cu.last_name AS customer_name,
+               gu.first_name || ' ' || gu.last_name AS guruji_name
+        FROM reviews r
+        JOIN users cu ON cu.id = r."customerId"
+        JOIN guruji_profiles gp ON gp.id = r."gurujiId"
+        JOIN users gu ON gu.id = gp.user_id
+        WHERE r.from_role = 'guruji'
+        ORDER BY r."createdAt" DESC LIMIT 10
+      `);
+
+      // Totals
+      const totals = await pool.query(`
+        SELECT
+          COUNT(CASE WHEN from_role = 'customer' THEN 1 END)::int AS guruji_review_count,
+          COUNT(CASE WHEN from_role = 'guruji' THEN 1 END)::int AS customer_rating_count,
+          ROUND(AVG(CASE WHEN from_role = 'customer' THEN rating END)::numeric, 2)::float AS avg_guruji_rating,
+          ROUND(AVG(CASE WHEN from_role = 'guruji' THEN rating END)::numeric, 2)::float AS avg_customer_rating
+        FROM reviews
+      `);
+
+      res.json({
+        totals: totals.rows[0],
+        gurujiRatings: gurujiRatings.rows,
+        customerRatings: customerRatings.rows,
+        gurujiDistribution: distribution.rows,
+        customerDistribution: customerDistribution.rows,
+        recentGurujiReviews: recentGurujiReviews.rows,
+        recentCustomerRatings: recentCustomerRatings.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching admin ratings:', error);
+      res.status(500).json({ message: 'Failed to fetch ratings analytics' });
     }
   });
 

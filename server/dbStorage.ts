@@ -891,24 +891,53 @@ export class DBStorage implements IStorage {
   }
   
   async createReview(reviewData: InsertReview): Promise<Review> {
+    const fromRole = (reviewData as any).fromRole || 'customer';
     const result = await pool.query(
       `INSERT INTO reviews (
-        "customerId", "gurujiId", "bookingId", rating, comment, "createdAt"
-      ) VALUES ($1, $2, $3, $4, $5, $6)
+        "customerId", "gurujiId", "bookingId", from_role, rating, review, "createdAt"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
       [
         reviewData.customerId,
         reviewData.gurujiId,
         reviewData.bookingId,
+        fromRole,
         reviewData.rating,
         reviewData.review || null,
         new Date()
       ]
     );
-    
-    // Update guruji profile with new rating
-    await this.updateGurujiRating(reviewData.gurujiId);
-    
+
+    // Only update guruji profile rating for customer→guruji reviews
+    if (fromRole !== 'guruji') {
+      await this.updateGurujiRating(reviewData.gurujiId);
+    }
+
+    return this.mapReviewFromDb(result.rows[0]);
+  }
+
+  async getReviewsByCustomerId(customerId: number): Promise<Review[]> {
+    const result = await pool.query(
+      `SELECT r.*, u.first_name || ' ' || u.last_name AS guruji_name,
+              b.puja_id, p.name AS puja_name
+       FROM reviews r
+       LEFT JOIN guruji_profiles gp ON gp.id = r."gurujiId"
+       LEFT JOIN users u ON u.id = gp.user_id
+       LEFT JOIN bookings b ON b.id = r."bookingId"
+       LEFT JOIN pujas p ON p.id = b.puja_id
+       WHERE r."customerId" = $1 AND r.from_role = 'guruji'
+       ORDER BY r."createdAt" DESC`,
+      [customerId]
+    );
+    return result.rows.map(row => ({ ...this.mapReviewFromDb(row), gurujiName: row.guruji_name, pujaName: row.puja_name } as any));
+  }
+
+  async getReviewByBookingAndRole(bookingId: number, fromRole: string): Promise<Review | undefined> {
+    const result = await pool.query(
+      `SELECT * FROM reviews WHERE "bookingId" = $1 AND from_role = $2 LIMIT 1`,
+      [bookingId, fromRole]
+    );
+    if (result.rows.length === 0) return undefined;
     return this.mapReviewFromDb(result.rows[0]);
   }
   
@@ -1152,10 +1181,11 @@ export class DBStorage implements IStorage {
       customerId: row.customerId || row.customer_id,
       gurujiId: row.gurujiId || row.guruji_id,
       bookingId: row.bookingId || row.booking_id,
+      fromRole: row.fromRole || row.from_role || 'customer',
       rating: row.rating,
       review: row.comment || row.review || null,
       createdAt: row.createdAt || row.created_at,
-    };
+    } as any;
   }
   
   private mapNotificationFromDb(row: any): Notification {
@@ -1698,7 +1728,7 @@ export class DBStorage implements IStorage {
 
   async getReviewByBookingId(bookingId: number): Promise<Review | undefined> {
     const result = await pool.query(
-      `SELECT * FROM reviews WHERE "bookingId" = $1 LIMIT 1`,
+      `SELECT * FROM reviews WHERE "bookingId" = $1 AND from_role = 'customer' LIMIT 1`,
       [bookingId]
     );
     if (result.rows.length === 0) return undefined;

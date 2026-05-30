@@ -17,9 +17,10 @@ import {
   Loader2, Calendar, Clock, MapPin, Check, X,
   User, IndianRupee, Phone, Bell, CheckCircle2,
   XCircle, Package2, AlertCircle, Edit, Save, Ban, AlertTriangle,
-  ChevronLeft, ChevronRight, CalendarDays
+  ChevronLeft, ChevronRight, CalendarDays, Star
 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { CustomerRatingDialog } from '@/components/rating/RatingSystem';
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -49,6 +50,8 @@ export default function GurujiDashboard() {
   const [declineReason, setDeclineReason] = useState<Record<number, string>>({});
   const [showDeclineFor, setShowDeclineFor] = useState<number | null>(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
+  const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
 
   // calendar state
   const now = new Date();
@@ -235,6 +238,37 @@ export default function GurujiDashboard() {
       toast({ title: 'Request declined', description: 'The booking request has been declined.' });
       setShowDeclineFor(null);
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    },
+  });
+
+  const handleOpenRating = (booking: any) => {
+    setSelectedBookingForRating(booking);
+    setIsRatingDialogOpen(true);
+  };
+
+  const customerRatingMutation = useMutation({
+    mutationFn: async ({ bookingId, gurujiId, rating, review }: any) => {
+      const res = await apiRequest('POST', '/api/reviews', {
+        bookingId,
+        gurujiId,
+        rating,
+        review,
+        fromRole: 'guruji',
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to submit rating');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Rating Submitted!', description: 'Your rating for the customer has been saved.' });
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', selectedBookingForRating?.id, 'guruji-side'] });
+      setIsRatingDialogOpen(false);
+      setSelectedBookingForRating(null);
     },
     onError: (err: any) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -747,7 +781,7 @@ export default function GurujiDashboard() {
           ) : (
             <div className="space-y-4">
               {completed.map((booking: any) => (
-                <BookingCard key={booking.id} booking={booking} />
+                <BookingCard key={booking.id} booking={booking} onRate={handleOpenRating} />
               ))}
             </div>
           )}
@@ -892,6 +926,27 @@ export default function GurujiDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Customer Rating Dialog */}
+      {selectedBookingForRating && (
+        <CustomerRatingDialog
+          isOpen={isRatingDialogOpen}
+          onClose={() => { setIsRatingDialogOpen(false); setSelectedBookingForRating(null); }}
+          booking={{
+            id: selectedBookingForRating.id,
+            customerName: selectedBookingForRating.customerName || selectedBookingForRating.customer?.firstName || 'Customer',
+            serviceName: selectedBookingForRating.pujaName || selectedBookingForRating.type || 'Puja Service',
+          }}
+          onSubmitRating={async (rating, review) => {
+            await customerRatingMutation.mutateAsync({
+              bookingId: selectedBookingForRating.id,
+              gurujiId: selectedBookingForRating.gurujiId,
+              rating,
+              review,
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1115,10 +1170,21 @@ function BookingCalendar({
   );
 }
 
-function BookingCard({ booking }: { booking: any }) {
+function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => void }) {
   const { toast } = useToast();
   const [showCancel, setShowCancel] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+
+  const { data: existingRating } = useQuery<any>({
+    queryKey: ['/api/reviews/booking', booking.id, 'guruji-side'],
+    queryFn: async () => {
+      const res = await fetch(`/api/reviews/booking/${booking.id}/both`, { credentials: 'include' });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.gurujiReview || null;
+    },
+    enabled: booking.status === 'completed',
+  });
 
   const { data: preview, isLoading: previewLoading } = useQuery<any>({
     queryKey: ['/api/bookings', booking.id, 'cancellation-preview'],
@@ -1139,6 +1205,8 @@ function BookingCard({ booking }: { booking: any }) {
   });
 
   const canCancel = booking.status === 'confirmed' || booking.status === 'in_progress';
+  const canRate = booking.status === 'completed' && onRate && existingRating === null;
+  const hasRated = booking.status === 'completed' && existingRating;
 
   return (
     <Card>
@@ -1176,6 +1244,17 @@ function BookingCard({ booking }: { booking: any }) {
               <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => setShowCancel(true)}>
                 <Ban className="h-3.5 w-3.5 mr-1" /> Cancel Booking
               </Button>
+            )}
+            {canRate && (
+              <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => onRate!(booking)}>
+                <Star className="h-3.5 w-3.5 mr-1" /> Rate Customer
+              </Button>
+            )}
+            {hasRated && (
+              <div className="flex items-center gap-1 text-sm text-amber-600">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Rated {existingRating.rating}/5</span>
+              </div>
             )}
           </div>
         </div>

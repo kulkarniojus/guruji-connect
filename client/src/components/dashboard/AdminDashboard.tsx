@@ -27,6 +27,10 @@ import {
   AlertTriangle,
   MapPin,
   Phone,
+  Star,
+  TrendingUp,
+  Award,
+  User,
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { DataTable } from '../ui/data-table';
@@ -46,7 +50,11 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend
+  Legend,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
 } from 'recharts';
 import { Loader2 } from 'lucide-react';
 
@@ -412,6 +420,9 @@ export default function AdminDashboard() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="queries">Queries</TabsTrigger>
+              <TabsTrigger value="ratings" className="flex items-center gap-1">
+                <Star className="h-3.5 w-3.5" /> Ratings
+              </TabsTrigger>
             </TabsList>
 
             <div className="relative">
@@ -501,6 +512,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="queries">
             <QueriesTab />
+          </TabsContent>
+
+          <TabsContent value="ratings">
+            <RatingsTab />
           </TabsContent>
         </Tabs>
       </div>
@@ -761,6 +776,251 @@ function AwaitingAcceptanceTab({ bookings, isLoading }: { bookings: any[]; isLoa
 }
 
 // ── Queries Tab — admin views and replies to customer queries ──────────────
+function StarRow({ rating, count, total }: { rating: number; count: number; total: number }) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="w-4 text-right font-medium">{rating}</span>
+      <Star className="h-3.5 w-3.5 text-yellow-400 fill-current shrink-0" />
+      <div className="flex-1 bg-gray-100 rounded-full h-2">
+        <div className="bg-yellow-400 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-10 text-right text-neutral-500">{count}</span>
+    </div>
+  );
+}
+
+function RatingsTab() {
+  const { data: analytics, isLoading } = useQuery<any>({
+    queryKey: ['/api/admin/ratings'],
+    queryFn: async () => {
+      const r = await fetch('/api/admin/ratings', { credentials: 'include' });
+      return r.ok ? r.json() : null;
+    },
+    refetchInterval: 60000,
+  });
+
+  if (isLoading) {
+    return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-violet-500" /></div>;
+  }
+
+  if (!analytics) {
+    return <div className="text-center py-16 text-neutral-500">Unable to load ratings data</div>;
+  }
+
+  const { totals, gurujiRatings = [], customerRatings = [], gurujiDistribution = [], customerDistribution = [], recentGurujiReviews = [], recentCustomerRatings = [] } = analytics;
+
+  const gurujiTotalReviews = gurujiDistribution.reduce((s: number, d: any) => s + d.count, 0);
+  const customerTotalRatings = customerDistribution.reduce((s: number, d: any) => s + d.count, 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-violet-50 to-violet-100 border-violet-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Star className="h-4 w-4 text-yellow-500 fill-current" />
+              <span className="text-xs font-medium text-violet-700">Avg Guruji Rating</span>
+            </div>
+            <p className="text-2xl font-bold text-violet-800">{totals?.avg_guruji_rating?.toFixed(1) || '—'}</p>
+            <p className="text-xs text-violet-600 mt-1">{totals?.guruji_review_count || 0} reviews</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <User className="h-4 w-4 text-amber-600" />
+              <span className="text-xs font-medium text-amber-700">Avg Customer Rating</span>
+            </div>
+            <p className="text-2xl font-bold text-amber-800">{totals?.avg_customer_rating?.toFixed(1) || '—'}</p>
+            <p className="text-xs text-amber-600 mt-1">{totals?.customer_rating_count || 0} ratings</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Award className="h-4 w-4 text-green-600" />
+              <span className="text-xs font-medium text-green-700">Top-Rated Gurujis</span>
+            </div>
+            <p className="text-2xl font-bold text-green-800">
+              {gurujiRatings.filter((g: any) => g.avg_rating >= 4.5 && g.total_reviews > 0).length}
+            </p>
+            <p className="text-xs text-green-600 mt-1">with ≥4.5 stars</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+              <span className="text-xs font-medium text-blue-700">Total Ratings</span>
+            </div>
+            <p className="text-2xl font-bold text-blue-800">
+              {(totals?.guruji_review_count || 0) + (totals?.customer_rating_count || 0)}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">all time</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Distribution charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Star className="h-4 w-4 text-yellow-500 fill-current" />
+              Guruji Rating Distribution
+            </CardTitle>
+            <CardDescription>Ratings given by customers</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 pb-4">
+            {[5, 4, 3, 2, 1].map(r => (
+              <StarRow
+                key={r}
+                rating={r}
+                count={gurujiDistribution.find((d: any) => d.rating === r)?.count || 0}
+                total={gurujiTotalReviews}
+              />
+            ))}
+            {gurujiTotalReviews === 0 && <p className="text-center text-neutral-400 text-sm py-4">No guruji reviews yet</p>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <User className="h-4 w-4 text-amber-600" />
+              Customer Rating Distribution
+            </CardTitle>
+            <CardDescription>Ratings given by Gurujis</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 pb-4">
+            {[5, 4, 3, 2, 1].map(r => (
+              <StarRow
+                key={r}
+                rating={r}
+                count={customerDistribution.find((d: any) => d.rating === r)?.count || 0}
+                total={customerTotalRatings}
+              />
+            ))}
+            {customerTotalRatings === 0 && <p className="text-center text-neutral-400 text-sm py-4">No customer ratings yet</p>}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Gurujis Table */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Award className="h-4 w-4 text-violet-600" />
+            Guruji Ratings Leaderboard
+          </CardTitle>
+          <CardDescription>All gurujis ranked by customer rating</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {gurujiRatings.length === 0 ? (
+            <p className="text-center text-neutral-400 py-8">No guruji reviews yet</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-neutral-500">
+                    <th className="pb-2 pr-4">#</th>
+                    <th className="pb-2 pr-4">Guruji</th>
+                    <th className="pb-2 pr-4">Specialization</th>
+                    <th className="pb-2 pr-4 text-center">Reviews</th>
+                    <th className="pb-2 pr-4 text-center">Avg Rating</th>
+                    <th className="pb-2 pr-4 text-center">⭐⭐⭐⭐⭐</th>
+                    <th className="pb-2 text-center">⭐⭐⭐⭐</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gurujiRatings.map((g: any, i: number) => (
+                    <tr key={g.guruji_id} className="border-b last:border-0 hover:bg-neutral-50">
+                      <td className="py-2.5 pr-4 text-neutral-400 font-medium">{i + 1}</td>
+                      <td className="py-2.5 pr-4 font-medium">{g.guruji_name}</td>
+                      <td className="py-2.5 pr-4 text-neutral-500 text-xs">{g.specialization || '—'}</td>
+                      <td className="py-2.5 pr-4 text-center">{g.total_reviews || 0}</td>
+                      <td className="py-2.5 pr-4 text-center">
+                        {g.avg_rating ? (
+                          <span className="inline-flex items-center gap-1 font-semibold">
+                            <Star className="h-3.5 w-3.5 text-yellow-400 fill-current" />
+                            {g.avg_rating}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className="py-2.5 pr-4 text-center text-neutral-500">{g.five_star || 0}</td>
+                      <td className="py-2.5 text-center text-neutral-500">{g.four_star || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent Reviews side-by-side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Recent Guruji Reviews</CardTitle>
+            <CardDescription>Latest customer → guruji ratings</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentGurujiReviews.length === 0 ? (
+              <p className="text-center text-neutral-400 py-6 text-sm">No reviews yet</p>
+            ) : recentGurujiReviews.slice(0, 5).map((r: any) => (
+              <div key={r.id} className="border rounded-lg p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-sm">{r.guruji_name}</span>
+                    <span className="text-neutral-400 text-xs ml-2">by {r.customer_name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map(s => (
+                      <Star key={s} className={`h-3 w-3 ${s <= r.rating ? 'text-yellow-400 fill-current' : 'text-gray-200'}`} />
+                    ))}
+                  </div>
+                </div>
+                {r.review && <p className="text-xs text-neutral-500 line-clamp-2">{r.review}</p>}
+                {r.puja_name && <Badge variant="outline" className="text-xs">{r.puja_name}</Badge>}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Recent Customer Ratings</CardTitle>
+            <CardDescription>Latest guruji → customer ratings</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentCustomerRatings.length === 0 ? (
+              <p className="text-center text-neutral-400 py-6 text-sm">No customer ratings yet</p>
+            ) : recentCustomerRatings.slice(0, 5).map((r: any) => (
+              <div key={r.id} className="border rounded-lg p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-sm">{r.customer_name}</span>
+                    <span className="text-neutral-400 text-xs ml-2">by {r.guruji_name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map(s => (
+                      <Star key={s} className={`h-3 w-3 ${s <= r.rating ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
+                    ))}
+                  </div>
+                </div>
+                {r.review && <p className="text-xs text-neutral-500 line-clamp-2">{r.review}</p>}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 function QueriesTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();

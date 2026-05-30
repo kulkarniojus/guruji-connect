@@ -151,7 +151,9 @@ export interface IStorage {
   // Review Management
   getReview(id: number): Promise<Review | undefined>;
   getReviewsByGurujiId(gurujiId: number): Promise<Review[]>;
+  getReviewsByCustomerId(customerId: number): Promise<Review[]>;
   getReviewByBookingId(bookingId: number): Promise<Review | undefined>;
+  getReviewByBookingAndRole(bookingId: number, fromRole: string): Promise<Review | undefined>;
   createReview(review: InsertReview): Promise<Review>;
   getAllReviews(): Promise<Review[]>; // For analytics
 
@@ -1081,7 +1083,13 @@ export class MemStorage implements IStorage {
 
   async getReviewsByGurujiId(gurujiId: number): Promise<Review[]> {
     return Array.from(this.reviews.values()).filter(
-      (review) => review.gurujiId === gurujiId,
+      (review) => review.gurujiId === gurujiId && (review as any).fromRole === 'customer',
+    );
+  }
+
+  async getReviewsByCustomerId(customerId: number): Promise<Review[]> {
+    return Array.from(this.reviews.values()).filter(
+      (review) => review.customerId === customerId && (review as any).fromRole === 'guruji',
     );
   }
 
@@ -1094,18 +1102,20 @@ export class MemStorage implements IStorage {
 
     this.reviews.set(review.id, review);
 
-    // Update guruji rating
-    const gurujiProfile = this.gurujiProfiles.get(review.gurujiId);
-    if (gurujiProfile) {
-      const gurujiReviews = await this.getReviewsByGurujiId(review.gurujiId);
-      const totalRating = gurujiReviews.reduce((sum, r) => sum + r.rating, 0);
-      const avgRating = Math.round(totalRating / gurujiReviews.length);
+    // Update guruji rating only for customer→guruji reviews
+    if ((reviewData as any).fromRole !== 'guruji') {
+      const gurujiProfile = this.gurujiProfiles.get(review.gurujiId);
+      if (gurujiProfile) {
+        const gurujiReviews = await this.getReviewsByGurujiId(review.gurujiId);
+        const totalRating = gurujiReviews.reduce((sum, r) => sum + r.rating, 0);
+        const avgRating = Math.round(totalRating / gurujiReviews.length);
 
-      gurujiProfile.rating = avgRating;
-      gurujiProfile.totalReviews = gurujiReviews.length;
-      gurujiProfile.updatedAt = new Date();
+        gurujiProfile.rating = avgRating;
+        gurujiProfile.totalReviews = gurujiReviews.length;
+        gurujiProfile.updatedAt = new Date();
 
-      this.gurujiProfiles.set(gurujiProfile.id, gurujiProfile);
+        this.gurujiProfiles.set(gurujiProfile.id, gurujiProfile);
+      }
     }
 
     return review;
@@ -1116,7 +1126,15 @@ export class MemStorage implements IStorage {
   }
 
   async getReviewByBookingId(bookingId: number): Promise<Review | undefined> {
-    return Array.from(this.reviews.values()).find(r => r.bookingId === bookingId);
+    return Array.from(this.reviews.values()).find(
+      r => r.bookingId === bookingId && (r as any).fromRole !== 'guruji',
+    );
+  }
+
+  async getReviewByBookingAndRole(bookingId: number, fromRole: string): Promise<Review | undefined> {
+    return Array.from(this.reviews.values()).find(
+      r => r.bookingId === bookingId && (r as any).fromRole === fromRole,
+    );
   }
 
   async getUsersByRole(role: string): Promise<User[]> {

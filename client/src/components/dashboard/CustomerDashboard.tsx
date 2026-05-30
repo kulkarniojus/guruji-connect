@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'wouter';
 import { Loader2, Calendar, User, CreditCard, FileText, ChevronRight, Star, CheckCircle2 } from 'lucide-react';
-import { RatingDialog, RatingDisplay } from '@/components/rating/RatingSystem';
+import { RatingDialog } from '@/components/rating/RatingSystem';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -140,6 +140,14 @@ export default function CustomerDashboard() {
     },
   });
 
+  const { data: myRatings = [] } = useQuery<any[]>({
+    queryKey: ['/api/reviews/my-customer-ratings'],
+    queryFn: async () => {
+      const res = await fetch('/api/reviews/my-customer-ratings', { credentials: 'include' });
+      return res.ok ? res.json() : [];
+    },
+  });
+
   const upcomingBookings = bookings.filter(b => ['confirmed', 'pending', 'pending_approval', 'in_progress'].includes(b.status));
   const pastBookings = bookings.filter(b => ['completed', 'cancelled', 'rejected'].includes(b.status));
   const totalSpent = bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.amount || 0), 0);
@@ -219,6 +227,10 @@ export default function CustomerDashboard() {
         <TabsList className="mb-6">
           <TabsTrigger value="upcoming">Upcoming ({upcomingBookings.length})</TabsTrigger>
           <TabsTrigger value="past">Past ({pastBookings.length})</TabsTrigger>
+          <TabsTrigger value="my-ratings" className="flex items-center gap-1">
+            <Star className="h-3.5 w-3.5" />
+            My Ratings {myRatings.length > 0 && `(${myRatings.length})`}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming">
@@ -258,6 +270,55 @@ export default function CustomerDashboard() {
                     setIsRatingDialogOpen(true);
                   }}
                 />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="my-ratings">
+          {myRatings.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Star className="h-12 w-12 text-neutral-300 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No ratings yet</h3>
+                <p className="text-neutral-500 text-center text-sm">
+                  Gurujis will rate you after completing a puja session. Ratings help build trust on the platform.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                <Star className="h-6 w-6 text-amber-500 fill-current shrink-0" />
+                <div>
+                  <p className="font-semibold text-amber-800">
+                    Your average rating: {(myRatings.reduce((s: number, r: any) => s + r.rating, 0) / myRatings.length).toFixed(1)} / 5
+                  </p>
+                  <p className="text-xs text-amber-600">Based on {myRatings.length} rating{myRatings.length !== 1 ? 's' : ''} from Gurujis</p>
+                </div>
+              </div>
+              {myRatings.map((r: any) => (
+                <Card key={r.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between flex-wrap gap-3">
+                      <div className="space-y-1">
+                        <p className="font-medium text-sm">{r.gurujiName || 'Guruji'}</p>
+                        <p className="text-xs text-neutral-500">{r.pujaName || 'Puja Service'}</p>
+                        {r.review && <p className="text-sm text-neutral-600 mt-1 italic">"{r.review}"</p>}
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-1">
+                          {[1,2,3,4,5].map(s => (
+                            <Star key={s} className={`h-4 w-4 ${s <= r.rating ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
+                          ))}
+                        </div>
+                        <span className="text-xs text-neutral-400">
+                          {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
