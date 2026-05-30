@@ -636,14 +636,20 @@ export class DBStorage implements IStorage {
       }
     }
 
-    // Fallback: match by city name
+    // Fallback: match by city name (primary city field, service cities array, or address)
     params.push(`%${city}%`);
     const cityResult = await pool.query(
       `SELECT gp.* FROM guruji_profiles gp
        JOIN users u ON gp."userId" = u.id
        WHERE gp."isVerified" = true AND gp."isAvailable" = true
          AND u."isBlocked" = false
-         AND (LOWER(gp.city) LIKE LOWER($${params.length}) OR LOWER(gp.address) LIKE LOWER($${params.length}))
+         AND (
+           LOWER(gp.city) LIKE LOWER($${params.length})
+           OR LOWER(gp.address) LIKE LOWER($${params.length})
+           OR EXISTS (
+             SELECT 1 FROM unnest(gp.cities) c WHERE LOWER(c) LIKE LOWER($${params.length})
+           )
+         )
          ${pujaFilter}
        ORDER BY gp.rating DESC`,
       params
@@ -1570,8 +1576,16 @@ export class DBStorage implements IStorage {
         paramIndex++;
       }
 
-      // Filter by puja specialization: match by name OR by legacy numeric puja ID
-      if (filters.specialization && filters.specialization.trim()) {
+      // Filter by pujaId via guruji_pujas table (most reliable)
+      if (filters.pujaId) {
+        query += ` AND EXISTS (
+          SELECT 1 FROM guruji_pujas gpu
+          WHERE gpu."gurujiId" = gp.id AND gpu."pujaId" = $${paramIndex}
+        )`;
+        values.push(filters.pujaId);
+        paramIndex++;
+      } else if (filters.specialization && filters.specialization.trim()) {
+        // Fallback: filter by specialization name OR by legacy numeric puja ID in specialities array
         query += ` AND (
           EXISTS (
             SELECT 1 FROM unnest(gp.specialities) s WHERE LOWER(s) = LOWER($${paramIndex})
@@ -1580,6 +1594,11 @@ export class DBStorage implements IStorage {
             SELECT 1 FROM pujas p
             JOIN unnest(gp.specialities) s ON s ~ '^[0-9]+$' AND p.id = s::int
             WHERE LOWER(p.name) = LOWER($${paramIndex})
+          )
+          OR EXISTS (
+            SELECT 1 FROM guruji_pujas gpu
+            JOIN pujas p ON gpu."pujaId" = p.id
+            WHERE gpu."gurujiId" = gp.id AND LOWER(p.name) = LOWER($${paramIndex})
           )
         )`;
         values.push(filters.specialization.trim());
