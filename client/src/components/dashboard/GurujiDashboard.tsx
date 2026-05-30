@@ -56,11 +56,16 @@ export default function GurujiDashboard() {
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  // read ?tab= from URL to auto-select tab
+  // read ?tab= from URL to auto-select tab (also reacts to navigation changes)
   const urlTab = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('tab')
     : null;
   const [activeTab, setActiveTab] = useState(urlTab || 'requests');
+
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab) setActiveTab(tab);
+  }, [location]);
   const [profileForm, setProfileForm] = useState({
     city: '', state: '', address: '', pincode: '',
     experience: '', pricePerHour: '', bio: '',
