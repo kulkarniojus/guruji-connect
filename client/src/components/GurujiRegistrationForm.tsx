@@ -23,6 +23,9 @@ const gurujiRegistrationSchema = z.object({
   email: z.string().optional(),
   mobile: z.string().regex(/^\d{10}$/, 'Phone number must be 10 digits'),
   age: z.coerce.number().min(18, 'Must be at least 18').max(100, 'Invalid age'),
+  gender: z.enum(['male', 'female', 'other']).optional(),
+  dob: z.string().optional(),
+  caste: z.string().optional(),
   religion: z.string().min(2, 'Religion required'),
   bio: z.string().min(50, 'Bio must be at least 50 characters').max(500, 'Bio must be less than 500 characters'),
   experience: z.coerce.number().min(1, 'Experience must be at least 1 year').max(50, 'Experience cannot exceed 50 years'),
@@ -136,6 +139,9 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
       email: '',
       mobile: '',
       age: 30,
+      gender: undefined,
+      dob: '',
+      caste: '',
       religion: '',
       bio: '',
       experience: 1,
@@ -318,6 +324,56 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                   </FormItem>
                 )}
               />
+
+              {/* Gender, DOB, Caste */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dob"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="caste"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Caste (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="General / OBC / SC / ST" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {/* Sales rep: collect email & mobile for the new guruji's account */}
               {isSalesRep && (

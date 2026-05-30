@@ -214,12 +214,17 @@ const registerSchema = z.object({
   gender: z.enum(['male', 'female', 'other'], {
     required_error: 'Please select a gender',
   }),
+  dob: z.string().optional(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   registrationType: z.enum(['customer', 'guruji'], {
     required_error: 'Please select a registration type',
   }),
   aadhar: z.string().optional(),
   caste: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  pincode: z.string().optional(),
   // Additional fields for Guruji registration
   experience: z.coerce.number().min(0, 'Experience must be a positive number').optional(),
   specialization: z.string().optional(),
@@ -262,10 +267,15 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
       mobile: '',
       age: undefined,
       gender: undefined,
+      dob: '',
       password: '',
-      registrationType: 'customer', // Default to customer registration
+      registrationType: 'customer',
       aadhar: '',
       caste: '',
+      address: '',
+      city: '',
+      state: '',
+      pincode: '',
       experience: undefined,
       specialization: '',
       qualification: '',
@@ -500,6 +510,76 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
                     <FormLabel>Caste (Optional)</FormLabel>
                     <FormControl>
                       <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="dob"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date of Birth</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem className="col-span-1 md:col-span-2">
+                    <FormLabel>Full Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="House No, Street, Area" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Mumbai" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="state"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>State</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Maharashtra" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pincode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pincode</FormLabel>
+                    <FormControl>
+                      <Input placeholder="400001" maxLength={6} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

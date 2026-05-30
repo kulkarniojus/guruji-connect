@@ -106,6 +106,8 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
           // Default: redirect based on role
           if (result.user.role === 'admin') {
             setLocation('/admin-dashboard');
+          } else if (result.user.role === 'sales_rep' || result.user.role === 'sales') {
+            setLocation('/sales-rep/dashboard');
           } else {
             setLocation('/dashboard');
           }

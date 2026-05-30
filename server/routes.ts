@@ -2882,6 +2882,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const isSalesRep = checkRole(['sales_rep', 'admin']);
 
+  // GET /api/sales-rep/stats – platform metrics for sales pitch dashboard
+  app.get('/api/sales-rep/stats', isAuthenticated, isSalesRep, async (req: Request, res: Response) => {
+    try {
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const [total, monthly, gurujis, customers, cities, completed] = await Promise.all([
+        pool.query(`SELECT COUNT(*) as total FROM bookings`),
+        pool.query(`SELECT COUNT(*) as total FROM bookings WHERE "createdAt" >= $1`, [startOfMonth]),
+        pool.query(`SELECT COUNT(*) as total FROM guruji_profiles WHERE status = 'approved'`),
+        pool.query(`SELECT COUNT(*) as total FROM users WHERE role = 'customer'`),
+        pool.query(`SELECT COUNT(DISTINCT c) as total FROM guruji_profiles gp, unnest(COALESCE(gp.cities, ARRAY[]::text[])) c WHERE cardinality(gp.cities) > 0`),
+        pool.query(`SELECT COUNT(*) as total FROM bookings WHERE status = 'completed'`),
+      ]);
+      res.json({
+        totalBookings: parseInt(total.rows[0].total),
+        thisMonthBookings: parseInt(monthly.rows[0].total),
+        totalGurujis: parseInt(gurujis.rows[0].total),
+        totalCustomers: parseInt(customers.rows[0].total),
+        citiesCovered: parseInt(cities.rows[0].total),
+        completedBookings: parseInt(completed.rows[0].total),
+      });
+    } catch (error) {
+      console.error('Sales stats error:', error);
+      res.status(500).json({ message: 'Failed to fetch stats' });
+    }
+  });
+
   // GET /api/sales-rep/registrations – list users registered by this sales rep
   app.get('/api/sales-rep/registrations', isAuthenticated, isSalesRep, async (req: Request, res: Response) => {
     try {

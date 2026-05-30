@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, UserPlus, Users, LogOut, User, Phone, Mail, MapPin, CreditCard, Calendar, Star } from 'lucide-react';
+import { Loader2, UserPlus, Users, LogOut, User, Phone, Mail, MapPin, CreditCard, Calendar, Star, TrendingUp, CheckCircle, BarChart2, Building2 } from 'lucide-react';
 
 const CITIES = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
 const LANGUAGES = ['Hindi', 'English', 'Sanskrit', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 'Gujarati', 'Kannada', 'Malayalam'];
@@ -77,6 +77,126 @@ function FieldSection({ title }: { title: string }) {
     <div className="col-span-2">
       <Separator className="my-2" />
       <p className="text-sm font-semibold text-orange-700 uppercase tracking-wide mt-3 mb-1">{title}</p>
+    </div>
+  );
+}
+
+// ── Overview / Stats Tab ──────────────────────────────────────────────────
+function OverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
+  const { data: stats, isLoading } = useQuery<{
+    totalBookings: number;
+    thisMonthBookings: number;
+    totalGurujis: number;
+    totalCustomers: number;
+    citiesCovered: number;
+    completedBookings: number;
+  }>({ queryKey: ['/api/sales-rep/stats'] });
+
+  const metrics = [
+    { label: 'Total Bookings', value: stats?.totalBookings ?? 0, icon: Calendar, color: 'bg-blue-500', light: 'bg-blue-50 text-blue-700' },
+    { label: 'This Month', value: stats?.thisMonthBookings ?? 0, icon: TrendingUp, color: 'bg-green-500', light: 'bg-green-50 text-green-700' },
+    { label: 'Active Gurujis', value: stats?.totalGurujis ?? 0, icon: Star, color: 'bg-orange-500', light: 'bg-orange-50 text-orange-700' },
+    { label: 'Customers', value: stats?.totalCustomers ?? 0, icon: Users, color: 'bg-purple-500', light: 'bg-purple-50 text-purple-700' },
+    { label: 'Cities Covered', value: stats?.citiesCovered ?? 0, icon: Building2, color: 'bg-teal-500', light: 'bg-teal-50 text-teal-700' },
+    { label: 'Completed Pujas', value: stats?.completedBookings ?? 0, icon: CheckCircle, color: 'bg-emerald-500', light: 'bg-emerald-50 text-emerald-700' },
+  ];
+
+  return (
+    <div className="space-y-8">
+      {/* Welcome banner */}
+      <div className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 p-6 text-white shadow-lg">
+        <div className="flex items-center gap-3 mb-2">
+          <BarChart2 className="h-7 w-7" />
+          <h2 className="text-2xl font-bold">Platform Overview</h2>
+        </div>
+        <p className="text-orange-100 text-sm">Live metrics to help you pitch GurujiConnect to new gurujis and customers.</p>
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {metrics.map(({ label, value, icon: Icon, color, light }) => (
+          <Card key={label} className="shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+                <div className={`h-8 w-8 rounded-full ${color} flex items-center justify-center`}>
+                  <Icon className="h-4 w-4 text-white" />
+                </div>
+              </div>
+              {isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              ) : (
+                <p className="text-3xl font-bold text-gray-900">{value.toLocaleString()}</p>
+              )}
+              <div className={`mt-2 inline-block text-xs px-2 py-0.5 rounded-full font-medium ${light}`}>
+                Live data
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Pitch sections side by side */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="border-orange-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-orange-700">
+              <Star className="h-4 w-4" /> Why Gurujis Join GurujiConnect
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-gray-600">
+            {[
+              'Get verified badge — build trust with customers',
+              'Earn ₹500–₹5,000+ per puja ceremony',
+              'Manage your own calendar & availability',
+              'Reach customers in multiple cities',
+              'Secure online payments, no cash hassles',
+              'Free profile listing on the marketplace',
+            ].map(point => (
+              <div key={point} className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>{point}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-purple-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-purple-700">
+              <Users className="h-4 w-4" /> Why Customers Book on GurujiConnect
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-gray-600">
+            {[
+              'Verified & background-checked Gurujis',
+              'Book in minutes — online or at your home',
+              'Transparent pricing, no hidden charges',
+              'Wide range of pujas & ceremonies',
+              'Reminders & booking tracking built-in',
+              'Secure payments with refund protection',
+            ].map(point => (
+              <div key={point} className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>{point}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick action buttons */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button onClick={() => onTabChange('register-customer')} className="flex-1 bg-orange-600 hover:bg-orange-700">
+          <UserPlus className="h-4 w-4 mr-2" /> Register a New Customer
+        </Button>
+        <Button onClick={() => onTabChange('register-guruji')} variant="outline" className="flex-1 border-orange-300 text-orange-700 hover:bg-orange-50">
+          <Star className="h-4 w-4 mr-2" /> Register a New Guruji
+        </Button>
+        <Button onClick={() => onTabChange('registrations')} variant="ghost" className="flex-1">
+          <Users className="h-4 w-4 mr-2" /> View My Registrations
+        </Button>
+      </div>
     </div>
   );
 }
@@ -422,8 +542,21 @@ function MyRegistrationsTab() {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────
 export default function SalesRepDashboard() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const getTabFromUrl = () => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('tab') || 'overview';
+    }
+    return 'overview';
+  };
+
+  const [activeTab, setActiveTab] = useState(getTabFromUrl);
+
+  useEffect(() => {
+    setActiveTab(getTabFromUrl());
+  }, [location]);
 
   const salesRepUser = (() => {
     try { return JSON.parse(localStorage.getItem('salesRepUser') || '{}'); } catch { return {}; }
@@ -438,16 +571,28 @@ export default function SalesRepDashboard() {
     setLocation('/sales-rep');
   };
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    const url = tab === 'overview' ? '/sales-rep/dashboard' : `/sales-rep/dashboard?tab=${tab}`;
+    setLocation(url);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Sales Representative Portal</h1>
-            <p className="text-sm text-gray-500">
-              Welcome, {salesRepUser.firstName || 'Rep'} {salesRepUser.lastName || ''}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center">
+              <Star className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">GurujiConnect — Sales Portal</h1>
+              <p className="text-sm text-gray-500">
+                Welcome, {salesRepUser.firstName || 'Rep'} {salesRepUser.lastName || ''}
+                <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">Sales Rep</span>
+              </p>
+            </div>
           </div>
           <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2">
             <LogOut className="h-4 w-4" />
@@ -458,13 +603,25 @@ export default function SalesRepDashboard() {
 
       {/* Content */}
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="register-customer">
-          <TabsList className="grid grid-cols-3 mb-8 w-full max-w-lg">
-            <TabsTrigger value="register-customer">Register Customer</TabsTrigger>
-            <TabsTrigger value="register-guruji">Register Guruji</TabsTrigger>
-            <TabsTrigger value="registrations">My Registrations</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="grid grid-cols-4 mb-8 w-full">
+            <TabsTrigger value="overview" className="flex items-center gap-1.5">
+              <BarChart2 className="h-4 w-4" /> Overview
+            </TabsTrigger>
+            <TabsTrigger value="register-customer" className="flex items-center gap-1.5">
+              <UserPlus className="h-4 w-4" /> Register Customer
+            </TabsTrigger>
+            <TabsTrigger value="register-guruji" className="flex items-center gap-1.5">
+              <Star className="h-4 w-4" /> Register Guruji
+            </TabsTrigger>
+            <TabsTrigger value="registrations" className="flex items-center gap-1.5">
+              <Users className="h-4 w-4" /> My Registrations
+            </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="overview">
+            <OverviewTab onTabChange={handleTabChange} />
+          </TabsContent>
           <TabsContent value="register-customer">
             <RegisterCustomerTab />
           </TabsContent>

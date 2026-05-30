@@ -76,6 +76,7 @@ export default function Header() {
   const getDashboardPath = () => {
     if (!user) return '/dashboard';
     if (user.role === 'admin') return '/admin-dashboard';
+    if (user.role === 'sales_rep' || user.role === 'sales') return '/sales-rep/dashboard';
     return '/dashboard';
   };
 
@@ -88,6 +89,7 @@ export default function Header() {
 
   const isGuruji = user?.role === 'guruji';
   const isAdmin = user?.role === 'admin';
+  const isSales = user?.role === 'sales_rep' || user?.role === 'sales';
 
   return (
     <>
@@ -95,7 +97,7 @@ export default function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href={isGuruji ? '/dashboard' : '/'} className="flex items-center space-x-2">
+            <Link href={isSales ? '/sales-rep/dashboard' : isGuruji ? '/dashboard' : '/'} className="flex items-center space-x-2">
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -106,7 +108,23 @@ export default function Header() {
 
             {/* Navigation — role-aware */}
             <nav className="hidden md:flex space-x-1">
-              {isGuruji ? (
+              {isSales ? (
+                /* Sales rep nav */
+                <>
+                  <Link href="/sales-rep/dashboard" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    <LayoutDashboard className="h-4 w-4" /> Overview
+                  </Link>
+                  <Link href="/sales-rep/dashboard?tab=register-customer" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    Register Customer
+                  </Link>
+                  <Link href="/sales-rep/dashboard?tab=register-guruji" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    Register Guruji
+                  </Link>
+                  <Link href="/sales-rep/dashboard?tab=registrations" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    My Registrations
+                  </Link>
+                </>
+              ) : isGuruji ? (
                 /* Guruji-specific nav */
                 <>
                   <Link href="/dashboard" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
@@ -232,7 +250,16 @@ export default function Header() {
         >
           <div className="px-4 py-3 space-y-3 divide-y divide-gray-100">
             <div className="space-y-1">
-              {isGuruji ? (
+              {isSales ? (
+                <>
+                  <Link href="/sales-rep/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
+                    <LayoutDashboard className="h-4 w-4" /> Overview
+                  </Link>
+                  <Link href="/sales-rep/dashboard?tab=register-customer" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>Register Customer</Link>
+                  <Link href="/sales-rep/dashboard?tab=register-guruji" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>Register Guruji</Link>
+                  <Link href="/sales-rep/dashboard?tab=registrations" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>My Registrations</Link>
+                </>
+              ) : isGuruji ? (
                 <>
                   <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
                     <LayoutDashboard className="h-4 w-4" /> Dashboard
@@ -269,6 +296,7 @@ export default function Header() {
                   <div className="text-sm font-medium text-gray-700 px-3">
                     Hello, {user.firstName} {user.lastName}
                     {isGuruji && <span className="ml-2 text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Guruji</span>}
+                    {isSales && <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">Sales Rep</span>}
                   </div>
                   <Button variant="outline" className="w-full" onClick={() => { setLocation(getDashboardPath()); setMobileMenuOpen(false); }}>Dashboard</Button>
                   <Button variant="outline" className="w-full text-red-600" onClick={handleLogout}>Logout</Button>

@@ -30,6 +30,8 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isLoading && !isPending && !user) {
       setLocation('/');
+    } else if (!isLoading && !isPending && user && (user.role === 'sales_rep' || user.role === 'sales')) {
+      setLocation('/sales-rep/dashboard');
     }
   }, [isLoading, isPending, user, setLocation]);
 
@@ -73,7 +75,6 @@ export default function Dashboard() {
           {user.role === 'guruji' && <GurujiDashboard />}
           {user.role === 'admin' && <AdminDashboard />}
           {(user.role === 'customer' || !user.role) && <CustomerDashboard />}
-          {(user.role === 'sales_rep' || user.role === 'sales') && <CustomerDashboard />}
         </div>
       </main>
 

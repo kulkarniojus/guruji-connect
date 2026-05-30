@@ -40,6 +40,8 @@ export default function Booking() {
         setLocation('/dashboard');
       } else if (user.role === 'admin') {
         setLocation('/admin-dashboard');
+      } else if (user.role === 'sales_rep' || user.role === 'sales') {
+        setLocation('/sales-rep/dashboard');
       }
     }
   }, [isLoading, user, setLocation, toast]);
@@ -52,7 +54,7 @@ export default function Booking() {
     );
   }
 
-  if (user && (user.role === 'guruji' || user.role === 'admin')) {
+  if (user && (user.role === 'guruji' || user.role === 'admin' || user.role === 'sales_rep' || user.role === 'sales')) {
     return null;
   }
 
