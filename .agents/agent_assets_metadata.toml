@@ -24,3 +24,9 @@ id = "b4dLzdDO5StS0HlPhTcQ7"
 uri = "file://attached_assets/SanatanGuruji_PitchDeck_Final.pptx"
 type = "slides"
 title = "Sanatan Guruji — Final Investor Pitch Deck"
+
+[[outputs]]
+id = "pFhaZb9i59QYiGX0tl1uT"
+uri = "file://attached_assets/SanatanGuruji_PitchVideo_v2.mp4"
+type = "video"
+title = "Sanatan Guruji — Realistic Pitch Video v2"
