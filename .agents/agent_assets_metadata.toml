@@ -30,3 +30,9 @@ id = "pFhaZb9i59QYiGX0tl1uT"
 uri = "file://attached_assets/SanatanGuruji_PitchVideo_v2.mp4"
 type = "video"
 title = "Sanatan Guruji — Realistic Pitch Video v2"
+
+[[outputs]]
+id = "vBBmS6Oek92ooEr-ieP4J"
+uri = "file://attached_assets/SanatanGuruji_PitchDeck_Final.pdf"
+type = "pdf"
+title = "Sanatan Guruji — Pitch Deck PDF (upload this)"
