@@ -36,3 +36,87 @@ id = "vBBmS6Oek92ooEr-ieP4J"
 uri = "file://attached_assets/SanatanGuruji_PitchDeck_Final.pdf"
 type = "pdf"
 title = "Sanatan Guruji — Pitch Deck PDF (upload this)"
+
+[[outputs]]
+id = "m8WOgKwO5L81zDZ5oJMRJ"
+uri = "file://attached_assets/generated_audio/v02.mp3"
+type = "audio"
+title = "v02"
+
+[[outputs]]
+id = "kQryMlpYUewhaJlZ0u0Cm"
+uri = "file://attached_assets/generated_audio/v03.mp3"
+type = "audio"
+title = "v03"
+
+[[outputs]]
+id = "Veb-5SMu13yyOCkThj38G"
+uri = "file://attached_assets/generated_audio/v01.mp3"
+type = "audio"
+title = "v01"
+
+[[outputs]]
+id = "wqvs4cNQyc3l6IuAiE0Vk"
+uri = "file://attached_assets/generated_audio/v06.mp3"
+type = "audio"
+title = "v06"
+
+[[outputs]]
+id = "RIaxAoUO-I5j8GUHoycnu"
+uri = "file://attached_assets/generated_audio/v05.mp3"
+type = "audio"
+title = "v05"
+
+[[outputs]]
+id = "w-fcugeXR7n4Q__5yZ5MY"
+uri = "file://attached_assets/generated_audio/v04.mp3"
+type = "audio"
+title = "v04"
+
+[[outputs]]
+id = "vXNFsVViQk7YMmzan-cIe"
+uri = "file://attached_assets/generated_audio/v07.mp3"
+type = "audio"
+title = "v07"
+
+[[outputs]]
+id = "DZzOVhTEW_SoOuC15cIRW"
+uri = "file://attached_assets/generated_audio/v08.mp3"
+type = "audio"
+title = "v08"
+
+[[outputs]]
+id = "ruPRyiKQvPUj45kqv_09-"
+uri = "file://attached_assets/generated_audio/v09.mp3"
+type = "audio"
+title = "v09"
+
+[[outputs]]
+id = "v39gQ3uTrnUoHEoOUNcNT"
+uri = "file://attached_assets/generated_audio/v10.mp3"
+type = "audio"
+title = "v10"
+
+[[outputs]]
+id = "sTs2nymi4AbeqWqeXHqRG"
+uri = "file://attached_assets/generated_audio/v11.mp3"
+type = "audio"
+title = "v11"
+
+[[outputs]]
+id = "v0rv9yTIgv0lqObcX-FPV"
+uri = "file://attached_assets/generated_audio/v12.mp3"
+type = "audio"
+title = "v12"
+
+[[outputs]]
+id = "A8xK92Mrk0Qucj8CVy4r1"
+uri = "file://attached_assets/generated_audio/bg_music.mp3"
+type = "audio"
+title = "spiritual_bg_music"
+
+[[outputs]]
+id = "WN8kQKd_ZWjeSDRQvay06"
+uri = "file://attached_assets/SanatanGuruji_PitchVideo_v3_audio.mp4"
+type = "video"
+title = "Sanatan Guruji — Pitch Video with Voiceover & Music"
