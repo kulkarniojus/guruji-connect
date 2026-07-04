@@ -6,3 +6,9 @@ id = "FNOfa9Dz8zj6dbqsccnEu"
 uri = "file://attached_assets/GurujiConnect_PitchDeck.pptx"
 type = "slides"
 title = "GurujiConnect Pitch Deck (Updated)"
+
+[[outputs]]
+id = "t9is2h0szFgpNGrjqDy0N"
+uri = "file://attached_assets/SanatanGuruji_PitchDeck.pptx"
+type = "slides"
+title = "Sanatan Guruji — Pitch Deck"
