@@ -287,7 +287,7 @@ export default function BookingPage() {
   }, [activeStep, user]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-3 sm:px-4 py-5 sm:py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2 font-poppins">Book Your Service</h1>
         <p className="text-neutral-600">Complete the steps below to book your puja or consultation</p>
@@ -325,10 +325,10 @@ export default function BookingPage() {
           </CardHeader>
           <CardContent>
             <Tabs value={bookingType} onValueChange={(value) => setBookingType(value as any)}>
-              <TabsList className="grid grid-cols-3 mb-8">
-                <TabsTrigger value="offline">Offline Puja</TabsTrigger>
-                <TabsTrigger value="online">Online Puja</TabsTrigger>
-                <TabsTrigger value="consultation">Consultation</TabsTrigger>
+              <TabsList className="grid grid-cols-3 mb-8 h-auto">
+                <TabsTrigger value="offline" className="px-2 py-2 text-xs sm:text-sm">Offline Puja</TabsTrigger>
+                <TabsTrigger value="online" className="px-2 py-2 text-xs sm:text-sm">Online Puja</TabsTrigger>
+                <TabsTrigger value="consultation" className="px-2 py-2 text-xs sm:text-sm">Consultation</TabsTrigger>
               </TabsList>
               
               <TabsContent value="offline">
@@ -511,13 +511,13 @@ export default function BookingPage() {
               
               <div>
                 <Label className="mb-2 block">Time</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {timeSlots.map((time) => (
                     <Button
                       key={time}
                       type="button"
                       variant={selectedTime === time ? "default" : "outline"}
-                      className="justify-start"
+                      className="justify-start px-2 sm:px-4 text-xs sm:text-sm"
                       onClick={() => setSelectedTime(time)}
                     >
                       <Clock className="mr-2 h-4 w-4" />

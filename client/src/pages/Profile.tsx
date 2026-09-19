@@ -210,16 +210,16 @@ export default function Profile() {
       </Helmet>
       <Header />
 
-      <main className="flex-grow container mx-auto px-4 py-8 max-w-5xl">
-        <div className="mb-8 flex items-center gap-4">
+      <main className="flex-grow container mx-auto px-3 sm:px-4 py-5 sm:py-8 max-w-5xl">
+        <div className="mb-6 sm:mb-8 flex items-start sm:items-center gap-3 sm:gap-4">
           <Avatar className="h-16 w-16">
             <AvatarFallback className="text-xl font-semibold bg-orange-100 text-orange-700">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div>
-            <h1 className="text-2xl font-bold">{userName}</h1>
-            <div className="flex items-center gap-2 mt-1">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold truncate">{userName}</h1>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               <Badge variant="outline" className="capitalize">{user?.role}</Badge>
               {user.email && <span className="text-sm text-gray-500">{user.email}</span>}
               {user.mobile && <span className="text-sm text-gray-500">· {user.mobile}</span>}
@@ -228,7 +228,7 @@ export default function Profile() {
         </div>
 
         <Tabs defaultValue="basic">
-          <TabsList className={`grid w-full ${isGuruji ? 'grid-cols-4' : 'grid-cols-3'} mb-6`}>
+          <TabsList className={`grid w-full ${isGuruji ? 'grid-cols-4' : 'grid-cols-3'} mb-6 h-auto`}>
             <TabsTrigger value="basic" className="flex items-center gap-1 text-xs sm:text-sm">
               <User className="h-4 w-4 hidden sm:block" /> Personal Info
             </TabsTrigger>

@@ -95,15 +95,15 @@ export default function Header() {
     <>
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between gap-2 h-16">
             {/* Logo */}
-            <Link href={isSales ? '/sales-rep/dashboard' : isGuruji ? '/dashboard' : '/'} className="flex items-center space-x-2">
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+            <Link href={isSales ? '/sales-rep/dashboard' : isGuruji ? '/dashboard' : '/'} className="flex min-w-0 items-center space-x-2">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-primary flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-neutral-900 font-poppins">GurujiConnect</span>
+              <span className="truncate text-lg sm:text-xl font-bold text-neutral-900 font-poppins">GurujiConnect</span>
             </Link>
 
             {/* Navigation — role-aware */}
@@ -166,11 +166,12 @@ export default function Header() {
             </nav>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-3">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-3">
               {user && <NotificationBell userId={user.id} />}
 
               {user ? (
-                <DropdownMenu>
+                <div className="hidden md:block">
+                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center gap-2 px-2">
                       <Avatar className="w-8 h-8">
@@ -220,9 +221,10 @@ export default function Header() {
                       Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>
-                </DropdownMenu>
+                  </DropdownMenu>
+                </div>
               ) : (
-                <div className="flex items-center space-x-2">
+                <div className="hidden md:flex items-center space-x-2">
                   <Button variant="ghost" onClick={() => setLoginModalOpen(true)}>Login</Button>
                   <Button variant="default" onClick={() => setRegisterModalOpen(true)}>Register</Button>
                 </div>
@@ -243,11 +245,8 @@ export default function Header() {
         </div>
 
         {/* Mobile menu */}
-        <div 
-          className={`md:hidden absolute top-16 left-0 right-0 bg-white shadow-lg transform transition-transform duration-200 ease-in-out z-50 ${
-            mobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
-          }`}
-        >
+        {mobileMenuOpen && (
+        <div className="md:hidden absolute top-16 left-0 right-0 bg-white shadow-lg z-50">
           <div className="px-4 py-3 space-y-3 divide-y divide-gray-100">
             <div className="space-y-1">
               {isSales ? (
@@ -310,6 +309,7 @@ export default function Header() {
             </div>
           </div>
         </div>
+        )}
       </header>
 
       {/* Auth modals */}

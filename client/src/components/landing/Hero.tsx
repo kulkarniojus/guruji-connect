@@ -94,10 +94,10 @@ export default function Hero() {
 
   return (
     <section className="bg-gradient-to-r from-primary to-primary-600 text-white">
-      <div className="container mx-auto px-4 py-12 md:py-20">
-        <div className="flex flex-col md:flex-row items-center">
-          <div className="md:w-1/2 mb-8 md:mb-0">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 font-poppins leading-tight">
+      <div className="container mx-auto w-full px-4 py-8 sm:py-12 md:py-20">
+        <div className="flex w-full min-w-0 flex-col md:flex-row items-center">
+          <div className="w-full min-w-0 md:w-1/2 mb-8 md:mb-0">
+            <h1 className="break-words text-3xl md:text-4xl lg:text-5xl font-bold mb-4 font-poppins leading-tight">
               Connect with verified Pandits for your spiritual needs
             </h1>
             <p className="text-lg md:text-xl mb-8 text-white text-opacity-90">
@@ -106,7 +106,7 @@ export default function Hero() {
             </p>
 
             {/* Search form */}
-            <div className="bg-white text-foreground rounded-lg p-4 shadow-lg">
+            <div className="w-full min-w-0 bg-white text-foreground rounded-lg p-4 shadow-lg">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-1">
                   <label
@@ -224,7 +224,7 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="md:w-1/2 md:pl-12">
+          <div className="w-full min-w-0 md:w-1/2 md:pl-12">
             {/* We'll use a placeholder image that's commonly used for spiritual services */}
             <img
               src="/images/puja_ceremony.png"

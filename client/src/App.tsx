@@ -20,12 +20,6 @@ import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { VideoConferenceProvider } from "@/context/VideoConferenceContext";
-import { useIsMobile } from "@/hooks/use-mobile";
-
-// Mobile Components
-import MobileDashboard from "@/components/mobile/MobileDashboard";
-import MobileBooking from "@/components/mobile/MobileBooking";
-import MobileProfile from "@/components/mobile/MobileProfile";
 
 // Lazy-loaded components
 const Chat = lazy(() => import('@/pages/Chat'));
@@ -48,34 +42,16 @@ function AdminRoute({ component: Component, ...rest }: { component: React.Compon
   return <Component />;
 }
 
-// Mobile-aware Dashboard Component
-function ResponsiveDashboard() {
-  const isMobile = useIsMobile();
-  return isMobile ? <MobileDashboard /> : <Dashboard />;
-}
-
-// Mobile-aware Booking Component
-function ResponsiveBooking() {
-  const isMobile = useIsMobile();
-  return isMobile ? <MobileBooking /> : <Booking />;
-}
-
-// Mobile-aware Profile Component
-function ResponsiveProfile() {
-  const isMobile = useIsMobile();
-  return isMobile ? <MobileProfile /> : <Profile />;
-}
-
 // Router setup
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/dashboard">
-        <ProtectedRoute component={ResponsiveDashboard} />
+        <ProtectedRoute component={Dashboard} />
       </Route>
       <Route path="/booking">
-        <ProtectedRoute component={ResponsiveBooking} />
+        <ProtectedRoute component={Booking} />
       </Route>
       <Route path="/booking/:id">
         <ProtectedRoute component={BookingDetail} />
@@ -84,7 +60,7 @@ function Router() {
         <ProtectedRoute component={MyBookings} />
       </Route>
       <Route path="/profile">
-        <ProtectedRoute component={ResponsiveProfile} />
+        <ProtectedRoute component={Profile} />
       </Route>
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin-dashboard">

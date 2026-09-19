@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { useIsMobile } from '@/hooks/use-mobile';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
-import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -203,17 +201,6 @@ function NotificationsView({ mobile = false }: { mobile?: boolean }) {
 }
 
 export default function Notifications() {
-  const isMobile = useIsMobile();
-
-  if (isMobile) {
-    return (
-      <MobileLayout>
-        <Helmet><title>Notifications - GurujiConnect</title></Helmet>
-        <NotificationsView mobile={true} />
-      </MobileLayout>
-    );
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
       <Helmet><title>Notifications - GurujiConnect</title></Helmet>

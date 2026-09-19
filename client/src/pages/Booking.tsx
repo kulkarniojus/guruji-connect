@@ -5,15 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import BookingPage from '@/components/booking/BookingPage';
-import { MobileBookingPage } from '@/components/booking/MobileBookingPage';
 import { useToast } from '@/hooks/use-toast';
 import LoginModal from '@/components/auth/LoginModal';
 import { useState } from 'react';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Loader2 } from 'lucide-react';
 
 export default function Booking() {
-  const isMobile = useIsMobile();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -63,16 +60,16 @@ export default function Booking() {
       <Helmet>
         <title>Book a Puja | GurujiConnect</title>
         <meta name="description" content="Book a puja or consultation with verified Gurujis" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Helmet>
 
-      {!isMobile && <Header />}
+      <Header />
 
       <main className="flex-grow">
-        {isMobile ? <MobileBookingPage /> : <BookingPage />}
+        <BookingPage />
       </main>
 
-      {!isMobile && <Footer />}
+      <Footer />
 
       <LoginModal
         isOpen={loginModalOpen}

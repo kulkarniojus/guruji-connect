@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   * {
     @apply border-border;
   }
@@ -76,6 +84,11 @@
 
 /* Mobile-specific media queries */
 @media (max-width: 768px) {
+  .container {
+    width: 100%;
+    max-width: 100%;
+  }
+
   .desktop-only {
     display: none !important;
   }
