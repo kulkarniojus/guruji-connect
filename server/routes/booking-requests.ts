@@ -88,6 +88,11 @@ export async function respondToBookingRequest(req: Request, res: Response) {
     if (!bookingRequest) {
       return res.status(404).json({ message: "Booking request not found" });
     }
+
+    const guruji = await db.getGurujiProfileByUserId(req.session.userId as number);
+    if (!guruji || guruji.id !== bookingRequest.gurujiId) {
+      return res.status(403).json({ message: "This request belongs to another Guruji" });
+    }
     
     if (bookingRequest.status !== 'pending') {
       return res.status(400).json({ message: `Request is already ${bookingRequest.status}` });

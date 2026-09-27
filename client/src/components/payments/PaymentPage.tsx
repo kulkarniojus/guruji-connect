@@ -14,6 +14,7 @@ interface PaymentPageProps {
 }
 
 interface PaymentSettings {
+  checkoutAvailable?: boolean;
   paymentRequired: boolean;
   upiId: string | null;
   upiName: string | null;
@@ -60,6 +61,29 @@ export default function PaymentPage({ amount, pujaName, onBack, onSuccess }: Pay
     return (
       <div className="h-48 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+      </div>
+    );
+  }
+
+  if (!paymentSettings?.checkoutAvailable) {
+    return (
+      <div className="w-full max-w-4xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment setup pending</CardTitle>
+            <CardDescription>Your booking has not been placed or confirmed.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p>{pujaName} · ₹{amount.toFixed(2)}</p>
+            <p className="text-sm text-amber-800">
+              Secure payment checkout is not connected yet. Please come back once it is available.
+              You will not be charged, and no booking request will be sent to a Guruji.
+            </p>
+            <Button variant="outline" onClick={onBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Details
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

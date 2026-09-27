@@ -8,6 +8,8 @@ import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingS
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
+// Enable only after a gateway checkout and server-side payment verification are wired up.
+const PAYMENT_CHECKOUT_AVAILABLE = false;
 import { z } from "zod";
 import { ZodError } from "zod";
 import { genSalt, hash, compare } from "bcrypt";
@@ -16,7 +18,6 @@ import { sendSMS, sendEmail } from "./services/notification";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { fromZodError } from "zod-validation-error";
-import { registerPaymentRoutes } from "./routes/payment";
 import chatbotRoutes from "./routes/chatbot";
 import { analyticsRouter } from "./routes/analytics";
 import journeyRoutes from "./routes/journey";
@@ -801,26 +802,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/bookings/:id/assign', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const bookingId = parseInt(req.params.id);
-      const { gurujiId } = req.body;
-      if (!gurujiId) return res.status(400).json({ message: 'gurujiId is required' });
+      const gurujiId = Number(req.body.gurujiId);
+      if (!Number.isInteger(gurujiId) || gurujiId <= 0) return res.status(400).json({ message: 'Valid gurujiId is required' });
 
-      const booking = await storageInstance.assignGurujiToBooking(bookingId, gurujiId);
+      const booking = await storageInstance.getBooking(bookingId);
       if (!booking) return res.status(404).json({ message: 'Booking not found' });
-
-      await storageInstance.updateBookingStatus(bookingId, 'confirmed');
-
-      const guruji = await storageInstance.getGurujiProfile(gurujiId);
-      if (guruji) {
-        await storageInstance.createNotification({
-          userId: guruji.userId,
-          title: '📋 Booking Assigned by Admin',
-          message: `A booking has been assigned to you directly by admin.`,
-          type: 'booking_confirmed',
-          isRead: false,
-        } as any);
+      if (!['pending', 'pending_approval'].includes(booking.status)) {
+        return res.status(409).json({ message: 'Only pending bookings can be sent to a Guruji' });
       }
 
-      res.json({ message: 'Guruji assigned successfully', booking });
+      const guruji = await storageInstance.getGurujiProfile(gurujiId);
+      if (!guruji) return res.status(404).json({ message: 'Guruji not found' });
+      const requests = await storageInstance.getBookingRequestsByBookingId(bookingId);
+      if (requests.some((request: any) => request.gurujiId === gurujiId && request.status === 'pending')) {
+        return res.status(409).json({ message: 'This Guruji already has a pending request' });
+      }
+      await storageInstance.createBookingRequest({ bookingId, gurujiId, status: 'pending' });
+      await storageInstance.updateBookingStatus(bookingId, 'pending_approval');
+      await storageInstance.createNotification({
+        userId: guruji.userId,
+        title: 'Booking Request from Admin',
+        message: `Please accept or decline booking #${bookingId}.`,
+        type: 'booking_request',
+      });
+
+      res.json({ message: 'Booking request sent to Guruji for acceptance' });
     } catch (error) {
       console.error('Error assigning guruji:', error);
       res.status(500).json({ message: 'Failed to assign guruji' });
@@ -1432,6 +1438,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking Routes
   app.post("/api/bookings", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!PAYMENT_CHECKOUT_AVAILABLE) {
+        return res.status(503).json({ message: 'Secure payment checkout is not configured yet. No booking was created.' });
+      }
+
       const userId = req.session.userId as number;
       
       const bookingData = z.object({
@@ -1472,7 +1482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } as any);
       let booking;
 
-      // If a specific guruji was selected, directly confirm the booking — no accept/decline needed
+      // A selected Guruji still has to accept before the booking is confirmed.
       if (bookingData.gurujiId) {
         const client = await pool.connect();
         try {
@@ -1491,7 +1501,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(409).json({ message: 'This Guruji is busy at the selected time. Please choose another Guruji or time.' });
           }
           booking = await createBooking();
-          await storageInstance.assignGurujiToBooking(booking.id, bookingData.gurujiId);
+          await storageInstance.createBookingRequest({
+            bookingId: booking.id,
+            gurujiId: bookingData.gurujiId,
+            status: 'pending',
+          });
+          booking = await storageInstance.updateBookingStatus(booking.id, 'pending_approval');
           await client.query('COMMIT');
         } catch (error) {
           await client.query('ROLLBACK');
@@ -1503,19 +1518,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const guruji = await storageInstance.getGurujiProfile(bookingData.gurujiId);
         if (guruji) {
           const customer = await storageInstance.getUser(userId);
-          // Notify guruji of the confirmed booking directly
+          // Notify the chosen Guruji that they must accept or decline.
           await storageInstance.createNotification({
             userId: guruji.userId,
-            title: 'New Booking Confirmed',
-            message: `${customer?.firstName || 'A customer'} has booked your services for a puja in ${bookingData.city || 'your area'} on ${new Date(bookingData.date).toLocaleDateString()}. The booking is confirmed.`,
-            type: 'booking_confirmed',
+            title: 'New Booking Request',
+            message: `${customer?.firstName || 'A customer'} requested your services for a puja in ${bookingData.city || 'your area'} on ${dateKey}. Please accept or decline.`,
+            type: 'booking_request',
           });
-          // Notify customer of confirmation
           await storageInstance.createNotification({
             userId,
-            title: 'Booking Confirmed',
-            message: `Your booking with Pandit ${customer?.firstName || ''} has been confirmed for ${new Date(bookingData.date).toLocaleDateString()}.`,
-            type: 'booking_confirmed',
+            title: 'Booking Request Sent',
+            message: 'Your selected Guruji has been asked to accept the booking. It is not confirmed yet.',
+            type: 'booking_update',
           });
         }
       } else {
@@ -1620,7 +1634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).parse(req.params);
 
       const { status } = z.object({
-        status: z.enum(["pending", "confirmed", "in_progress", "completed", "cancelled"]),
+        status: z.enum(["pending", "in_progress", "completed", "cancelled"]),
       }).parse(req.body);
 
       const booking = await storageInstance.getBooking(parseInt(id));
@@ -1631,6 +1645,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const userId = req.session.userId as number;
       const userRole = req.session.userRole as string;
+
+      if (userRole === 'customer') {
+        return res.status(403).json({ message: 'Use the cancellation flow to change your booking' });
+      }
       
       // Check if user is authorized to update this booking
       if (userRole === "customer" && booking.customerId !== userId) {
@@ -1659,7 +1677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/bookings/:id/assign", isAuthenticated, checkRole(["guruji", "admin"]), async (req: Request, res: Response) => {
+  app.put("/api/bookings/:id/assign", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
     try {
       const { id } = z.object({
         id: z.string().refine((val) => !isNaN(parseInt(val)), {
@@ -1667,19 +1685,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const { gurujiId } = z.object({
-        gurujiId: z.number(),
-      }).parse(req.body);
-
       const booking = await storageInstance.getBooking(parseInt(id));
       
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
       
-      const updatedBooking = await storageInstance.assignGurujiToBooking(parseInt(id), gurujiId);
-      
-      res.json(updatedBooking);
+      return res.status(409).json({ message: 'Send a booking request for the Guruji to accept instead of confirming it directly' });
     } catch (error) {
       console.error("Error assigning guruji to booking:", error);
       if (error instanceof ZodError) {
@@ -2156,8 +2168,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Register payment routes
-  registerPaymentRoutes(app);
+  // Legacy payment routes accepted self-reported "paid" status; keep them disabled
+  // until a verified gateway integration replaces them.
   
   // Register chatbot routes
   app.use('/api/chatbot', chatbotRoutes);
@@ -2170,14 +2182,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/settings/payment', async (req: Request, res: Response) => {
     try {
       if (!process.env.DATABASE_URL) {
-        return res.json({ paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+        return res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
       }
       const result = await pool.query('SELECT * FROM app_settings LIMIT 1');
       if (result.rows.length === 0) {
-        return res.json({ paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+        return res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
       }
       const row = result.rows[0];
       res.json({
+        checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE,
         paymentRequired: row.payment_required,
         upiId: row.upi_id,
         upiName: row.upi_name,
@@ -2185,7 +2198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (err) {
       console.error('Error fetching payment settings:', err);
-      res.json({ paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+      res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
     }
   });
 

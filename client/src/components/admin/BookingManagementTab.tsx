@@ -54,7 +54,7 @@ export default function BookingManagementTab() {
       return apiRequest('POST', `/api/admin/bookings/${bookingId}/assign`, { gurujiId });
     },
     onSuccess: () => {
-      toast({ title: 'Guruji assigned', description: 'The booking has been assigned successfully.' });
+      toast({ title: 'Request sent', description: 'The Guruji must accept before the booking is confirmed.' });
       setAssignDialogOpen(false);
       setSelectedBooking(null);
       setSelectedGurujiId('');
@@ -225,7 +225,7 @@ export default function BookingManagementTab() {
                         onClick={() => openAssign(booking)}
                       >
                         <UserCheck className="h-3.5 w-3.5" />
-                        Assign Guruji
+                          Request Guruji
                       </Button>
                       {!booking.gurujiId && (
                         <Button
@@ -256,7 +256,7 @@ export default function BookingManagementTab() {
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign Guruji to Booking #{selectedBooking?.id}</DialogTitle>
+            <DialogTitle>Request Guruji for Booking #{selectedBooking?.id}</DialogTitle>
           </DialogHeader>
 
           {selectedBooking && (

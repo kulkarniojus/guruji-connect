@@ -191,9 +191,11 @@ export default function BookingDetail() {
               <CardContent className="p-4 flex items-center gap-3">
                 <Clock className="h-5 w-5 text-amber-600" />
                 <p className="text-sm text-amber-800">
-                  {booking.gurujiId
-                    ? 'Waiting for the Guruji to accept your booking. You will be notified once confirmed.'
-                    : 'Sending your request to nearby Gurujis. The first to accept will be assigned.'}
+                   {booking.status === 'pending'
+                     ? 'Your booking request is pending. It is not confirmed until a Guruji accepts.'
+                     : booking.gurujiId
+                       ? 'Waiting for the Guruji to accept your booking. You will be notified once confirmed.'
+                       : 'Your request was sent to nearby Gurujis. The first to accept will be assigned.'}
                 </p>
               </CardContent>
             </Card>

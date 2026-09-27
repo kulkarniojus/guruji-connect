@@ -10,6 +10,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Loader2, CreditCard, QrCode, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface PaymentSettings {
+  checkoutAvailable?: boolean;
   paymentRequired: boolean;
   upiId: string | null;
   upiName: string | null;
@@ -74,6 +75,11 @@ export default function PaymentSettingsTab() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {!data?.checkoutAvailable && (
+            <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              Secure payment checkout is not connected. New booking requests are paused; enabling the UPI setting below will not enable checkout.
+            </div>
+          )}
 
           {/* Payment Toggle */}
           <div className="flex items-center justify-between p-4 rounded-lg border bg-gray-50">

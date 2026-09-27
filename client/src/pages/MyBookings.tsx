@@ -104,8 +104,12 @@ export default function MyBookings() {
     queryKey: ['/api/bookings'],
     queryFn: async () => {
       const r = await fetch('/api/bookings', { credentials: 'include' });
-      return r.ok ? r.json() : [];
+      if (!r.ok) throw new Error('Could not load bookings');
+      return r.json();
     },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     refetchInterval: 20000,
   });
 

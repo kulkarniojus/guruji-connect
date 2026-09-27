@@ -60,7 +60,9 @@ function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => v
         <CardTitle className="text-lg mt-1">
           {booking.pujaName || booking.title || `Booking #${booking.id}`}
         </CardTitle>
-        <CardDescription>{booking.city || booking.location || 'Location TBD'}</CardDescription>
+        <CardDescription>
+          Booking #{booking.id} · {booking.city || booking.location || 'Location TBD'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="border-t pt-3 space-y-1">
@@ -115,9 +117,13 @@ export default function CustomerDashboard() {
     queryKey: ['/api/bookings'],
     queryFn: async () => {
       const res = await fetch('/api/bookings', { credentials: 'include' });
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error('Could not load bookings');
       return res.json();
     },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: 20000,
   });
 
   const ratingMutation = useMutation({

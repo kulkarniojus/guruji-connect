@@ -300,8 +300,8 @@ export default function BookingPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
 
       toast({
-        title: "Booking successful",
-        description: "Your booking has been placed successfully",
+        title: "Booking request sent",
+        description: "Your booking is pending until a Guruji accepts it.",
       });
 
       clearBookingDraft();

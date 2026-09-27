@@ -163,6 +163,10 @@ export default function Profile() {
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery<any[]>({
     queryKey: ['/api/bookings'],
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: 20000,
   });
 
   const statusIcon = (status: string) => {
