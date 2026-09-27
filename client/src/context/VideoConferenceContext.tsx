@@ -97,41 +97,33 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
     }
   }, []);
 
-  // Initialize video/audio devices
-  useEffect(() => {
-    const setupMediaStream = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-        
-        setLocalStream(stream);
-        localStreamRef.current = stream;
-      } catch (error) {
-        console.error('Error accessing media devices:', error);
-        toast({
-          title: 'Error',
-          description: 'Could not access camera or microphone',
-          variant: 'destructive',
-        });
-      }
-    };
-    
-    setupMediaStream();
-    
-    return () => {
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => {
-          track.stop();
-        });
-      }
-    };
+  // Request permissions only when the user starts or answers a call.
+  const getCallStream = async () => {
+    if (localStreamRef.current?.active) return localStreamRef.current;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      return stream;
+    } catch (error) {
+      console.error('Error accessing media devices:', error);
+      toast({
+        title: 'Camera or microphone unavailable',
+        description: 'Allow camera and microphone access to join the call.',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
+  useEffect(() => () => {
+    localStreamRef.current?.getTracks().forEach(track => track.stop());
+    localStreamRef.current = null;
   }, []);
 
   // Function to start a call
   const startCall = async (userToCall: string) => {
-    if (!socket.current || !localStreamRef.current) {
+    if (!socket.current) {
       toast({
         title: 'Error',
         description: 'Cannot establish call connection',
@@ -139,6 +131,8 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
       });
       return;
     }
+    const stream = await getCallStream();
+    if (!stream) return;
     
     setIsCalling(true);
     
@@ -146,7 +140,7 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
     const peer = new SimplePeer({
       initiator: true,
       trickle: false,
-      stream: localStreamRef.current,
+      stream,
     });
     
     peerRef.current = peer;
@@ -183,8 +177,8 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
   };
 
   // Function to answer an incoming call
-  const answerCall = () => {
-    if (!socket.current || !localStreamRef.current || !callerInfo) {
+  const answerCall = async () => {
+    if (!socket.current || !callerInfo) {
       toast({
         title: 'Error',
         description: 'Cannot establish call connection',
@@ -192,6 +186,8 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
       });
       return;
     }
+    const stream = await getCallStream();
+    if (!stream) return;
     
     setIsCallActive(true);
     setIsReceivingCall(false);
@@ -200,7 +196,7 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
     const peer = new SimplePeer({
       initiator: false,
       trickle: false,
-      stream: localStreamRef.current,
+      stream,
     });
     
     peerRef.current = peer;
@@ -265,6 +261,9 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
     setIsReceivingCall(false);
     setCallerInfo(null);
     setRemoteStream(null);
+    localStreamRef.current?.getTracks().forEach(track => track.stop());
+    localStreamRef.current = null;
+    setLocalStream(null);
     
     // Navigate back to previous page
     setLocation('/');
