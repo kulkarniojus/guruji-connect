@@ -1606,11 +1606,21 @@ export class DBStorage implements IStorage {
         paramIndex++;
       }
 
-      // Filter by pujaId via guruji_pujas table (most reliable)
+      // Profiles may store pujas in either the join table or the legacy
+      // specialities array (names or numeric IDs).
       if (filters.pujaId) {
-        query += ` AND EXISTS (
-          SELECT 1 FROM guruji_pujas gpu
-          WHERE gpu."gurujiId" = gp.id AND gpu."pujaId" = $${paramIndex}
+        query += ` AND (
+          EXISTS (
+            SELECT 1 FROM guruji_pujas gpu
+            WHERE gpu."gurujiId" = gp.id AND gpu."pujaId" = $${paramIndex}
+          )
+          OR EXISTS (
+            SELECT 1 FROM pujas p
+            JOIN unnest(gp.specialities) s
+              ON LOWER(TRIM(s)) = LOWER(p.name)
+              OR TRIM(s) = p.id::text
+            WHERE p.id = $${paramIndex}
+          )
         )`;
         values.push(filters.pujaId);
         paramIndex++;
