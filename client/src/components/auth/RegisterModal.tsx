@@ -292,7 +292,8 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
       const result = await registerUser(data);
       
       if (result.success && result.user) {
-        // Update the auth query cache so Header shows the user
+        // Registration starts a new session; do not show the previous account's bookings.
+        queryClient.clear();
         queryClient.setQueryData(['/api/auth/me'], result.user);
         
         toast({

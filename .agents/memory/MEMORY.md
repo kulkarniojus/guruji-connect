@@ -1,3 +1,4 @@
 - [Preview startup collision](preview-workflow-interruption.md) — duplicate dev-server launches caused port conflicts and unstable Preview; inspect live processes as well as workflow state.
 - [Guruji puja matching](guruji-puja-matching.md) — approved profiles may list real services without join-table links; preserve both matching paths until data is reconciled.
 - [Booking schedule schema](booking-schedule-schema.md) — live booking storage uses a calendar date and separate text time, unlike the shared schema; check reality before schedule changes.
+- [Radix UI automation](radix-ui-automation.md) — use browser-native pointer clicks to open dropdowns in headless tests; synthetic element clicks may not trigger them.

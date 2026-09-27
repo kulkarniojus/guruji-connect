@@ -95,9 +95,9 @@ function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => v
               </Button>
             )}
           </div>
-          <Link href={`/booking/${booking.id}`}>
-            <Button variant="outline" size="sm">View Details</Button>
-          </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/booking/${booking.id}`}>View Details</Link>
+          </Button>
         </div>
       </CardContent>
     </Card>

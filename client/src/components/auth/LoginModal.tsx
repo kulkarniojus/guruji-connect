@@ -89,7 +89,8 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
       const result = await doLogin(values.email, values.password);
       
       if (result.success && result.user) {
-        // Update the auth query cache
+        // A different account may have left private booking data in the cache.
+        queryClient.clear();
         queryClient.setQueryData(['/api/auth/me'], result.user);
         
         toast({

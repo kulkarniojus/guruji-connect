@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { User } from '@shared/schema';
 import { login as authLogin, registerUser, logout as authLogout, getCurrentUser } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { queryClient } from '@/lib/queryClient';
 
 interface AuthContextType {
   user: User | null;
@@ -38,6 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await authLogin(email, password);
       if (result.success) {
+        queryClient.clear();
+        queryClient.setQueryData(['/api/auth/me'], result.user);
         setUser(result.user as User);
       }
       return result;
@@ -54,6 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await registerUser(userData);
       if (result.success) {
+        queryClient.clear();
+        queryClient.setQueryData(['/api/auth/me'], result.user);
         setUser(result.user as User);
       }
       return result;
@@ -70,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await authLogout();
       if (result.success) {
+        queryClient.clear();
+        queryClient.setQueryData(['/api/auth/me'], null);
         setUser(null);
         toast({
           title: "Logout Successful",

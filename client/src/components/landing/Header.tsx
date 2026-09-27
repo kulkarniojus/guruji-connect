@@ -64,7 +64,9 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      const res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error('Logout failed');
+      queryClient.clear();
       queryClient.setQueryData(['/api/auth/me'], null);
       toast({ title: 'Logged out successfully' });
       setLocation('/');
