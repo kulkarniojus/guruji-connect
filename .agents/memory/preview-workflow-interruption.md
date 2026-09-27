@@ -1,10 +1,10 @@
 ---
-name: Preview workflow interruption
-description: Distinguishing intermittent development URL 502s from app failures
+name: Preview startup collision
+description: Why development Preview intermittently showed 502 despite an apparently running app
 ---
 
-The development URL can return 502 when the workspace workflow unexpectedly becomes not started, even though the published app remains healthy. A page may load initially, then fail after the workflow disappears.
+The development URL can return 502 even when the published app works and a workflow claims to be running. Check for *more than one* dev server process trying to own the same port, not just the workflow state.
 
-**Why:** During investigation, the preview host returned 200 while the workflow was running and 502 immediately when it became not started. The server printed no application crash before the interruption. On another occurrence, even a reported successful restart was followed immediately by `not_started`, and workspace operations reported unexpected server disconnections while the published site remained healthy.
+**Why:** The app started twice through overlapping workspace startup paths. One process bound the web port while the other logged `EADDRINUSE` but stayed alive because uncaught exceptions were marked non-fatal. Workflow restarts could stop the listening process and leave a non-listening duplicate behind; restarting alone could not reliably resolve it.
 
-**How to apply:** For a preview-only 502, check current workflow state and local port before changing app code. If the workflow disappears without a crash log while the workspace is active, treat it as a workspace/runtime interruption rather than attributing it to a browser component. Avoid repeated restart loops when the tooling itself disconnects. A published app runs separately.
+**How to apply:** For a preview-only 502, check workflow state, port response, logs, and the number of dev-server processes. Keep a single startup path and ensure port bind failures terminate cleanly. Do not diagnose an account or browser issue from the generic error page alone; production runs separately.

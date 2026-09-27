@@ -83,10 +83,13 @@ app.use((req, res, next) => {
   }
 
   const port = 5000;
+  server.once("error", (error) => {
+    console.error(`Unable to start web server on port ${port}:`, error);
+    process.exit(1);
+  });
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
   });
