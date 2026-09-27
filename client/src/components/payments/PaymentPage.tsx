@@ -7,11 +7,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, CheckCircle, QrCode, Copy, ExternalLink } from 'lucide-react';
 
 interface PaymentPageProps {
-  bookingId: number;
   amount: number;
   pujaName: string;
   onBack: () => void;
-  onSuccess: () => void;
+  onSuccess: () => Promise<void>;
 }
 
 interface PaymentSettings {
@@ -21,7 +20,7 @@ interface PaymentSettings {
   upiQrImageUrl: string | null;
 }
 
-export default function PaymentPage({ bookingId, amount, pujaName, onBack, onSuccess }: PaymentPageProps) {
+export default function PaymentPage({ amount, pujaName, onBack, onSuccess }: PaymentPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const { toast } = useToast();
@@ -38,7 +37,7 @@ export default function PaymentPage({ bookingId, amount, pujaName, onBack, onSuc
   const handleProceed = async () => {
     try {
       setIsLoading(true);
-      onSuccess();
+      await onSuccess();
     } catch (error) {
       toast({
         title: 'Error processing booking',

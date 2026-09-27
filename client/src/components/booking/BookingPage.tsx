@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import { CalendarIcon, Clock, MapPin, User, ArrowRight, CreditCard, Calendar as 
 import { BookingProgressIndicator, BookingStep } from './BookingProgressIndicator';
 import PaymentPage from '@/components/payments/PaymentPage';
 import LoginModal from '@/components/auth/LoginModal';
+import { clearBookingDraft, readBookingDraft, saveBookingDraft } from './bookingDraft';
 
 function bookingDateTime(date: Date, time: string): Date {
   const match = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time);
@@ -33,6 +34,8 @@ function bookingDateTime(date: Date, time: string): Date {
 export default function BookingPage() {
   // Parse query parameters
   const searchParams = new URLSearchParams(window.location.search);
+  const bookingUrl = window.location.pathname + window.location.search;
+  const [savedDraft] = useState(() => readBookingDraft(bookingUrl));
   const initialType = searchParams.get('type') || 'offline';
   const initialPujaId = searchParams.get('puja') || '';
   const initialPujaName = searchParams.get('pujaName') || '';
@@ -49,17 +52,17 @@ export default function BookingPage() {
   });
 
   // State for the booking form
-  const [activeStep, setActiveStep] = useState<number>(1);
-  const [bookingType, setBookingType] = useState<'offline' | 'online' | 'consultation'>(initialType as any);
-  const [consultationType, setConsultationType] = useState<'own_guruji' | 'auto_select' | 'immediate'>('auto_select');
-  const [gurujiSelectionMode, setGurujiSelectionMode] = useState<'specific' | 'auto_nearby'>('specific');
-  const [selectedPujaId, setSelectedPujaId] = useState<string>(initialPujaId);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
-  const [selectedTime, setSelectedTime] = useState<string>('');
-  const [selectedCity, setSelectedCity] = useState<string>(initialCity);
-  const [address, setAddress] = useState<string>('');
-  const [pincode, setPincode] = useState<string>('');
-  const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
+  const [activeStep, setActiveStep] = useState<number>(savedDraft?.activeStep ?? 1);
+  const [bookingType, setBookingType] = useState<'offline' | 'online' | 'consultation'>(savedDraft?.bookingType ?? initialType as any);
+  const [consultationType, setConsultationType] = useState<'own_guruji' | 'auto_select' | 'immediate'>(savedDraft?.consultationType ?? 'auto_select');
+  const [gurujiSelectionMode, setGurujiSelectionMode] = useState<'specific' | 'auto_nearby'>(savedDraft?.gurujiSelectionMode ?? 'specific');
+  const [selectedPujaId, setSelectedPujaId] = useState<string>(savedDraft?.selectedPujaId ?? initialPujaId);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(savedDraft?.selectedDate ? new Date(`${savedDraft.selectedDate}T12:00:00`) : initialDate);
+  const [selectedTime, setSelectedTime] = useState<string>(savedDraft?.selectedTime ?? '');
+  const [selectedCity, setSelectedCity] = useState<string>(savedDraft?.selectedCity ?? initialCity);
+  const [address, setAddress] = useState<string>(savedDraft?.address ?? '');
+  const [pincode, setPincode] = useState<string>(savedDraft?.pincode ?? '');
+  const [selectedGurujiId, setSelectedGurujiId] = useState<string>(savedDraft?.selectedGurujiId ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   
@@ -108,9 +111,14 @@ export default function BookingPage() {
     enabled: shouldFetchGurujis && !isGurujiLoading && !isGurujiError && gurujis.length === 0,
   });
 
+  const selectionKey = [selectedCity, selectedPujaId, selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', selectedTime].join('|');
+  const previousSelectionKey = useRef(selectionKey);
   useEffect(() => {
-    setSelectedGurujiId('');
-  }, [gurujiQueryUrl]);
+    if (previousSelectionKey.current !== selectionKey) {
+      setSelectedGurujiId('');
+      previousSelectionKey.current = selectionKey;
+    }
+  }, [selectionKey]);
 
   // Time slots that can be selected
   const timeSlots = [
@@ -154,7 +162,17 @@ export default function BookingPage() {
   };
 
   // Calculate booking amount based on type and consultation type
-  const [withSamagri, setWithSamagri] = useState(false);
+  const [withSamagri, setWithSamagri] = useState(savedDraft?.withSamagri ?? false);
+
+  const goToRegistration = () => {
+    saveBookingDraft({
+      returnTo: bookingUrl, activeStep, bookingType, consultationType, gurujiSelectionMode,
+      selectedPujaId, selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '',
+      selectedTime, selectedCity, address, pincode, selectedGurujiId, withSamagri,
+    });
+    setShowLoginModal(false);
+    setLocation(`/register?returnTo=${encodeURIComponent(bookingUrl)}`);
+  };
 
   const calculateAmount = () => {
     if (!selectedPuja) return 0;
@@ -275,6 +293,7 @@ export default function BookingPage() {
 
       const response = await apiRequest('POST', '/api/bookings', bookingData);
       const data = await response.json();
+      if (typeof data.id !== 'number') throw new Error('Booking response did not include an ID');
 
       // Invalidate bookings cache to refresh the dashboard
       queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
@@ -285,8 +304,8 @@ export default function BookingPage() {
         description: "Your booking has been placed successfully",
       });
 
-      // Redirect to dashboard
-      setLocation('/dashboard');
+      clearBookingDraft();
+      setLocation(`/booking/${data.id}`);
     } catch (error) {
       console.error('Booking error:', error);
       if (String(error).includes('409:')) {
@@ -850,13 +869,10 @@ export default function BookingPage() {
 
       {activeStep === 4 && selectedPuja && (
         <PaymentPage 
-          bookingId={0} // This will be populated after booking is created
           amount={calculateAmount()}
           pujaName={selectedPuja.name}
           onBack={handlePreviousStep}
-          onSuccess={() => {
-            handleSubmitBooking(); // Create the booking when payment is successful
-          }}
+          onSuccess={handleSubmitBooking}
         />
       )}
 
@@ -868,10 +884,10 @@ export default function BookingPage() {
           // If user still not logged in after closing, go back to step 3
           if (!user) setActiveStep(3);
         }}
-        onRegisterClick={() => setShowLoginModal(false)}
+        onRegisterClick={goToRegistration}
         onLoginSuccess={() => {
           setShowLoginModal(false);
-          // Stay on step 4 (payment) — user is now logged in
+          setActiveStep(4);
         }}
       />
     </div>

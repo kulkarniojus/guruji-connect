@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
@@ -32,6 +31,8 @@ interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLoginClick: () => void;
+  standalone?: boolean;
+  onRegistrationSuccess?: (user: any) => void;
 }
 
 // Multi-select Dropdown Component for Cities (Max 2)
@@ -238,7 +239,7 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export default function RegisterModal({ isOpen, onClose, onLoginClick }: RegisterModalProps) {
+export default function RegisterModal({ isOpen, onClose, onLoginClick, standalone = false, onRegistrationSuccess }: RegisterModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedPujas, setSelectedPujas] = useState<string[]>([]);
@@ -298,16 +299,19 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
           title: 'Registration Successful!',
           description: `Welcome to GurujiConnect, ${result.user.firstName}!`,
         });
-        onClose();
         form.reset();
         setSelectedCities([]);
         setSelectedPujas([]);
 
-        // Redirect based on role
-        if (result.user.role === 'admin') {
-          setLocation('/admin-dashboard');
+        if (onRegistrationSuccess) {
+          onRegistrationSuccess(result.user);
         } else {
-          setLocation('/dashboard');
+          onClose();
+          if (result.user.role === 'admin') {
+            setLocation('/admin-dashboard');
+          } else {
+            setLocation('/dashboard');
+          }
         }
       } else {
         toast({
@@ -332,16 +336,15 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
     onClose();
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={handleCancel}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col bg-white border border-gray-200">
-        <DialogHeader className="bg-white border-b border-gray-100 pb-4">
-          <DialogTitle className="text-xl font-semibold text-gray-900">
-            Create Your Account
-          </DialogTitle>
-        </DialogHeader>
+  const content = (
+    <>
+        <div className="bg-white border-b border-gray-100 pb-4">
+          {standalone
+            ? <h1 className="text-xl font-semibold text-gray-900">Create Your Account</h1>
+            : <DialogTitle className="text-xl font-semibold text-gray-900">Create Your Account</DialogTitle>}
+        </div>
         
-        <div className="mt-4 flex-1 overflow-y-auto pr-2 bg-white" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+        <div className="mt-4 flex-1 overflow-y-auto pr-2 bg-white" style={standalone ? undefined : { maxHeight: 'calc(90vh - 120px)' }}>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <FormField
@@ -730,6 +733,19 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick }: Registe
             </Button>
           </p>
         </div>
+    </>
+  );
+
+  if (standalone) {
+    return <main className="min-h-screen bg-neutral-50 px-4 py-8">
+      <div className="mx-auto max-w-3xl rounded-lg border border-gray-200 bg-white p-5 sm:p-8 shadow-sm">{content}</div>
+    </main>;
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleCancel}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col bg-white border border-gray-200">
+        {content}
       </DialogContent>
     </Dialog>
   );

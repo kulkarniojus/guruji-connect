@@ -4,6 +4,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Booking from "@/pages/Booking";
+import Register from "@/pages/Register";
 import BookingDetail from "@/pages/BookingDetail";
 import MyBookings from "@/pages/MyBookings";
 import Profile from "@/pages/Profile";
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/booking">
         <ProtectedRoute component={Booking} />
       </Route>
+      <Route path="/register" component={Register} />
       <Route path="/booking/:id">
         <ProtectedRoute component={BookingDetail} />
       </Route>
