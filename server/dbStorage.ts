@@ -1750,7 +1750,7 @@ export class DBStorage implements IStorage {
   }
 
   async getAllBookings(): Promise<Booking[]> {
-    const result = await pool.query(`SELECT * FROM bookings`);
+    const result = await pool.query(`SELECT * FROM bookings ORDER BY "createdAt" DESC NULLS LAST, id DESC`);
     return result.rows.map(row => this.mapBookingFromDb(row));
   }
 

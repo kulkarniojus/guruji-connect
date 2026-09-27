@@ -29,7 +29,7 @@ export default function BookingManagementTab() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: bookings = [], isLoading, refetch } = useQuery<any[]>({
+  const { data: bookings = [], isLoading, isError, refetch } = useQuery<any[]>({
     queryKey: ['/api/admin/bookings'],
     queryFn: async () => {
       const res = await fetch('/api/admin/bookings', { credentials: 'include' });
@@ -87,6 +87,9 @@ export default function BookingManagementTab() {
       String(b.id).includes(search);
     const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    const dateDifference = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    return Number.isFinite(dateDifference) && dateDifference !== 0 ? dateDifference : b.id - a.id;
   });
 
   const stats = {
@@ -155,6 +158,10 @@ export default function BookingManagementTab() {
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        </div>
+      ) : isError ? (
+        <div role="alert" className="text-center py-16 text-red-700 border rounded-lg">
+          Bookings could not be loaded. Please try Refresh.
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground border rounded-lg">
