@@ -512,20 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/gurujis', async (req: Request, res: Response) => {
     try {
       const { city, pujaId, specialization, date, time } = req.query;
-      
-      console.log('Guruji filter params:', { city, pujaId, specialization });
-      
-      // Get all gurujis filtered by city and puja specialization
-      // In development, show both pending and approved to enable testing
-      const gurujis = await storageInstance.getGurujisByFilters({
-        city: city as string,
-        pujaId: pujaId ? parseInt(pujaId as string) : undefined,
-        specialization: specialization as string,
-        // Show all gurujis regardless of status for testing/demo purposes
-      });
-      
-      console.log('Gurujis found:', gurujis.length);
-      
+      let schedule: { date: string; time: string; duration: number } | undefined;
       if (date !== undefined || time !== undefined) {
         const requestedDate = String(date || '');
         const requestedTime = String(time || '');
@@ -535,12 +522,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: 'A valid date, time and puja are required' });
         }
         const puja = await storageInstance.getPuja(requestedPujaId);
-        if (!puja || !Number.isInteger(puja.duration) || puja.duration < 0) {
+        if (!puja || !Number.isInteger(puja.duration) || puja.duration < 0 || puja.duration > 1440) {
           return res.status(400).json({ message: 'Puja duration is not configured' });
         }
-        const busy = await getBusyGurujiIds(gurujis.map(g => g.id), requestedDate, requestedTime, puja.duration);
-        return res.json(gurujis.map(g => ({ ...g, isBusy: busy.has(g.id) })));
+        schedule = { date: requestedDate, time: requestedTime, duration: puja.duration };
       }
+
+      // Preserve the approved, verified, city and puja checks while excluding
+      // specialists occupied for the full requested service duration.
+      const gurujis = await storageInstance.getGurujisByFilters({
+        city: city as string,
+        pujaId: pujaId ? parseInt(pujaId as string) : undefined,
+        specialization: specialization as string,
+        ...schedule,
+      });
       res.json(gurujis);
     } catch (error) {
       console.error('Error fetching gurujis:', error);
@@ -1449,6 +1444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         state: z.string().optional(),
         pincode: z.string().optional(),
         time: z.string(),
+        calendarDate: z.string().optional(),
         date: z.string().refine((val) => !isNaN(Date.parse(val)), {
           message: "Invalid date format",
         }),
@@ -1458,7 +1454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gurujiId: z.number().optional(),
       }).parse(req.body);
 
-      const dateKey = bookingData.date.slice(0, 10);
+      const dateKey = bookingData.calendarDate || bookingData.date.slice(0, 10);
       if (!validBookingDate(dateKey) || parseBookingTime(bookingData.time) === null) {
         return res.status(400).json({ message: 'A valid booking date and time are required' });
       }

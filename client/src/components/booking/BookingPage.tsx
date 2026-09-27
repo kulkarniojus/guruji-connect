@@ -21,6 +21,14 @@ import { BookingProgressIndicator, BookingStep } from './BookingProgressIndicato
 import PaymentPage from '@/components/payments/PaymentPage';
 import LoginModal from '@/components/auth/LoginModal';
 
+function bookingDateTime(date: Date, time: string): Date {
+  const match = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time);
+  if (!match) throw new Error('Invalid booking time');
+  const result = new Date(date);
+  result.setHours(Number(match[1]) % 12 + (match[3] === 'PM' ? 12 : 0), Number(match[2]), 0, 0);
+  return result;
+}
+
 // This component handles different booking types: offline, online puja, and consultation
 export default function BookingPage() {
   // Parse query parameters
@@ -81,17 +89,28 @@ export default function BookingPage() {
   const selectedPuja = Array.isArray(pujas) ? pujas.find((p: any) => p.id.toString() === selectedPujaId) : null;
 
   // Build guruji query URL with filters
-  const gurujiQueryUrl = `/api/gurujis?city=${encodeURIComponent(selectedCity || '')}&pujaId=${selectedPujaId || ''}&specialization=${encodeURIComponent(selectedPuja?.name || '')}&date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}&time=${encodeURIComponent(selectedTime)}`;
+  const gurujiBaseUrl = `/api/gurujis?city=${encodeURIComponent(selectedCity || '')}&pujaId=${selectedPujaId || ''}&specialization=${encodeURIComponent(selectedPuja?.name || '')}`;
+  const selectedCalendarDate = selectedDate && selectedTime ? format(selectedDate, 'yyyy-MM-dd') : undefined;
+  const gurujiQueryUrl = selectedCalendarDate
+    ? `${gurujiBaseUrl}&date=${selectedCalendarDate}&time=${encodeURIComponent(selectedTime)}&duration=${encodeURIComponent(String(selectedPuja?.duration || 120))}`
+    : gurujiBaseUrl;
+  const shouldFetchGurujis = !!selectedPujaId && !!selectedCity && !!selectedCalendarDate && !!selectedPuja &&
+    activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji'));
   
-  // Keep busy Gurujis visible, but mark them read-only for this date and time.
+  // Fetch only Gurujis free for the whole service, then distinguish a full
+  // schedule from a city/service with no matching specialist.
   const { data: gurujis = [], isLoading: isGurujiLoading, isError: isGurujiError } = useQuery<any[]>({
     queryKey: [gurujiQueryUrl],
-    enabled: !!selectedPujaId && !!selectedCity && !!selectedDate && !!selectedTime && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
+    enabled: shouldFetchGurujis,
+  });
+  const { data: matchingGurujis, isLoading: isMatchingLoading, isError: isMatchingError } = useQuery<any[]>({
+    queryKey: [gurujiBaseUrl],
+    enabled: shouldFetchGurujis && !isGurujiLoading && !isGurujiError && gurujis.length === 0,
   });
 
   useEffect(() => {
     setSelectedGurujiId('');
-  }, [selectedPujaId, selectedCity, selectedDate, selectedTime]);
+  }, [gurujiQueryUrl]);
 
   // Time slots that can be selected
   const timeSlots = [
@@ -197,14 +216,14 @@ export default function BookingPage() {
         });
         return;
       }
-    } else if (activeStep === 3 && gurujiSelectionMode === 'specific' &&
-               (bookingType === 'offline' || consultationType === 'own_guruji')) {
-      if (isGurujiLoading || isGurujiError || !gurujis.some(g => g.id.toString() === selectedGurujiId && !g.isBusy)) {
-        toast({ title: 'Select an available Guruji', description: 'Busy Gurujis cannot be booked at this time.', variant: 'destructive' });
-        return;
-      }
     }
 
+    if (activeStep === 3 && gurujiSelectionMode === 'specific' &&
+        (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')) &&
+        (!selectedGurujiId || !gurujis.some((guruji: any) => String(guruji.id) === selectedGurujiId))) {
+      toast({ title: 'Please select an available Guruji', description: 'Choose a Guruji for the selected date and time.', variant: 'destructive' });
+      return;
+    }
     setActiveStep(prev => prev + 1);
   };
 
@@ -225,6 +244,9 @@ export default function BookingPage() {
     try {
       setIsSubmitting(true);
 
+      // Format date and time for API
+      const dateTime = bookingDateTime(selectedDate!, selectedTime);
+
       // Create booking data with correct TypeScript interface
       const bookingData: any = {
         pujaId: parseInt(selectedPujaId),
@@ -233,9 +255,10 @@ export default function BookingPage() {
         city: selectedCity,
         address: address,
         pincode: pincode || undefined,
-        date: format(selectedDate!, 'yyyy-MM-dd'),
+        date: dateTime.toISOString(),
+        calendarDate: format(selectedDate!, 'yyyy-MM-dd'),
         time: selectedTime,
-        duration: selectedPuja?.duration,
+        duration: selectedPuja?.duration || 120,
         notes: '',
         isImmediate: bookingType === 'consultation' && consultationType === 'immediate',
       };
@@ -655,27 +678,28 @@ export default function BookingPage() {
                 {/* Show guruji list only in specific mode */}
                 {gurujiSelectionMode === 'specific' && (
                   <div>
-                    {isGurujiLoading ? (
+                     {isGurujiLoading || (gurujis.length === 0 && isMatchingLoading) ? (
                       <div className="flex justify-center p-8">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
-                    ) : isGurujiError ? (
-                      <p className="text-center py-8 text-red-700" role="alert">Could not check Guruji availability. Please try again.</p>
+                     ) : isGurujiError || isMatchingError ? (
+                       <div className="text-center py-8 text-red-700" role="alert">
+                         Unable to check Guruji availability. Please try again.
+                       </div>
                     ) : gurujis && gurujis.length > 0 ? (
                       <div className="space-y-4">
                         {gurujis.map((guruji) => (
                       <div
                         key={guruji.id}
                         role="button"
-                        aria-disabled={guruji.isBusy}
                         aria-pressed={selectedGurujiId === guruji.id.toString()}
-                        tabIndex={guruji.isBusy ? -1 : 0}
-                        className={`border rounded-lg p-4 transition-colors ${guruji.isBusy ? 'opacity-65 cursor-not-allowed bg-neutral-50' : 'cursor-pointer hover:border-primary'} ${
+                        tabIndex={0}
+                        className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors ${
                           selectedGurujiId === guruji.id.toString() ? 'border-primary bg-primary-50' : ''
                         }`}
-                        onClick={() => { if (!guruji.isBusy) setSelectedGurujiId(guruji.id.toString()); }}
+                        onClick={() => setSelectedGurujiId(guruji.id.toString())}
                         onKeyDown={(event) => {
-                          if (!guruji.isBusy && (event.key === 'Enter' || event.key === ' ')) {
+                          if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
                             setSelectedGurujiId(guruji.id.toString());
                           }
@@ -689,9 +713,7 @@ export default function BookingPage() {
                             <div className="flex justify-between">
                               <h3 className="font-medium">Pandit {guruji.firstName} {guruji.lastName}</h3>
                               <div className="flex items-center">
-                                <Badge variant={guruji.isBusy ? 'secondary' : 'default'} className="mr-2">
-                                  {guruji.isBusy ? 'Busy at this time' : 'Available'}
-                                </Badge>
+                                <Badge variant="default" className="mr-2">Available</Badge>
                                 {guruji.totalReviews > 0 ? (
                                   <>
                                     <Star className="h-4 w-4 text-yellow-400 fill-current" />
@@ -718,10 +740,13 @@ export default function BookingPage() {
                     <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <UserX className="h-8 w-8 text-neutral-400" />
                     </div>
-                    <h3 className="text-lg font-medium mb-2">No Gurujis available</h3>
+                     <h3 className="text-lg font-medium mb-2">
+                       {matchingGurujis?.length ? 'No available time slots' : 'No matching Gurujis'}
+                     </h3>
                     <p className="text-neutral-600">
-                      There are no Gurujis available in the selected location for the chosen service.
-                      Please try a different location or date.
+                       {matchingGurujis?.length
+                         ? 'Matching Gurujis are booked at this date and time. Please try a different date or time.'
+                         : 'There are no approved Gurujis in the selected location for this service. Please try a different location or service.'}
                     </p>
                   </div>
                 )}

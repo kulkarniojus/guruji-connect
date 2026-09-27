@@ -1585,6 +1585,9 @@ export class DBStorage implements IStorage {
     pujaId?: number;
     specialization?: string;
     status?: string;
+    date?: string;
+    time?: string;
+    duration?: number;
   }): Promise<GurujiProfile[]> {
     try {
       const status = filters.status || 'approved';
@@ -1644,6 +1647,30 @@ export class DBStorage implements IStorage {
         )`;
         values.push(filters.specialization.trim());
         paramIndex++;
+      }
+
+      // Confirmed bookings occupy their saved duration (or the booked puja's
+      // duration for older records). Match the booking submission check.
+      // The live bookings table stores a calendar date and a separate
+      // twelve-hour time string; compare local calendar times, not UTC dates.
+      if (filters.date && filters.time && filters.duration !== undefined) {
+        query += ` AND NOT EXISTS (
+          SELECT 1 FROM bookings b
+          LEFT JOIN pujas booked_puja ON booked_puja.id = b."pujaId"
+          CROSS JOIN LATERAL (
+            SELECT CASE
+              WHEN b.time ~ '^(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$'
+                THEN to_timestamp(to_char(b.date, 'YYYY-MM-DD') || ' ' || b.time, 'YYYY-MM-DD HH12:MI AM')::timestamp
+              ELSE b.date::timestamp
+            END AS starts_at
+          ) booked_slot
+          WHERE b."gurujiId" = gp.id
+            AND b.status::text IN ('confirmed', 'in_progress')
+            AND booked_slot.starts_at < to_timestamp($${paramIndex} || ' ' || $${paramIndex + 1}, 'YYYY-MM-DD HH12:MI AM')::timestamp + GREATEST($${paramIndex + 2}::integer, 1) * INTERVAL '1 minute'
+            AND booked_slot.starts_at + GREATEST(COALESCE(b.duration, booked_puja.duration, 120), 1) * INTERVAL '1 minute' > to_timestamp($${paramIndex} || ' ' || $${paramIndex + 1}, 'YYYY-MM-DD HH12:MI AM')::timestamp
+        )`;
+        values.push(filters.date, filters.time, filters.duration);
+        paramIndex += 3;
       }
 
       query += ` ORDER BY gp.rating DESC, gp."totalReviews" DESC`;
