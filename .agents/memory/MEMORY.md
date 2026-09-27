@@ -1,0 +1,1 @@
+- [Preview workflow interruption](preview-workflow-interruption.md) — preview-only 502 can mean the development workflow stopped without an app crash; check workflow state first.
