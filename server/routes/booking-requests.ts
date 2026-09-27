@@ -3,6 +3,8 @@ import { ZodError } from 'zod';
 import { fromZodError } from 'zod-validation-error';
 import { z } from 'zod';
 import { DBStorage } from '../dbStorage';
+import { pool } from '../db';
+import { getBusyGurujiIds, parseBookingTime } from '../bookingSchedule';
 
 const db = new DBStorage();
 
@@ -102,9 +104,41 @@ export async function respondToBookingRequest(req: Request, res: Response) {
     }
     
     if (response === 'accept') {
-      await db.updateBookingRequestStatus(requestId, 'accepted', message);
-      await db.assignGurujiToBooking(booking.id, bookingRequest.gurujiId);
-      await db.updateBookingStatus(booking.id, 'confirmed');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock(8158, $1)', [booking.id]);
+        await client.query('SELECT pg_advisory_xact_lock(8157, $1)', [bookingRequest.gurujiId]);
+        const latestBooking = await db.getBooking(booking.id);
+        const latestRequest = await db.getBookingRequest(requestId);
+        if (latestBooking?.status !== 'pending_approval' || latestRequest?.status !== 'pending') {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'This booking request is no longer open' });
+        }
+        const puja = booking.pujaId ? await db.getPuja(booking.pujaId) : undefined;
+        const date = new Date(booking.date).toISOString().slice(0, 10);
+        const scheduledTime = (booking as any).time as string | undefined;
+        if (!puja || !scheduledTime || parseBookingTime(scheduledTime) === null) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ message: 'Booking schedule is incomplete' });
+        }
+        const busy = await getBusyGurujiIds(
+          [bookingRequest.gurujiId], date, scheduledTime, booking.duration ?? puja.duration,
+        );
+        if (busy.has(bookingRequest.gurujiId)) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'You are already booked at this time' });
+        }
+        await db.updateBookingRequestStatus(requestId, 'accepted', message);
+        await db.assignGurujiToBooking(booking.id, bookingRequest.gurujiId);
+        await db.updateBookingStatus(booking.id, 'confirmed');
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
       
       const customer = await db.getUser(booking.customerId);
       const guruji = await db.getGurujiProfile(bookingRequest.gurujiId);

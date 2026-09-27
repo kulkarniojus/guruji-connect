@@ -4,6 +4,7 @@ import { Server as SocketServer } from "socket.io";
 import { storage, IStorage, MemStorage } from "./storage";
 import { DBStorage } from "./dbStorage";
 import { pool } from './db';
+import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingSchedule';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -229,6 +230,14 @@ async function resolvePujaNames(pujas: any[]): Promise<string[]> {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // The live bookings table predates the duration field in the shared schema.
+  // Snapshot the configured duration so later admin edits do not change
+  // the reserved length of bookings already placed.
+  await pool.query('ALTER TABLE bookings ADD COLUMN IF NOT EXISTS duration INTEGER');
+  await pool.query(`
+    UPDATE bookings b SET duration = p.duration
+    FROM pujas p WHERE b."pujaId" = p.id AND b.duration IS NULL
+  `);
   // Initialize admin user and app settings
   await initializeAdminUser();
   await initializeAppSettings();
@@ -502,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gurujis Listing Route (for booking page)
   app.get('/api/gurujis', async (req: Request, res: Response) => {
     try {
-      const { city, pujaId, specialization } = req.query;
+      const { city, pujaId, specialization, date, time } = req.query;
       
       console.log('Guruji filter params:', { city, pujaId, specialization });
       
@@ -517,6 +526,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Gurujis found:', gurujis.length);
       
+      if (date !== undefined || time !== undefined) {
+        const requestedDate = String(date || '');
+        const requestedTime = String(time || '');
+        const requestedPujaId = Number(pujaId);
+        if (!validBookingDate(requestedDate) || parseBookingTime(requestedTime) === null ||
+            !Number.isInteger(requestedPujaId) || requestedPujaId <= 0) {
+          return res.status(400).json({ message: 'A valid date, time and puja are required' });
+        }
+        const puja = await storageInstance.getPuja(requestedPujaId);
+        if (!puja || !Number.isInteger(puja.duration) || puja.duration < 0) {
+          return res.status(400).json({ message: 'Puja duration is not configured' });
+        }
+        const busy = await getBusyGurujiIds(gurujis.map(g => g.id), requestedDate, requestedTime, puja.duration);
+        return res.json(gurujis.map(g => ({ ...g, isBusy: busy.has(g.id) })));
+      }
       res.json(gurujis);
     } catch (error) {
       console.error('Error fetching gurujis:', error);
@@ -1284,11 +1308,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create a new puja
-  app.post("/api/pujas", async (req: Request, res: Response) => {
-    // TODO: Re-enable authentication in production
-    // For development, we're allowing pujas to be created without auth
-    // isAuthenticated, checkRole(["admin"]), 
+  app.post("/api/pujas", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
+      z.object({ duration: z.number().int().min(0).max(1440) }).parse(req.body);
       const pujaData = req.body;
       console.log("Creating new puja:", pujaData);
       const newPuja = await storageInstance.createPuja(pujaData);
@@ -1296,16 +1318,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(newPuja);
     } catch (error) {
       console.error("Error creating puja:", error);
+      if (error instanceof ZodError) return res.status(400).json({ message: 'A duration from 0 to 24 hours is required' });
       res.status(500).json({ message: "Failed to create puja" });
     }
   });
   
   // Update an existing puja
-  app.put("/api/pujas/:id", async (req: Request, res: Response) => {
-    // TODO: Re-enable authentication in production
-    // For development, we're allowing pujas to be updated without auth
-    // isAuthenticated, checkRole(["admin"]), 
+  app.put("/api/pujas/:id", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
+      if ('duration' in req.body) {
+        z.object({ duration: z.number().int().min(0).max(1440) }).parse(req.body);
+      }
       const id = parseInt(req.params.id);
       const pujaData = req.body;
       console.log("Updating puja:", id, pujaData);
@@ -1317,15 +1340,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedPuja);
     } catch (error) {
       console.error("Error updating puja:", error);
+      if (error instanceof ZodError) return res.status(400).json({ message: 'Duration must be from 0 to 24 hours' });
       res.status(500).json({ message: "Failed to update puja" });
     }
   });
   
   // Delete a puja
-  app.delete("/api/pujas/:id", async (req: Request, res: Response) => {
-    // TODO: Re-enable authentication in production
-    // For development, we're allowing pujas to be deleted without auth
-    // isAuthenticated, checkRole(["admin"]), 
+  app.delete("/api/pujas/:id", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       console.log("Deleting puja:", id);
@@ -1427,30 +1448,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         city: z.string().optional(),
         state: z.string().optional(),
         pincode: z.string().optional(),
-        time: z.string().optional(),
+        time: z.string(),
         date: z.string().refine((val) => !isNaN(Date.parse(val)), {
           message: "Invalid date format",
         }),
-        duration: z.number().positive().optional(),
+        duration: z.number().nonnegative().optional(),
         isImmediate: z.boolean().default(false),
         notes: z.string().optional(),
         gurujiId: z.number().optional(),
       }).parse(req.body);
 
-      const date = new Date(bookingData.date);
-      
-      // Create booking
-      const booking = await storageInstance.createBooking({
+      const dateKey = bookingData.date.slice(0, 10);
+      if (!validBookingDate(dateKey) || parseBookingTime(bookingData.time) === null) {
+        return res.status(400).json({ message: 'A valid booking date and time are required' });
+      }
+      const puja = await storageInstance.getPuja(bookingData.pujaId);
+      if (!puja || !Number.isInteger(puja.duration) || puja.duration < 0 || puja.duration > 1440) {
+        return res.status(400).json({ message: 'Puja duration is not configured' });
+      }
+      const date = new Date(`${dateKey}T12:00:00.000Z`);
+      const createBooking = () => storageInstance.createBooking({
         customerId: userId,
         ...bookingData,
+        duration: puja.duration,
         date,
         city: bookingData.city || '',
       } as any);
+      let booking;
 
       // If a specific guruji was selected, directly confirm the booking — no accept/decline needed
       if (bookingData.gurujiId) {
-        await storageInstance.assignGurujiToBooking(booking.id, bookingData.gurujiId);
-        await storageInstance.updateBookingStatus(booking.id, 'confirmed');
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query('SELECT pg_advisory_xact_lock(8157, $1)', [bookingData.gurujiId]);
+          const matches = await storageInstance.getGurujisByFilters({
+            city: bookingData.city, pujaId: bookingData.pujaId,
+          });
+          if (!matches.some(g => g.id === bookingData.gurujiId)) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: 'This Guruji is no longer available for this puja or city' });
+          }
+          const busy = await getBusyGurujiIds([bookingData.gurujiId], dateKey, bookingData.time, puja.duration);
+          if (busy.has(bookingData.gurujiId)) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: 'This Guruji is busy at the selected time. Please choose another Guruji or time.' });
+          }
+          booking = await createBooking();
+          await storageInstance.assignGurujiToBooking(booking.id, bookingData.gurujiId);
+          await client.query('COMMIT');
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
 
         const guruji = await storageInstance.getGurujiProfile(bookingData.gurujiId);
         if (guruji) {
@@ -1471,6 +1523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } else {
+        booking = await createBooking();
         // Auto-search mode — send request to all nearby gurujis, first to accept gets the booking
         await notifyGurujisPujaRequest(booking, bookingData.city || '');
       }

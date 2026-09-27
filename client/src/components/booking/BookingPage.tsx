@@ -81,13 +81,17 @@ export default function BookingPage() {
   const selectedPuja = Array.isArray(pujas) ? pujas.find((p: any) => p.id.toString() === selectedPujaId) : null;
 
   // Build guruji query URL with filters
-  const gurujiQueryUrl = `/api/gurujis?city=${encodeURIComponent(selectedCity || '')}&pujaId=${selectedPujaId || ''}&specialization=${encodeURIComponent(selectedPuja?.name || '')}`;
+  const gurujiQueryUrl = `/api/gurujis?city=${encodeURIComponent(selectedCity || '')}&pujaId=${selectedPujaId || ''}&specialization=${encodeURIComponent(selectedPuja?.name || '')}&date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}&time=${encodeURIComponent(selectedTime)}`;
   
-  // Fetch available gurujis based on puja specialization
-  const { data: gurujis = [], isLoading: isGurujiLoading } = useQuery({
+  // Keep busy Gurujis visible, but mark them read-only for this date and time.
+  const { data: gurujis = [], isLoading: isGurujiLoading, isError: isGurujiError } = useQuery<any[]>({
     queryKey: [gurujiQueryUrl],
-    enabled: !!selectedPujaId && !!selectedCity && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
+    enabled: !!selectedPujaId && !!selectedCity && !!selectedDate && !!selectedTime && activeStep === 3 && (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
   });
+
+  useEffect(() => {
+    setSelectedGurujiId('');
+  }, [selectedPujaId, selectedCity, selectedDate, selectedTime]);
 
   // Time slots that can be selected
   const timeSlots = [
@@ -193,6 +197,12 @@ export default function BookingPage() {
         });
         return;
       }
+    } else if (activeStep === 3 && gurujiSelectionMode === 'specific' &&
+               (bookingType === 'offline' || consultationType === 'own_guruji')) {
+      if (isGurujiLoading || isGurujiError || !gurujis.some(g => g.id.toString() === selectedGurujiId && !g.isBusy)) {
+        toast({ title: 'Select an available Guruji', description: 'Busy Gurujis cannot be booked at this time.', variant: 'destructive' });
+        return;
+      }
     }
 
     setActiveStep(prev => prev + 1);
@@ -215,12 +225,6 @@ export default function BookingPage() {
     try {
       setIsSubmitting(true);
 
-      // Format date and time for API
-      const dateTime = new Date(selectedDate!);
-      const [hours, minutes, period] = selectedTime.split(/:|\s/);
-      const hour = parseInt(hours) + (period === 'PM' && hours !== '12' ? 12 : 0);
-      dateTime.setHours(hour, parseInt(minutes));
-
       // Create booking data with correct TypeScript interface
       const bookingData: any = {
         pujaId: parseInt(selectedPujaId),
@@ -229,9 +233,9 @@ export default function BookingPage() {
         city: selectedCity,
         address: address,
         pincode: pincode || undefined,
-        date: dateTime.toISOString(),
+        date: format(selectedDate!, 'yyyy-MM-dd'),
         time: selectedTime,
-        duration: selectedPuja?.duration || 120,
+        duration: selectedPuja?.duration,
         notes: '',
         isImmediate: bookingType === 'consultation' && consultationType === 'immediate',
       };
@@ -262,9 +266,13 @@ export default function BookingPage() {
       setLocation('/dashboard');
     } catch (error) {
       console.error('Booking error:', error);
+      if (String(error).includes('409:')) {
+        setActiveStep(3);
+        queryClient.invalidateQueries({ queryKey: [gurujiQueryUrl] });
+      }
       toast({
         title: "Booking failed",
-        description: "There was an error processing your booking. Please try again.",
+        description: String(error).includes('409:') ? "That Guruji is now busy. Please select another Guruji or time." : "There was an error processing your booking. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -651,15 +659,27 @@ export default function BookingPage() {
                       <div className="flex justify-center p-8">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
+                    ) : isGurujiError ? (
+                      <p className="text-center py-8 text-red-700" role="alert">Could not check Guruji availability. Please try again.</p>
                     ) : gurujis && gurujis.length > 0 ? (
                       <div className="space-y-4">
                         {gurujis.map((guruji) => (
                       <div
                         key={guruji.id}
-                        className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors ${
+                        role="button"
+                        aria-disabled={guruji.isBusy}
+                        aria-pressed={selectedGurujiId === guruji.id.toString()}
+                        tabIndex={guruji.isBusy ? -1 : 0}
+                        className={`border rounded-lg p-4 transition-colors ${guruji.isBusy ? 'opacity-65 cursor-not-allowed bg-neutral-50' : 'cursor-pointer hover:border-primary'} ${
                           selectedGurujiId === guruji.id.toString() ? 'border-primary bg-primary-50' : ''
                         }`}
-                        onClick={() => setSelectedGurujiId(guruji.id.toString())}
+                        onClick={() => { if (!guruji.isBusy) setSelectedGurujiId(guruji.id.toString()); }}
+                        onKeyDown={(event) => {
+                          if (!guruji.isBusy && (event.key === 'Enter' || event.key === ' ')) {
+                            event.preventDefault();
+                            setSelectedGurujiId(guruji.id.toString());
+                          }
+                        }}
                       >
                         <div className="flex items-start">
                           <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-primary mr-4">
@@ -669,6 +689,9 @@ export default function BookingPage() {
                             <div className="flex justify-between">
                               <h3 className="font-medium">Pandit {guruji.firstName} {guruji.lastName}</h3>
                               <div className="flex items-center">
+                                <Badge variant={guruji.isBusy ? 'secondary' : 'default'} className="mr-2">
+                                  {guruji.isBusy ? 'Busy at this time' : 'Available'}
+                                </Badge>
                                 {guruji.totalReviews > 0 ? (
                                   <>
                                     <Star className="h-4 w-4 text-yellow-400 fill-current" />

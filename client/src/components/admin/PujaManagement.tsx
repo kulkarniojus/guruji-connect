@@ -82,8 +82,9 @@ export default function PujaManagement() {
     isPopular: false,
     isActive: true,
     type: 'offline',
-    duration: 60,
+    duration: 120,
   });
+  const [durationHoursInput, setDurationHoursInput] = useState('2');
   const [itemsInput, setItemsInput] = useState('');
 
   const queryClient = useQueryClient();
@@ -351,9 +352,10 @@ export default function PujaManagement() {
       isPopular: false,
       isActive: true,
       type: 'offline',
-      duration: 60,
+      duration: 120,
     });
     setItemsInput('');
+    setDurationHoursInput('2');
     setSelectedPuja(null);
   };
 
@@ -362,7 +364,7 @@ export default function PujaManagement() {
     const { name, value } = e.target;
 
     // Handle number inputs
-    if (name === 'basePrice' || name === 'price' || name === 'duration') {
+    if (name === 'basePrice' || name === 'price') {
       setFormData(prev => ({
         ...prev,
         [name]: parseInt(value) || 0
@@ -419,6 +421,7 @@ export default function PujaManagement() {
       type: puja.type,
       duration: puja.duration,
     });
+    setDurationHoursInput(String(puja.duration / 60));
     setItemsInput(puja.items?.join(', ') || '');
     setIsEditDialogOpen(true);
   };
@@ -432,6 +435,12 @@ export default function PujaManagement() {
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const hours = Number(durationHoursInput);
+    if (!durationHoursInput.trim() || !Number.isFinite(hours) || hours < 0 || hours > 24 ||
+        !Number.isInteger(hours * 60)) {
+      toast({ title: 'Duration required', description: 'Enter a duration from 0 to 24 hours (0 only for exceptions).', variant: 'destructive' });
+      return;
+    }
 
     if (selectedPuja) {
       // Update existing puja
@@ -595,16 +604,22 @@ export default function PujaManagement() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="duration">Duration (minutes) *</Label>
+                  <Label htmlFor="duration">Booking duration (hours) *</Label>
                   <Input
                     id="duration"
-                    name="duration"
+                    name="durationHours"
                     type="number"
-                    value={formData.duration}
-                    onChange={handleInputChange}
+                    value={durationHoursInput}
+                    onChange={(e) => {
+                      setDurationHoursInput(e.target.value);
+                      if (e.target.value !== '') setFormData(prev => ({ ...prev, duration: Math.round(Number(e.target.value) * 60) }));
+                    }}
                     required
-                    min={1}
+                    min={0}
+                    max={24}
+                    step={0.25}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Required for every puja. Use 0 only for exceptional cases; it reserves only the selected starting minute.</p>
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="imageUrl">Image URL</Label>
@@ -751,16 +766,22 @@ export default function PujaManagement() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="edit-duration">Duration (minutes) *</Label>
+                  <Label htmlFor="edit-duration">Booking duration (hours) *</Label>
                   <Input
                     id="edit-duration"
-                    name="duration"
+                    name="durationHours"
                     type="number"
-                    value={formData.duration}
-                    onChange={handleInputChange}
+                    value={durationHoursInput}
+                    onChange={(e) => {
+                      setDurationHoursInput(e.target.value);
+                      if (e.target.value !== '') setFormData(prev => ({ ...prev, duration: Math.round(Number(e.target.value) * 60) }));
+                    }}
                     required
-                    min={1}
+                    min={0}
+                    max={24}
+                    step={0.25}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Use 0 only for exceptional cases; it reserves only the selected starting minute.</p>
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="edit-imageUrl">Image URL</Label>
