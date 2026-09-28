@@ -153,6 +153,26 @@ export class DBStorage implements IStorage {
       updateFields.push(`gender = $${paramIndex++}`);
       values.push(userData.gender);
     }
+
+    if (userData.address !== undefined) {
+      updateFields.push(`address = $${paramIndex++}`);
+      values.push(userData.address);
+    }
+
+    if (userData.city !== undefined) {
+      updateFields.push(`city = $${paramIndex++}`);
+      values.push(userData.city);
+    }
+
+    if (userData.state !== undefined) {
+      updateFields.push(`state = $${paramIndex++}`);
+      values.push(userData.state);
+    }
+
+    if (userData.pincode !== undefined) {
+      updateFields.push(`pincode = $${paramIndex++}`);
+      values.push(userData.pincode);
+    }
     
     if (userData.role !== undefined) {
       updateFields.push(`role = $${paramIndex++}`);

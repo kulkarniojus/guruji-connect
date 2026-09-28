@@ -1823,6 +1823,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/customers", isAuthenticated, checkRole(["admin"]), async (_req: Request, res: Response) => {
+    try {
+      const [allUsers, allBookings] = await Promise.all([
+        storageInstance.getAllUsers(),
+        storageInstance.getAllBookings(),
+      ]);
+      const bookingStats = new Map<number, { count: number; completed: number; latest: Date | null }>();
+      for (const booking of allBookings) {
+        const stats = bookingStats.get(booking.customerId) || { count: 0, completed: 0, latest: null };
+        stats.count += 1;
+        if (booking.status === 'completed') stats.completed += 1;
+        const createdAt = new Date(booking.createdAt || booking.date);
+        if (!stats.latest || createdAt > stats.latest) stats.latest = createdAt;
+        bookingStats.set(booking.customerId, stats);
+      }
+
+      const customers = allUsers.filter(user => user.role === 'customer').map(user => {
+        const missingFields = [
+          ['age', 'Age'], ['gender', 'Gender'], ['address', 'Address'],
+          ['city', 'City'], ['state', 'State'], ['pincode', 'Postal code'],
+        ].filter(([field]) => !String((user as any)[field] ?? '').trim()).map(([, label]) => label);
+        const stats = bookingStats.get(user.id);
+        return {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          mobile: user.mobile,
+          age: user.age,
+          gender: user.gender,
+          address: (user as any).address || '',
+          city: (user as any).city || '',
+          state: (user as any).state || '',
+          pincode: (user as any).pincode || '',
+          isBlocked: user.isBlocked,
+          createdAt: user.createdAt,
+          missingFields,
+          bookingCount: stats?.count || 0,
+          completedBookings: stats?.completed || 0,
+          latestBookingAt: stats?.latest,
+        };
+      });
+      res.json(customers);
+    } catch (error) {
+      console.error('Error fetching admin customers:', error);
+      res.status(500).json({ message: 'Failed to fetch customers' });
+    }
+  });
+
+  const customerProfileUpdateSchema = z.object({
+    firstName: z.string().trim().min(1).max(100),
+    lastName: z.string().trim().min(1).max(100),
+    email: z.string().trim().email().max(254),
+    mobile: z.string().trim().regex(/^\d{10}$/, 'Mobile number must be 10 digits'),
+    age: z.number().int().min(18).max(120),
+    gender: z.enum(['male', 'female', 'other']),
+    address: z.string().trim().max(300).nullable(),
+    city: z.string().trim().max(100).nullable(),
+    state: z.string().trim().max(100).nullable(),
+    pincode: z.string().trim().max(20).nullable(),
+  }).partial().strict().refine(data => Object.keys(data).length > 0, 'Provide at least one customer field');
+
+  app.put("/api/admin/customers/:id", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
+    try {
+      const id = z.coerce.number().int().positive().parse(req.params.id);
+      const fields = customerProfileUpdateSchema.parse(req.body);
+      const customer = await storageInstance.getUser(id);
+      if (!customer || customer.role !== 'customer') {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      const updated = await storageInstance.updateUser(id, {
+        ...fields,
+        email: fields.email?.toLowerCase(),
+      });
+      if (!updated) return res.status(404).json({ message: 'Customer not found' });
+      const { password: _password, ...safeCustomer } = updated;
+      res.json(safeCustomer);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid customer information', errors: fromZodError(error) });
+      }
+      if (error?.code === '23505') {
+        return res.status(409).json({ message: 'That email address or mobile number is already in use' });
+      }
+      console.error('Error updating customer:', error);
+      res.status(500).json({ message: 'Failed to update customer' });
+    }
+  });
+
+  app.put("/api/admin/customers/:id/status", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
+    try {
+      const id = z.coerce.number().int().positive().parse(req.params.id);
+      const { isBlocked } = z.object({ isBlocked: z.boolean() }).parse(req.body);
+      const customer = await storageInstance.getUser(id);
+      if (!customer || customer.role !== 'customer') {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      const updated = await storageInstance.updateUser(id, { isBlocked });
+      if (!updated) return res.status(404).json({ message: 'Customer not found' });
+      res.json({ id: updated.id, isBlocked: updated.isBlocked });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid customer status', errors: fromZodError(error) });
+      }
+      console.error('Error updating customer status:', error);
+      res.status(500).json({ message: 'Failed to update customer status' });
+    }
+  });
+
+  app.post("/api/admin/customers/:id/remind", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
+    try {
+      const id = z.coerce.number().int().positive().parse(req.params.id);
+      const customer = await storageInstance.getUser(id);
+      if (!customer || customer.role !== 'customer') {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      const fields: Array<[keyof typeof customer, string]> = [
+        ['age', 'Age'], ['gender', 'Gender'], ['address', 'Address'],
+        ['city', 'City'], ['state', 'State'], ['pincode', 'Postal code'],
+      ];
+      const missing = fields.filter(([field]) => !String(customer[field] ?? '').trim()).map(([, label]) => label);
+      if (missing.length === 0) {
+        return res.status(409).json({ message: 'This customer profile has no missing details' });
+      }
+      await storageInstance.createNotification({
+        userId: customer.id,
+        title: 'Please complete your profile',
+        message: `Please add the following missing details to your profile: ${missing.join(', ')}.`,
+        type: 'profile_reminder',
+      });
+      res.json({ message: 'In-app reminder sent', missingFields: missing });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid customer ID', errors: fromZodError(error) });
+      }
+      console.error('Error sending customer profile reminder:', error);
+      res.status(500).json({ message: 'Failed to send customer reminder' });
+    }
+  });
+
   app.put("/api/admin/users/:id/block", isAuthenticated, checkRole(["admin"]), async (req: Request, res: Response) => {
     try {
       const { id } = z.object({
