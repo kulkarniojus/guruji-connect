@@ -13,6 +13,7 @@ import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
 import BookingManagementTab from '@/components/admin/BookingManagementTab';
 import CancellationRulesTab from '@/components/admin/CancellationRulesTab';
 import CustomerQueriesTab from '@/components/admin/CustomerQueriesTab';
+import CustomersManagementTab from '@/components/admin/CustomersManagementTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle, Inbox } from 'lucide-react';
@@ -120,6 +121,10 @@ export default function AdminDashboard() {
             <Calendar className="h-4 w-4" />
             Bookings
           </TabsTrigger>
+          <TabsTrigger value="customers" className="flex items-center gap-1.5">
+            <Users className="h-4 w-4" />
+            Customers
+          </TabsTrigger>
           <TabsTrigger value="guruji-registrations" className="flex items-center gap-1.5">
             <UserCheck className="h-4 w-4" />
             Guruji
@@ -153,10 +158,6 @@ export default function AdminDashboard() {
             <HelpCircle className="h-4 w-4" />
             FAQ
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-1.5">
-            <Users className="h-4 w-4" />
-            Users
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics">
@@ -167,14 +168,12 @@ export default function AdminDashboard() {
           <CustomerQueriesTab />
         </TabsContent>
 
-        <TabsContent value="chatbot">
-          <ChatbotManagementTab />
+        <TabsContent value="customers">
+          <CustomersManagementTab />
         </TabsContent>
 
-        <TabsContent value="users">
-          <div className="p-6 border rounded-lg text-center">
-            <p className="text-muted-foreground">User management dashboard will appear here</p>
-          </div>
+        <TabsContent value="chatbot">
+          <ChatbotManagementTab />
         </TabsContent>
 
         <TabsContent value="bookings">

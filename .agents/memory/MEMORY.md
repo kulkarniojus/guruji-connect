@@ -3,3 +3,4 @@
 - [Booking schedule schema](booking-schedule-schema.md) — live booking storage uses a calendar date and separate text time, unlike the shared schema; check reality before schedule changes.
 - [Radix UI automation](radix-ui-automation.md) — use browser-native pointer clicks to open dropdowns in headless tests; synthetic element clicks may not trigger them.
 - [Booking payment and acceptance](booking-payment-acceptance.md) — require provider-verified payment before sending a request; payment alone never confirms a Guruji booking.
+- [Live user-table columns](user-table-column-mapping.md) — the connected users table has quoted camelCase columns that differ from shared-schema mappings; verify live columns before storage writes.
