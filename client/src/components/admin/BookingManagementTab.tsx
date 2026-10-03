@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { bookingStatusLabel } from '@shared/bookingLifecycle';
 import BookingProgressActions from '@/components/booking/BookingProgressActions';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, UserCheck, Send, Search, Calendar, MapPin, User, IndianRupee, RefreshCw } from 'lucide-react';
+import { Loader2, UserCheck, Send, Search, Calendar, MapPin, User, IndianRupee, RefreshCw, AlertTriangle } from 'lucide-react';
+import { isUnassignedBooking } from '@shared/isUnassignedBooking';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -22,7 +23,15 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-800',
 };
 
-export default function BookingManagementTab() {
+interface BookingManagementTabProps {
+  showUnassignedOnly?: boolean;
+  onUnassignedFilterChange?: (show: boolean) => void;
+}
+
+export default function BookingManagementTab({
+  showUnassignedOnly = false,
+  onUnassignedFilterChange,
+}: BookingManagementTabProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -30,6 +39,10 @@ export default function BookingManagementTab() {
   const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (showUnassignedOnly) setStatusFilter('all');
+  }, [showUnassignedOnly]);
 
   const { data: bookings = [], isLoading, isError, refetch } = useQuery<any[]>({
     queryKey: ['/api/admin/bookings'],
@@ -72,10 +85,11 @@ export default function BookingManagementTab() {
 
   const sendRequestsMutation = useMutation({
     mutationFn: async (bookingId: number) => {
-      return apiRequest('POST', `/api/admin/bookings/${bookingId}/send-requests`, {});
+      const response = await apiRequest('POST', `/api/admin/bookings/${bookingId}/send-requests`, {});
+      return response.json();
     },
     onSuccess: (data: any) => {
-      toast({ title: 'Requests sent', description: data.message || 'Booking requests sent to all verified gurujis.' });
+      toast({ title: 'Requests sent', description: data.message || 'Booking requests sent to eligible Gurujis in the selected location.' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/bookings'] });
     },
     onError: (err: any) => {
@@ -91,7 +105,8 @@ export default function BookingManagementTab() {
       b.gurujiName?.toLowerCase().includes(search.toLowerCase()) ||
       String(b.id).includes(search);
     const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesUnassigned = !showUnassignedOnly || isUnassignedBooking(b);
+    return matchesSearch && matchesStatus && matchesUnassigned;
   }).sort((a, b) => {
     const dateDifference = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     return Number.isFinite(dateDifference) && dateDifference !== 0 ? dateDifference : b.id - a.id;
@@ -102,7 +117,7 @@ export default function BookingManagementTab() {
     pending: bookings.filter((b) => ['pending', 'pending_approval'].includes(b.status)).length,
     confirmed: bookings.filter((b) => b.status === 'confirmed').length,
     completed: bookings.filter((b) => b.status === 'completed').length,
-    unassigned: bookings.filter((b) => !b.gurujiId).length,
+    unassigned: bookings.filter(isUnassignedBooking).length,
   };
 
   function openAssign(booking: any) {
@@ -120,7 +135,7 @@ export default function BookingManagementTab() {
           { label: 'Pending', value: stats.pending, color: 'text-yellow-600' },
           { label: 'Accepted by Guruji', value: stats.confirmed, color: 'text-blue-600' },
           { label: 'Completed', value: stats.completed, color: 'text-green-600' },
-          { label: 'Unassigned', value: stats.unassigned, color: 'text-red-600' },
+          { label: 'Active unassigned', value: stats.unassigned, color: 'text-red-600' },
         ].map((s) => (
           <Card key={s.label} className="text-center py-3 px-4">
             <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
@@ -154,6 +169,19 @@ export default function BookingManagementTab() {
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          variant={showUnassignedOnly ? 'default' : 'outline'}
+          className={showUnassignedOnly ? 'bg-amber-600 hover:bg-amber-700' : ''}
+          onClick={() => onUnassignedFilterChange?.(!showUnassignedOnly)}
+          aria-pressed={showUnassignedOnly}
+        >
+          <AlertTriangle className="mr-2 h-4 w-4" />
+          {showUnassignedOnly ? 'Showing unassigned' : 'Unassigned only'}
+          {stats.unassigned > 0 && (
+            <Badge className="ml-2 bg-red-600 text-white">{stats.unassigned}</Badge>
+          )}
+        </Button>
         <Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh">
           <RefreshCw className="h-4 w-4" />
         </Button>
@@ -176,11 +204,22 @@ export default function BookingManagementTab() {
         <ScrollArea className="h-[60vh]">
           <div className="space-y-3 pr-2">
             {filtered.map((booking) => (
-              <Card key={booking.id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={booking.id}
+                className={`hover:shadow-md transition-shadow ${isUnassignedBooking(booking) ? 'border-amber-300 bg-amber-50/40' : ''}`}
+              >
                 <CardContent className="pt-4 pb-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     {/* Left: booking info */}
                     <div className="flex-1 space-y-2">
+                      {isUnassignedBooking(booking) && (
+                        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-100/70 px-3 py-2 text-sm text-amber-950">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                          <span>
+                            <strong>Unassigned request.</strong> This puja still needs a Guruji. Sending a request does not mean it has been accepted.
+                          </span>
+                        </div>
+                      )}
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-sm">#{booking.id}</span>
                         <span className="font-medium">{booking.pujaName}</span>

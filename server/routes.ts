@@ -844,11 +844,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const booking = await storageInstance.getBooking(bookingId);
       if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
-      const allGurujis = await storageInstance.getAllGurujiProfiles();
-      const verifiedGurujis = allGurujis.filter((g: any) => g.aadharVerified && g.documentsVerified);
+      if (booking.gurujiId || !['pending', 'pending_approval'].includes(booking.status)) {
+        return res.status(409).json({ message: 'Only active unassigned bookings can be sent to Gurujis' });
+      }
+      const verifiedGurujis = await eligiblePujaRequestGurujis(booking, booking.city || '');
 
       if (verifiedGurujis.length === 0) {
-        return res.status(400).json({ message: 'No verified gurujis available to send requests to' });
+        return res.status(400).json({ message: 'No eligible Gurujis are currently available for this puja in the selected location' });
       }
 
       await storageInstance.updateBookingStatus(bookingId, 'pending_approval' as any);
@@ -2538,6 +2540,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `UPDATE bookings SET status = 'cancelled', cancellation_reason = $1, cancelled_by = $2, cancellation_charge = $3 WHERE id = $4`,
         [reason, userType, charge, bookingId]
       );
+      const { resolveUnassignedBookingAlerts } = await import('./unassignedBookingAlerts');
+      await resolveUnassignedBookingAlerts(bookingId);
 
       // Notify the other party
       const notifyUserId = userType === 'guruji' ? booking.customerId : (booking.gurujiId ? (await storageInstance.getGurujiProfile(booking.gurujiId))?.userId : null);
@@ -2895,21 +2899,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Function to notify all qualified gurujis about a new puja request
+  async function eligiblePujaRequestGurujis(booking: any, city: string) {
+    const nearbyGurujis = await storageInstance.getNearbyGurujis(city, booking.pujaId, 20, booking.pincode);
+    const puja = await storageInstance.getPuja(booking.pujaId);
+    const busyGurujiIds = await getBusyGurujiIds(
+      nearbyGurujis.map(g => g.id),
+      booking.date instanceof Date ? booking.date.toISOString().slice(0, 10) : String(booking.date).slice(0, 10),
+      booking.time,
+      booking.duration ?? puja?.duration ?? 0,
+    );
+    return nearbyGurujis.filter(g =>
+      g.aadharVerified && g.documentsVerified && !busyGurujiIds.has(g.id));
+  }
+
   async function notifyGurujisPujaRequest(booking: any, city: string) {
     try {
       console.log(`🔔 AUTO-SEARCH: booking #${booking.id}, city="${city}", pujaId=${booking.pujaId}, pincode=${booking.pincode}`);
       
-      // Find verified gurujis by pincode (primary) or city (fallback)
-      const nearbyGurujis = await storageInstance.getNearbyGurujis(
-        city, 
-        booking.pujaId, 
-        20,
-        booking.pincode
-      );
-      
-      console.log(`🔍 getNearbyGurujis returned ${nearbyGurujis.length} total: ${nearbyGurujis.map((g: any) => `${g.firstName}(verified:${g.aadharVerified}/${g.documentsVerified})`).join(', ')}`);
-
-      const verifiedGurujis = nearbyGurujis.filter((g: any) => g.aadharVerified && g.documentsVerified);
+      const verifiedGurujis = await eligiblePujaRequestGurujis(booking, city);
+      const { notifyAdminsOfUnassignedBooking } = await import('./unassignedBookingAlerts');
+      await notifyAdminsOfUnassignedBooking(booking, verifiedGurujis.length, storageInstance);
       
       console.log(`✓ Found ${verifiedGurujis.length} verified gurujis near ${city}`);
 
@@ -2955,21 +2964,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } else {
-        console.log(`⚠️ No verified gurujis found near "${city}" for pujaId=${booking.pujaId} — broadcasting to all`);
-        // Broadcast to all connected gurujis as fallback
-        io.emit('newPujaRequest', {
-          bookingId: booking.id,
-          title: '🔔 New Puja Request',
-          message: `New puja request in ${city}`,
-          amount: booking.amount,
-          date: booking.date,
-          type: booking.type,
-          city: city,
-          timestamp: new Date()
+        await storageInstance.createNotification({
+          userId: booking.customerId,
+          title: 'Searching for a Guruji',
+          message: `No eligible Guruji is currently available for your puja in ${city}. The admin has been alerted to help with your unassigned request.`,
+          type: 'booking_update',
         });
       }
     } catch (error) {
       console.error('Error in notifyGurujisPujaRequest:', error);
+      throw error;
     }
   }
 

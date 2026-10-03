@@ -18,6 +18,8 @@ import {
 import { pool } from './db';
 import { hash, compare } from 'bcrypt';
 import { IStorage } from './storage';
+import { isUnassignedBooking } from '../shared/isUnassignedBooking';
+import { resolveUnassignedBookingAlerts } from './unassignedBookingAlerts';
 
 /**
  * PostgreSQL implementation of the Storage interface using direct SQL queries
@@ -616,6 +618,7 @@ export class DBStorage implements IStorage {
   }
   
   async getNearbyGurujis(city: string, pujaId?: number, radius: number = 10, pincode?: string): Promise<GurujiProfile[]> {
+    if (!city.trim() && !pincode?.trim()) return [];
     let params: any[] = [];
     let pujaFilter = '';
 
@@ -644,6 +647,7 @@ export class DBStorage implements IStorage {
         `SELECT gp.* FROM guruji_profiles gp
          JOIN users u ON gp."userId" = u.id
          WHERE gp."isVerified" = true AND gp."isAvailable" = true
+            AND gp.status = 'approved'
            AND u."isBlocked" = false
            AND gp.pincode = $${params.length}
            ${pujaFilter}
@@ -654,20 +658,24 @@ export class DBStorage implements IStorage {
       if (exactResult.rows.length > 0) {
         return exactResult.rows.map(row => this.mapGurujiProfileFromDb(row));
       }
+      // The city fallback does not use the pincode parameter.
+      params.pop();
     }
 
     // Fallback: match by city name (primary city field, service cities array, or address)
-    params.push(`%${city}%`);
+    if (!city.trim()) return [];
+    params.push(`%${city.trim().replace(/-/g, ' ')}%`);
     const cityResult = await pool.query(
       `SELECT gp.* FROM guruji_profiles gp
        JOIN users u ON gp."userId" = u.id
        WHERE gp."isVerified" = true AND gp."isAvailable" = true
+          AND gp.status = 'approved'
          AND u."isBlocked" = false
          AND (
-           LOWER(gp.city) LIKE LOWER($${params.length})
-           OR LOWER(gp.address) LIKE LOWER($${params.length})
+            LOWER(REPLACE(gp.city, '-', ' ')) LIKE LOWER($${params.length})
+            OR LOWER(REPLACE(gp.address, '-', ' ')) LIKE LOWER($${params.length})
            OR EXISTS (
-             SELECT 1 FROM unnest(gp.cities) c WHERE LOWER(c) LIKE LOWER($${params.length})
+              SELECT 1 FROM unnest(gp.cities) c WHERE LOWER(REPLACE(c, '-', ' ')) LIKE LOWER($${params.length})
            )
          )
          ${pujaFilter}
@@ -771,7 +779,7 @@ export class DBStorage implements IStorage {
     );
     
     if (result.rows.length === 0) return undefined;
-    
+    if (!isUnassignedBooking(result.rows[0])) await resolveUnassignedBookingAlerts(id);
     return this.mapBookingFromDb(result.rows[0]);
   }
   
@@ -783,7 +791,7 @@ export class DBStorage implements IStorage {
     );
     
     if (result.rows.length === 0) return undefined;
-    
+    await resolveUnassignedBookingAlerts(bookingId);
     return this.mapBookingFromDb(result.rows[0]);
   }
 

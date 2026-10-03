@@ -16,12 +16,14 @@ import CustomerQueriesTab from '@/components/admin/CustomerQueriesTab';
 import CustomersManagementTab from '@/components/admin/CustomersManagementTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle, Inbox } from 'lucide-react';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle, Inbox, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { isUnassignedBooking } from '@shared/isUnassignedBooking';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('analytics');
+  const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
   const [, setLocation] = useLocation();
 
   const { data: gurujiProfiles } = useQuery<any[]>({
@@ -49,6 +51,28 @@ export default function AdminDashboard() {
   });
 
   const unreadNotifCount = notifications?.filter(n => !n.isRead).length ?? 0;
+
+  const {
+    data: adminBookings,
+    isLoading: bookingsLoading,
+    isError: bookingsError,
+    refetch: refetchBookings,
+  } = useQuery<any[]>({
+    queryKey: ['/api/admin/bookings'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/bookings', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch bookings');
+      return res.json();
+    },
+    refetchInterval: 15000,
+    enabled: !!user && user.role === 'admin',
+  });
+
+  const unassignedBookings = adminBookings?.filter(isUnassignedBooking) ?? [];
+  const openUnassignedBookings = () => {
+    setShowUnassignedOnly(true);
+    setActiveTab('bookings');
+  };
 
   const { data: queries } = useQuery<any[]>({
     queryKey: ['/api/admin/queries'],
@@ -102,7 +126,64 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+      {(bookingsLoading || bookingsError || unassignedBookings.length > 0) && (
+        <div
+          role={bookingsError ? 'alert' : 'status'}
+          className={`mb-6 rounded-lg border px-4 py-3 ${
+            bookingsError
+              ? 'border-red-200 bg-red-50 text-red-800'
+              : 'border-amber-300 bg-amber-50 text-amber-950'
+          }`}
+        >
+          {bookingsError ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                <span>Unassigned pujas could not be checked. The live count is unavailable.</span>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => refetchBookings()}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            </div>
+          ) : bookingsLoading ? (
+            <div className="flex items-center gap-2 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Checking for unassigned pujas…
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                <div>
+                  {unassignedBookings.length > 0 ? (
+                    <>
+                      <p className="font-semibold">
+                        {unassignedBookings.length} active puja{unassignedBookings.length === 1 ? '' : 's'} still need a Guruji
+                      </p>
+                      <p className="mt-0.5 text-sm text-amber-900">
+                        These are requests awaiting assignment or acceptance—not confirmed bookings.
+                      </p>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              {unassignedBookings.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-400 bg-amber-100 text-amber-950 hover:bg-amber-200"
+                  onClick={openUnassignedBookings}
+                >
+                  Review unassigned pujas
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap h-auto gap-1 mb-8 bg-muted p-1 rounded-lg">
           <TabsTrigger value="analytics" className="flex items-center gap-1.5">
             <BarChart3 className="h-4 w-4" />
@@ -120,6 +201,11 @@ export default function AdminDashboard() {
           <TabsTrigger value="bookings" className="flex items-center gap-1.5">
             <Calendar className="h-4 w-4" />
             Bookings
+            {unassignedBookings.length > 0 && (
+              <Badge className="bg-red-600 text-white text-xs px-1.5 py-0 h-4 min-w-[16px] ml-0.5">
+                {unassignedBookings.length}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="customers" className="flex items-center gap-1.5">
             <Users className="h-4 w-4" />
@@ -177,7 +263,10 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="bookings">
-          <BookingManagementTab />
+          <BookingManagementTab
+            showUnassignedOnly={showUnassignedOnly}
+            onUnassignedFilterChange={setShowUnassignedOnly}
+          />
         </TabsContent>
 
         <TabsContent value="pujas">
