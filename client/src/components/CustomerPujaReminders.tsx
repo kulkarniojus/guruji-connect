@@ -34,10 +34,14 @@ export default function CustomerPujaReminders() {
   if (!reminders.length && !isError) return null;
 
   return (
-    <div className="sticky top-0 z-40 border-b border-amber-100 bg-white px-3 py-2 sm:px-6">
-      <div className="mx-auto max-w-7xl">
+    <div
+      data-testid="customer-puja-reminder"
+      className="fixed bottom-24 left-3 right-3 z-40 rounded-xl bg-white shadow-xl sm:bottom-6 sm:left-6 sm:right-auto sm:w-[400px]"
+      style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <div>
         {isError && (
-          <p role="status" className="mb-1 text-xs text-amber-900">
+          <p role="status" className="px-4 py-2 text-xs text-amber-900">
             Puja reminders could not be refreshed. Please check My Bookings for the latest status.
           </p>
         )}

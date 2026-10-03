@@ -82,6 +82,14 @@ try {
   assert.ok(await browser.evaluate(`${region}.innerText.includes('This is a request') && ${region}.innerText.includes('Your puja is in progress')`));
   console.log('PASS: actual customer UI shows all active bookings, including past dates; no terminal bookings');
 
+  const beforeScroll = await browser.evaluate(`${region}.getBoundingClientRect().top`);
+  assert.equal(await browser.evaluate(`getComputedStyle(document.querySelector('[data-testid="customer-puja-reminder"]')).position`), 'fixed');
+  await browser.evaluate(`(window.scrollTo(0, 500), true)`);
+  await new Promise(resolve => setTimeout(resolve, 300));
+  assert.ok(await browser.evaluate(`window.scrollY > 0`));
+  assert.ok(Math.abs(await browser.evaluate(`${region}.getBoundingClientRect().top`) - beforeScroll) < 2);
+  console.log('PASS: reminder is outside document flow and stays fixed as the page scrolls');
+
   await browser.click(`a[href="/booking/${fixtures.get('confirmed')}"]`);
   await browser.wait(`location.pathname==='/booking/${fixtures.get('confirmed')}'`, 'reminder details link');
   assert.equal(await browser.evaluate(has(fixtures.get('pending')!)), true);
@@ -90,6 +98,7 @@ try {
   await browser.command('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   assert.equal(await browser.evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true);
   assert.ok(await browser.evaluate(`${region}.getBoundingClientRect().height < innerHeight / 2`));
+  assert.ok(await browser.evaluate(`${region}.getBoundingClientRect().bottom <= innerHeight - 80`));
   console.log('PASS: links, cross-page persistence, refresh, mobile sizing');
 
   await store.updateBookingStatus(fixtures.get('in_progress')!, 'completed');

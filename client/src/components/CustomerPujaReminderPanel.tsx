@@ -37,7 +37,7 @@ export function CustomerPujaReminderPanel({ bookings }: CustomerPujaReminderPane
       aria-label="Active puja booking reminders"
       aria-live="polite"
       aria-atomic="false"
-      className="overflow-hidden rounded-xl border border-amber-200/90 bg-amber-50/70 shadow-sm"
+      className="overflow-hidden rounded-xl border border-amber-200/90 bg-amber-50 shadow-sm"
     >
       <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-amber-200/80 px-4 py-3 sm:px-5">
         <div>
