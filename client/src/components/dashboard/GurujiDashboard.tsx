@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { CustomerRatingDialog } from '@/components/rating/RatingSystem';
+import { bookingStatusLabel, BOOKING_STATUS_LABELS as STATUS_LABEL } from '@shared/bookingLifecycle';
+import BookingProgressActions from '@/components/booking/BookingProgressActions';
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -191,6 +193,9 @@ export default function GurujiDashboard() {
       return res.json();
     },
     refetchInterval: 10000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     refetchIntervalInBackground: true,
   });
 
@@ -959,15 +964,6 @@ const STATUS_DOT: Record<string, string> = {
   pending_approval: 'bg-orange-500',
   cancelled: 'bg-red-400',
 };
-const STATUS_LABEL: Record<string, string> = {
-  confirmed: 'Confirmed',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  pending: 'Pending',
-  pending_approval: 'Pending Approval',
-  cancelled: 'Cancelled',
-};
-
 function BookingCalendar({
   bookings, calMonth, calYear, setCalMonth, setCalYear, selectedDay, setSelectedDay
 }: {
@@ -1141,7 +1137,7 @@ function BookingCalendar({
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-sm">{b.pujaName || 'Puja Service'}</p>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(b.status)}`}>
-                          {(b.status || '').replace('_', ' ')}
+                          {bookingStatusLabel(b.status || '')}
                         </span>
                       </div>
                       <div className="text-xs text-neutral-600 mt-1 space-y-0.5">
@@ -1215,7 +1211,7 @@ function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => v
           <div className="space-y-1 flex-1">
             <div className="flex items-center gap-2">
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(booking.status)}`}>
-                {booking.status.replace('_', ' ')}
+                {bookingStatusLabel(booking.status)}
               </span>
               <span className="text-xs text-neutral-500">#{booking.id}</span>
             </div>
@@ -1245,6 +1241,7 @@ function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => v
                 <Ban className="h-3.5 w-3.5 mr-1" /> Cancel Booking
               </Button>
             )}
+            <BookingProgressActions booking={booking} />
             {canRate && (
               <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => onRate!(booking)}>
                 <Star className="h-3.5 w-3.5 mr-1" /> Rate Customer

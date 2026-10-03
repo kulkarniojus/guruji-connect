@@ -242,6 +242,14 @@ export default function BookingPage() {
       toast({ title: 'Please select an available Guruji', description: 'Choose a Guruji for the selected date and time.', variant: 'destructive' });
       return;
     }
+    if (activeStep === 3) {
+      // Authentication can remount this form. Preserve the selection before login.
+      saveBookingDraft({
+        returnTo: bookingUrl, activeStep: 4, bookingType, consultationType, gurujiSelectionMode,
+        selectedPujaId, selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '',
+        selectedTime, selectedCity, address, pincode, selectedGurujiId, withSamagri,
+      });
+    }
     setActiveStep(prev => prev + 1);
   };
 
@@ -324,12 +332,12 @@ export default function BookingPage() {
 
   // Auto-populate city from user's profile city if not specified in URL
   useEffect(() => {
-    if (user && !searchParams.get('city') && user.city) {
+    if (user && !selectedCity && !searchParams.get('city') && user.city) {
       setSelectedCity(user.city.toLowerCase());
     }
   }, [user]);
 
-  // Show login modal if user reaches payment step without being logged in
+  // Require login before the booking-request review.
   useEffect(() => {
     if (activeStep === 4 && user === null) {
       setShowLoginModal(true);
@@ -359,7 +367,7 @@ export default function BookingPage() {
             { id: 1, label: 'Select Service', description: 'Choose your puja type' },
             { id: 2, label: 'Date & Location', description: 'Pick date and venue' },
             { id: 3, label: 'Select Guruji', description: 'Choose your guide' },
-            { id: 4, label: 'Payment', description: 'Complete booking' },
+            { id: 4, label: 'Review Request', description: 'No payment for now' },
           ]}
           currentStep={activeStep}
           variant="horizontal"
@@ -860,14 +868,14 @@ export default function BookingPage() {
               Back
             </Button>
             <Button onClick={handleNextStep}>
-              Proceed to Payment
+              Review Booking Request
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </CardFooter>
         </Card>
       )}
 
-      {activeStep === 4 && selectedPuja && (
+      {activeStep === 4 && selectedPuja && user?.role === 'customer' && (
         <PaymentPage 
           amount={calculateAmount()}
           pujaName={selectedPuja.name}
@@ -876,7 +884,7 @@ export default function BookingPage() {
         />
       )}
 
-      {/* Login modal — shown when user tries to proceed to payment without being logged in */}
+      {/* Login modal — shown before an unauthenticated customer can send a request */}
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => {

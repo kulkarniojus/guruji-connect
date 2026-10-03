@@ -9,6 +9,7 @@ import { Loader2, Calendar, User, CreditCard, FileText, ChevronRight, Star, Chec
 import { RatingDialog } from '@/components/rating/RatingSystem';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { BOOKING_STATUS_LABELS as STATUS_LABELS } from '@shared/bookingLifecycle';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-500',
@@ -18,16 +19,6 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-400',
   in_progress: 'bg-purple-500',
   rejected: 'bg-red-500',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  confirmed: 'Confirmed',
-  pending: 'Pending',
-  pending_approval: 'Pending Approval',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  in_progress: 'In Progress',
-  rejected: 'Rejected',
 };
 
 function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => void }) {

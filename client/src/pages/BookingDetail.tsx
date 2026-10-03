@@ -18,6 +18,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { RatingDialog } from '@/components/rating/RatingSystem';
+import { bookingStatusLabel } from '@shared/bookingLifecycle';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-100 text-green-800',
@@ -212,7 +213,7 @@ export default function BookingDetail() {
                   </CardDescription>
                 </div>
                 <Badge className={STATUS_COLORS[booking.status] || 'bg-gray-100 text-gray-800'}>
-                  {booking.status.replace('_', ' ')}
+                  {bookingStatusLabel(booking.status)}
                 </Badge>
               </div>
             </CardHeader>

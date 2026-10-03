@@ -1,10 +1,16 @@
 ---
 name: Booking payment and acceptance
-description: Product rule separating verified checkout from Guruji acceptance
+description: Current payment-skip exception and future verified-checkout requirements
 ---
 
-Booking requests should only be sent after server-verified gateway payment; Guruji acceptance, not payment or customer selection, is what confirms the booking. If no verified gateway is connected, pause new booking requests rather than relying on a self-reported UPI payment checkbox.
+On 2026-10-03 the user instructed: “for now skip the payment process.” New booking requests may temporarily be sent without payment. Do not create a paid transaction or describe skipped payment as successful payment. Guruji acceptance, not payment or customer selection, is what confirms a booking.
 
-**Why:** The old review screen could mark a payment complete based on a checkbox, and selecting a Guruji immediately marked bookings confirmed before they accepted. Either shortcut misleads customers.
+**Why:** The explicit payment-skip request supersedes the earlier instruction to pause requests without a gateway. It does not authorize pretending payment was collected or that a Guruji accepted.
 
-**How to apply:** Any future payment integration must validate amount and transaction server-side before creating and notifying a booking request. Do not enable booking creation solely by turning on a frontend setting. Decide a refund or reassignment policy for successful payments when a Guruji declines before collecting live payments.
+**How to apply:** Preserve the temporary no-payment mode until the user changes it. Keep selected and auto-matched requests unconfirmed until a Guruji genuinely accepts. Only accepted pujas may start, and only in-progress pujas may complete.
+
+When payments resume, require server-verified gateway payment before creating and notifying a booking request. If checkout is unavailable then, pause paid requests instead of accepting a self-reported UPI checkbox.
+
+**Why:** The old flow treated a checkbox as payment and selection as acceptance; both mislead customers.
+
+**How to apply:** Validate the amount and transaction server-side. Agree on refund or reassignment behavior for Guruji declines before collecting live payments.

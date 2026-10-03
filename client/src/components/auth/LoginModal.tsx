@@ -21,7 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useLocation } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -31,52 +31,17 @@ interface LoginModalProps {
 }
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().trim().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-async function doLogin(email: string, password: string) {
-  // Try regular login first
-  let res = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-    credentials: 'include',
-  });
-
-  if (res.ok) {
-    const user = await res.json();
-    return { success: true, user };
-  }
-
-  const errorBody = await res.json().catch(() => ({}));
-  
-  // If it's an admin email, try admin login
-  if (res.status === 401 && (errorBody.message?.includes('admin') || email.toLowerCase().includes('admin'))) {
-    const adminRes = await fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-      credentials: 'include',
-    });
-    if (adminRes.ok) {
-      const adminData = await adminRes.json();
-      return { success: true, user: adminData.user };
-    }
-    const adminError = await adminRes.json().catch(() => ({}));
-    return { success: false, message: adminError.message || 'Invalid credentials' };
-  }
-
-  return { success: false, message: errorBody.message || 'Invalid email or password' };
-}
-
 export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSuccess }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
+  const { login } = useAuth();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -86,16 +51,12 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     try {
-      const result = await doLogin(values.email, values.password);
+      const result = await login(values.email.trim().toLowerCase(), values.password);
       
       if (result.success && result.user) {
-        // A different account may have left private booking data in the cache.
-        queryClient.clear();
-        queryClient.setQueryData(['/api/auth/me'], result.user);
-        
         toast({
           title: 'Welcome back!',
-          description: `Hello, ${result.user.firstName || result.user.name || result.user.email}!`,
+          description: `Hello, ${result.user.firstName || result.user.email}!`,
         });
         onClose();
         form.reset();
@@ -107,7 +68,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
           // Default: redirect based on role
           if (result.user.role === 'admin') {
             setLocation('/admin-dashboard');
-          } else if (result.user.role === 'sales_rep' || result.user.role === 'sales') {
+          } else if (['sales_rep', 'sales'].includes(result.user.role)) {
             setLocation('/sales-rep/dashboard');
           } else {
             setLocation('/dashboard');
@@ -155,7 +116,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Enter your email" {...field} />
+                       <Input type="email" autoComplete="username" placeholder="Enter your email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -169,7 +130,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter your password" {...field} />
+                       <Input type="password" autoComplete="current-password" placeholder="Enter your password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

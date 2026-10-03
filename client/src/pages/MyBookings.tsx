@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { BOOKING_STATUS_LABELS as STATUS_LABELS } from '@shared/bookingLifecycle';
 import {
   Loader2, Calendar, MapPin, IndianRupee, ChevronRight, Star,
   Clock, CheckCircle2, XCircle, MessageSquare, BookOpen,
@@ -21,16 +22,6 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-400',
   in_progress: 'bg-purple-500',
   rejected: 'bg-red-500',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  confirmed: 'Confirmed',
-  pending: 'Pending',
-  pending_approval: 'Pending Approval',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  in_progress: 'In Progress',
-  rejected: 'Rejected',
 };
 
 function StatCard({ icon, label, value, color }: { icon: any; label: string; value: string | number; color: string }) {

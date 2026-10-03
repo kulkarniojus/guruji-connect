@@ -10,6 +10,9 @@ import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingS
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
 // Enable only after a gateway checkout and server-side payment verification are wired up.
 const PAYMENT_CHECKOUT_AVAILABLE = false;
+// Explicit temporary product mode: requests are allowed without collecting payment.
+const BOOKING_PAYMENT_SKIPPED = true;
+import { canAdvanceBooking, bookingStatusLabel } from '../shared/bookingLifecycle';
 import { z } from "zod";
 import { ZodError } from "zod";
 import { genSalt, hash, compare } from "bcrypt";
@@ -1436,9 +1439,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Booking Routes
-  app.post("/api/bookings", isAuthenticated, async (req: Request, res: Response) => {
+  app.post("/api/bookings", isAuthenticated, checkRole(['customer']), async (req: Request, res: Response) => {
     try {
-      if (!PAYMENT_CHECKOUT_AVAILABLE) {
+      if (!PAYMENT_CHECKOUT_AVAILABLE && !BOOKING_PAYMENT_SKIPPED) {
         return res.status(503).json({ message: 'Secure payment checkout is not configured yet. No booking was created.' });
       }
 
@@ -1634,7 +1637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).parse(req.params);
 
       const { status } = z.object({
-        status: z.enum(["pending", "in_progress", "completed", "cancelled"]),
+        status: z.enum(["in_progress", "completed"]),
       }).parse(req.body);
 
       const booking = await storageInstance.getBooking(parseInt(id));
@@ -1646,12 +1649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId as number;
       const userRole = req.session.userRole as string;
 
-      if (userRole === 'customer') {
-        return res.status(403).json({ message: 'Use the cancellation flow to change your booking' });
-      }
-      
-      // Check if user is authorized to update this booking
-      if (userRole === "customer" && booking.customerId !== userId) {
+      if (!['admin', 'guruji'].includes(userRole)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       
@@ -1661,8 +1659,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden" });
         }
       }
+
+      if (!canAdvanceBooking(booking.status, status)) {
+        return res.status(409).json({ message: 'A Guruji must accept before starting, and a puja must be in progress before completion.' });
+      }
+      const requests = await storageInstance.getBookingRequestsByBookingId(booking.id);
+      if (!booking.gurujiId || !requests.some((request: any) =>
+        request.gurujiId === booking.gurujiId && request.status === 'accepted')) {
+        return res.status(409).json({ message: 'This booking has not been accepted by a Guruji yet.' });
+      }
       
       const updatedBooking = await storageInstance.updateBookingStatus(parseInt(id), status);
+      const guruji = await storageInstance.getGurujiProfile(booking.gurujiId);
+      const recipients = new Set([booking.customerId, guruji?.userId].filter((id): id is number => !!id));
+      for (const recipient of Array.from(recipients)) {
+        await storageInstance.createNotification({
+          userId: recipient,
+          title: `Puja ${status === 'in_progress' ? 'started' : 'completed'}`,
+          message: `Booking #${booking.id}: ${bookingStatusLabel(status)}.`,
+          type: 'booking_update',
+        });
+      }
       
       res.json(updatedBooking);
     } catch (error) {
@@ -2322,23 +2339,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/settings/payment', async (req: Request, res: Response) => {
     try {
       if (!process.env.DATABASE_URL) {
-        return res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+        return res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentSkipped: BOOKING_PAYMENT_SKIPPED, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
       }
       const result = await pool.query('SELECT * FROM app_settings LIMIT 1');
       if (result.rows.length === 0) {
-        return res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+        return res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentSkipped: BOOKING_PAYMENT_SKIPPED, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
       }
       const row = result.rows[0];
       res.json({
         checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE,
-        paymentRequired: row.payment_required,
+        paymentSkipped: BOOKING_PAYMENT_SKIPPED,
+        paymentRequired: BOOKING_PAYMENT_SKIPPED ? false : row.payment_required,
         upiId: row.upi_id,
         upiName: row.upi_name,
         upiQrImageUrl: row.upi_qr_image_url,
       });
     } catch (err) {
       console.error('Error fetching payment settings:', err);
-      res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
+      res.status(500).json({ message: 'Could not load payment settings' });
     }
   });
 
@@ -2954,7 +2972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // API endpoint for gurujis to accept/reject booking requests  
-  app.post("/api/bookings/:bookingId/respond", isAuthenticated, async (req: Request, res: Response) => {
+  app.post("/api/bookings/:bookingId/respond", isAuthenticated, checkRole(['guruji']), async (req: Request, res: Response) => {
     try {
       const bookingId = parseInt(req.params.bookingId);
       const { action } = req.body; // 'accept' or 'reject'
@@ -2963,22 +2981,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid action. Must be 'accept' or 'reject'" });
       }
       
-      if (action === 'accept') {
-        // Update booking status to accepted
-        console.log(`✅ Booking ${bookingId} accepted by guruji`);
-        
-        // Emit notification to disable acceptance for other gurujis
-        io.emit('bookingAccepted', {
-          bookingId: bookingId,
-          message: 'This booking has been accepted by another guruji',
-          timestamp: new Date()
-        });
-        
-        res.json({ message: "Booking accepted successfully", bookingId });
-      } else {
-        console.log(`❌ Booking ${bookingId} rejected by guruji`);
-        res.json({ message: "Booking rejected successfully" });
-      }
+      const guruji = await storageInstance.getGurujiProfileByUserId(req.session.userId!);
+      const requests = await storageInstance.getBookingRequestsByBookingId(bookingId);
+      const request = requests.find((request: any) => request.gurujiId === guruji?.id && request.status === 'pending');
+      if (!request) return res.status(404).json({ message: 'No open booking request belongs to this Guruji' });
+      // Use the same persistence and ownership checks as the main acceptance flow.
+      req.params.id = String(request.id);
+      req.body = { response: action === 'accept' ? 'accept' : 'decline', message: req.body.message };
+      await respondToBookingRequest(req, res);
     } catch (error) {
       console.error("Error responding to booking:", error);
       res.status(500).json({ message: "Failed to process response" });

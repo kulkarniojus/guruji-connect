@@ -24,8 +24,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useLocation } from 'wouter';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { registerUser } from '@/lib/auth';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -245,7 +245,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
   const [selectedPujas, setSelectedPujas] = useState<string[]>([]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
+  const { register } = useAuth();
 
   // Fetch cities
   const { data: cities = [] } = useQuery({
@@ -289,13 +289,9 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      const result = await registerUser(data);
+      const result = await register(data);
       
       if (result.success && result.user) {
-        // Registration starts a new session; do not show the previous account's bookings.
-        queryClient.clear();
-        queryClient.setQueryData(['/api/auth/me'], result.user);
-        
         toast({
           title: 'Registration Successful!',
           description: `Welcome to GurujiConnect, ${result.user.firstName}!`,

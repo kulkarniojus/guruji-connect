@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { bookingStatusLabel } from '@shared/bookingLifecycle';
+import BookingProgressActions from '@/components/booking/BookingProgressActions';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, UserCheck, Send, Search, Calendar, MapPin, User, IndianRupee, RefreshCw } from 'lucide-react';
 
@@ -37,6 +39,9 @@ export default function BookingManagementTab() {
       return res.json();
     },
     refetchInterval: 30000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const { data: verifiedGurujis = [] } = useQuery<any[]>({
@@ -94,7 +99,7 @@ export default function BookingManagementTab() {
 
   const stats = {
     total: bookings.length,
-    pending: bookings.filter((b) => b.status === 'pending').length,
+    pending: bookings.filter((b) => ['pending', 'pending_approval'].includes(b.status)).length,
     confirmed: bookings.filter((b) => b.status === 'confirmed').length,
     completed: bookings.filter((b) => b.status === 'completed').length,
     unassigned: bookings.filter((b) => !b.gurujiId).length,
@@ -113,7 +118,7 @@ export default function BookingManagementTab() {
         {[
           { label: 'Total', value: stats.total, color: 'text-gray-700' },
           { label: 'Pending', value: stats.pending, color: 'text-yellow-600' },
-          { label: 'Confirmed', value: stats.confirmed, color: 'text-blue-600' },
+          { label: 'Accepted by Guruji', value: stats.confirmed, color: 'text-blue-600' },
           { label: 'Completed', value: stats.completed, color: 'text-green-600' },
           { label: 'Unassigned', value: stats.unassigned, color: 'text-red-600' },
         ].map((s) => (
@@ -141,9 +146,9 @@ export default function BookingManagementTab() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="pending_approval">Pending Approval</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
+            <SelectItem value="pending">Not yet accepted</SelectItem>
+            <SelectItem value="pending_approval">Awaiting Guruji acceptance</SelectItem>
+            <SelectItem value="confirmed">Accepted by Guruji</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -180,7 +185,7 @@ export default function BookingManagementTab() {
                         <span className="font-semibold text-sm">#{booking.id}</span>
                         <span className="font-medium">{booking.pujaName}</span>
                         <Badge className={`text-xs ${STATUS_COLORS[booking.status] || 'bg-gray-100 text-gray-700'}`}>
-                          {booking.status?.replace('_', ' ')}
+                          {bookingStatusLabel(booking.status || '')}
                         </Badge>
                       </div>
 
@@ -218,6 +223,8 @@ export default function BookingManagementTab() {
 
                     {/* Right: action buttons */}
                     <div className="flex flex-row sm:flex-col gap-2 shrink-0">
+                      <BookingProgressActions booking={booking} />
+                      {['pending', 'pending_approval'].includes(booking.status) && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -227,6 +234,7 @@ export default function BookingManagementTab() {
                         <UserCheck className="h-3.5 w-3.5" />
                           Request Guruji
                       </Button>
+                      )}
                       {!booking.gurujiId && (
                         <Button
                           size="sm"
