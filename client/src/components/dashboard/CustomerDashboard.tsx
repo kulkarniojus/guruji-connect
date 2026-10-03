@@ -9,7 +9,6 @@ import { Loader2, Calendar, User, CreditCard, FileText, ChevronRight, Star, Chec
 import { RatingDialog } from '@/components/rating/RatingSystem';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { useBookingStatusToasts } from '@/hooks/useBookingStatusToasts';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-500',
@@ -68,7 +67,7 @@ function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => v
       <CardContent>
         <div className="border-t pt-3 space-y-1">
           <div className="flex justify-between">
-            <span className="text-gray-500 text-sm">Puja price (not charged)</span>
+            <span className="text-gray-500 text-sm">Amount</span>
             <span className="font-semibold">₹{(booking.amount || 0).toLocaleString('en-IN')}</span>
           </div>
           {booking.gurujiName && (
@@ -126,7 +125,6 @@ export default function CustomerDashboard() {
     refetchOnWindowFocus: true,
     refetchInterval: 20000,
   });
-  useBookingStatusToasts(bookings);
 
   const ratingMutation = useMutation({
     mutationFn: async ({ bookingId, gurujiId, rating, review }: any) => {
@@ -158,6 +156,7 @@ export default function CustomerDashboard() {
 
   const upcomingBookings = bookings.filter(b => ['confirmed', 'pending', 'pending_approval', 'in_progress'].includes(b.status));
   const pastBookings = bookings.filter(b => ['completed', 'cancelled', 'rejected'].includes(b.status));
+  const totalSpent = bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.amount || 0), 0);
 
   if (isLoading) {
     return (
@@ -207,9 +206,8 @@ export default function CustomerDashboard() {
           <CardContent className="pt-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-neutral-500">Payment status</p>
-                <p className="text-2xl font-bold">Paused</p>
-                <p className="text-xs text-neutral-500">No charge collected</p>
+                <p className="text-sm text-neutral-500">Spent on Pujas</p>
+                <p className="text-3xl font-bold">₹{totalSpent.toLocaleString('en-IN')}</p>
               </div>
               <div className="p-3 bg-green-50 rounded-full">
                 <CreditCard className="h-6 w-6 text-green-500" />

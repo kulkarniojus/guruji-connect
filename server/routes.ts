@@ -1438,6 +1438,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking Routes
   app.post("/api/bookings", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!PAYMENT_CHECKOUT_AVAILABLE) {
+        return res.status(503).json({ message: 'Secure payment checkout is not configured yet. No booking was created.' });
+      }
+
       const userId = req.session.userId as number;
       
       const bookingData = z.object({
@@ -1534,11 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await notifyGurujisPujaRequest(booking, bookingData.city || '');
       }
 
-      if (!booking) {
-        throw new Error('Booking could not be created');
-      }
-      const latestBooking = await storageInstance.getBooking(booking.id);
-      res.status(201).json(latestBooking || booking);
+      res.status(201).json(booking);
     } catch (error) {
       console.error("Error creating booking:", error);
       if (error instanceof ZodError) {
@@ -2443,11 +2443,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const rule = rulesRes.rows[0] || null;
       let charge = 0;
-      let chargeDescription = PAYMENT_CHECKOUT_AVAILABLE
-        ? 'Free cancellation'
-        : 'No cancellation charge while payments are paused';
+      let chargeDescription = 'Free cancellation';
 
-      if (PAYMENT_CHECKOUT_AVAILABLE && rule) {
+      if (rule) {
         if (rule.charge_type === 'full') {
           charge = booking.totalAmount || 0;
           chargeDescription = `Full amount ₹${charge} will be charged`;
@@ -2509,7 +2507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       const rule = rulesRes.rows[0];
       let charge = 0;
-      if (PAYMENT_CHECKOUT_AVAILABLE && rule) {
+      if (rule) {
         if (rule.charge_type === 'full') charge = booking.totalAmount || 0;
         else if (rule.charge_type === 'percentage') charge = Math.round((booking.totalAmount || 0) * rule.charge_value / 100);
         else if (rule.charge_type === 'fixed') charge = rule.charge_value;

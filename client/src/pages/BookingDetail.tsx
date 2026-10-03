@@ -18,7 +18,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { RatingDialog } from '@/components/rating/RatingSystem';
-import { useBookingStatusToasts } from '@/hooks/useBookingStatusToasts';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-100 text-green-800',
@@ -68,10 +67,6 @@ export default function BookingDetail() {
     refetchInterval: 15000,
     retry: false,
   });
-  useBookingStatusToasts(
-    booking ? [booking] : [],
-    user?.role === 'customer' && booking?.customerId === user.id,
-  );
 
   const { data: existingReview } = useQuery<any>({
     queryKey: ['/api/reviews/booking', id],
@@ -107,6 +102,7 @@ export default function BookingDetail() {
       return r.json();
     },
     onSuccess: () => {
+      toast({ title: 'Booking cancelled', description: 'Your booking has been cancelled.' });
       setShowCancel(false);
       setCancelReason('');
       queryClient.invalidateQueries({ queryKey: [`/api/bookings/${id}`] });
@@ -195,30 +191,11 @@ export default function BookingDetail() {
               <CardContent className="p-4 flex items-center gap-3">
                 <Clock className="h-5 w-5 text-amber-600" />
                 <p className="text-sm text-amber-800">
-                    {booking.status === 'pending'
-                     ? 'Your booking request is pending. It is not confirmed until a Guruji accepts. No payment has been collected.'
+                   {booking.status === 'pending'
+                     ? 'Your booking request is pending. It is not confirmed until a Guruji accepts.'
                      : booking.gurujiId
-                        ? 'Waiting for the Guruji to accept your booking. You will be notified once confirmed. No payment has been collected.'
-                        : 'Your request was sent to nearby Gurujis. The first to accept will be assigned. No payment has been collected.'}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-          {isOwner && booking.status === 'confirmed' && (
-            <Card className="mb-4 border-green-300 bg-green-50">
-              <CardContent className="p-4">
-                <p className="text-sm text-green-800">
-                  A Guruji accepted your request. Your puja is confirmed; no payment has been collected while payments are paused.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-          {isOwner && booking.status === 'cancelled' && (
-            <Card className="mb-4 border-red-300 bg-red-50">
-              <CardContent className="p-4">
-                <p className="text-sm text-red-800">
-                  This booking was cancelled. No cancellation payment is due while payments are paused.
-                  {booking.cancellation_reason ? ` Reason: ${booking.cancellation_reason}` : ''}
+                       ? 'Waiting for the Guruji to accept your booking. You will be notified once confirmed.'
+                       : 'Your request was sent to nearby Gurujis. The first to accept will be assigned.'}
                 </p>
               </CardContent>
             </Card>
@@ -267,7 +244,7 @@ export default function BookingDetail() {
                 <div className="flex items-center gap-3">
                   <IndianRupee className="h-5 w-5 text-violet-500" />
                   <div>
-                    <p className="text-xs text-neutral-500">Price (not charged now)</p>
+                    <p className="text-xs text-neutral-500">Amount</p>
                     <p className="font-medium text-violet-700">₹{(booking.amount || 0).toLocaleString('en-IN')}</p>
                   </div>
                 </div>

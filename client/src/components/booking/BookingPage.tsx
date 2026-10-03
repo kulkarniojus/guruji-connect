@@ -16,8 +16,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Clock, MapPin, User, ArrowRight, Calendar as CalendarIcon2, Check, UserX, Loader2 } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, User, ArrowRight, CreditCard, Calendar as CalendarIcon2, Check, UserX, Loader2 } from 'lucide-react';
 import { BookingProgressIndicator, BookingStep } from './BookingProgressIndicator';
+import PaymentPage from '@/components/payments/PaymentPage';
 import LoginModal from '@/components/auth/LoginModal';
 import { clearBookingDraft, readBookingDraft, saveBookingDraft } from './bookingDraft';
 
@@ -299,8 +300,8 @@ export default function BookingPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
 
       toast({
-        title: "Request sent — awaiting Guruji",
-        description: "Your puja is not confirmed until a Guruji accepts. Payments are paused, so no charge has been made.",
+        title: "Booking request sent",
+        description: "Your booking is pending until a Guruji accepts it.",
       });
 
       clearBookingDraft();
@@ -328,7 +329,7 @@ export default function BookingPage() {
     }
   }, [user]);
 
-  // Show login modal if a guest reaches the final review step
+  // Show login modal if user reaches payment step without being logged in
   useEffect(() => {
     if (activeStep === 4 && user === null) {
       setShowLoginModal(true);
@@ -355,10 +356,10 @@ export default function BookingPage() {
       <div className="mb-8 max-w-3xl mx-auto">
         <BookingProgressIndicator
           steps={[
-            { id: 1, label: 'Service', description: 'Choose your puja type' },
-            { id: 2, label: 'Date & Time', description: 'Pick date and venue' },
-            { id: 3, label: 'Guruji', description: 'Choose your guide' },
-            { id: 4, label: 'Review', description: 'No payment required' },
+            { id: 1, label: 'Select Service', description: 'Choose your puja type' },
+            { id: 2, label: 'Date & Location', description: 'Pick date and venue' },
+            { id: 3, label: 'Select Guruji', description: 'Choose your guide' },
+            { id: 4, label: 'Payment', description: 'Complete booking' },
           ]}
           currentStep={activeStep}
           variant="horizontal"
@@ -831,7 +832,7 @@ export default function BookingPage() {
                     </div>
                     <Separator />
                     <div className="flex justify-between">
-                      <span className="text-neutral-600">Service price (not charged now):</span>
+                      <span className="text-neutral-600">Amount:</span>
                       <span className="font-medium">₹{calculateAmount()}</span>
                     </div>
                   </div>
@@ -843,12 +844,10 @@ export default function BookingPage() {
                       <Check className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-green-800">Guruji Confirmation</h3>
+                      <h3 className="font-medium text-green-800">Automated Assignment</h3>
                       <p className="text-sm text-green-700 mt-1">
-                        {selectedGurujiId && gurujiSelectionMode === 'specific'
-                          ? 'Your request will be sent to the selected Guruji.'
-                          : 'Your request will be sent to available Gurujis; the first to accept will be assigned.'}
-                        {' '}Your puja is not confirmed until a Guruji accepts. No payment is collected now.
+                        A qualified Guruji will be automatically assigned to your booking based on availability and expertise.
+                        You will receive the Guruji's details once your booking is confirmed.
                       </p>
                     </div>
                   </div>
@@ -860,15 +859,24 @@ export default function BookingPage() {
             <Button variant="outline" onClick={handlePreviousStep}>
               Back
             </Button>
-            <Button onClick={handleSubmitBooking} disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-              {isSubmitting ? 'Sending request…' : 'Send Booking Request'}
+            <Button onClick={handleNextStep}>
+              Proceed to Payment
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </CardFooter>
         </Card>
       )}
 
-      {/* Login modal — shown when a guest reaches the final review step */}
+      {activeStep === 4 && selectedPuja && (
+        <PaymentPage 
+          amount={calculateAmount()}
+          pujaName={selectedPuja.name}
+          onBack={handlePreviousStep}
+          onSuccess={handleSubmitBooking}
+        />
+      )}
+
+      {/* Login modal — shown when user tries to proceed to payment without being logged in */}
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => {
