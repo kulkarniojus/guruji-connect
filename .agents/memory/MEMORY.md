@@ -4,3 +4,4 @@
 - [Radix UI automation](radix-ui-automation.md) — use browser-native pointer clicks to open dropdowns in headless tests; synthetic element clicks may not trigger them.
 - [Booking payment and acceptance](booking-payment-acceptance.md) — payments temporarily skipped at the user's request; Guruji acceptance is always genuine, never inferred from selection or payment.
 - [Live user-table columns](user-table-column-mapping.md) — the connected users table has quoted camelCase columns that differ from shared-schema mappings; verify live columns before storage writes.
+- [Booking authentication return](booking-authentication-return.md) — registration and login from booking must resume the same URL and step with all selections preserved, including header entry points.

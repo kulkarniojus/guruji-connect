@@ -21,6 +21,7 @@ import { BookingProgressIndicator, BookingStep } from './BookingProgressIndicato
 import PaymentPage from '@/components/payments/PaymentPage';
 import LoginModal from '@/components/auth/LoginModal';
 import { clearBookingDraft, readBookingDraft, saveBookingDraft } from './bookingDraft';
+import { useAuth } from '@/context/AuthContext';
 
 function bookingDateTime(date: Date, time: string): Date {
   const match = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time);
@@ -69,17 +70,7 @@ export default function BookingPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Real auth check
-  const { data: user } = useQuery<any>({
-    queryKey: ['/api/auth/me'],
-    queryFn: async () => {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (!res.ok) return null;
-      return res.json();
-    },
-    retry: false,
-    staleTime: 30000,
-  });
+  const { user } = useAuth();
 
   // Fetch available pujas
   const { data: pujas = [], isLoading: isPujasLoading } = useQuery({
@@ -339,9 +330,7 @@ export default function BookingPage() {
 
   // Require login before the booking-request review.
   useEffect(() => {
-    if (activeStep === 4 && user === null) {
-      setShowLoginModal(true);
-    }
+    setShowLoginModal(activeStep === 4 && user === null);
   }, [activeStep, user]);
 
   return (

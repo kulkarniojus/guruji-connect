@@ -40,8 +40,8 @@ export class DBStorage implements IStorage {
     if (!email) return undefined;
     
     const result = await pool.query(
-      `SELECT * FROM users WHERE email = $1`,
-      [email]
+      `SELECT * FROM users WHERE LOWER(TRIM(email)) = $1`,
+      [email.trim().toLowerCase()]
     );
     
     if (result.rows.length === 0) return undefined;

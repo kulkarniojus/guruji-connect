@@ -317,7 +317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
       const { email, password } = z.object({
-        email: z.string().email("Invalid email address"),
+        email: z.string().trim().toLowerCase().email("Invalid email address"),
         password: z.string().min(6, "Password must be at least 6 characters"),
       }).parse(req.body);
 
@@ -348,6 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.userRole = user.role;
 
       // Return user without password
+      await new Promise<void>((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
       const { password: _, ...userWithoutPassword } = user as any;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -1067,7 +1068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } = z.object({
         firstName: z.string().min(1, "First name is required"),
         lastName: z.string().min(1, "Last name is required"),
-        email: z.string().email("Invalid email address"),
+        email: z.string().trim().toLowerCase().email("Invalid email address"),
         mobile: z.string().length(10, "Mobile number must be 10 digits"),
         age: z.number().min(18, "You must be at least 18 years old"),
         gender: z.enum(["male", "female", "other"]),
@@ -1173,6 +1174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.userRole = user.role;
 
       // Return user without password
+      await new Promise<void>((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
       const { password: _, ...userWithoutPassword } = user;
       res.status(201).json(userWithoutPassword);
     } catch (error) {

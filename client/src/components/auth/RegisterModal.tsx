@@ -26,6 +26,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { postAuthPath, currentBookingReturnPath } from '@/lib/authRedirect';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -209,7 +210,7 @@ function PujaMultiSelect({ pujas, selectedPujas, onPujaToggle }: {
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Invalid email address'),
+  email: z.string().trim().toLowerCase().email('Invalid email address'),
   mobile: z.string().length(10, 'Mobile number must be 10 digits'),
   age: z.coerce.number().min(18, 'You must be at least 18 years old'),
   gender: z.enum(['male', 'female', 'other'], {
@@ -287,6 +288,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
   });
 
   const onSubmit = async (data: RegisterFormValues) => {
+    const returnTo = currentBookingReturnPath();
     setIsLoading(true);
     try {
       const result = await register(data);
@@ -304,11 +306,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
           onRegistrationSuccess(result.user);
         } else {
           onClose();
-          if (result.user.role === 'admin') {
-            setLocation('/admin-dashboard');
-          } else {
-            setLocation('/dashboard');
-          }
+          setLocation(postAuthPath(result.user.role, returnTo));
         }
       } else {
         toast({

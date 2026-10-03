@@ -1,7 +1,6 @@
 import { Helmet } from 'react-helmet';
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import BookingPage from '@/components/booking/BookingPage';
@@ -9,22 +8,14 @@ import { useToast } from '@/hooks/use-toast';
 import LoginModal from '@/components/auth/LoginModal';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Booking() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-  const { data: user, isLoading } = useQuery<any>({
-    queryKey: ['/api/auth/me'],
-    queryFn: async () => {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (!res.ok) return null;
-      return res.json();
-    },
-    retry: false,
-    staleTime: 30000,
-  });
+  const { user, isLoading } = useAuth();
 
   // Redirect gurujis and admins away from the customer booking flow
   useEffect(() => {
@@ -37,7 +28,7 @@ export default function Booking() {
         setLocation('/dashboard');
       } else if (user.role === 'admin') {
         setLocation('/admin-dashboard');
-      } else if (user.role === 'sales_rep' || user.role === 'sales') {
+      } else if (['sales_rep', 'sales'].includes(user.role)) {
         setLocation('/sales-rep/dashboard');
       }
     }
@@ -51,7 +42,7 @@ export default function Booking() {
     );
   }
 
-  if (user && (user.role === 'guruji' || user.role === 'admin' || user.role === 'sales_rep' || user.role === 'sales')) {
+  if (user && ['guruji', 'admin', 'sales_rep', 'sales'].includes(user.role)) {
     return null;
   }
 

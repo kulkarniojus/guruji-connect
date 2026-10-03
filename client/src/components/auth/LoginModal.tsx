@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/form';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/context/AuthContext';
+import { postAuthPath, currentBookingReturnPath } from '@/lib/authRedirect';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
   });
 
   const handleSubmit = async (values: LoginFormValues) => {
+    const returnTo = currentBookingReturnPath();
     setIsLoading(true);
     try {
       const result = await login(values.email.trim().toLowerCase(), values.password);
@@ -65,14 +67,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
           // Caller handles what happens after login (e.g. stay on booking page)
           onLoginSuccess(result.user);
         } else {
-          // Default: redirect based on role
-          if (result.user.role === 'admin') {
-            setLocation('/admin-dashboard');
-          } else if (['sales_rep', 'sales'].includes(result.user.role)) {
-            setLocation('/sales-rep/dashboard');
-          } else {
-            setLocation('/dashboard');
-          }
+          setLocation(postAuthPath(result.user.role, returnTo));
         }
       } else {
         toast({

@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await authLogin(email, password);
       if (result.success) {
+        await queryClient.cancelQueries();
         queryClient.clear();
         queryClient.setQueryData(['/api/auth/me'], result.user);
         setUser(result.user as User);
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await registerUser(userData);
       if (result.success) {
+        await queryClient.cancelQueries();
         queryClient.clear();
         queryClient.setQueryData(['/api/auth/me'], result.user);
         setUser(result.user as User);
