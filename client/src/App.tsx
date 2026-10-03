@@ -21,6 +21,7 @@ import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
 import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { VideoConferenceProvider } from "@/context/VideoConferenceContext";
+import CustomerPujaReminders from "@/components/CustomerPujaReminders";
 
 // Lazy-loaded components
 const Chat = lazy(() => import('@/pages/Chat'));
@@ -104,6 +105,7 @@ function App() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       }>
+        <CustomerPujaReminders />
         <Router />
         <Toaster />
       </Suspense>
