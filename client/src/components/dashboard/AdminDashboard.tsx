@@ -31,6 +31,7 @@ import {
   TrendingUp,
   Award,
   User,
+  RefreshCw,
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { DataTable } from '../ui/data-table';
@@ -790,12 +791,16 @@ function StarRow({ rating, count, total }: { rating: number; count: number; tota
   );
 }
 
-function RatingsTab() {
-  const { data: analytics, isLoading } = useQuery<any>({
+export function RatingsTab() {
+  const { data: analytics, isLoading, isError, error, refetch, isFetching } = useQuery<any>({
     queryKey: ['/api/admin/ratings'],
     queryFn: async () => {
       const r = await fetch('/api/admin/ratings', { credentials: 'include' });
-      return r.ok ? r.json() : null;
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.message || 'Unable to load ratings data.');
+      }
+      return r.json();
     },
     refetchInterval: 60000,
   });
@@ -804,8 +809,16 @@ function RatingsTab() {
     return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-violet-500" /></div>;
   }
 
-  if (!analytics) {
-    return <div className="text-center py-16 text-neutral-500">Unable to load ratings data</div>;
+  if (isError || !analytics) {
+    return (
+      <div role="alert" className="flex flex-col items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-6 py-12 text-center text-red-800">
+        <p>{error instanceof Error ? error.message : 'Unable to load ratings data.'}</p>
+        <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   const { totals, gurujiRatings = [], customerRatings = [], gurujiDistribution = [], customerDistribution = [], recentGurujiReviews = [], recentCustomerRatings = [] } = analytics;

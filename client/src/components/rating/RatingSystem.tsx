@@ -17,6 +17,8 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
         <button
           key={star}
           type="button"
+          aria-label={`Rate ${star} stars`}
+          aria-pressed={value === star}
           onClick={() => onChange(star)}
           onMouseEnter={() => setHovered(star)}
           onMouseLeave={() => setHovered(0)}
@@ -51,26 +53,34 @@ export function RatingDialog({ isOpen, onClose, booking, onSubmitRating }: Ratin
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleClose = () => {
+    if (isSubmitting) return;
     setRating(0);
     setReview('');
+    setSubmitError('');
     onClose();
   };
 
   const handleSubmit = async () => {
     if (rating === 0) return;
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       await onSubmitRating(rating, review);
-      handleClose();
+      setRating(0);
+      setReview('');
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Your rating could not be submitted. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Rate Your Experience</DialogTitle>
@@ -89,6 +99,7 @@ export function RatingDialog({ isOpen, onClose, booking, onSubmitRating }: Ratin
               <p className="text-sm font-semibold text-violet-600">{RATING_LABELS[rating]}</p>
             )}
           </div>
+          {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
 
           <div className="space-y-2">
             <Label htmlFor="review">Share your feedback (optional)</Label>
@@ -136,26 +147,34 @@ export function CustomerRatingDialog({ isOpen, onClose, booking, onSubmitRating 
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleClose = () => {
+    if (isSubmitting) return;
     setRating(0);
     setReview('');
+    setSubmitError('');
     onClose();
   };
 
   const handleSubmit = async () => {
     if (rating === 0) return;
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       await onSubmitRating(rating, review);
-      handleClose();
+      setRating(0);
+      setReview('');
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Your rating could not be submitted. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -177,6 +196,7 @@ export function CustomerRatingDialog({ isOpen, onClose, booking, onSubmitRating 
               <p className="text-sm font-semibold text-amber-600">{RATING_LABELS[rating]}</p>
             )}
           </div>
+          {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
 
           <div className="space-y-2">
             <Label htmlFor="customer-review">Add a note (optional)</Label>

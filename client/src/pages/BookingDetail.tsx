@@ -71,11 +71,12 @@ export default function BookingDetail() {
     retry: false,
   });
 
-  const { data: existingReview } = useQuery<any>({
+  const { data: existingReview, isError: isReviewError, isLoading: isReviewLoading, refetch: refetchReview } = useQuery<any>({
     queryKey: ['/api/reviews/booking', id],
     queryFn: async () => {
       const r = await fetch(`/api/reviews/booking/${id}`, { credentials: 'include' });
-      return r.ok ? r.json() : null;
+      if (!r.ok) throw new Error('Could not check whether this booking has been rated.');
+      return r.json();
     },
     enabled: !!id && booking?.status === 'completed',
   });
@@ -121,13 +122,25 @@ export default function BookingDetail() {
         gurujiId: booking.gurujiId,
         rating,
         review,
+        fromRole: 'customer',
       });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to submit rating. Please try again.');
+      }
       return r.json();
     },
     onSuccess: () => {
       toast({ title: 'Thank you!', description: 'Your rating has been submitted.' });
       setShowRate(false);
       queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', id, 'guruji-side'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/ratings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/gurujis'] });
+      queryClient.invalidateQueries({ predicate: (query) => typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/gurujis?') });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji'] });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -171,7 +184,7 @@ export default function BookingDetail() {
   const isOwner = user && booking.customerId === user.id;
   const isCustomer = user?.role === 'customer';
   const canCancel = isOwner && ['pending', 'pending_approval', 'confirmed'].includes(booking.status);
-  const canRate = isOwner && booking.status === 'completed' && !existingReview;
+  const canRate = isOwner && booking.status === 'completed' && !isReviewLoading && !isReviewError && !existingReview;
   const isPending = ['pending', 'pending_approval'].includes(booking.status);
 
   return (
@@ -297,6 +310,12 @@ export default function BookingDetail() {
           {/* Action buttons */}
           {isOwner && (
             <div className="flex gap-3 flex-wrap mb-6">
+              {isReviewError && (
+                <div role="alert" className="flex items-center gap-2 text-sm text-red-700">
+                  <span>Rating status could not be checked.</span>
+                  <Button variant="outline" size="sm" onClick={() => refetchReview()}>Retry</Button>
+                </div>
+              )}
               {canCancel && (
                 <Button variant="destructive" onClick={() => setShowCancel(true)} className="gap-2">
                   <XCircle className="h-4 w-4" /> Cancel Booking

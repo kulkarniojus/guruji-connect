@@ -912,7 +912,7 @@ export class DBStorage implements IStorage {
   
   async getReviewsByGurujiId(gurujiId: number): Promise<Review[]> {
     const result = await pool.query(
-      `SELECT * FROM reviews WHERE "gurujiId" = $1 ORDER BY "createdAt" DESC`,
+      `SELECT * FROM reviews WHERE "gurujiId" = $1 AND from_role = 'customer' ORDER BY "createdAt" DESC`,
       [gurujiId]
     );
     
@@ -920,40 +920,47 @@ export class DBStorage implements IStorage {
   }
   
   async createReview(reviewData: InsertReview): Promise<Review> {
-    const fromRole = (reviewData as any).fromRole || 'customer';
-    const result = await pool.query(
-      `INSERT INTO reviews (
-        "customerId", "gurujiId", "bookingId", from_role, rating, review, "createdAt"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *`,
-      [
-        reviewData.customerId,
-        reviewData.gurujiId,
-        reviewData.bookingId,
-        fromRole,
-        reviewData.rating,
-        reviewData.review || null,
-        new Date()
-      ]
-    );
-
-    // Only update guruji profile rating for customer→guruji reviews
-    if (fromRole !== 'guruji') {
-      await this.updateGurujiRating(reviewData.gurujiId);
+    const fromRole = reviewData.fromRole || 'customer';
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Serialize submissions per booking so concurrent clicks cannot create duplicates.
+      const booking = (await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE', [reviewData.bookingId])).rows[0];
+      if (!booking || booking.status !== 'completed' || booking.customerId !== reviewData.customerId || booking.gurujiId !== reviewData.gurujiId) {
+        throw Object.assign(new Error('You can only rate your completed booking'), { code: 'REVIEW_BOOKING_INVALID' });
+      }
+      const existing = await client.query(`SELECT id FROM reviews WHERE "bookingId"=$1 AND from_role=$2`, [reviewData.bookingId, fromRole]);
+      if (existing.rows.length) throw Object.assign(new Error('You have already submitted this rating'), { code: 'REVIEW_EXISTS' });
+      // Serialize customer ratings across different bookings for the same Guruji too.
+      if (fromRole === 'customer') await client.query('SELECT id FROM guruji_profiles WHERE id=$1 FOR UPDATE', [reviewData.gurujiId]);
+      const result = await client.query(
+        `INSERT INTO reviews ("customerId","gurujiId","bookingId",from_role,rating,comment,"createdAt")
+         VALUES ($1,$2,$3,$4,$5,$6,NOW()) RETURNING *`,
+        [reviewData.customerId, reviewData.gurujiId, reviewData.bookingId, fromRole, reviewData.rating, reviewData.review || null],
+      );
+      if (fromRole === 'customer') await client.query(
+        `UPDATE guruji_profiles SET rating=stats.average,"totalReviews"=stats.count,"updatedAt"=NOW()
+         FROM (SELECT COALESCE(AVG(rating),0) AS average,COUNT(*)::int AS count FROM reviews
+           WHERE "gurujiId"=$1 AND from_role='customer') stats WHERE guruji_profiles.id=$1`, [reviewData.gurujiId]);
+      await client.query('COMMIT');
+      return this.mapReviewFromDb(result.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-
-    return this.mapReviewFromDb(result.rows[0]);
   }
 
   async getReviewsByCustomerId(customerId: number): Promise<Review[]> {
     const result = await pool.query(
-      `SELECT r.*, u.first_name || ' ' || u.last_name AS guruji_name,
-              b.puja_id, p.name AS puja_name
+      `SELECT r.*, u."firstName" || ' ' || u."lastName" AS guruji_name,
+              b."pujaId", p.name AS puja_name
        FROM reviews r
        LEFT JOIN guruji_profiles gp ON gp.id = r."gurujiId"
-       LEFT JOIN users u ON u.id = gp.user_id
+       LEFT JOIN users u ON u.id = gp."userId"
        LEFT JOIN bookings b ON b.id = r."bookingId"
-       LEFT JOIN pujas p ON p.id = b.puja_id
+       LEFT JOIN pujas p ON p.id = b."pujaId"
        WHERE r."customerId" = $1 AND r.from_role = 'guruji'
        ORDER BY r."createdAt" DESC`,
       [customerId]
@@ -975,7 +982,7 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `SELECT AVG(rating) as avg_rating, COUNT(*) as count
        FROM reviews
-       WHERE "gurujiId" = $1`,
+       WHERE "gurujiId" = $1 AND from_role = 'customer'`,
       [gurujiId]
     );
     
@@ -984,7 +991,7 @@ export class DBStorage implements IStorage {
       
       await pool.query(
         `UPDATE guruji_profiles
-         SET rating = $1, "totalReviews" = $2, updated_at = $3
+         SET rating = $1, "totalReviews" = $2, "updatedAt" = $3
          WHERE id = $4`,
         [parseFloat(avg_rating) || 0, parseInt(count) || 0, new Date(), gurujiId]
       );

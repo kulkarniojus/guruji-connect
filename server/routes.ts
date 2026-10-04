@@ -2987,81 +2987,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/reviews', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.session.userId!;
-      const { bookingId, gurujiId, rating, review, fromRole } = req.body;
-      const role = fromRole || 'customer';
-
-      if (!bookingId || !gurujiId || !rating) {
-        return res.status(400).json({ message: 'bookingId, gurujiId and rating are required' });
-      }
-      if (rating < 1 || rating > 5) {
-        return res.status(400).json({ message: 'Rating must be between 1 and 5' });
-      }
-
-      const booking = await storageInstance.getBooking(parseInt(bookingId));
+      const { bookingId, gurujiId, rating, review, fromRole } = z.object({
+        bookingId: z.coerce.number().int().positive(),
+        gurujiId: z.coerce.number().int().positive().optional(),
+        rating: z.number().int().min(1).max(5),
+        review: z.string().trim().max(500).nullable().optional(),
+        fromRole: z.enum(['customer', 'guruji']).optional(),
+      }).parse(req.body);
+      const user = await storageInstance.getUser(userId);
+      const role = user?.role;
+      if (role !== 'customer' && role !== 'guruji') return res.status(403).json({ message: 'Only booking participants can submit ratings' });
+      if (fromRole && fromRole !== role) return res.status(403).json({ message: 'You cannot rate on behalf of the other participant' });
+      const booking = await storageInstance.getBooking(bookingId);
       if (!booking) return res.status(404).json({ message: 'Booking not found' });
       if (booking.status !== 'completed') {
         return res.status(400).json({ message: 'You can only rate completed bookings' });
       }
+      if (!booking.gurujiId || (gurujiId !== undefined && gurujiId !== booking.gurujiId)) return res.status(400).json({ message: 'Rating must be for the Guruji assigned to this booking' });
 
       if (role === 'guruji') {
         // Guruji rating a customer — verify the guruji owns this booking
-        const user = await storageInstance.getUser(userId);
-        if (!user || user.role !== 'guruji') return res.status(403).json({ message: 'Only gurujis can submit guruji ratings' });
         // Check booking assignment via guruji profile
         const gurujiProfile = await pool.query(
-          `SELECT id FROM guruji_profiles WHERE user_id = $1 LIMIT 1`, [userId]
+          `SELECT id FROM guruji_profiles WHERE "userId" = $1 LIMIT 1`, [userId]
         );
         if (gurujiProfile.rows.length === 0 || booking.gurujiId !== gurujiProfile.rows[0].id) {
           return res.status(403).json({ message: 'You are not assigned to this booking' });
         }
         // Prevent duplicate guruji review
-        const existing = await storageInstance.getReviewByBookingAndRole(parseInt(bookingId), 'guruji');
+        const existing = await storageInstance.getReviewByBookingAndRole(bookingId, 'guruji');
         if (existing) return res.status(409).json({ message: 'You have already rated this customer' });
       } else {
         // Customer rating a guruji
         if (booking.customerId !== userId) return res.status(403).json({ message: 'Forbidden' });
-        const existing = await storageInstance.getReviewByBookingId(parseInt(bookingId));
+        const existing = await storageInstance.getReviewByBookingId(bookingId);
         if (existing) return res.status(409).json({ message: 'You have already rated this booking' });
       }
 
       const created = await storageInstance.createReview({
-        bookingId: parseInt(bookingId),
+        bookingId,
         customerId: booking.customerId,
-        gurujiId: parseInt(gurujiId),
-        rating: parseInt(rating),
+        gurujiId: booking.gurujiId,
+        rating,
         review: review || null,
         fromRole: role,
-      } as any);
+      });
 
       res.status(201).json(created);
     } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: error.errors.map(issue => issue.message).join('; ') });
+      if ((error as any)?.code === 'REVIEW_EXISTS') return res.status(409).json({ message: 'You have already submitted this rating' });
+      if ((error as any)?.code === 'REVIEW_BOOKING_INVALID') return res.status(400).json({ message: 'You can only rate your completed booking' });
       console.error('Error creating review:', error);
       res.status(500).json({ message: 'Failed to submit review' });
     }
   });
 
+  const canReadBookingRatings = async (bookingId: number, userId: number) => {
+    const result = await pool.query(
+      `SELECT b.id FROM bookings b JOIN users u ON u.id=$2
+       LEFT JOIN guruji_profiles gp ON gp.id=b."gurujiId"
+       WHERE b.id=$1 AND (u.role='admin' OR (u.role='customer' AND b."customerId"=u.id)
+         OR (u.role='guruji' AND gp."userId"=u.id))`, [bookingId, userId]);
+    return result.rows.length > 0;
+  };
   // GET /api/reviews/booking/:bookingId – check if customer review exists for a booking
   app.get('/api/reviews/booking/:bookingId', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const bookingId = parseInt(req.params.bookingId);
+      const bookingId = z.coerce.number().int().positive().parse(req.params.bookingId);
+      if (!await canReadBookingRatings(bookingId, req.session.userId!)) return res.status(403).json({ message: 'Forbidden' });
       const review = await storageInstance.getReviewByBookingId(bookingId);
       res.json(review || null);
     } catch (error) {
-      res.status(500).json({ message: 'Failed to fetch review' });
+      res.status(error instanceof z.ZodError ? 400 : 500).json({ message: 'Failed to fetch review' });
     }
   });
 
   // GET /api/reviews/booking/:bookingId/both – get both customer and guruji reviews for a booking
   app.get('/api/reviews/booking/:bookingId/both', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const bookingId = parseInt(req.params.bookingId);
+      const bookingId = z.coerce.number().int().positive().parse(req.params.bookingId);
+      if (!await canReadBookingRatings(bookingId, req.session.userId!)) return res.status(403).json({ message: 'Forbidden' });
       const [customerReview, gurujiReview] = await Promise.all([
         storageInstance.getReviewByBookingAndRole(bookingId, 'customer'),
         storageInstance.getReviewByBookingAndRole(bookingId, 'guruji'),
       ]);
       res.json({ customerReview: customerReview || null, gurujiReview: gurujiReview || null });
     } catch (error) {
-      res.status(500).json({ message: 'Failed to fetch reviews' });
+      res.status(error instanceof z.ZodError ? 400 : 500).json({ message: 'Failed to fetch reviews' });
     }
   });
 
@@ -3094,8 +3107,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gurujiRatings = await pool.query(`
         SELECT
           gp.id AS guruji_id,
-          u.first_name || ' ' || u.last_name AS guruji_name,
-          gp.specialization,
+          u."firstName" || ' ' || u."lastName" AS guruji_name,
+          array_to_string(gp.specialities, ', ') AS specialization,
           COUNT(r.id)::int AS total_reviews,
           ROUND(AVG(r.rating)::numeric, 2)::float AS avg_rating,
           SUM(CASE WHEN r.rating = 5 THEN 1 ELSE 0 END)::int AS five_star,
@@ -3103,9 +3116,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SUM(CASE WHEN r.rating = 3 THEN 1 ELSE 0 END)::int AS three_star,
           SUM(CASE WHEN r.rating <= 2 THEN 1 ELSE 0 END)::int AS low_star
         FROM guruji_profiles gp
-        JOIN users u ON u.id = gp.user_id
+        JOIN users u ON u.id = gp."userId"
         LEFT JOIN reviews r ON r."gurujiId" = gp.id AND r.from_role = 'customer'
-        GROUP BY gp.id, u.first_name, u.last_name, gp.specialization
+        GROUP BY gp.id, u."firstName", u."lastName", gp.specialities
         ORDER BY avg_rating DESC NULLS LAST, total_reviews DESC
       `);
 
@@ -3113,13 +3126,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customerRatings = await pool.query(`
         SELECT
           cu.id AS customer_id,
-          cu.first_name || ' ' || cu.last_name AS customer_name,
+          cu."firstName" || ' ' || cu."lastName" AS customer_name,
           COUNT(r.id)::int AS total_ratings,
           ROUND(AVG(r.rating)::numeric, 2)::float AS avg_rating
         FROM users cu
         LEFT JOIN reviews r ON r."customerId" = cu.id AND r.from_role = 'guruji'
         WHERE cu.role = 'customer'
-        GROUP BY cu.id, cu.first_name, cu.last_name
+        GROUP BY cu.id, cu."firstName", cu."lastName"
         HAVING COUNT(r.id) > 0
         ORDER BY avg_rating DESC
       `);
@@ -3140,29 +3153,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Recent guruji reviews (customer→guruji)
       const recentGurujiReviews = await pool.query(`
-        SELECT r.id, r.rating, r.review, r."createdAt",
-               cu.first_name || ' ' || cu.last_name AS customer_name,
-               gu.first_name || ' ' || gu.last_name AS guruji_name,
+        SELECT r.id, r."bookingId", r.rating, r.comment AS review, r."createdAt",
+               cu."firstName" || ' ' || cu."lastName" AS customer_name,
+               gu."firstName" || ' ' || gu."lastName" AS guruji_name,
                p.name AS puja_name
         FROM reviews r
         JOIN users cu ON cu.id = r."customerId"
         JOIN guruji_profiles gp ON gp.id = r."gurujiId"
-        JOIN users gu ON gu.id = gp.user_id
+        JOIN users gu ON gu.id = gp."userId"
         LEFT JOIN bookings b ON b.id = r."bookingId"
-        LEFT JOIN pujas p ON p.id = b.puja_id
+        LEFT JOIN pujas p ON p.id = b."pujaId"
         WHERE r.from_role = 'customer'
         ORDER BY r."createdAt" DESC LIMIT 10
       `);
 
       // Recent customer ratings (guruji→customer)
       const recentCustomerRatings = await pool.query(`
-        SELECT r.id, r.rating, r.review, r."createdAt",
-               cu.first_name || ' ' || cu.last_name AS customer_name,
-               gu.first_name || ' ' || gu.last_name AS guruji_name
+        SELECT r.id, r."bookingId", r.rating, r.comment AS review, r."createdAt",
+               cu."firstName" || ' ' || cu."lastName" AS customer_name,
+               gu."firstName" || ' ' || gu."lastName" AS guruji_name
         FROM reviews r
         JOIN users cu ON cu.id = r."customerId"
         JOIN guruji_profiles gp ON gp.id = r."gurujiId"
-        JOIN users gu ON gu.id = gp.user_id
+        JOIN users gu ON gu.id = gp."userId"
         WHERE r.from_role = 'guruji'
         ORDER BY r."createdAt" DESC LIMIT 10
       `);

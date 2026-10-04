@@ -265,7 +265,7 @@ export default function GurujiDashboard() {
         fromRole: 'guruji',
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.message || 'Failed to submit rating');
       }
       return res.json();
@@ -273,6 +273,13 @@ export default function GurujiDashboard() {
     onSuccess: () => {
       toast({ title: 'Rating Submitted!', description: 'Your rating for the customer has been saved.' });
       queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', selectedBookingForRating?.id, 'guruji-side'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', selectedBookingForRating?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/ratings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/gurujis'] });
+      queryClient.invalidateQueries({ predicate: (query) => typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/gurujis?') });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji'] });
       setIsRatingDialogOpen(false);
       setSelectedBookingForRating(null);
     },
@@ -1178,7 +1185,7 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
     queryKey: ['/api/reviews/booking', booking.id, 'guruji-side'],
     queryFn: async () => {
       const res = await fetch(`/api/reviews/booking/${booking.id}/both`, { credentials: 'include' });
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error('Could not check whether this booking has been rated.');
       const data = await res.json();
       return data.gurujiReview || null;
     },

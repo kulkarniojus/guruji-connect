@@ -179,13 +179,13 @@ export const payments = pgTable("payments", {
 // Reviews table — supports both customer→guruji and guruji→customer ratings
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
-  bookingId: integer("booking_id").notNull().references(() => bookings.id),
-  customerId: integer("customer_id").notNull().references(() => users.id),
-  gurujiId: integer("guruji_id").notNull().references(() => gurujiProfiles.id),
+  bookingId: integer("bookingId").notNull().references(() => bookings.id),
+  customerId: integer("customerId").notNull().references(() => users.id),
+  gurujiId: integer("gurujiId").notNull().references(() => gurujiProfiles.id),
   fromRole: text("from_role").notNull().default('customer'), // 'customer' | 'guruji'
   rating: integer("rating").notNull(),
-  review: text("review"),
-  createdAt: timestamp("created_at").defaultNow(),
+  review: text("comment"),
+  createdAt: timestamp("createdAt").defaultNow(),
 });
 
 // Booking Request Status Enum

@@ -27,7 +27,7 @@ function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => v
     queryKey: ['/api/reviews/booking', booking.id],
     queryFn: async () => {
       const res = await fetch(`/api/reviews/booking/${booking.id}`, { credentials: 'include' });
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error('Could not check whether this booking has been rated.');
       return res.json();
     },
     enabled: booking.status === 'completed',
@@ -125,15 +125,23 @@ export default function CustomerDashboard() {
 
   const ratingMutation = useMutation({
     mutationFn: async ({ bookingId, gurujiId, rating, review }: any) => {
-      const res = await apiRequest('POST', '/api/reviews', { bookingId, gurujiId, rating, review });
+      const res = await apiRequest('POST', '/api/reviews', { bookingId, gurujiId, rating, review, fromRole: 'customer' });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message);
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to submit rating. Please try again.');
       }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', selectedBookingForRating?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', selectedBookingForRating?.id, 'guruji-side'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/ratings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/gurujis'] });
+      queryClient.invalidateQueries({ predicate: (query) => typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/gurujis?') });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews/my-customer-ratings'] });
       toast({ title: 'Thank You!', description: 'Your rating has been submitted successfully.' });
       setIsRatingDialogOpen(false);
       setSelectedBookingForRating(null);
@@ -147,7 +155,8 @@ export default function CustomerDashboard() {
     queryKey: ['/api/reviews/my-customer-ratings'],
     queryFn: async () => {
       const res = await fetch('/api/reviews/my-customer-ratings', { credentials: 'include' });
-      return res.ok ? res.json() : [];
+      if (!res.ok) throw new Error('Could not load your ratings.');
+      return res.json();
     },
   });
 

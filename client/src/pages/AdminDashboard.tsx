@@ -16,9 +16,10 @@ import CustomerQueriesTab from '@/components/admin/CustomerQueriesTab';
 import CustomersManagementTab from '@/components/admin/CustomersManagementTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle, Inbox, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle, Inbox, AlertTriangle, RefreshCw, Star } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { isUnassignedBooking } from '@shared/isUnassignedBooking';
+import { RatingsTab } from '@/components/dashboard/AdminDashboard';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
@@ -207,6 +208,10 @@ export default function AdminDashboard() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="ratings" className="flex items-center gap-1.5">
+            <Star className="h-4 w-4" />
+            Ratings
+          </TabsTrigger>
           <TabsTrigger value="customers" className="flex items-center gap-1.5">
             <Users className="h-4 w-4" />
             Customers
@@ -267,6 +272,10 @@ export default function AdminDashboard() {
             showUnassignedOnly={showUnassignedOnly}
             onUnassignedFilterChange={setShowUnassignedOnly}
           />
+        </TabsContent>
+
+        <TabsContent value="ratings">
+          <RatingsTab />
         </TabsContent>
 
         <TabsContent value="pujas">
