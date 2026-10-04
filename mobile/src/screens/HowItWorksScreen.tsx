@@ -147,7 +147,7 @@ const HowItWorksScreen: React.FC = () => {
         <View style={styles.introSection}>
           <Text style={styles.introTitle}>Book in 6 Easy Steps</Text>
           <Text style={styles.introText}>
-            GurujiConnect makes it simple to connect with verified spiritual guides 
+            Connect with verified spiritual guides on Sanatan Guruji
             for authentic puja services.
           </Text>
         </View>

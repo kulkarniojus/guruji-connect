@@ -165,7 +165,7 @@ export default function CitiesManagementTab() {
               Cities Management
             </CardTitle>
             <CardDescription>
-              Manage cities where GurujiConnect services are available. Gurujis can select up to 2 cities to serve.
+              Manage cities where Sanatan Guruji services are available. Gurujis can select up to 2 cities to serve.
             </CardDescription>
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

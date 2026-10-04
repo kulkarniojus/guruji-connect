@@ -1,4 +1,4 @@
-# GurujiConnect Mobile App
+# Sanatan Guruji Mobile App
 
 A React Native mobile application for connecting customers with spiritual advisors for online consultations and religious ceremonies.
 
@@ -156,4 +156,4 @@ mobile/
 7. Implement deep linking
 8. Add analytics tracking
 
-This mobile app provides a complete native experience for the GurujiConnect platform, offering all web features optimized for mobile devices.
+This mobile app provides a complete native experience for the Sanatan Guruji platform, offering all web features optimized for mobile devices.

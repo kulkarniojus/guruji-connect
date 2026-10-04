@@ -85,7 +85,7 @@ export default function Chatbot() {
       {isOpen && (
         <div className="bg-white rounded-lg shadow-xl w-80 sm:w-96 mb-4 overflow-hidden flex flex-col max-h-[500px]">
           <div className="bg-primary p-4 text-white flex justify-between items-center">
-            <h3 className="font-medium">PujaConnect Support</h3>
+            <h3 className="font-medium">Sanatan Guruji Support</h3>
             <Button variant="ghost" size="icon" onClick={toggleChatbot} className="text-white hover:bg-primary-600">
               <X className="h-5 w-5" />
             </Button>

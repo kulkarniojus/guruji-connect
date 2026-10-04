@@ -1,4 +1,4 @@
-# GurujiConnect Mobile App Setup Guide
+# Sanatan Guruji Mobile App Setup Guide
 
 ## React Native + Expo Implementation
 
@@ -10,8 +10,8 @@
 
 1. **Create the mobile app:**
 ```bash
-npx create-expo-app@latest GurujiConnectMobile --template blank-typescript
-cd GurujiConnectMobile
+npx create-expo-app@latest SanatanGurujiMobile --template blank-typescript
+cd SanatanGurujiMobile
 ```
 
 2. **Install required dependencies:**
@@ -80,7 +80,7 @@ npx expo start
 
 ### App Structure
 ```
-GurujiConnectMobile/
+SanatanGurujiMobile/
 ├── src/
 │   ├── components/          # Reusable components
 │   ├── screens/            # App screens

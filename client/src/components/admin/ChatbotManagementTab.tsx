@@ -57,7 +57,7 @@ export default function ChatbotManagementTab() {
     {
       id: 1,
       name: 'Welcome Message',
-      content: 'Welcome to GurujiConnect! How can I assist you with your spiritual needs today?',
+      content: 'Welcome to Sanatan Guruji! How can I assist you with your spiritual needs today?',
       isActive: true,
       createdAt: '2023-01-01',
       updatedAt: '2023-01-01'
@@ -81,7 +81,7 @@ export default function ChatbotManagementTab() {
   ]);
 
   const [settings, setSettings] = useState<ChatbotSettings>({
-    welcomeMessage: 'Hello! Welcome to GurujiConnect. How can I help you today?',
+    welcomeMessage: 'Hello! Welcome to Sanatan Guruji. How can I help you today?',
     fallbackMessage: 'I\'m sorry, I didn\'t understand that. Could you please rephrase your question?',
     isEnabled: true,
     maxResponseTime: 5000

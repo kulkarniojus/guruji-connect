@@ -97,7 +97,7 @@ export default function LoginModal({ isOpen, onClose, onRegisterClick, onLoginSu
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-neutral-900">
-            Login to GurujiConnect
+            Login to Sanatan Guruji
           </DialogTitle>
         </DialogHeader>
         

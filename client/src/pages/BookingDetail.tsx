@@ -174,7 +174,7 @@ export default function BookingDetail() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
-      <Helmet><title>{`Booking #${booking.id} | GurujiConnect`}</title></Helmet>
+      <Helmet><title>{`Booking #${booking.id} | Sanatan Guruji`}</title></Helmet>
       <Header />
 
       <main className="flex-1 py-8">

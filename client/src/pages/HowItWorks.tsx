@@ -9,8 +9,8 @@ export default function HowItWorks() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <Helmet>
-        <title>How It Works | GurujiConnect</title>
-        <meta name="description" content="Learn how GurujiConnect helps you book authentic puja services and consultations with verified Gurujis" />
+        <title>How It Works | Sanatan Guruji</title>
+        <meta name="description" content="Learn how Sanatan Guruji helps you book authentic puja services and consultations with verified Gurujis" />
       </Helmet>
 
       <Header />
@@ -18,7 +18,7 @@ export default function HowItWorks() {
       <main className="container mx-auto px-4 py-12">
         <div className="text-center mb-12">
           <h1 className="text-3xl md:text-4xl font-bold text-neutral-900 font-poppins mb-4">
-            How GurujiConnect Works
+            How Sanatan Guruji Works
           </h1>
           <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
             Simple steps to connect with verified Gurujis for your spiritual needs
@@ -176,7 +176,7 @@ export default function HowItWorks() {
 
         {/* Why Choose Us */}
         <div className="bg-white rounded-lg p-8">
-          <h2 className="text-2xl font-bold text-center mb-8">Why Choose GurujiConnect?</h2>
+          <h2 className="text-2xl font-bold text-center mb-8">Why Choose Sanatan Guruji?</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">Verified Gurujis</h3>

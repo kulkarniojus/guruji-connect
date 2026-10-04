@@ -7,7 +7,7 @@ const testimonials = [
     id: 1,
     name: 'Rahul Sharma',
     rating: 5,
-    text: 'I booked the Griha Pravesh puja through PujaConnect. The pandit was very knowledgeable and performed the puja with utmost dedication. The entire booking process was smooth and hassle-free.',
+    text: 'I booked the Griha Pravesh puja through Sanatan Guruji. The pandit was very knowledgeable and performed the puja with utmost dedication. The entire booking process was smooth and hassle-free.',
     avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
   },
   {

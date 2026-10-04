@@ -296,7 +296,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
       if (result.success && result.user) {
         toast({
           title: 'Registration Successful!',
-          description: `Welcome to GurujiConnect, ${result.user.firstName}!`,
+          description: `Welcome to Sanatan Guruji, ${result.user.firstName}!`,
         });
         form.reset();
         setSelectedCities([]);

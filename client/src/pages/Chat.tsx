@@ -443,7 +443,7 @@ export default function Chat() {
   return (
     <>
       <Helmet>
-        <title>Chat with Gurujis | GurujiConnect</title>
+        <title>Chat with Gurujis | Sanatan Guruji</title>
         <meta name="description" content="Get guidance from experienced Gurujis through chat, audio, or video consultations" />
         {isMobile && <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />}
       </Helmet>

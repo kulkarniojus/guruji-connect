@@ -1,99 +1,113 @@
 import { Link } from 'wouter';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { MapPin, Mail, Phone, Facebook, Instagram, Twitter, Linkedin } from 'lucide-react';
+import { ArrowUpRight, Flower2, MessageCircle, Phone } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Footer() {
+  const year = new Date().getFullYear();
+  const { user } = useAuth();
+
   return (
-    <footer className="bg-neutral-800 text-white">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div>
-            <div className="flex items-center space-x-2 mb-6">
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-              <span className="text-xl font-bold font-poppins">GurujiConnect</span>
-            </div>
-            <p className="text-neutral-400 mb-4">Connect with verified Gurujis for your religious and spiritual needs. Book pujas, consultations, and more.</p>
-            <div className="flex space-x-4">
-              <a href="#" className="text-white hover:text-primary">
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-white hover:text-primary">
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-white hover:text-primary">
-                <Twitter className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-white hover:text-primary">
-                <Linkedin className="h-5 w-5" />
-              </a>
-            </div>
-          </div>
+    <footer className="relative overflow-hidden bg-neutral-900 text-white">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full border border-white/10" />
+      <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full border border-white/10" />
+      <div className="container relative mx-auto px-5 pb-6 pt-12 sm:px-8 sm:pt-16">
+        <div className="grid gap-12 border-b border-white/15 pb-12 lg:grid-cols-[1.25fr_2fr] lg:gap-20 lg:pb-14">
+          <section aria-labelledby="footer-brand">
+            <Link href="/" className="group inline-flex items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-4 focus-visible:ring-offset-neutral-900">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-300 text-neutral-900 transition-transform group-hover:rotate-6">
+                <Flower2 className="h-6 w-6" strokeWidth={1.7} aria-hidden="true" />
+              </span>
+              <span id="footer-brand" className="font-poppins text-xl font-semibold tracking-tight sm:text-2xl">Sanatan Guruji</span>
+            </Link>
+            <p className="mt-5 max-w-sm text-sm leading-7 text-neutral-300 sm:text-base">
+              A welcoming place for families to find authentic pujas and personal spiritual guidance from approved Gurujis.
+            </p>
+            <Link href="/about" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-amber-300 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300">
+              Discover Sanatan Guruji <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </section>
 
-          <div>
-            <h3 className="font-semibold text-lg mb-4 font-poppins">Services</h3>
-            <ul className="space-y-2">
-              <li><Link href="/services/online-puja" className="text-neutral-400 hover:text-white">Online Puja Booking</Link></li>
-              <li><Link href="/services/online-consultation" className="text-neutral-400 hover:text-white">Online Consultation</Link></li>
-              <li><Link href="/services/brahmin-booking" className="text-neutral-400 hover:text-white">Brahmin Booking</Link></li>
-              <li><Link href="/services/special-occasions" className="text-neutral-400 hover:text-white">Special Occasions</Link></li>
-              <li><Link href="/services/training" className="text-neutral-400 hover:text-white">Training</Link></li>
-              <li><Link href="/services/gifts" className="text-neutral-400 hover:text-white">Gifts</Link></li>
-            </ul>
-          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 sm:gap-x-8">
+            <nav aria-label="Explore Sanatan Guruji">
+              <h2 className="font-poppins text-sm font-semibold tracking-wide text-white">Explore</h2>
+              <ul className="mt-5 space-y-3.5">
+                <li><Link href="/pujas" className="footer-link">Browse pujas</Link></li>
+                <li><Link href="/services" className="footer-link">Services</Link></li>
+                <li><Link href="/how-it-works" className="footer-link">How it works</Link></li>
+                <li><Link href={user ? '/my-bookings' : '/register'} className="footer-link">{user ? 'My bookings' : 'Create an account'}</Link></li>
+              </ul>
+            </nav>
 
-          <div>
-            <h3 className="font-semibold text-lg mb-4 font-poppins">Quick Links</h3>
-            <ul className="space-y-2">
-              <li><Link href="/about" className="text-neutral-400 hover:text-white">About Us</Link></li>
-              <li><Link href="/blog" className="text-neutral-400 hover:text-white">Blog</Link></li>
-              <li><Link href="/faq" className="text-neutral-400 hover:text-white">FAQs</Link></li>
-              <li><Link href="/privacy-policy" className="text-neutral-400 hover:text-white">Privacy Policy</Link></li>
-              <li><Link href="/terms" className="text-neutral-400 hover:text-white">Terms & Conditions</Link></li>
-              <li><Link href="/contact" className="text-neutral-400 hover:text-white">Contact Us</Link></li>
-            </ul>
-          </div>
+            <nav aria-label="About and support">
+              <h2 className="font-poppins text-sm font-semibold tracking-wide text-white">About &amp; support</h2>
+              <ul className="mt-5 space-y-3.5">
+                <li><Link href="/about" className="footer-link">About Us</Link></li>
+                <li><Link href="/faq" className="footer-link">FAQs</Link></li>
+                <li><Link href="/contact" className="footer-link">Contact</Link></li>
+                <li><Link href="/become-guruji" className="footer-link">Become a Guruji</Link></li>
+                <li><Link href="/sales-rep" className="footer-link">Sales representative</Link></li>
+              </ul>
+            </nav>
 
-          <div>
-            <h3 className="font-semibold text-lg mb-4 font-poppins">Contact Us</h3>
-            <div className="space-y-4">
-              <div className="flex items-start">
-                <MapPin className="h-5 w-5 text-neutral-400 mr-2 mt-0.5" />
-                <span className="text-neutral-400">123 Main Street, Mumbai, Maharashtra, India - 400001</span>
-              </div>
-              <div className="flex items-center">
-                <Mail className="h-5 w-5 text-neutral-400 mr-2" />
-                <span className="text-neutral-400">support@gurujiconnect.com</span>
-              </div>
-              <div className="flex items-center">
-                <Phone className="h-5 w-5 text-neutral-400 mr-2" />
-                <span className="text-neutral-400">+91 9876543210</span>
-              </div>
-            </div>
-            <div className="mt-6">
-              <h4 className="font-medium mb-2">Subscribe to Newsletter</h4>
-              <div className="flex">
-                <Input 
-                  type="email" 
-                  placeholder="Your email" 
-                  className="rounded-l-md w-full focus:outline-none focus:ring-2 focus:ring-primary text-neutral-900" 
-                />
-                <Button className="rounded-r-md hover:bg-primary-700">
-                  Subscribe
-                </Button>
-              </div>
-            </div>
+            <nav aria-label="Policies" className="col-span-2 sm:col-span-1">
+              <h2 className="font-poppins text-sm font-semibold tracking-wide text-white">Policies</h2>
+              <ul className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3.5 sm:grid-cols-1">
+                <li><Link href="/privacy-policy" className="footer-link">Privacy policy</Link></li>
+                <li><Link href="/terms" className="footer-link">Terms &amp; conditions</Link></li>
+                <li><Link href="/cancellation-policy" className="footer-link">Cancellation policy</Link></li>
+              </ul>
+            </nav>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-neutral-700 text-center">
-          <p className="text-neutral-400">&copy; {new Date().getFullYear()} GurujiConnect. All rights reserved.</p>
+        <div className="flex flex-col gap-6 py-7 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Need a hand?</p>
+            <p className="mt-1.5 text-sm text-neutral-300">Speak with us about finding the right guidance.</p>
+          </div>
+          <div className="flex flex-col gap-3 min-[420px]:flex-row">
+            <a
+              href="tel:+918087138429"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/25 px-5 text-sm font-medium text-white transition-colors hover:border-amber-300 hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+              aria-label="Call Sanatan Guruji at 8087138429"
+            >
+              <Phone className="h-4 w-4" aria-hidden="true" />
+              8087138429
+            </a>
+            <a
+              href="https://wa.me/918087138429"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-amber-300 px-5 text-sm font-semibold text-neutral-900 transition-colors hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+              aria-label="Chat with Sanatan Guruji on WhatsApp"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              WhatsApp
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-white/15 pt-5 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>&copy; {year} Sanatan Guruji. All rights reserved.</p>
+          <p>Rooted in tradition. Here for your family.</p>
         </div>
       </div>
+      <style>{`
+        .footer-link {
+          display: inline-flex;
+          color: rgb(212 212 212);
+          font-size: 0.875rem;
+          line-height: 1.35rem;
+          transition: color 160ms ease;
+        }
+        .footer-link:hover { color: rgb(252 211 77); }
+        .footer-link:focus-visible {
+          outline: 2px solid rgb(252 211 77);
+          outline-offset: 4px;
+          border-radius: 2px;
+        }
+      `}</style>
     </footer>
   );
 }

@@ -210,7 +210,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Helmet>
-        <title>My Profile | GurujiConnect</title>
+        <title>My Profile | Sanatan Guruji</title>
       </Helmet>
       <Header />
 

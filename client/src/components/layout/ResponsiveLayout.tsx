@@ -19,7 +19,7 @@ export function ResponsiveLayout({
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Helmet>
-        <title>{title} | GurujiConnect</title>
+        <title>{title} | Sanatan Guruji</title>
         <meta name="description" content={description} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Helmet>

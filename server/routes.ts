@@ -714,7 +714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storageInstance.createNotification({
           userId: updatedProfile.userId,
           title: 'Application Approved! 🎉',
-          message: 'Congratulations! Your Guruji registration has been approved. You are now a verified Guruji on GurujiConnect.',
+          message: 'Congratulations! Your Guruji registration has been approved. You are now a verified Guruji on Sanatan Guruji.',
           type: 'guruji_approved',
           isRead: false,
         } as any);

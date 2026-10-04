@@ -118,7 +118,7 @@ export default function PaymentSettingsTab() {
               <Label htmlFor="upiId">UPI ID</Label>
               <Input
                 id="upiId"
-                placeholder="e.g. gurujiconnect@upi"
+                placeholder="e.g. sanatanguruji@upi"
                 value={form.upiId ?? ''}
                 onChange={(e) => setForm(prev => prev ? { ...prev, upiId: e.target.value } : prev)}
               />
@@ -128,7 +128,7 @@ export default function PaymentSettingsTab() {
               <Label htmlFor="upiName">Account Name (shown to customer)</Label>
               <Input
                 id="upiName"
-                placeholder="e.g. GurujiConnect Services"
+                placeholder="e.g. Sanatan Guruji Services"
                 value={form.upiName ?? ''}
                 onChange={(e) => setForm(prev => prev ? { ...prev, upiName: e.target.value } : prev)}
               />

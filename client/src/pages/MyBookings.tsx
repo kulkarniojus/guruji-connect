@@ -119,7 +119,7 @@ export default function MyBookings() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
-      <Helmet><title>My Bookings | GurujiConnect</title></Helmet>
+      <Helmet><title>My Bookings | Sanatan Guruji</title></Helmet>
       <Header />
 
       <main className="flex-1 py-8">

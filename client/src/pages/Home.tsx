@@ -21,7 +21,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-spiritual-pattern">
       <Helmet>
-        <title>GurujiConnect - Book Online and Offline Pujas</title>
+        <title>Sanatan Guruji - Book Online and Offline Pujas</title>
         <meta name="description" content="Connect with verified Gurujis for your spiritual needs. Book online or in-person puja services, consultations, and more with expert Gurujis all over India." />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Helmet>

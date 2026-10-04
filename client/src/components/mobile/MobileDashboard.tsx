@@ -84,7 +84,7 @@ const MobileDashboard: React.FC = () => {
 
   return (
     <MobileLayout 
-      title="GurujiConnect" 
+      title={"Sanatan Guruji"}
       showBackButton={false}
       className="p-4 space-y-6"
     >

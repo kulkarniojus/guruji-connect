@@ -32,7 +32,7 @@ const SimpleBookingDemo: React.FC = () => {
   return (
     <div className="bg-gray-50 min-h-screen">
       <Helmet>
-        <title>Booking Notification Demo - GurujiConnect</title>
+        <title>Booking Notification Demo - Sanatan Guruji</title>
       </Helmet>
       
       <div id="demo-container" className="w-full h-screen">

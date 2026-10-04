@@ -22,6 +22,7 @@ import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { VideoConferenceProvider } from "@/context/VideoConferenceContext";
 import CustomerPujaReminders from "@/components/CustomerPujaReminders";
+import SiteInformation, { ContactPage, FaqPage } from "@/pages/SiteInformation";
 
 // Lazy-loaded components
 const Chat = lazy(() => import('@/pages/Chat'));
@@ -85,6 +86,12 @@ function Router() {
       <Route path="/services" component={Services} />
       <Route path="/become-guruji" component={BecomeGuruji} />
       <Route path="/how-it-works" component={HowItWorks} />
+      <Route path="/about"><SiteInformation kind="about" /></Route>
+      <Route path="/contact" component={ContactPage} />
+      <Route path="/faq" component={FaqPage} />
+      <Route path="/privacy-policy"><SiteInformation kind="privacy" /></Route>
+      <Route path="/terms"><SiteInformation kind="terms" /></Route>
+      <Route path="/cancellation-policy"><SiteInformation kind="cancellation" /></Route>
       <Route path="/puja/:id" component={PujaDetails} />
       <Route path="/video-call/:id">
         <ProtectedRoute component={VideoCall} />
@@ -98,6 +105,11 @@ function Router() {
 }
 
 function App() {
+  const [location] = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+
   return (
     <VideoConferenceProvider>
       <Suspense fallback={

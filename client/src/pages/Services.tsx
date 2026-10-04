@@ -94,7 +94,9 @@ export default function ServicesPage() {
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full">
-                  <Link href={`/services/${service.id}`}>Learn More</Link>
+                  <Link href={['online-puja', 'brahmin-booking', 'special-occasions'].includes(service.id) ? '/pujas' : '/contact'}>
+                    {['online-puja', 'brahmin-booking', 'special-occasions'].includes(service.id) ? 'Browse Pujas' : 'Contact Us'}
+                  </Link>
                 </Button>
               </CardFooter>
             </Card>

@@ -203,7 +203,7 @@ function NotificationsView({ mobile = false }: { mobile?: boolean }) {
 export default function Notifications() {
   return (
     <div className="min-h-screen flex flex-col">
-      <Helmet><title>Notifications - GurujiConnect</title></Helmet>
+      <Helmet><title>Notifications - Sanatan Guruji</title></Helmet>
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8 max-w-2xl">
         <NotificationsView mobile={false} />

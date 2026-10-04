@@ -121,7 +121,7 @@ const BecomeGurujiScreen: React.FC = () => {
           </View>
 
           <View style={styles.benefitsSection}>
-            <Text style={styles.sectionTitle}>Why Join GurujiConnect?</Text>
+            <Text style={styles.sectionTitle}>Why Join Sanatan Guruji?</Text>
             {benefits.map(renderBenefit)}
           </View>
 
@@ -215,7 +215,7 @@ const BecomeGurujiScreen: React.FC = () => {
             <View style={styles.helpContent}>
               <Text style={styles.helpTitle}>Need Help?</Text>
               <Text style={styles.helpText}>
-                Contact us at support@gurujiconnect.com or call +91 1800-XXX-XXXX
+                Contact Sanatan Guruji by calling +91 8087138429
               </Text>
             </View>
           </View>

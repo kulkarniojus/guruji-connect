@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting GurujiConnect Mobile App..."
+echo "🚀 Starting Sanatan Guruji Mobile App..."
 echo "📱 Setting up Expo development environment..."
 
 # Navigate to mobile directory
@@ -20,7 +20,7 @@ echo "Instructions:"
 echo "1. Install 'Expo Go' app from App Store or Google Play"
 echo "2. Open Expo Go app on your phone" 
 echo "3. Scan the QR code that appears below"
-echo "4. Test the GurujiConnect mobile app!"
+echo "4. Test the Sanatan Guruji mobile app!"
 echo ""
 
 npx expo start --tunnel

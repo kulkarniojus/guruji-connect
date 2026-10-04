@@ -1,8 +1,14 @@
-# GurujiConnect - Spiritual Services Platform
+# Sanatan Guruji - Spiritual Services Platform
 
 ## Overview
 
-GurujiConnect is a comprehensive spiritual services platform built with a modern tech stack. It serves as a marketplace connecting customers with verified spiritual guides (Gurujis) for online and offline puja services, consultations, and religious ceremonies. The platform features both a web application (React frontend with TypeScript, Express.js backend) and native mobile applications (React Native with Expo) designed to use PostgreSQL with Drizzle ORM for data management.
+Sanatan Guruji is a comprehensive spiritual services platform built with a modern tech stack. It serves as a marketplace connecting customers with verified spiritual guides (Gurujis) for online and offline puja services, consultations, and religious ceremonies. The platform features both a web application (React frontend with TypeScript, Express.js backend) and native mobile applications (React Native with Expo) designed to use PostgreSQL with Drizzle ORM for data management.
+
+### Brand and public contact
+- Use **Sanatan Guruji** for all public-facing branding.
+- Public support phone: **8087138429** (`tel:+918087138429`); messaging link: `https://wa.me/918087138429`.
+- Do not invent office addresses, support email addresses, social accounts, or support hours.
+- Keep existing account emails and native app package identifiers intact during display-name changes; these are identities, not public brand copy.
 
 ## System Architecture
 
