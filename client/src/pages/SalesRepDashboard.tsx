@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateOfBirthInput } from '@/components/DateOfBirthInput';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,11 +16,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { parseBirthDate, isPastBirthDate } from '@/lib/birthDate';
 import { Loader2, UserPlus, Users, LogOut, User, Phone, Mail, MapPin, CreditCard, Calendar, Star, TrendingUp, CheckCircle, BarChart2, Building2 } from 'lucide-react';
 
 const CITIES = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
 const LANGUAGES = ['Hindi', 'English', 'Sanskrit', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 'Gujarati', 'Kannada', 'Malayalam'];
 const PUJA_SPECIALIZATIONS = ['Satyanarayan Puja', 'Ganesh Puja', 'Lakshmi Puja', 'Griha Pravesh', 'Navratri Puja', 'Rudrabhishek', 'Vivah Puja', 'Namkaran', 'Annaprashan', 'Mundan'];
+const birthDateSchema = z.string().min(1, 'Date of birth required')
+  .refine(value => !value || !!parseBirthDate(value), 'Enter a valid date in DD/MM/YYYY format')
+  .refine(value => !parseBirthDate(value) || isPastBirthDate(value), 'Date of birth cannot be in the future');
 
 // ── Customer Registration Schema ──────────────────────────────────────────
 const customerSchema = z.object({
@@ -30,7 +35,7 @@ const customerSchema = z.object({
   password: z.string().min(6, 'Minimum 6 characters'),
   age: z.coerce.number().min(18, 'Must be 18+').max(100, 'Enter valid age'),
   gender: z.enum(['male', 'female', 'other']),
-  dob: z.string().min(1, 'Date of birth required'),
+  dob: birthDateSchema,
   aadhar: z.string().length(12, 'Aadhar must be 12 digits'),
   caste: z.string().optional(),
   address: z.string().min(5, 'Full address required'),
@@ -49,7 +54,7 @@ const gurujiSchema = z.object({
   password: z.string().min(6, 'Minimum 6 characters'),
   age: z.coerce.number().min(18, 'Must be 18+').max(100, 'Enter valid age'),
   gender: z.enum(['male', 'female', 'other']),
-  dob: z.string().min(1, 'Date of birth required'),
+  dob: birthDateSchema,
   aadhar: z.string().length(12, 'Aadhar must be 12 digits'),
   caste: z.string().optional(),
   religion: z.string().optional(),
@@ -271,7 +276,7 @@ function RegisterCustomerTab() {
               <FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="dob" render={({ field }) => (
-              <FormItem><FormLabel>Date of Birth *</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Date of Birth *</FormLabel><FormControl><DateOfBirthInput {...field} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <FieldSection title="KYC / Identity" />
@@ -391,7 +396,7 @@ function RegisterGurujiTab() {
               <FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="dob" render={({ field }) => (
-              <FormItem><FormLabel>Date of Birth *</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Date of Birth *</FormLabel><FormControl><DateOfBirthInput {...field} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <FieldSection title="KYC / Identity" />
