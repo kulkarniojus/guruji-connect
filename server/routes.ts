@@ -3381,8 +3381,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending',
         profilePictureUrl: photoUrl || null,
         certificates: Array.isArray(certificates) ? certificates : [],
-        // Location fields
-        city: city || null,
+        // Keep service-city choices separate from the user's residential address.
+        cities: Array.isArray(cities) ? cities.map(String) : [],
+        city: location || city || null,
         state: state || null,
         pincode: pincode || null,
         address: address || null,

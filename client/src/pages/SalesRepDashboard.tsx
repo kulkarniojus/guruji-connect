@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateOfBirthInput } from '@/components/DateOfBirthInput';
+import { LanguagesField, PujaSpecializationsField, ServiceAreasField } from '@/components/GurujiSelectionFields';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,9 +20,6 @@ import { apiRequest } from '@/lib/queryClient';
 import { parseBirthDate, isPastBirthDate } from '@/lib/birthDate';
 import { Loader2, UserPlus, Users, LogOut, User, Phone, Mail, MapPin, CreditCard, Calendar, Star, TrendingUp, CheckCircle, BarChart2, Building2 } from 'lucide-react';
 
-const CITIES = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
-const LANGUAGES = ['Hindi', 'English', 'Sanskrit', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 'Gujarati', 'Kannada', 'Malayalam'];
-const PUJA_SPECIALIZATIONS = ['Satyanarayan Puja', 'Ganesh Puja', 'Lakshmi Puja', 'Griha Pravesh', 'Navratri Puja', 'Rudrabhishek', 'Vivah Puja', 'Namkaran', 'Annaprashan', 'Mundan'];
 const birthDateSchema = z.string().min(1, 'Date of birth required')
   .refine(value => !value || !!parseBirthDate(value), 'Enter a valid date in DD/MM/YYYY format')
   .refine(value => !parseBirthDate(value) || isPastBirthDate(value), 'Date of birth cannot be in the future');
@@ -65,11 +63,11 @@ const gurujiSchema = z.object({
   photoUrl: z.string().optional(),
   bio: z.string().min(30, 'Bio must be at least 30 characters'),
   experience: z.coerce.number().min(1, 'At least 1 year experience').max(60),
-  location: z.string().min(3, 'Location required'),
+  location: z.string().min(1, 'Select a primary service location'),
   pricePerHour: z.coerce.number().min(100, 'Min ₹100').max(50000),
-  languages: z.string().min(1, 'Select at least one language'),
-  pujaSpecialization: z.string().min(1, 'Enter puja specializations'),
-  servesCity: z.string().min(1, 'Enter city of service'),
+  languages: z.array(z.string()).min(1, 'Select at least one language'),
+  pujaSpecialization: z.array(z.string()).min(1, 'Select at least one puja specialization'),
+  servesCity: z.array(z.string()).min(1, 'Select at least one service city'),
   isOnline: z.boolean().default(false),
   isOffline: z.boolean().default(true),
 });
@@ -321,6 +319,12 @@ function RegisterCustomerTab() {
 function RegisterGurujiTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: cities = [], isLoading: citiesLoading, isError: citiesError } = useQuery<{ id: number; name: string; state: string }[]>({
+    queryKey: ['/api/cities'],
+  });
+  const { data: pujas = [], isLoading: pujasLoading, isError: pujasError } = useQuery<{ id: number; name: string; description?: string }[]>({
+    queryKey: ['/api/pujas'],
+  });
 
   const form = useForm<GurujiForm>({
     resolver: zodResolver(gurujiSchema),
@@ -329,7 +333,7 @@ function RegisterGurujiTab() {
       age: 35, gender: 'male', dob: '', aadhar: '', caste: '', religion: '',
       address: '', city: '', state: '', pincode: '', photoUrl: '',
       bio: '', experience: 5, location: '', pricePerHour: 500,
-      languages: '', pujaSpecialization: '', servesCity: '',
+      languages: [], pujaSpecialization: [], servesCity: [],
       isOnline: false, isOffline: true,
     },
   });
@@ -338,9 +342,9 @@ function RegisterGurujiTab() {
     mutationFn: async (data: GurujiForm) => {
       const payload = {
         ...data,
-        cities: data.servesCity.split(',').map(s => s.trim()),
-        pujas: data.pujaSpecialization.split(',').map(s => s.trim()),
-        languages: data.languages.split(',').map(s => s.trim()),
+        cities: data.servesCity,
+        pujas: data.pujaSpecialization,
+        languages: data.languages,
       };
       return apiRequest('POST', '/api/sales-rep/register-guruji', payload);
     },
@@ -418,7 +422,19 @@ function RegisterGurujiTab() {
               <FormItem className="col-span-2"><FormLabel>Full Address *</FormLabel><FormControl><Textarea placeholder="House No, Street, Area" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="city" render={({ field }) => (
-              <FormItem><FormLabel>City *</FormLabel><FormControl><Input placeholder="Mumbai" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>City *</FormLabel>
+                <Select value={field.value} onValueChange={value => {
+                  field.onChange(value);
+                  const city = cities.find(city => city.name === value);
+                  if (city?.state) form.setValue('state', city.state, { shouldValidate: true });
+                }} disabled={citiesLoading || citiesError}>
+                  <FormControl><SelectTrigger aria-label="Residential city"><SelectValue placeholder={citiesLoading ? 'Loading cities...' : 'Select city'} /></SelectTrigger></FormControl>
+                  <SelectContent>{cities.map(city => <SelectItem key={city.id} value={city.name}>{city.name}</SelectItem>)}</SelectContent>
+                </Select>
+                <FormMessage />
+                {citiesError && <p role="alert" className="text-sm text-red-500">Could not load city choices. Please refresh and try again.</p>}
+              </FormItem>
             )} />
             <FormField control={form.control} name="state" render={({ field }) => (
               <FormItem><FormLabel>State *</FormLabel><FormControl><Input placeholder="Maharashtra" {...field} /></FormControl><FormMessage /></FormItem>
@@ -438,16 +454,41 @@ function RegisterGurujiTab() {
               <FormItem><FormLabel>Price Per Hour (₹) *</FormLabel><FormControl><Input type="number" placeholder="500" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="location" render={({ field }) => (
-              <FormItem><FormLabel>Service Location *</FormLabel><FormControl><Input placeholder="e.g. Mumbai, Thane" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>Service Location *</FormLabel>
+                <Select value={field.value} onValueChange={value => {
+                  field.onChange(value);
+                  const city = cities.find(city => city.name === value);
+                  if (city && !form.getValues('servesCity').includes(String(city.id))) {
+                    form.setValue('servesCity', [...form.getValues('servesCity'), String(city.id)], { shouldValidate: true });
+                  }
+                }} disabled={citiesLoading || citiesError}>
+                  <FormControl><SelectTrigger aria-label="Primary service location"><SelectValue placeholder="Select primary service city" /></SelectTrigger></FormControl>
+                  <SelectContent>{cities.map(city => <SelectItem key={city.id} value={city.name}>{city.name}</SelectItem>)}</SelectContent>
+                </Select>
+                <p className="text-xs text-neutral-500">Your primary service city. Select additional cities below.</p>
+                <FormMessage />
+              </FormItem>
             )} />
             <FormField control={form.control} name="servesCity" render={({ field }) => (
-              <FormItem><FormLabel>Serves Cities * (comma separated)</FormLabel><FormControl><Input placeholder="Mumbai, Pune" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem className="col-span-2">
+                <ServiceAreasField required cities={cities} isLoading={citiesLoading} isError={citiesError}
+                  selected={field.value} error={form.formState.errors.servesCity?.message}
+                  onChange={values => {
+                    field.onChange(values);
+                    const primary = cities.find(city => city.name === form.getValues('location'));
+                    if (primary && !values.includes(String(primary.id))) form.setValue('location', '', { shouldValidate: true });
+                  }} />
+              </FormItem>
             )} />
             <FormField control={form.control} name="languages" render={({ field }) => (
-              <FormItem><FormLabel>Languages * (comma separated)</FormLabel><FormControl><Input placeholder="Hindi, Sanskrit, Marathi" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem className="col-span-2"><LanguagesField required selected={field.value}
+                onChange={field.onChange} error={form.formState.errors.languages?.message} /></FormItem>
             )} />
             <FormField control={form.control} name="pujaSpecialization" render={({ field }) => (
-              <FormItem className="col-span-2"><FormLabel>Puja Specializations * (comma separated)</FormLabel><FormControl><Input placeholder="Satyanarayan Puja, Ganesh Puja, Griha Pravesh" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem className="col-span-2"><PujaSpecializationsField required pujas={pujas}
+                isLoading={pujasLoading} isError={pujasError} selected={field.value}
+                onChange={field.onChange} error={form.formState.errors.pujaSpecialization?.message} /></FormItem>
             )} />
 
             <div className="col-span-2 flex gap-4">

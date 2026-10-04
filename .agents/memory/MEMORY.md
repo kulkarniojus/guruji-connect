@@ -7,3 +7,5 @@
 - [Booking authentication return](booking-authentication-return.md) — registration and login from booking must resume the same URL and step with all selections preserved, including header entry points.
 - [Unassigned puja alerts](unassigned-puja-alerts.md) — auto-search requests need admin oversight even with no matches; only eligible local Gurujis should receive requests.
 - [Customer puja reminders](customer-puja-reminders.md) — keep schedule reminders visible until completion; elapsed dates alone must not clear them.
+- [Guruji registration consistency](guruji-registration-consistency.md) — sales and regular registration must offer the same selectable pujas, service cities and languages.
+- [Browser testing fallback](browser-testing-fallback.md) — if the runtime rejects the advertised testing subagent kind, use Chromium/CDP verification instead.

@@ -8,14 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { MapPin, Upload, FileText, UserCheck, AlertCircle, X, Loader2, Video } from 'lucide-react';
+import { MapPin, Upload, FileText, UserCheck, AlertCircle, Loader2, Video } from 'lucide-react';
+import { LanguagesField, PujaSpecializationsField, ServiceAreasField } from '@/components/GurujiSelectionFields';
 
 const gurujiRegistrationSchema = z.object({
   firstName: z.string().min(2, 'First name required'),
@@ -48,69 +48,10 @@ const gurujiRegistrationSchema = z.object({
 
 type GurujiRegistrationFormData = z.infer<typeof gurujiRegistrationSchema>;
 
-const LANGUAGES = [
-  'Hindi', 'English', 'Sanskrit', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 
-  'Gujarati', 'Kannada', 'Malayalam', 'Punjabi', 'Urdu', 'Odia'
-];
-
 const RELIGIONS = ['Hindu', 'Buddhist', 'Jain', 'Sikh', 'Other'];
 
 interface GurujiRegistrationFormProps {
   onSuccess?: () => void;
-}
-
-function PujaDropdown({ pujas, selectedPujas, onToggle }: {
-  pujas: any[];
-  selectedPujas: string[];
-  onToggle: (id: string) => void;
-}) {
-  const [search, setSearch] = useState('');
-  const [open, setOpen] = useState(false);
-
-  const filtered = pujas.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="relative">
-      <Input
-        placeholder="Search and select puja specializations..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        onFocus={() => setOpen(true)}
-      />
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-            {filtered.length > 0 ? filtered.map((p: any) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-2 p-3 hover:bg-orange-50 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggle(p.id.toString());
-                  setSearch('');
-                  setOpen(false);
-                }}
-              >
-                <Checkbox
-                  checked={selectedPujas.includes(p.id.toString())}
-                  className="pointer-events-none"
-                />
-                <div>
-                  <div className="text-sm font-medium">{p.name}</div>
-                  {p.description && <div className="text-xs text-gray-500">{p.description}</div>}
-                </div>
-              </div>
-            )) : (
-              <div className="p-3 text-sm text-gray-500">No pujas found</div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
 }
 
 export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistrationFormProps) {
@@ -163,12 +104,12 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
     },
   });
 
-  const { data: cities = [], isLoading: citiesLoading } = useQuery({
+  const { data: cities = [], isLoading: citiesLoading, isError: citiesError } = useQuery({
     queryKey: ['/api/cities'],
     select: (data: any[]) => data || [],
   });
 
-  const { data: pujas = [], isLoading: pujasLoading } = useQuery({
+  const { data: pujas = [], isLoading: pujasLoading, isError: pujasError } = useQuery({
     queryKey: ['/api/pujas'],
     select: (data: any[]) => data || [],
   });
@@ -203,28 +144,19 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
     },
   });
 
-  const handlePujaToggle = (id: string) => {
-    const updated = selectedPujas.includes(id)
-      ? selectedPujas.filter(x => x !== id)
-      : [...selectedPujas, id];
-    setSelectedPujas(updated);
-    form.setValue('pujas', updated);
+  const handlePujasChange = (values: string[]) => {
+    setSelectedPujas(values);
+    form.setValue('pujas', values, { shouldValidate: true });
   };
 
-  const handleServiceAreaToggle = (cityId: string) => {
-    const updated = selectedServiceAreas.includes(cityId)
-      ? selectedServiceAreas.filter(x => x !== cityId)
-      : [...selectedServiceAreas, cityId];
-    setSelectedServiceAreas(updated);
-    form.setValue('serviceAreas', updated);
+  const handleServiceAreasChange = (values: string[]) => {
+    setSelectedServiceAreas(values);
+    form.setValue('serviceAreas', values, { shouldValidate: true });
   };
 
-  const handleLanguageToggle = (lang: string) => {
-    const updated = selectedLanguages.includes(lang)
-      ? selectedLanguages.filter(x => x !== lang)
-      : [...selectedLanguages, lang];
-    setSelectedLanguages(updated);
-    form.setValue('languages', updated);
+  const handleLanguagesChange = (values: string[]) => {
+    setSelectedLanguages(values);
+    form.setValue('languages', values, { shouldValidate: true });
   };
 
   const onSubmit = (data: GurujiRegistrationFormData) => {
@@ -567,114 +499,38 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
             <Separator />
 
             {/* Service Areas */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Service Areas</h3>
-              <FormDescription>Select cities where you can provide services</FormDescription>
-              
-              {citiesLoading ? (
-                <div className="text-sm text-gray-500">Loading cities...</div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 border rounded-lg p-4 max-h-48 overflow-y-auto">
-                  {cities.map((c: any) => (
-                    <div key={c.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`city-${c.id}`}
-                        checked={selectedServiceAreas.includes(c.id.toString())}
-                        onCheckedChange={() => handleServiceAreaToggle(c.id.toString())}
-                      />
-                      <Label htmlFor={`city-${c.id}`} className="text-sm cursor-pointer">
-                        {c.name}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {selectedServiceAreas.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedServiceAreas.map(id => {
-                    const city = cities.find((c: any) => c.id.toString() === id);
-                    return city ? (
-                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                        {city.name}
-                        <X className="h-3 w-3 cursor-pointer" onClick={() => handleServiceAreaToggle(id)} />
-                      </Badge>
-                    ) : null;
-                  })}
-                </div>
-              )}
-              {form.formState.errors.serviceAreas && (
-                <p className="text-sm text-red-500">{form.formState.errors.serviceAreas.message}</p>
-              )}
-            </div>
+            <ServiceAreasField
+              cities={cities}
+              isLoading={citiesLoading}
+              isError={citiesError}
+              selected={selectedServiceAreas}
+              onChange={handleServiceAreasChange}
+              error={form.formState.errors.serviceAreas?.message}
+              required
+            />
 
             <Separator />
 
             {/* Puja Specializations */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Puja Specializations</h3>
-
-              {pujasLoading ? (
-                <div className="text-sm text-gray-500">Loading pujas...</div>
-              ) : (
-                <PujaDropdown
-                  pujas={pujas}
-                  selectedPujas={selectedPujas}
-                  onToggle={handlePujaToggle}
-                />
-              )}
-
-              {selectedPujas.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedPujas.map(id => {
-                    const puja = pujas.find((p: any) => p.id.toString() === id);
-                    return puja ? (
-                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                        {puja.name}
-                        <X className="h-3 w-3 cursor-pointer" onClick={() => handlePujaToggle(id)} />
-                      </Badge>
-                    ) : null;
-                  })}
-                </div>
-              )}
-              {form.formState.errors.pujas && (
-                <p className="text-sm text-red-500">{form.formState.errors.pujas.message}</p>
-              )}
-            </div>
+            <PujaSpecializationsField
+              pujas={pujas}
+              isLoading={pujasLoading}
+              isError={pujasError}
+              selected={selectedPujas}
+              onChange={handlePujasChange}
+              error={form.formState.errors.pujas?.message}
+              required
+            />
 
             <Separator />
 
             {/* Languages */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Languages</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {LANGUAGES.map(lang => (
-                  <div key={lang} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`lang-${lang}`}
-                      checked={selectedLanguages.includes(lang)}
-                      onCheckedChange={() => handleLanguageToggle(lang)}
-                    />
-                    <Label htmlFor={`lang-${lang}`} className="text-sm cursor-pointer">
-                      {lang}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-              {selectedLanguages.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedLanguages.map(lang => (
-                    <Badge key={lang} variant="secondary" className="flex items-center gap-1">
-                      {lang}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => handleLanguageToggle(lang)} />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {form.formState.errors.languages && (
-                <p className="text-sm text-red-500">{form.formState.errors.languages.message}</p>
-              )}
-            </div>
+            <LanguagesField
+              selected={selectedLanguages}
+              onChange={handleLanguagesChange}
+              error={form.formState.errors.languages?.message}
+              required
+            />
 
             <Separator />
 
