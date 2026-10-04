@@ -8,6 +8,8 @@ import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingS
 import { createPujaPayload, updatePujaPayload } from './pujaValidation';
 import { changeBookingCompletion, initializeBookingCompletion } from './bookingCompletion';
 import { bookingCompletionRouter } from './routes/booking-completion';
+import { initializeBookingCommunications } from './bookingCommunications';
+import { bookingCommunicationsRouter } from './routes/booking-communications';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -238,6 +240,7 @@ async function resolvePujaNames(pujas: any[]): Promise<string[]> {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await initializeBookingCompletion();
+  await initializeBookingCommunications();
   // The live bookings table predates the duration field in the shared schema.
   // Snapshot the configured duration so later admin edits do not change
   // the reserved length of bookings already placed.
@@ -1634,6 +1637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.use('/api/bookings/:id/completion', isAuthenticated, bookingCompletionRouter);
+  app.use('/api/admin/bookings/:id/communications', isAuthenticated, bookingCommunicationsRouter);
 
   app.put("/api/bookings/:id/status", isAuthenticated, async (req: Request, res: Response) => {
     try {

@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { bookingStatusLabel } from '@shared/bookingLifecycle';
 import BookingProgressActions from '@/components/booking/BookingProgressActions';
+import BookingCommunications from '@/components/admin/BookingCommunications';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, UserCheck, Send, Search, Calendar, MapPin, User, IndianRupee, RefreshCw, AlertTriangle } from 'lucide-react';
 import { isUnassignedBooking } from '@shared/isUnassignedBooking';
@@ -263,6 +264,7 @@ export default function BookingManagementTab({
                     {/* Right: action buttons */}
                     <div className="flex flex-row sm:flex-col gap-2 shrink-0">
                       <BookingProgressActions booking={booking} />
+                      <BookingCommunications booking={booking} />
                       {['pending', 'pending_approval'].includes(booking.status) && (
                       <Button
                         size="sm"

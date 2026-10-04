@@ -52,7 +52,7 @@ async function cookie(value: string) {
 }
 async function detail(id: number) {
   await ui!.command('Page.navigate', { url: `${base}/booking/${id}` });
-  await ui!.wait(`document.body.innerText.includes('Puja completion')`, 'completion controls');
+  await ui!.wait(`document.body?.innerText.includes('Puja completion')`, 'completion controls');
   await ui!.wait(`!document.querySelector('[aria-label="Loading completion details"]')`, 'loaded completion metadata');
 }
 async function activate(selector: string, text?: string) {
@@ -146,6 +146,41 @@ try {
 
   const b = await createBooking(customer.userId, profile);
   const c = await createBooking(customer.userId, profile);
+  const communication = `/api/admin/bookings/${b}/communications`;
+  assert.equal((await api(communication, customer.cookie)).status, 403);
+  assert.equal((await api(communication, guruji.cookie)).status, 403);
+  assert.equal((await api(`/api/bookings/${b}`, guruji.cookie)).body.address, null);
+  assert.equal((await api(`/api/bookings/${b}`, guruji.cookie)).body.notes, null);
+  assert.equal((await api(`/api/bookings/${b}`, guruji.cookie)).body.pincode, null);
+  assert.equal((await api(`/api/bookings/${b}`, customer.cookie)).body.address, tag);
+  // Set this isolated fixture two hours ahead in India local calendar/time.
+  const inWindow = new Date(Date.now() + (120 + 330) * 60000);
+  const localDate = inWindow.toISOString().slice(0, 10);
+  const localTime = `${String(inWindow.getUTCHours()).padStart(2, '0')}:${String(inWindow.getUTCMinutes()).padStart(2, '0')}`;
+  await pool.query('UPDATE bookings SET date=$2,time=$3 WHERE id=$1', [b, localDate, localTime]);
+  assert.equal((await api(`/api/bookings/${b}`, guruji.cookie)).body.address, tag);
+  assert.equal((await api(`/api/bookings/${b}`, otherGuruji.cookie)).status, 403);
+  // Put it outside the window again; previous API access must not retain a grant.
+  await pool.query(`UPDATE bookings SET date=date+7 WHERE id=$1`, [b]);
+  assert.equal((await api(`/api/bookings/${b}`, guruji.cookie)).body.address, null);
+  const send = (payload: any) => api(communication, admin.cookie, 'POST', { channel: 'in_app', ...payload });
+  assert.equal((await send({ kind: 'address', recipient: 'customer' })).status, 200);
+  assert.equal((await api(`/api/bookings/${b}`, guruji.cookie)).body.address, null);
+  assert.equal((await send({ kind: 'address', recipient: 'both' })).status, 200);
+  const released = (await api(`/api/bookings/${b}`, guruji.cookie)).body;
+  assert.equal(released.address, tag);
+  assert.equal(released.addressVisibility.source, 'admin_release');
+  assert.equal((await send({ kind: 'notification', recipient: 'both', text: 'Please review the ceremony arrangements.' })).status, 200);
+  assert.equal((await send({ kind: 'message', recipient: 'customer', text: 'Your ceremony arrangements are confirmed.' })).status, 200);
+  assert.equal((await send({ kind: 'message', recipient: 'both', text: 'Call 9123456789' })).status, 400);
+  assert.equal((await send({ kind: 'address', recipient: 'guruji', channel: 'whatsapp' })).status, 503);
+  assert.equal((await send({ kind: 'message', recipient: 'customer', channel: 'email', text: 'Review arrangements.' })).status, 503);
+  assert.equal((await send({ kind: 'otp', recipient: 'both' })).status, 409);
+  assert.ok((await api(communication, admin.cookie)).body.history.every((event: any) => event.status === 'sent' && event.channel === 'in_app'));
+  const requestList = (await api('/api/guruji/booking-requests', guruji.cookie)).body;
+  assert.ok(requestList.every((request: any) => !request.customer?.mobile && !request.customer?.phone));
+  assert.ok((await api('/api/gurujis', customer.cookie)).body.every((person: any) => !person.mobile && !person.user?.mobile));
+  console.log('PASS: strict India address window, API masking, mutual phone privacy, admin address overrides and both-recipient messages; unavailable channels never pretend sent');
   for (const id of [b, c]) assert.equal((await api(`/api/bookings/${id}/status`, admin.cookie, 'PUT', { status: 'in_progress' })).status, 200);
   await api(`/api/bookings/${b}/completion/request`, guruji.cookie, 'POST', {});
   const browserCode = (await api(`/api/bookings/${b}/completion`, customer.cookie)).body.otp;
@@ -173,6 +208,8 @@ try {
   await ui.wait(`document.body.innerText.includes('Puja completion verified')`, 'completion confirmed in UI');
   assert.equal(await state(b), 'completed');
   console.log('PASS: Guruji cannot see code, wrong-code failure shown, correct customer code completes through real UI');
+  await detail(c);
+  assert.ok(await ui.evaluate(`document.body.innerText.includes('Exact address is private until 4 hours')`), 'Guruji sees locked address explanation outside access window');
 
   await ui.command('Emulation.clearDeviceMetricsOverride');
   await cookie(admin.cookie);
@@ -211,13 +248,51 @@ try {
   assert.equal(override.verifiedAt, null);
   assert.equal(override.history.find((e: any) => e.action === 'completion_admin_override').reason, reason);
   assert.equal((await api(`/api/bookings/${c}/completion`, customer.cookie)).body.otp, undefined);
+  const d = await createBooking(customer.userId, profile);
+  assert.equal((await api(`/api/bookings/${d}/status`, admin.cookie, 'PUT', { status: 'in_progress' })).status, 200);
+  const dCommunication = `/api/admin/bookings/${d}/communications`;
+  assert.equal((await api(dCommunication, admin.cookie, 'POST', { channel: 'in_app', kind: 'otp', recipient: 'both' })).status, 200);
+  const shared = (await api(`/api/bookings/${d}/completion`, guruji.cookie)).body;
+  assert.ok(shared.adminSharedWithGurujiAt && /^\d{6}$/.test(shared.otp));
+  assert.ok((await api(dCommunication, admin.cookie)).body.history.every((event: any) => !/\b\d{6}\b/.test(event.summary)));
+  await cookie(guruji.cookie);
+  await detail(d);
+  await ui.wait(`!!document.querySelector('[aria-label="Admin-shared completion code"]') && document.body.innerText.includes('Customer confirmation was bypassed')`, 'explicit admin-shared OTP warning');
+  assert.equal((await api(`/api/bookings/${d}/completion/verify`, guruji.cookie, 'POST', { otp: shared.otp })).status, 200);
+  assert.equal((await api(`/api/bookings/${d}/completion`, admin.cookie)).body.completionMethod, 'admin_shared_otp');
+  console.log('PASS: explicit admin OTP share to both, Guruji sees only explicitly shared code, and completion records bypass of customer confirmation');
   console.log('PASS: admin request/resend, required reason, failed override preserved, audited manual completion without fake OTP verification');
+  await cookie(admin.cookie);
   await ui.command('Page.navigate', { url: `${base}/admin-dashboard` });
   await ui.wait(`!!document.querySelector('[role="tab"][id$="-trigger-bookings"]')`, 'admin booking tab');
   await activate('[role="tab"][id$="-trigger-bookings"]');
   await activate(`button[aria-label="Manage completion for booking #${c}"]`);
   await ui.wait(`document.querySelector('[role="dialog"]')?.innerText.includes(${JSON.stringify(reason)})`, 'completion audit in admin bookings');
   console.log('PASS: admin booking management exposes persisted completion tracking and audit record');
+  await activate('[role="dialog"] button', 'Close');
+  await activate(`button[aria-label="Communicate for booking #${c}"]`);
+  await ui.wait(`!!document.querySelector('[aria-label="Message text"]')`, 'booking communication form');
+  await ui.click('[role="combobox"][aria-label="Recipient"]');
+  await ui.wait(`!!document.querySelector('[role="option"]')`, 'recipient options');
+  await ui.click('[role="option"]', 'Both participants');
+  const adminMessage = 'Both participants: please review the completed ceremony record.';
+  await fill('[aria-label="Message text"]', adminMessage);
+  await activate('[role="dialog"] button', 'Send in-app');
+  await ui.wait(`document.body.innerText.includes('Communication recorded')`, 'admin message persisted');
+  const communicationAudit = (await api(`/api/admin/bookings/${c}/communications`, admin.cookie)).body.history;
+  assert.equal(communicationAudit.filter((event: any) => event.summary === adminMessage && event.status === 'sent').length, 2);
+  await ui.click('[role="combobox"][aria-label="Message type"]');
+  await ui.wait(`!!document.querySelector('[role="option"]')`, 'message kind options');
+  await ui.click('[role="option"]', 'Release exact address');
+  await activate('[role="dialog"] button', 'Release address');
+  await ui.wait(`document.querySelector('[role="dialog"]').innerText.includes('Exact address:') || document.querySelector('[role="dialog"]').innerText.includes('Shared by admin.')`, 'address send audit');
+  assert.equal((await api(`/api/bookings/${c}`, guruji.cookie)).body.addressVisibility.source, 'admin_release');
+  await ui.click('[role="combobox"][aria-label="Delivery channel"]');
+  await ui.wait(`!!document.querySelector('[role="option"]')`, 'channel options');
+  await ui.click('[role="option"]', 'WhatsApp');
+  assert.ok(await ui.evaluate(`document.querySelector('[role="dialog"]').innerText.includes('Connect WhatsApp Business')`));
+  assert.ok(await ui.evaluate(`Array.from(document.querySelectorAll('[role="dialog"] button')).find(b=>b.textContent.trim()==='Release address').disabled`));
+  console.log('PASS: admin Bookings UI sends to both, releases address outside the window, shows audit history and blocks unconnected WhatsApp delivery');
 } finally {
   await ui?.close();
   await pool.query(`DELETE FROM booking_requests WHERE "bookingId"=ANY($1::int[])`, [bookings]);

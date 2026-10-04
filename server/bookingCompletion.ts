@@ -49,6 +49,7 @@ export async function initializeBookingCompletion() {
     );
     CREATE INDEX IF NOT EXISTS booking_completion_events_booking_idx
       ON booking_completion_events(booking_id, created_at DESC, id DESC);
+    ALTER TABLE booking_completion_challenges ADD COLUMN IF NOT EXISTS admin_shared_with_guruji_at timestamptz;
   `);
 }
 
@@ -75,6 +76,7 @@ function metadata(booking: any, challenge: any) {
     startedAt: challenge?.started_at ?? null,
     completedAt: challenge?.completed_at ?? null,
     completionMethod: challenge?.completion_method ?? null,
+    adminSharedWithGurujiAt: challenge?.admin_shared_with_guruji_at ?? null,
   };
 }
 async function event(client: PoolClient, id: number, actor: CompletionActor, action: string, reason?: string) {
@@ -91,7 +93,7 @@ async function notify(client: PoolClient, userIds: Array<number | null>, title: 
 }
 
 export async function getBookingCompletion(id: number, actor: CompletionActor) {
-  // A single snapshot prevents a concurrent resend from exposing an obsolete code.
+  // Read the booking, code and audit from one consistent database snapshot.
   const client = await pool.connect();
   try {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
@@ -105,7 +107,8 @@ export async function getBookingCompletion(id: number, actor: CompletionActor) {
     if (!allowed(booking, actor)) { await client.query('COMMIT'); return { status: 403, body: { message: 'Forbidden' } }; }
     const challenge = (await client.query('SELECT * FROM booking_completion_challenges WHERE booking_id=$1', [id])).rows[0];
     const body: any = metadata(booking, challenge);
-    if (actor.role === 'customer' && booking.status === 'in_progress' && challenge?.code_cipher &&
+    if ((actor.role === 'customer' || (actor.role === 'guruji' && challenge?.admin_shared_with_guruji_at)) &&
+        booking.status === 'in_progress' && challenge?.code_cipher &&
         !challenge.completed_at && challenge.attempt_count < MAX_ATTEMPTS &&
         new Date(challenge.expires_at).getTime() > Date.now()) {
       body.otp = decrypt(challenge.code_cipher);
@@ -171,7 +174,7 @@ export async function changeBookingCompletion(id: number, actor: CompletionActor
         const nextCode = sameCode ? ((Number(code) + 1) % 1000000).toString().padStart(6, '0') : code;
         await client.query(
           `UPDATE booking_completion_challenges SET code_cipher=$2,otp_digest=$3,requested_at=NOW(),
-           expires_at=NOW()+INTERVAL '10 minutes',attempt_count=0,verified_at=NULL WHERE booking_id=$1`,
+            expires_at=NOW()+INTERVAL '10 minutes',attempt_count=0,verified_at=NULL,admin_shared_with_guruji_at=NULL WHERE booking_id=$1`,
           [id, encrypt(nextCode), digest(id, nextCode).toString('hex')]);
         await event(client, id, actor, challenge.requested_at ? 'completion_code_resent' : 'completion_code_requested');
         await notify(client, [booking.customerId], 'Puja completion code ready',
@@ -192,7 +195,8 @@ export async function changeBookingCompletion(id: number, actor: CompletionActor
         }
         await client.query(
           `UPDATE booking_completion_challenges SET verified_at=NOW(),completed_at=NOW(),
-           completion_method='customer_otp',code_cipher=NULL,otp_digest=NULL WHERE booking_id=$1`, [id]);
+            completion_method=$2,code_cipher=NULL,otp_digest=NULL WHERE booking_id=$1`,
+          [id, challenge.admin_shared_with_guruji_at ? 'admin_shared_otp' : 'customer_otp']);
         await event(client, id, actor, 'completion_otp_verified');
       } else if (action === 'override') {
         if (!input.reason || input.reason.trim().length < 10) return await finish(400, { message: 'An override reason of at least 10 characters is required' });
@@ -205,7 +209,7 @@ export async function changeBookingCompletion(id: number, actor: CompletionActor
         await client.query(`UPDATE bookings SET status='completed',"updatedAt"=NOW() WHERE id=$1`, [id]);
         booking.status = 'completed';
         await notify(client, [booking.customerId, booking.gurujiUserId], 'Puja completed',
-          `Booking #${id} was completed ${action === 'verify' ? 'using the customer’s completion OTP' : 'by an admin override (not OTP verified)'}.`);
+          `Booking #${id} was completed ${action === 'verify' ? challenge.admin_shared_with_guruji_at ? 'using an admin-shared OTP (independent customer confirmation bypassed)' : 'using the customer’s completion OTP' : 'by an admin override (not OTP verified)'}.`);
       }
     }
     const finalChallenge = (await client.query(`SELECT * FROM booking_completion_challenges WHERE booking_id=$1`, [id])).rows[0];
@@ -214,4 +218,10 @@ export async function changeBookingCompletion(id: number, actor: CompletionActor
     await client.query('ROLLBACK');
     throw error;
   } finally { client.release(); }
+}
+
+export function readCompletionCode(challenge: any) {
+  if (!challenge?.code_cipher || challenge.completed_at || challenge.attempt_count >= MAX_ATTEMPTS ||
+      !challenge.expires_at || new Date(challenge.expires_at).getTime() <= Date.now()) return null;
+  return decrypt(challenge.code_cipher);
 }

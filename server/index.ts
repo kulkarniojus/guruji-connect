@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { bookingPrivacyMiddleware } from './bookingPrivacy';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { MemStorage } from "./storage";
@@ -47,7 +48,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       // Completion responses can contain a customer's private OTP or audit details.
-      if (capturedJsonResponse && !/\/completion(?:\/|$)/.test(path)) {
+      if (capturedJsonResponse && !/\/(?:completion|communications|notifications|bookings|booking-requests)(?:\/|$)/.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
       if (logLine.length > 80) {
@@ -59,6 +60,9 @@ app.use((req, res, next) => {
 
   next();
 });
+
+// Run after response logging is wrapped, so the logger only receives filtered data.
+app.use(bookingPrivacyMiddleware);
 
 (async () => {
   try {

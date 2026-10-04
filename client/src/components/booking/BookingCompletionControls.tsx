@@ -20,7 +20,8 @@ type CompletionData = {
   verifiedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
-  completionMethod: 'customer_otp' | 'admin_override' | null;
+  completionMethod: 'customer_otp' | 'admin_override' | 'admin_shared_otp' | null;
+  adminSharedWithGurujiAt?: string | null;
   otp?: string;
   history?: Array<{ id: number; action: string; actorRole: string; actorUserId: number; actorName?: string; reason?: string; createdAt: string }>;
 };
@@ -121,6 +122,8 @@ export default function BookingCompletionControls({ booking }: { booking: { id: 
   const locked = data?.attemptsRemaining === 0;
   const cooldown = !!data?.canResendAt && new Date(data.canResendAt).getTime() > now;
   const customerHasCode = role === 'customer' && status === 'in_progress' && !!data?.otp && !codeExpired && !locked;
+  const gurujiHasAdminSharedCode = role === 'guruji' && status === 'in_progress' &&
+    !!data?.adminSharedWithGurujiAt && !!data?.otp && !codeExpired && !locked;
   const showRequest = status === 'in_progress' && !data?.verifiedAt && !locked &&
     (!data?.requestedAt || codeExpired || (!cooldown && role === 'customer'));
   const canAdminRequest = isAdmin && status === 'in_progress' && !data?.verifiedAt;
@@ -143,9 +146,9 @@ export default function BookingCompletionControls({ booking }: { booking: { id: 
             ) : (
               <div className="mt-1 text-sm text-violet-900">
                 {status === 'completed' ? (
-                  <p className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" />{data?.completionMethod === 'admin_override' ? 'Completed by admin override.' : data?.completionMethod === 'customer_otp' ? 'Completed using the customer OTP.' : 'Completed. The completion method was not recorded for this booking.'}</p>
+                  <p className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" />{data?.completionMethod === 'admin_override' ? 'Completed by admin override.' : data?.completionMethod === 'admin_shared_otp' ? 'Completed using an admin-shared OTP. Customer confirmation was bypassed.' : data?.completionMethod === 'customer_otp' ? 'Completed using the customer OTP.' : 'Completed. The completion method was not recorded for this booking.'}</p>
                 ) : data?.verifiedAt ? (
-                  <p className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" />Customer code verified. Completion is recorded.</p>
+                  <p className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" />{data?.completionMethod === 'admin_shared_otp' ? 'Admin-shared code verified. Customer confirmation was bypassed.' : 'Customer code verified. Completion is recorded.'}</p>
                 ) : locked ? (
                   <p role="status">Code entry is locked after five unsuccessful attempts. Ask an admin for help.</p>
                 ) : customerHasCode ? (
@@ -153,6 +156,12 @@ export default function BookingCompletionControls({ booking }: { booking: { id: 
                     <p>Your one-time completion code:</p>
                     <p className="font-mono text-2xl font-bold tracking-[0.3em] text-violet-950" aria-label="Completion code">{data?.otp}</p>
                     <p className="text-xs">Share this six-digit code with your Guruji to confirm the puja is complete. Valid until {dateLabel(data?.expiresAt)}.</p>
+                  </div>
+                ) : gurujiHasAdminSharedCode ? (
+                  <div className="space-y-1 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                    <p className="font-semibold">Completion code shared by an admin</p>
+                    <p className="font-mono text-2xl font-bold tracking-[0.3em]" aria-label="Admin-shared completion code">{data?.otp}</p>
+                    <p className="text-xs font-medium">Customer confirmation was bypassed when this code was shared. Use it only to verify this booking. Valid until {dateLabel(data?.expiresAt)}.</p>
                   </div>
                 ) : data?.requestedAt && !codeExpired ? (
                   <p className="flex items-center gap-1.5"><Clock3 className="h-4 w-4" />Code requested. The customer should share their code with the Guruji. Expires {dateLabel(data.expiresAt)}.</p>
@@ -249,7 +258,8 @@ export default function BookingCompletionControls({ booking }: { booking: { id: 
               <p>Verification: {data.verifiedAt ? dateLabel(data.verifiedAt) : 'Not verified'}</p>
               <p>Started: {dateLabel(data.startedAt)}</p>
               <p>Completed: {dateLabel(data.completedAt)}</p>
-               <p>Completion method: {data.completionMethod === 'admin_override' ? 'Admin override (not OTP verified)' : data.completionMethod === 'customer_otp' ? 'Customer OTP verified' : status === 'completed' ? 'Not recorded (legacy booking)' : 'Not completed'}</p>
+                <p>Completion method: {data.completionMethod === 'admin_override' ? 'Admin override (not OTP verified)' : data.completionMethod === 'admin_shared_otp' ? 'Admin-shared OTP (customer confirmation bypassed)' : data.completionMethod === 'customer_otp' ? 'Customer OTP verified' : status === 'completed' ? 'Not recorded (legacy booking)' : 'Not completed'}</p>
+                {data.adminSharedWithGurujiAt && <p>OTP shared with Guruji: {dateLabel(data.adminSharedWithGurujiAt)} · Customer confirmation bypassed</p>}
             </div>
             {!!data.history?.length && (
               <div className="mt-3 space-y-2 border-t border-violet-200 pt-3">

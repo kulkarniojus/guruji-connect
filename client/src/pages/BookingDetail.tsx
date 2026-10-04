@@ -20,6 +20,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { RatingDialog } from '@/components/rating/RatingSystem';
 import { bookingStatusLabel } from '@shared/bookingLifecycle';
 import BookingCompletionControls from '@/components/booking/BookingCompletionControls';
+import BookingAddressVisibility from '@/components/booking/BookingAddressVisibility';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-100 text-green-800',
@@ -240,7 +241,12 @@ export default function BookingDetail() {
                   <MapPin className="h-5 w-5 text-violet-500" />
                   <div>
                     <p className="text-xs text-neutral-500">Location</p>
-                    <p className="font-medium">{booking.city || 'TBD'}{booking.address ? `, ${booking.address}` : ''}</p>
+                    <p className="font-medium">{booking.city || 'TBD'}</p>
+                    {user?.role === 'guruji' ? (
+                      <BookingAddressVisibility booking={booking} showNotes onRefresh={() => queryClient.invalidateQueries({ queryKey: [`/api/bookings/${id}`] })} />
+                    ) : (isOwner || user?.role === 'admin') && booking.address ? (
+                      <p className="text-sm text-neutral-600">{booking.address}{booking.pincode ? ` · ${booking.pincode}` : ''}</p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -277,7 +283,7 @@ export default function BookingDetail() {
                 </div>
               )}
 
-              {booking.notes && (
+              {booking.notes && user?.role !== 'guruji' && (
                 <div>
                   <p className="text-xs text-neutral-500 mb-1">Notes</p>
                   <p className="text-sm bg-neutral-50 p-3 rounded">{booking.notes}</p>

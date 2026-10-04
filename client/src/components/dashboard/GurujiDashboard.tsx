@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Loader2, Calendar, Clock, MapPin, Check, X,
-  User, IndianRupee, Phone, Bell, CheckCircle2,
+  User, IndianRupee, Bell, CheckCircle2,
   XCircle, Package2, AlertCircle, Edit, Save, Ban, AlertTriangle,
   ChevronLeft, ChevronRight, CalendarDays, Star
 } from 'lucide-react';
@@ -23,6 +23,7 @@ import { useLocation } from 'wouter';
 import { CustomerRatingDialog } from '@/components/rating/RatingSystem';
 import { bookingStatusLabel, BOOKING_STATUS_LABELS as STATUS_LABEL } from '@shared/bookingLifecycle';
 import BookingProgressActions from '@/components/booking/BookingProgressActions';
+import BookingAddressVisibility from '@/components/booking/BookingAddressVisibility';
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -185,7 +186,7 @@ export default function GurujiDashboard() {
   });
 
   // Fetch this guruji's confirmed / completed bookings
-  const { data: myBookings = [], isLoading: bookingsLoading } = useQuery<any[]>({
+  const { data: myBookings = [], isLoading: bookingsLoading, refetch: refetchMyBookings } = useQuery<any[]>({
     queryKey: ['/api/bookings'],
     queryFn: async () => {
       const res = await fetch('/api/bookings', { credentials: 'include' });
@@ -663,14 +664,13 @@ export default function GurujiDashboard() {
                           {req.booking?.city && (
                             <span className="flex items-center gap-1.5">
                               <MapPin className="h-4 w-4 text-neutral-400 flex-shrink-0" />
-                              {req.booking.city}{req.booking.pincode ? ` – ${req.booking.pincode}` : ''}
+                              {req.booking.city}
                             </span>
                           )}
-                          {req.booking?.address && (
-                            <span className="flex items-center gap-1.5 col-span-2">
-                              <MapPin className="h-4 w-4 text-neutral-400 flex-shrink-0" />
-                              {req.booking.address}
-                            </span>
+                          {req.booking && (
+                            <div className="col-span-2">
+                              <BookingAddressVisibility booking={req.booking} onRefresh={refetchRequests} />
+                            </div>
                           )}
                           {req.booking?.amount != null && (
                             <span className="flex items-center gap-1.5 font-medium text-violet-700">
@@ -756,6 +756,7 @@ export default function GurujiDashboard() {
             setCalYear={setCalYear}
             selectedDay={selectedDay}
             setSelectedDay={setSelectedDay}
+            onRefresh={refetchMyBookings}
           />
         </TabsContent>
 
@@ -770,7 +771,7 @@ export default function GurujiDashboard() {
           ) : (
             <div className="space-y-4">
               {upcoming.map((booking: any) => (
-                <BookingCard key={booking.id} booking={booking} />
+                <BookingCard key={booking.id} booking={booking} onRefresh={refetchMyBookings} />
               ))}
             </div>
           )}
@@ -786,7 +787,7 @@ export default function GurujiDashboard() {
           ) : (
             <div className="space-y-4">
               {completed.map((booking: any) => (
-                <BookingCard key={booking.id} booking={booking} onRate={handleOpenRating} />
+                <BookingCard key={booking.id} booking={booking} onRate={handleOpenRating} onRefresh={refetchMyBookings} />
               ))}
             </div>
           )}
@@ -965,12 +966,13 @@ const STATUS_DOT: Record<string, string> = {
   cancelled: 'bg-red-400',
 };
 function BookingCalendar({
-  bookings, calMonth, calYear, setCalMonth, setCalYear, selectedDay, setSelectedDay
+  bookings, calMonth, calYear, setCalMonth, setCalYear, selectedDay, setSelectedDay, onRefresh
 }: {
   bookings: any[];
   calMonth: number; calYear: number;
   setCalMonth: (m: number) => void; setCalYear: (y: number) => void;
   selectedDay: number | null; setSelectedDay: (d: number | null) => void;
+  onRefresh?: () => void;
 }) {
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1145,8 +1147,9 @@ function BookingCalendar({
                           <p className="flex items-center gap-1"><Clock className="h-3 w-3" /> {b.time}</p>
                         )}
                         {b.city && (
-                          <p className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {b.city}{b.address ? ` — ${b.address}` : ''}</p>
+                          <p className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {b.city}</p>
                         )}
+                        <BookingAddressVisibility booking={b} onRefresh={onRefresh} />
                         {b.gurujiName && (
                           <p className="flex items-center gap-1"><User className="h-3 w-3" /> {b.gurujiName}</p>
                         )}
@@ -1166,7 +1169,7 @@ function BookingCalendar({
   );
 }
 
-function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => void }) {
+function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b: any) => void; onRefresh?: () => void }) {
   const { toast } = useToast();
   const [showCancel, setShowCancel] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -1227,9 +1230,10 @@ function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => v
               {booking.city && (
                 <p className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-neutral-400" />
-                  {booking.city}{booking.address ? ` — ${booking.address}` : ''}
+                  {booking.city}
                 </p>
               )}
+              <BookingAddressVisibility booking={booking} onRefresh={onRefresh} />
             </div>
           </div>
           <div className="text-right flex flex-col items-end gap-2">

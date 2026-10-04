@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, jsonb, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -621,6 +621,28 @@ export const bookingCompletionChallenges = pgTable('booking_completion_challenge
   startedAt: timestamp('started_at', { withTimezone: true }),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   completionMethod: text('completion_method'),
+  adminSharedWithGurujiAt: timestamp('admin_shared_with_guruji_at', { withTimezone: true }),
+});
+
+export const bookingAddressReleases = pgTable('booking_address_releases', {
+  bookingId: integer('booking_id').notNull().references(() => bookings.id, { onDelete: 'cascade' }),
+  gurujiUserId: integer('guruji_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  actorUserId: integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  releasedAt: timestamp('released_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => ({ pk: primaryKey({ columns: [table.bookingId, table.gurujiUserId] }) }));
+
+export const bookingCommunications = pgTable('booking_communications', {
+  id: serial('id').primaryKey(),
+  bookingId: integer('booking_id').notNull().references(() => bookings.id, { onDelete: 'cascade' }),
+  actorUserId: integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  recipientUserId: integer('recipient_user_id').references(() => users.id, { onDelete: 'set null' }),
+  recipientRole: text('recipient_role').notNull(),
+  kind: text('kind').notNull(),
+  channel: text('channel').notNull(),
+  status: text('status').notNull(),
+  title: text('title').notNull(),
+  summary: text('summary').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const bookingCompletionEvents = pgTable('booking_completion_events', {
