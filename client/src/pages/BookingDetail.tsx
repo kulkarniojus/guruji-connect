@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { RatingDialog } from '@/components/rating/RatingSystem';
 import { bookingStatusLabel } from '@shared/bookingLifecycle';
+import BookingCompletionControls from '@/components/booking/BookingCompletionControls';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-100 text-green-800',
@@ -284,6 +285,8 @@ export default function BookingDetail() {
               )}
             </CardContent>
           </Card>
+
+          <BookingCompletionControls booking={booking} />
 
           {/* Action buttons */}
           {isOwner && (

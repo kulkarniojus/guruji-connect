@@ -609,3 +609,26 @@ export const insertBookingRequestSchema = createInsertSchema(bookingRequests).om
 
 export type BookingRequest = typeof bookingRequests.$inferSelect;
 export type InsertBookingRequest = z.infer<typeof insertBookingRequestSchema>;
+
+export const bookingCompletionChallenges = pgTable('booking_completion_challenges', {
+  bookingId: integer('booking_id').primaryKey().references(() => bookings.id, { onDelete: 'cascade' }),
+  codeCipher: text('code_cipher'),
+  otpDigest: text('otp_digest'),
+  requestedAt: timestamp('requested_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  attemptCount: integer('attempt_count').notNull().default(0),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  completionMethod: text('completion_method'),
+});
+
+export const bookingCompletionEvents = pgTable('booking_completion_events', {
+  id: serial('id').primaryKey(),
+  bookingId: integer('booking_id').notNull().references(() => bookings.id, { onDelete: 'cascade' }),
+  actorUserId: integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  actorRole: text('actor_role').notNull(),
+  action: text('action').notNull(),
+  reason: text('reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

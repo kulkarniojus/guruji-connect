@@ -10,6 +10,7 @@ import { RatingDialog } from '@/components/rating/RatingSystem';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { BOOKING_STATUS_LABELS as STATUS_LABELS } from '@shared/bookingLifecycle';
+import BookingCompletionControls from '@/components/booking/BookingCompletionControls';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-500',
@@ -93,6 +94,11 @@ function BookingCard({ booking, onRate }: { booking: any; onRate?: (b: any) => v
           </Button>
         </div>
       </CardContent>
+      {booking.status === 'in_progress' && (
+        <div className="px-4 pb-4">
+          <BookingCompletionControls booking={booking} />
+        </div>
+      )}
     </Card>
   );
 }

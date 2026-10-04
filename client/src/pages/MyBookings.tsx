@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BOOKING_STATUS_LABELS as STATUS_LABELS } from '@shared/bookingLifecycle';
+import BookingCompletionControls from '@/components/booking/BookingCompletionControls';
 import {
   Loader2, Calendar, MapPin, IndianRupee, ChevronRight, Star,
   Clock, CheckCircle2, XCircle, MessageSquare, BookOpen,
@@ -170,7 +171,12 @@ export default function MyBookings() {
                     </Card>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {list.map(b => <BookingCard key={b.id} booking={b} />)}
+                      {list.map(b => (
+                        <div key={b.id} className="space-y-3">
+                          <BookingCard booking={b} />
+                          {b.status === 'in_progress' && <BookingCompletionControls booking={b} />}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </TabsContent>

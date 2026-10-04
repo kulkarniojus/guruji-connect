@@ -6,6 +6,8 @@ import { DBStorage } from "./dbStorage";
 import { pool } from './db';
 import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingSchedule';
 import { createPujaPayload, updatePujaPayload } from './pujaValidation';
+import { changeBookingCompletion, initializeBookingCompletion } from './bookingCompletion';
+import { bookingCompletionRouter } from './routes/booking-completion';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -13,7 +15,7 @@ const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
 const PAYMENT_CHECKOUT_AVAILABLE = false;
 // Explicit temporary product mode: requests are allowed without collecting payment.
 const BOOKING_PAYMENT_SKIPPED = true;
-import { canAdvanceBooking, bookingStatusLabel } from '../shared/bookingLifecycle';
+import { bookingStatusLabel } from '../shared/bookingLifecycle';
 import { z } from "zod";
 import { ZodError } from "zod";
 import { genSalt, hash, compare } from "bcrypt";
@@ -235,6 +237,7 @@ async function resolvePujaNames(pujas: any[]): Promise<string[]> {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  await initializeBookingCompletion();
   // The live bookings table predates the duration field in the shared schema.
   // Snapshot the configured duration so later admin edits do not change
   // the reserved length of bookings already placed.
@@ -1630,6 +1633,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.use('/api/bookings/:id/completion', isAuthenticated, bookingCompletionRouter);
+
   app.put("/api/bookings/:id/status", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { id } = z.object({
@@ -1642,12 +1647,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: z.enum(["in_progress", "completed"]),
       }).parse(req.body);
 
-      const booking = await storageInstance.getBooking(parseInt(id));
-      
-      if (!booking) {
-        return res.status(404).json({ message: "Booking not found" });
-      }
-      
       const userId = req.session.userId as number;
       const userRole = req.session.userRole as string;
 
@@ -1655,35 +1654,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
       
-      if (userRole === "guruji") {
-        const gurujiProfile = await storageInstance.getGurujiProfileByUserId(userId);
-        if (!gurujiProfile || booking.gurujiId !== gurujiProfile.id) {
-          return res.status(403).json({ message: "Forbidden" });
-        }
+      if (status === 'completed') {
+        return res.status(409).json({ message: 'Completion requires the customer OTP. Admins must use the manual completion override with a reason.' });
       }
-
-      if (!canAdvanceBooking(booking.status, status)) {
-        return res.status(409).json({ message: 'A Guruji must accept before starting, and a puja must be in progress before completion.' });
-      }
-      const requests = await storageInstance.getBookingRequestsByBookingId(booking.id);
-      if (!booking.gurujiId || !requests.some((request: any) =>
-        request.gurujiId === booking.gurujiId && request.status === 'accepted')) {
-        return res.status(409).json({ message: 'This booking has not been accepted by a Guruji yet.' });
-      }
-      
-      const updatedBooking = await storageInstance.updateBookingStatus(parseInt(id), status);
-      const guruji = await storageInstance.getGurujiProfile(booking.gurujiId);
-      const recipients = new Set([booking.customerId, guruji?.userId].filter((id): id is number => !!id));
-      for (const recipient of Array.from(recipients)) {
-        await storageInstance.createNotification({
-          userId: recipient,
-          title: `Puja ${status === 'in_progress' ? 'started' : 'completed'}`,
-          message: `Booking #${booking.id}: ${bookingStatusLabel(status)}.`,
-          type: 'booking_update',
-        });
-      }
-      
-      res.json(updatedBooking);
+      const result = await changeBookingCompletion(parseInt(id), { id: userId, role: userRole }, 'start');
+      if (result.status !== 200) return res.status(result.status).json(result.body);
+      res.json(await storageInstance.getBooking(parseInt(id)));
     } catch (error) {
       console.error("Error updating booking status:", error);
       if (error instanceof ZodError) {
