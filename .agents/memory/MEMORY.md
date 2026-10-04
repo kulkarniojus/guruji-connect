@@ -9,3 +9,4 @@
 - [Customer puja reminders](customer-puja-reminders.md) — keep schedule reminders visible until completion; elapsed dates alone must not clear them.
 - [Guruji registration consistency](guruji-registration-consistency.md) — sales and regular registration must offer the same selectable pujas, service cities and languages.
 - [Browser testing fallback](browser-testing-fallback.md) — if the runtime rejects the advertised testing subagent kind, use Chromium/CDP verification instead.
+- [Puja completion verification](puja-completion-verification.md) — only completion needs an OTP; admin must be able to track, resend, and manually complete.
