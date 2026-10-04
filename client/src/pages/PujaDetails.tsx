@@ -6,12 +6,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Star, Calendar, Clock, Tag, CheckCircle2, ChevronLeft } from 'lucide-react';
+import { Clock, Tag, CheckCircle2, ChevronLeft } from 'lucide-react';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Puja } from '../../../shared/schema';
+import PujaImage from '@/components/PujaImage';
 
 export default function PujaDetails() {
   const [, setLocation] = useLocation();
@@ -28,7 +29,7 @@ export default function PujaDetails() {
   
   // Fetch puja details
   const { data: puja, isLoading, isError } = useQuery<Puja>({
-    queryKey: ['/api/pujas', params?.id],
+    queryKey: [`/api/pujas/${params?.id}`],
     enabled: !!params?.id
   });
   
@@ -36,8 +37,8 @@ export default function PujaDetails() {
     if (puja) {
       // Type cast inside the function to access id safely
       const pujaToBook = puja as Puja;
-      // Add the puja name to the URL for use in the booking page
-      setLocation(`/booking?puja=${pujaToBook.id}&pujaName=${encodeURIComponent(pujaToBook.name)}`);
+      // Use the same selected-puja parameter as the catalogue cards.
+      setLocation(`/booking?pujaId=${pujaToBook.id}`);
     }
   };
   
@@ -116,23 +117,10 @@ export default function PujaDetails() {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            {pujaData.imageUrl && (
-              <img 
-                src={pujaData.imageUrl} 
-                alt={pujaData.name} 
-                className="w-full h-[300px] object-cover rounded-lg mb-6"
-              />
-            )}
+            <PujaImage imageUrl={pujaData.imageUrl} name={pujaData.name} className="mb-6 rounded-lg" />
             
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{pujaData.name}</h1>
             
-            <div className="flex items-center mb-4">
-              <div className="flex items-center text-yellow-500 mr-3">
-                <Star className="h-5 w-5 fill-current" />
-                <span className="ml-1 text-sm font-medium">4.8</span>
-              </div>
-              <span className="text-sm text-gray-500">(120+ bookings)</span>
-            </div>
             
             <p className="text-lg text-gray-700 mb-6">{pujaData.description}</p>
             
@@ -178,7 +166,7 @@ export default function PujaDetails() {
               <CardContent className="p-6">
                 <div className="text-center mb-4">
                   <p className="text-sm text-gray-500 mb-1">Starting from</p>
-                  <p className="text-3xl font-bold text-primary">₹{pujaData.price || pujaData.basePrice}</p>
+                  <p className="text-3xl font-bold text-primary">₹{pujaData.price ?? pujaData.basePrice}</p>
                 </div>
                 
                 <div className="space-y-4 mb-6">
@@ -186,7 +174,7 @@ export default function PujaDetails() {
                     <span className="text-gray-600">Base Price</span>
                     <span className="font-medium">₹{pujaData.basePrice}</span>
                   </div>
-                  {pujaData.price && pujaData.price !== pujaData.basePrice && (
+                  {pujaData.price != null && pujaData.price !== pujaData.basePrice && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Special Price</span>
                       <span className="font-medium">₹{pujaData.price}</span>

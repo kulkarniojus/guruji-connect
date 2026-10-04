@@ -5,6 +5,7 @@ import { storage, IStorage, MemStorage } from "./storage";
 import { DBStorage } from "./dbStorage";
 import { pool } from './db';
 import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingSchedule';
+import { createPujaPayload, updatePujaPayload } from './pujaValidation';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -1318,15 +1319,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new puja
   app.post("/api/pujas", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
-      z.object({ duration: z.number().int().min(0).max(1440) }).parse(req.body);
-      const pujaData = req.body;
+      const pujaData = createPujaPayload.parse(req.body);
       console.log("Creating new puja:", pujaData);
       const newPuja = await storageInstance.createPuja(pujaData);
       console.log("Created puja:", newPuja);
       res.status(201).json(newPuja);
     } catch (error) {
       console.error("Error creating puja:", error);
-      if (error instanceof ZodError) return res.status(400).json({ message: 'A duration from 0 to 24 hours is required' });
+      if (error instanceof ZodError) return res.status(400).json({ message: error.errors.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') });
       res.status(500).json({ message: "Failed to create puja" });
     }
   });
@@ -1334,11 +1334,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update an existing puja
   app.put("/api/pujas/:id", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
-      if ('duration' in req.body) {
-        z.object({ duration: z.number().int().min(0).max(1440) }).parse(req.body);
-      }
       const id = parseInt(req.params.id);
-      const pujaData = req.body;
+      if (!Number.isInteger(id) || id < 1) return res.status(400).json({ message: 'Invalid puja ID' });
+      const pujaData = updatePujaPayload.parse(req.body);
       console.log("Updating puja:", id, pujaData);
       const updatedPuja = await storageInstance.updatePuja(id, pujaData);
       if (!updatedPuja) {
@@ -1348,7 +1346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedPuja);
     } catch (error) {
       console.error("Error updating puja:", error);
-      if (error instanceof ZodError) return res.status(400).json({ message: 'Duration must be from 0 to 24 hours' });
+      if (error instanceof ZodError) return res.status(400).json({ message: error.errors.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') });
       res.status(500).json({ message: "Failed to update puja" });
     }
   });
@@ -2336,7 +2334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/chatbot', chatbotRoutes);
   app.use('/api/analytics', analyticsRouter);
   app.use('/api', journeyRoutes);
-  app.use('/api/admin/pujas', pujaRoutes);
+  app.use('/api/admin/pujas', isAuthenticated, isAdmin, pujaRoutes);
   app.use('/api/demo', demoRoutes);
   
   // ── Payment Settings (public read, admin write) ──────────────────────────

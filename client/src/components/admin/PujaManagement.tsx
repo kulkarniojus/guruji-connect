@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import SamagriInput from './SamagriInput';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -35,6 +35,8 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import PujaImage from '@/components/PujaImage';
+import type { PujaSamagri } from '@/types/puja';
 
 // Define types based on the schema
 interface Puja {
@@ -60,6 +62,8 @@ interface PujaFormData {
   price?: number;
   imageUrl?: string;
   items?: string[];
+  samagri?: PujaSamagri[];
+  samagriPrice?: number;
   isPopular: boolean;
   isActive: boolean;
   type: 'offline' | 'online';
@@ -75,7 +79,7 @@ export default function PujaManagement() {
     name: '',
     description: '',
     basePrice: 0,
-    price: 0,
+    price: undefined,
     imageUrl: '',
     items: [],
     samagri: [],
@@ -90,11 +94,6 @@ export default function PujaManagement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // For demo purposes, we're using a simpler approach to avoid unnecessary API calls
-  // In production, this would use the actual API endpoint
-  // Initial loading state
-  const [isUiLoading, setIsUiLoading] = useState(true);
-
   // Fetch pujas from the API
   const { 
     data: apiPujas, 
@@ -104,93 +103,21 @@ export default function PujaManagement() {
     queryKey: ['/api/pujas'],
   });
 
-  // Demo data for initial load and fallback - properly typed
-  const initialPujas: Puja[] = [
-    {
-      id: 1,
-      name: "Satyanarayan Puja",
-      description: "A traditional Hindu worship ceremony dedicated to Lord Satyanarayan, a form of Lord Vishnu.",
-      basePrice: 1100,
-      price: 999,
-      imageUrl: "https://example.com/satyanarayan.jpg",
-      items: ["Flowers", "Incense sticks", "Fruits", "Sweets"],
-      isPopular: true,
-      isActive: true,
-      type: "offline" as "offline",
-      duration: 120,
-      createdAt: "2023-01-01T00:00:00Z",
-      updatedAt: "2023-01-01T00:00:00Z"
-    },
-    {
-      id: 2,
-      name: "Griha Pravesh",
-      description: "House warming ceremony performed when entering a new home for the first time.",
-      basePrice: 2100,
-      price: 1899,
-      imageUrl: "https://example.com/grihapravesh.jpg",
-      items: ["Kalash", "Coconut", "Flowers", "Rice"],
-      isPopular: true,
-      isActive: true,
-      type: "offline" as "offline",
-      duration: 180,
-      createdAt: "2023-01-02T00:00:00Z",
-      updatedAt: "2023-01-02T00:00:00Z"
-    },
-    {
-      id: 3,
-      name: "Online Consultation",
-      description: "Virtual consultation with a Guruji for spiritual guidance and advice.",
-      basePrice: 500,
-      price: undefined,
-      imageUrl: "https://example.com/online.jpg",
-      items: [],
-      isPopular: false,
-      isActive: true,
-      type: "online" as "online",
-      duration: 45,
-      createdAt: "2023-01-03T00:00:00Z",
-      updatedAt: "2023-01-03T00:00:00Z"
-    }
-  ];
-
-  // Track puja data with local state
-  const [pujasData, setPujasData] = useState<Puja[]>(initialPujas);
-
-  // Update local state when API data is available
-  useEffect(() => {
-    if (apiPujas) {
-      setPujasData(apiPujas);
-    }
-  }, [apiPujas]);
-
-  // Loading states
-  useEffect(() => {
-    // Add a small delay for demo loading state
-    const timer = setTimeout(() => {
-      setIsUiLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Derived values
-  const pujas = pujasData;
-  const setPujas = setPujasData;
-  const isLoading = isApiLoading || isUiLoading;
+  const pujas = apiPujas ?? [];
+  const isLoading = isApiLoading;
   const error = apiError;
 
-  // Real API mutations combined with optimistic UI updates 
-  // This provides immediate UI feedback while ensuring data persistence
-
-  // Real API mutations with optimistic UI updates
+  // Confirm persistence before reporting success or closing the editor.
   const createRealPujaMutation = useMutation({
     mutationFn: async (data: PujaFormData) => {
       const response = await apiRequest('POST', '/api/pujas', data);
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
-      queryClient.refetchQueries({ queryKey: ['/api/pujas'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+      toast({ title: 'Success', description: 'Puja created successfully' });
+      resetForm();
+      setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
       toast({
@@ -206,9 +133,13 @@ export default function PujaManagement() {
       const response = await apiRequest('PUT', `/api/pujas/${data.id}`, data.puja);
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
-      queryClient.refetchQueries({ queryKey: ['/api/pujas'] });
+    onSuccess: async (puja) => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pujas', String(puja.id)] });
+      queryClient.invalidateQueries({ queryKey: [`/api/pujas/${puja.id}`] });
+      toast({ title: 'Success', description: 'Puja updated successfully' });
+      resetForm();
+      setIsEditDialogOpen(false);
     },
     onError: (error: any) => {
       toast({
@@ -223,9 +154,10 @@ export default function PujaManagement() {
     mutationFn: async (id: number) => {
       await apiRequest('DELETE', `/api/pujas/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
-      queryClient.refetchQueries({ queryKey: ['/api/pujas'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
+      toast({ title: 'Success', description: 'Puja deactivated successfully' });
+      setIsDeleteDialogOpen(false);
     },
     onError: (error: any) => {
       toast({
@@ -236,109 +168,10 @@ export default function PujaManagement() {
     }
   });
 
-  // Update local state immediately for responsive UI
-  // Create puja - optimistic UI update + real API call
-  const createPujaMutation = {
-    mutate: (data: PujaFormData) => {
-      // Create optimistic puja entry with temporary ID
-      const tempId = Math.max(0, ...pujas.map(p => p.id)) + 1;
-      const newPuja: Puja = {
-        id: tempId,
-        name: data.name,
-        description: data.description,
-        basePrice: data.basePrice,
-        price: data.price,
-        imageUrl: data.imageUrl,
-        items: data.items,
-        isPopular: data.isPopular,
-        isActive: data.isActive,
-        type: data.type,
-        duration: data.duration,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      // Update local state immediately for responsive UI
-      setPujas(prev => [...prev, newPuja]);
-
-      // Show success toast
-      toast({
-        title: 'Success',
-        description: 'Puja created successfully',
-      });
-
-      // Clean up UI
-      resetForm();
-      setIsAddDialogOpen(false);
-
-      // Make the actual API call
-      createRealPujaMutation.mutate(data);
-    },
-    isPending: createRealPujaMutation.isPending
-  };
-
-  // Update puja - optimistic UI update + real API call
-  const updatePujaMutation = {
-    mutate: (data: { id: number; puja: PujaFormData }) => {
-      // Update local state immediately
-      setPujas(prev => prev.map(puja => {
-        if (puja.id === data.id) {
-          // Create an updated puja object
-          const updatedPuja: Puja = {
-            ...puja,
-            name: data.puja.name,
-            description: data.puja.description,
-            basePrice: data.puja.basePrice,
-            price: data.puja.price,
-            imageUrl: data.puja.imageUrl,
-            items: data.puja.items,
-            isPopular: data.puja.isPopular,
-            isActive: data.puja.isActive,
-            type: data.puja.type,
-            duration: data.puja.duration,
-            updatedAt: new Date().toISOString()
-          };
-          return updatedPuja;
-        }
-        return puja;
-      }));
-
-      // Show success toast
-      toast({
-        title: 'Success',
-        description: 'Puja updated successfully',
-      });
-
-      // Clean up UI
-      resetForm();
-      setIsEditDialogOpen(false);
-
-      // Make the actual API call
-      updateRealPujaMutation.mutate(data);
-    },
-    isPending: updateRealPujaMutation.isPending
-  };
-
-  // Delete puja - optimistic UI update + real API call
-  const deletePujaMutation = {
-    mutate: (id: number) => {
-      // Update local state immediately
-      setPujas(prev => prev.filter(puja => puja.id !== id));
-
-      // Show success toast
-      toast({
-        title: 'Success',
-        description: 'Puja deleted successfully',
-      });
-
-      // Clean up UI
-      setIsDeleteDialogOpen(false);
-
-      // Make the actual API call
-      deleteRealPujaMutation.mutate(id);
-    },
-    isPending: deleteRealPujaMutation.isPending
-  };
+  // Do not show success or discard entered settings until the server saves them.
+  const createPujaMutation = createRealPujaMutation;
+  const updatePujaMutation = updateRealPujaMutation;
+  const deletePujaMutation = deleteRealPujaMutation;
 
   // Reset form
   const resetForm = () => {
@@ -346,7 +179,7 @@ export default function PujaManagement() {
       name: '',
       description: '',
       basePrice: 0,
-      price: 0,
+      price: undefined,
       imageUrl: '',
       items: [],
       isPopular: false,
@@ -364,10 +197,10 @@ export default function PujaManagement() {
     const { name, value } = e.target;
 
     // Handle number inputs
-    if (name === 'basePrice' || name === 'price') {
+    if (name === 'basePrice' || name === 'price' || name === 'samagriPrice') {
       setFormData(prev => ({
         ...prev,
-        [name]: parseInt(value) || 0
+        [name]: name === 'price' && !value.trim() ? undefined : parseInt(value) || 0
       }));
     } else {
       setFormData(prev => ({
@@ -413,7 +246,7 @@ export default function PujaManagement() {
       name: puja.name,
       description: puja.description,
       basePrice: puja.basePrice,
-      price: puja.price || 0,
+      price: puja.price ?? undefined,
       imageUrl: puja.imageUrl || '',
       items: puja.items || [],
       isPopular: puja.isPopular,
@@ -435,6 +268,16 @@ export default function PujaManagement() {
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const imageUrl = formData.imageUrl?.trim() || '';
+    if (imageUrl && !/^\/(?!\/)/.test(imageUrl)) {
+      try {
+        const url = new URL(imageUrl);
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid photo URL');
+      } catch {
+        toast({ title: 'Invalid photo URL', description: 'Use an HTTP/HTTPS image URL or a site image path beginning with /.', variant: 'destructive' });
+        return;
+      }
+    }
     const hours = Number(durationHoursInput);
     if (!durationHoursInput.trim() || !Number.isFinite(hours) || hours < 0 || hours > 24 ||
         !Number.isInteger(hours * 60)) {
@@ -444,10 +287,10 @@ export default function PujaManagement() {
 
     if (selectedPuja) {
       // Update existing puja
-      updatePujaMutation.mutate({ id: selectedPuja.id, puja: formData });
+      updatePujaMutation.mutate({ id: selectedPuja.id, puja: { ...formData, imageUrl } });
     } else {
       // Create new puja
-      createPujaMutation.mutate(formData);
+      createPujaMutation.mutate({ ...formData, imageUrl });
     }
   };
 
@@ -497,7 +340,12 @@ export default function PujaManagement() {
             <TableBody>
               {pujas?.map((puja: Puja) => (
                 <TableRow key={puja.id}>
-                  <TableCell className="font-medium">{puja.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-3">
+                      <PujaImage imageUrl={puja.imageUrl} name={puja.name} className="max-w-20 shrink-0 rounded-md" />
+                      <span>{puja.name}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={puja.type === 'online' ? 'default' : 'outline'}>
                       {puja.type === 'online' ? 'Online' : 'Offline'}
@@ -519,10 +367,10 @@ export default function PujaManagement() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end">
-                      <Button variant="ghost" size="icon" onClick={() => handleEditPuja(puja)}>
+                      <Button variant="ghost" size="icon" aria-label={`Edit ${puja.name}`} onClick={() => handleEditPuja(puja)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeletePuja(puja)}>
+                      <Button variant="ghost" size="icon" aria-label={`Deactivate ${puja.name}`} onClick={() => handleDeletePuja(puja)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -582,7 +430,7 @@ export default function PujaManagement() {
                     id="price"
                     name="price"
                     type="number"
-                    value={formData.price}
+                    value={formData.price ?? ''}
                     onChange={handleInputChange}
                     min={0}
                     placeholder="Optional"
@@ -622,14 +470,16 @@ export default function PujaManagement() {
                   <p className="text-xs text-muted-foreground mt-1">Required for every puja. Use 0 only for exceptional cases; it reserves only the selected starting minute.</p>
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="imageUrl">Image URL</Label>
+                  <Label htmlFor="imageUrl">Photo URL</Label>
                   <Input
                     id="imageUrl"
                     name="imageUrl"
                     value={formData.imageUrl || ''}
                     onChange={handleInputChange}
-                    placeholder="Optional"
+                    placeholder="https://example.com/puja.jpg or /images/pujas/ganesh.jpg"
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">Use a direct image link. Leave blank to remove the photo.</p>
+                  {formData.imageUrl && <PujaImage imageUrl={formData.imageUrl} name={formData.name || 'Puja preview'} className="mt-3 max-w-xs rounded-lg" />}
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="samagriPrice">Samagri Price (₹)</Label>
@@ -664,6 +514,7 @@ export default function PujaManagement() {
                   />
                   <Label htmlFor="isPopular">Mark as Popular</Label>
                 </div>
+                <p className="col-span-2 text-xs text-muted-foreground">Active pujas marked popular appear in the homepage Popular Pujas section.</p>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="isActive"
@@ -744,7 +595,7 @@ export default function PujaManagement() {
                     id="edit-price"
                     name="price"
                     type="number"
-                    value={formData.price}
+                    value={formData.price ?? ''}
                     onChange={handleInputChange}
                     min={0}
                     placeholder="Optional"
@@ -784,14 +635,16 @@ export default function PujaManagement() {
                   <p className="text-xs text-muted-foreground mt-1">Use 0 only for exceptional cases; it reserves only the selected starting minute.</p>
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="edit-imageUrl">Image URL</Label>
+                  <Label htmlFor="edit-imageUrl">Photo URL</Label>
                   <Input
                     id="edit-imageUrl"
                     name="imageUrl"
                     value={formData.imageUrl || ''}
                     onChange={handleInputChange}
-                    placeholder="Optional"
+                    placeholder="https://example.com/puja.jpg or /images/pujas/ganesh.jpg"
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">Use a direct image link. Leave blank to remove the photo.</p>
+                  {formData.imageUrl && <PujaImage imageUrl={formData.imageUrl} name={formData.name || 'Puja preview'} className="mt-3 max-w-xs rounded-lg" />}
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="edit-items">Items (comma-separated)</Label>
@@ -836,6 +689,7 @@ export default function PujaManagement() {
                   />
                   <Label htmlFor="edit-isPopular">Mark as Popular</Label>
                 </div>
+                <p className="col-span-2 text-xs text-muted-foreground">Active pujas marked popular appear in the homepage Popular Pujas section.</p>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="edit-isActive"
@@ -872,10 +726,10 @@ export default function PujaManagement() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Delete Puja</DialogTitle>
+            <DialogTitle>Deactivate Puja</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p>Are you sure you want to delete "{selectedPuja?.name}"? This action cannot be undone.</p>
+            <p>Hide "{selectedPuja?.name}" from the public catalogue and Popular Pujas? You can reactivate it later using Edit.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
@@ -889,10 +743,10 @@ export default function PujaManagement() {
               {deletePujaMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  Deactivating...
                 </>
               ) : (
-                'Delete'
+                'Deactivate'
               )}
             </Button>
           </DialogFooter>

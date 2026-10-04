@@ -349,9 +349,9 @@ export class DBStorage implements IStorage {
         pujaData.duration,
         pujaData.items || null,
         pujaData.imageUrl || null,
-        pujaData.isPopular || false,
-        pujaData.isActive || true,
-        pujaData.price || pujaData.basePrice, // Use price if provided, otherwise basePrice
+        pujaData.isPopular ?? false,
+        pujaData.isActive ?? true,
+        pujaData.price ?? pujaData.basePrice,
         new Date(),
         new Date()
       ]
@@ -1126,8 +1126,8 @@ export class DBStorage implements IStorage {
       items: row.items,
       isPopular: row.isPopular,
       isActive: row.isActive,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      createdAt: row.createdAt ?? row.created_at,
+      updatedAt: row.updatedAt ?? row.updated_at
     };
   }
   
