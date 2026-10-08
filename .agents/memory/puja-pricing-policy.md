@@ -14,3 +14,9 @@ Existing bookings retain the agreed price and explanation. If a fresh quote chan
 **Why:** Customers must see why they pay more than the regular price, and changing admin rules should not alter agreements already made.
 
 **How to apply:** Keep pricing explanations tied to the booking's agreed quote, including when rules are later edited, disabled, or deleted. Calculate lead time against the scheduled start in India time.
+
+Keep pricing controls directly discoverable from Admin → Pujas, not below the full catalogue inside a nested scrolling panel.
+
+**Why:** The user could not find the initial implementation when controls were placed below the puja list.
+
+**How to apply:** Retain visible pricing navigation when adding or reorganizing admin controls.

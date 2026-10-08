@@ -113,6 +113,8 @@ try {
   await browser.command('Emulation.setTimezoneOverride',{timezoneId:'Asia/Kolkata'});
   await navigate(admin.cookie,'/admin-dashboard',`Array.from(document.querySelectorAll('[role="tab"]')).some(el=>el.textContent.trim()==='Pujas')`);
   await clickText('[role="tab"]','Pujas');
+  await browser.wait(`Array.from(document.querySelectorAll('[role="tab"]')).some(el=>el.textContent.trim()==='Pricing & Rules')`,'visible pricing navigation');
+  await clickText('[role="tab"]','Pricing & Rules');
   await browser.wait(`document.body.innerText.includes(${JSON.stringify(`${tag}-12h`)}) && document.body.innerText.includes('Pricing rules')`,'admin pricing controls');
   await clickText('button','Add rule');
   await browser.wait(`!!document.querySelector('#rule-name')`,'rule creation dialog');
