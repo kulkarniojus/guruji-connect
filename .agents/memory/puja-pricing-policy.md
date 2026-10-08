@@ -38,3 +38,9 @@ Display baseline plus surcharge/discount components plus samagri as the total. D
 **Why:** The user found the previous breakdown misleading: the final adjusted puja rate already contained the regular price, so its rows did not appear to add up.
 
 **How to apply:** Use additive components consistently in live quotes and saved booking details.
+
+Pricing additions must preserve the existing booking flow, especially the Select Guruji step with both specific selection and automated nearby search.
+
+**Why:** The user explicitly instructed: “do not change existing implementation only this new pricing structure should be applied” and asked that both Guruji selection options work as earlier.
+
+**How to apply:** Do not add price-availability gates to navigation into Guruji selection or booking review. Keep financial validation and renewed price confirmation at final review/submission, without replacing selection, matching, authentication, or genuine acceptance behavior.

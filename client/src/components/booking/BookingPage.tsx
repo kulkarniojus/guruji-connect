@@ -244,11 +244,6 @@ export default function BookingPage() {
       toast({ title: 'Please select an available Guruji', description: 'Choose a Guruji for the selected date and time.', variant: 'destructive' });
       return;
     }
-    if (activeStep === 3 && (!pricingQuote || pricingQuoteQuery.isFetching || pricingQuoteQuery.isError)) {
-      toast({ title: 'Price quote unavailable', description: 'Refresh the price quote before continuing to booking review.', variant: 'destructive' });
-      void pricingQuoteQuery.refetch();
-      return;
-    }
     if (activeStep === 3) {
       // Authentication can remount this form. Preserve the selection before login.
       saveBookingDraft({
@@ -662,7 +657,7 @@ export default function BookingPage() {
             <Button variant="outline" onClick={handlePreviousStep}>
               Back
             </Button>
-            <Button onClick={handleNextStep} disabled={!pricingQuote || pricingQuoteQuery.isFetching || pricingQuoteQuery.isError}>
+            <Button onClick={handleNextStep}>
               Continue
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -853,7 +848,7 @@ export default function BookingPage() {
                     <Separator />
                     <div className="flex justify-between">
                       <span className="text-neutral-600">Amount:</span>
-                      <span className="font-medium">₹{calculateAmount()}</span>
+                      <span className="font-medium">{pricingQuote ? `₹${calculateAmount()}` : 'Confirming price…'}</span>
                     </div>
                   </div>
                 </div>
@@ -899,7 +894,10 @@ export default function BookingPage() {
               onSuccess={handleSubmitBooking}
             />
           ) : (
-            <Button type="button" variant="outline" onClick={() => void pricingQuoteQuery.refetch()}>Confirm current price to continue</Button>
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" variant="outline" onClick={handlePreviousStep}>Back</Button>
+              <Button type="button" variant="outline" onClick={() => void pricingQuoteQuery.refetch()}>Confirm current price to continue</Button>
+            </div>
           )}
         </div>
       )}
