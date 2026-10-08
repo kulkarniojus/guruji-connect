@@ -34,13 +34,18 @@ function bookingDateTime(date: Date, time: string): Date {
 }
 
 // This component handles different booking types: offline, online puja, and consultation
+function normalizeBookingType(type: string | null | undefined): 'offline' | 'online' | 'consultation' {
+  // Older Book Puja links use "puja"; this is the existing offline service.
+  return type === 'online' || type === 'consultation' ? type : 'offline';
+}
+
 export default function BookingPage() {
   // Parse query parameters
   const searchParams = new URLSearchParams(window.location.search);
   const bookingUrl = window.location.pathname + window.location.search;
   const [savedDraft] = useState(() => readBookingDraft(bookingUrl));
-  const initialType = searchParams.get('type') || 'offline';
-  const initialPujaId = searchParams.get('puja') || '';
+  const initialType = normalizeBookingType(searchParams.get('type'));
+  const initialPujaId = searchParams.get('puja') || searchParams.get('pujaId') || '';
   const initialPujaName = searchParams.get('pujaName') || '';
   const initialCity = searchParams.get('city') || ''; // Will be auto-populated from user profile
   const initialDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : undefined;
@@ -56,10 +61,10 @@ export default function BookingPage() {
 
   // State for the booking form
   const [activeStep, setActiveStep] = useState<number>(savedDraft?.activeStep ?? 1);
-  const [bookingType, setBookingType] = useState<'offline' | 'online' | 'consultation'>(savedDraft?.bookingType ?? initialType as any);
+  const [bookingType, setBookingType] = useState<'offline' | 'online' | 'consultation'>(() => normalizeBookingType(savedDraft?.bookingType ?? initialType));
   const [consultationType, setConsultationType] = useState<'own_guruji' | 'auto_select' | 'immediate'>(savedDraft?.consultationType ?? 'auto_select');
   const [gurujiSelectionMode, setGurujiSelectionMode] = useState<'specific' | 'auto_nearby'>(savedDraft?.gurujiSelectionMode ?? 'specific');
-  const [selectedPujaId, setSelectedPujaId] = useState<string>(savedDraft?.selectedPujaId ?? initialPujaId);
+  const [selectedPujaId, setSelectedPujaId] = useState<string>(savedDraft?.selectedPujaId || initialPujaId);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(savedDraft?.selectedDate ? new Date(`${savedDraft.selectedDate}T12:00:00`) : initialDate);
   const [selectedTime, setSelectedTime] = useState<string>(savedDraft?.selectedTime ?? '');
   const [selectedCity, setSelectedCity] = useState<string>(savedDraft?.selectedCity ?? initialCity);

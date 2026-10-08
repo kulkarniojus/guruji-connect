@@ -20,3 +20,9 @@ Radix Select validates items even when the dropdown is closed. Disabled loading 
 **Why:** Restoring a booking draft while city data was loading caused the entire booking page to unmount because an empty-valued disabled item threw a runtime error.
 
 **How to apply:** Use a nonempty sentinel for loading items; never use an empty Select.Item as a placeholder. Check restored/loading states, not only screens after data has loaded.
+
+Set explicit desktop and phone viewports when verifying native controls, and use instant scrolling before measuring pointer coordinates.
+
+**Why:** The city dropdown worked on a fresh anonymous page but failed in an authenticated fixture at the default headless viewport; explicit desktop sizing resolved the discrepancy. Existing reminder panels make the authenticated layout different.
+
+**How to apply:** Do not infer a broken dropdown solely from a failed centre-point click. Inspect the hit target and overlays, and verify at intended viewport sizes before changing production controls.

@@ -43,4 +43,10 @@ Pricing additions must preserve the existing booking flow, especially the Select
 
 **Why:** The user explicitly instructed: “do not change existing implementation only this new pricing structure should be applied” and asked that both Guruji selection options work as earlier.
 
-**How to apply:** Do not add price-availability gates to navigation into Guruji selection or booking review. Keep financial validation and renewed price confirmation at final review/submission, without replacing selection, matching, authentication, or genuine acceptance behavior.
+**How to apply:** Preserve city, address and pincode controls, as the user repeated explicitly. Do not add price-availability gates to navigation into Guruji selection or booking review. Keep financial validation and renewed price confirmation at final review/submission, without replacing selection, matching, authentication, or genuine acceptance behavior.
+
+Verify preserved booking functionality through real CTA and catalogue entry URLs, not only by seeding valid booking drafts.
+
+**Why:** Offline-seeded browser tests passed while the real Book Puja entry supplied an unsupported type that hid location fields and both Guruji modes. Different entry points also used different puja identifier parameters.
+
+**How to apply:** Test fresh entry and restored drafts, normalize legacy service aliases, and keep legitimate online/consultation behavior distinct rather than showing physical-service fields indiscriminately.

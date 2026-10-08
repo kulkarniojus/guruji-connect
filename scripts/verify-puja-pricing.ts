@@ -153,6 +153,7 @@ try {
 
   browser = await openBrowserTest(); await browser.command('Network.enable');
   await browser.command('Emulation.setTimezoneOverride',{timezoneId:'Asia/Kolkata'});
+  await browser.command('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
   await navigate(admin.cookie,'/admin-dashboard',`Array.from(document.querySelectorAll('[role="tab"]')).some(el=>el.textContent.trim()==='Pujas')`);
   await clickText('[role="tab"]','Pujas');
   await browser.wait(`!!document.querySelector('[aria-label="Search puja catalogue"]')`,'catalogue search');
@@ -197,15 +198,54 @@ try {
   assert.equal((await api(`/api/admin/pricing/rules/${uiRule.id}`,admin.cookie,'DELETE')).status,204);
   assert.ok(!(await api('/api/admin/pricing/rules',admin.cookie)).body.some((r: any)=>r.id===uiRule.id));
   console.log('PASS: admin searches catalogue and selections, creates/edits a multi-puja rule and saves dated adjustments through real controls');
+  // Start through real CTA/catalogue URLs; a seeded offline draft masks invalid types.
+  for (const entry of [`/booking?type=puja&pujaId=${pujaId}`,`/booking?pujaId=${pujaId}`,`/booking?puja=${pujaId}`]) {
+    await browser.evaluate(`sessionStorage.removeItem('guruji-booking-registration-draft')`);
+    await navigate(customer.cookie,entry,`document.body.innerText.includes('Change Selection') && document.body.innerText.includes(${JSON.stringify(tag)})`);
+    await clickText('button','Continue');
+    await browser.wait(`!!document.querySelector('#address') && !!document.querySelector('#pincode') && !!document.querySelector('#city')`,'original city, address and pincode controls');
+    await browser.click('#city');
+    await browser.wait(`!!document.querySelector('[role="listbox"]')`,'original city selection');
+    await browser.evaluate(`Array.from(document.querySelectorAll('[role="option"]')).find(el=>el.textContent.trim().startsWith('Pune,')).focus()`);
+    await browser.command('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+    await browser.command('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+    await browser.wait(`!document.querySelector('[role="listbox"]')`,'Pune selected');
+    await replaceInput('#address','Native entry fixture address'); await replaceInput('#pincode','411001');
+    const nativeDay = Number(schedule(30).calendarDate.slice(-2));
+    await browser.evaluate(`Array.from(document.querySelectorAll('button[name="day"]')).find(el=>el.textContent.trim()===${JSON.stringify(String(nativeDay))} && !el.disabled).click()`);
+    const nativeHour = Math.max(6,Math.min(20,new Date(Date.now()+(30*60+330)*60_000).getUTCHours()));
+    await clickText('button',`${String(nativeHour%12||12).padStart(2,'0')}:00 ${nativeHour>=12?'PM':'AM'}`);
+    await browser.wait(`document.querySelector('[aria-label="Price breakdown"]')?.innerText.includes('3,250')`,'pricing is additional to original location fields');
+    await clickText('button','Continue');
+    await browser.wait(`!!document.querySelector('input[name="gurujiMode"][value="specific"]') && !!document.querySelector('input[name="gurujiMode"][value="auto_nearby"]')`,'both Guruji choices from real entry URL');
+    await browser.evaluate(`document.querySelector('input[name="gurujiMode"][value="auto_nearby"]').click()`);
+    assert.ok(await browser.evaluate(`document.querySelector('input[name="gurujiMode"][value="auto_nearby"]').checked`));
+    await browser.evaluate(`document.querySelector('input[name="gurujiMode"][value="specific"]').click()`);
+    await browser.wait(`Array.from(document.querySelectorAll('h3')).some(el=>el.textContent.includes('Pandit PricingQA guruji'))`,'matching available Guruji');
+    await browser.evaluate(`Array.from(document.querySelectorAll('h3')).find(el=>el.textContent.includes('Pandit PricingQA guruji')).closest('[class*="cursor-pointer"]').click()`);
+    await clickText('button','Review Booking Request');
+    await browser.wait(`document.body.innerText.includes('Send your booking request')`,'original manual request review');
+    const nativeDraft = await browser.evaluate(`JSON.parse(sessionStorage.getItem('guruji-booking-registration-draft'))`);
+    assert.equal(nativeDraft.bookingType,'offline'); assert.equal(nativeDraft.address,'Native entry fixture address');
+    assert.equal(nativeDraft.pincode,'411001'); assert.equal(Number(nativeDraft.selectedGurujiId),profileId);
+    await clickText('button','Back');
+    await browser.evaluate(`document.querySelector('input[name="gurujiMode"][value="auto_nearby"]').click()`);
+    await clickText('button','Review Booking Request');
+    await browser.wait(`document.body.innerText.includes('Send your booking request')`,'original automated request review');
+    assert.equal((await browser.evaluate(`JSON.parse(sessionStorage.getItem('guruji-booking-registration-draft'))`)).gurujiSelectionMode,'auto_nearby');
+  }
+  await browser.evaluate(`sessionStorage.removeItem('guruji-booking-registration-draft')`);
+  console.log('PASS: real Book Puja/catalogue entry URLs retain address/pincode, both Guruji modes and review, with pricing added separately');
   await navigate(customer.cookie,`/booking/${booking.body.id}`,`document.body.innerText.includes('Price at booking')`);
   assert.ok(await browser.evaluate(`document.body.innerText.includes('5,000') && document.body.innerText.includes('within 12 hours')`));
   console.log('PASS: signed-in admin Pujas controls load and customer booking detail displays the saved price breakdown and explanation');
   const bookingPath = `/booking?puja=${pujaId}`;
-  const draft = {returnTo:bookingPath,activeStep:2,bookingType:'offline',consultationType:'own_guruji',gurujiSelectionMode:'specific',
-    selectedPujaId:String(pujaId),selectedDate:when.calendarDate,selectedTime:when.time,selectedCity:'Pune',address:tag,
+  const draft = {returnTo:bookingPath,activeStep:2,bookingType:'puja',consultationType:'own_guruji',gurujiSelectionMode:'specific',
+    selectedPujaId:'',selectedDate:when.calendarDate,selectedTime:when.time,selectedCity:'Pune',address:tag,
     pincode:'411001',selectedGurujiId:String(profileId),withSamagri:false};
   await browser.evaluate(`sessionStorage.setItem('guruji-booking-registration-draft',${JSON.stringify(JSON.stringify(draft))})`);
   await navigate(customer.cookie,bookingPath,`document.querySelector('[aria-label="Price breakdown"]')?.innerText.includes('5,500')`);
+  assert.ok(await browser.evaluate(`document.querySelector('#address')?.value===${JSON.stringify(tag)} && document.querySelector('#pincode')?.value==='411001'`));
   assert.ok(await browser.evaluate(`document.querySelector('[aria-label="Price breakdown"]').innerText.includes('within 12 hours')`));
   const additiveRows = await browser.evaluate(`Array.from(document.querySelectorAll('[aria-label="Price breakdown"] dl dd')).map(el=>Number(el.textContent.replace(/[₹,+\\s]/g,'')))`);
   assert.equal(additiveRows.slice(0,-1).reduce((sum: number,value: number)=>sum+value,0),additiveRows.at(-1));

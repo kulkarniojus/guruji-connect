@@ -59,7 +59,7 @@ export async function openBrowserTest() {
       const elements = [...document.querySelectorAll(${JSON.stringify(selector)})];
       const el = ${text === undefined ? 'elements[0]' : `elements.find(el => el.textContent.trim() === ${JSON.stringify(text)})`};
       if (!el) throw new Error('Missing clickable control');
-      el.scrollIntoView({block:'center'});
+      el.scrollIntoView({behavior:'instant',block:'center'});
       const r=el.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2};
     })()`);
     await command('Input.dispatchMouseEvent', { type: 'mousePressed', ...position, button: 'left', clickCount: 1 });
