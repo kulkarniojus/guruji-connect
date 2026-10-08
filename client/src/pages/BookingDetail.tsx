@@ -279,7 +279,14 @@ export default function BookingDetail() {
                     <h3 className="mb-3 font-semibold">Price at booking</h3>
                     <dl className="space-y-2 text-sm">
                       {snapshot.regularPrice != null && <div className="flex justify-between gap-4"><dt className="text-neutral-600">Regular puja price</dt><dd>₹{Number(snapshot.regularPrice).toLocaleString('en-IN')}</dd></div>}
-                      {snapshot.pujaPrice != null && <div className="flex justify-between gap-4"><dt className="text-neutral-600">Adjusted puja price</dt><dd>₹{Number(snapshot.pujaPrice).toLocaleString('en-IN')}</dd></div>}
+                      {snapshot.regularAdjustment != null ? (
+                        <>
+                          {Number(snapshot.regularAdjustment) !== 0 && <div className="flex justify-between gap-4"><dt className="text-neutral-600">Dated price adjustment</dt><dd>{Number(snapshot.regularAdjustment) > 0 ? '+' : '−'}₹{Math.abs(Number(snapshot.regularAdjustment)).toLocaleString('en-IN')}</dd></div>}
+                          {Number(snapshot.timeAdjustment ?? 0) !== 0 && <div className="flex justify-between gap-4"><dt className="text-neutral-600">Short-notice adjustment</dt><dd>{Number(snapshot.timeAdjustment) > 0 ? '+' : '−'}₹{Math.abs(Number(snapshot.timeAdjustment)).toLocaleString('en-IN')}</dd></div>}
+                        </>
+                      ) : snapshot.pujaPrice != null && snapshot.regularPrice != null && Number(snapshot.pujaPrice) !== Number(snapshot.regularPrice) ? (
+                        <div className="flex justify-between gap-4"><dt className="text-neutral-600">Price adjustment</dt><dd>{Number(snapshot.pujaPrice) - Number(snapshot.regularPrice) > 0 ? '+' : '−'}₹{Math.abs(Number(snapshot.pujaPrice) - Number(snapshot.regularPrice)).toLocaleString('en-IN')}</dd></div>
+                      ) : null}
                       {snapshot.samagriPrice != null && <div className="flex justify-between gap-4"><dt className="text-neutral-600">Samagri</dt><dd>₹{Number(snapshot.samagriPrice).toLocaleString('en-IN')}</dd></div>}
                       {snapshot.totalAmount != null && <div className="flex justify-between gap-4 border-t border-violet-200 pt-2 font-semibold"><dt>Total at booking</dt><dd>₹{Number(snapshot.totalAmount).toLocaleString('en-IN')}</dd></div>}
                       {snapshot.explanation && <p className="pt-1 text-xs text-neutral-600">{snapshot.explanation}</p>}

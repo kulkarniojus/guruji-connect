@@ -8,6 +8,7 @@ const base = `https://${process.env.REPLIT_DEV_DOMAIN}`;
 if (process.env.NODE_ENV === 'production' || !base.endsWith('.replit.dev')) throw new Error('Development verification only');
 const tag = `PricingQA-${randomBytes(5).toString('hex')}`, password = randomBytes(16).toString('hex');
 const users: number[] = [], cookies: string[] = [], rules: number[] = [], bookings: number[] = [];
+const fixturePujas: number[] = [], datedAdjustments: number[] = [];
 let pujaId: number | undefined, profileId: number | undefined;
 let browser: Awaited<ReturnType<typeof openBrowserTest>> | undefined;
 async function api(path: string, cookie?: string, method = 'GET', data?: unknown) {
@@ -52,11 +53,22 @@ async function replaceInput(selector: string, value: string) {
   await browser!.command('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2});
   await browser!.command('Input.insertText',{text:value});
 }
+async function setDate(selector: string, value: string) {
+  await browser!.evaluate(`(() => { const input=document.querySelector(${JSON.stringify(selector)});
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+}
 try {
   const admin = await account('admin'), customer = await account('customer'), guruji = await account('guruji');
   const created = await api('/api/pujas',admin.cookie,'POST',{name:tag,description:'Isolated pricing verification fixture.',
     basePrice:3000,price:3000,type:'offline',duration:60,isActive:true});
   assert.equal(created.status,201,JSON.stringify(created.body)); pujaId = created.body.id;
+  fixturePujas.push(pujaId!);
+  for (const [suffix,price] of [['second',4000],['unrelated',3000]] as const) {
+    const result = await api('/api/pujas',admin.cookie,'POST',{name:`${tag}-${suffix}`,description:'Isolated pricing fixture.',
+      basePrice:price,price,type:'offline',duration:60,isActive:true});
+    assert.equal(result.status,201); fixturePujas.push(result.body.id);
+  }
   profileId = (await pool.query(`INSERT INTO guruji_profiles
     ("userId",city,specialities,experience,"pricePerHour",status,"isVerified","isAvailable","createdAt","updatedAt")
     VALUES ($1,'Pune',$2,5,1000,'approved',true,true,NOW(),NOW()) RETURNING id`,[guruji.id,[String(pujaId)]])).rows[0].id;
@@ -79,7 +91,7 @@ try {
   const twelve = await createRule(12,'fixed',5000);
   const four = await createRule(4,'amount',5000);
   assert.equal((await api('/api/admin/pricing/rules',admin.cookie,'POST',twelve)).status,409);
-  const quote = async (hours: number) => api('/api/pricing/quote',undefined,'POST',{pujaId,...schedule(hours),withSamagri:false});
+  const quote = async (hours: number, id = pujaId) => api('/api/pricing/quote',undefined,'POST',{pujaId:id,...schedule(hours),withSamagri:false});
   assert.equal((await quote(30)).body.totalAmount,3000);
   assert.equal((await quote(18)).body.totalAmount,4800);
   const short = await quote(7);
@@ -109,10 +121,43 @@ try {
   assert.equal(preserved.body.amount,5000); assert.equal(preserved.body.pricingSnapshot.totalAmount,5000);
   console.log('PASS: server rejects tampered/stale prices, snapshots agreed price/reason and preserves existing bookings after rule edits');
 
+  const selectedIds = fixturePujas.slice(0,2);
+  const multiRule = await api(`/api/admin/pricing/rules/${twentyFour.id}`,admin.cookie,'PUT',{...twentyFour,pujaIds:selectedIds});
+  assert.equal(multiRule.status,200); assert.deepEqual(multiRule.body.pujaIds,selectedIds);
+  assert.equal((await quote(18,fixturePujas[1])).body.totalAmount,6400);
+  assert.equal((await quote(18,fixturePujas[2])).body.totalAmount,3000);
+  assert.equal((await quote(30,fixturePujas[1])).body.totalAmount,4000);
+  assert.equal((await api('/api/admin/pricing/rules',admin.cookie,'POST',{...twentyFour,pujaIds:[fixturePujas[1]],name:`${tag}-overlap`})).status,409);
+  const datedPayload = {pujaIds:selectedIds,fromDate:schedule(0).calendarDate,toDate:schedule(54).calendarDate,mode:'amount',value:500};
+  assert.equal((await api('/api/admin/pricing/regular-adjustments')).status,401);
+  assert.equal((await api('/api/admin/pricing/regular-adjustments',customer.cookie,'POST',datedPayload)).status,403);
+  const dated = await api('/api/admin/pricing/regular-adjustments',admin.cookie,'POST',datedPayload);
+  assert.equal(dated.status,201,JSON.stringify(dated.body)); datedAdjustments.push(dated.body.id);
+  const datedShort = (await quote(18)).body;
+  assert.equal(datedShort.regularPrice,3000); assert.equal(datedShort.regularAdjustment,500);
+  assert.equal(datedShort.timeAdjustment,2100); assert.equal(datedShort.adjustment,2600);
+  assert.equal(datedShort.totalAmount,5600);
+  assert.equal(datedShort.regularPrice+datedShort.regularAdjustment+datedShort.timeAdjustment+datedShort.samagriPrice,datedShort.totalAmount);
+  assert.equal((await quote(18,fixturePujas[1])).body.totalAmount,7200);
+  assert.equal((await quote(18,fixturePujas[2])).body.totalAmount,3000);
+  assert.equal((await quote(30)).body.totalAmount,3500);
+  assert.equal((await quote(90)).body.totalAmount,3000);
+  assert.equal((await api('/api/admin/pricing/regular-adjustments',admin.cookie,'POST',datedPayload)).status,409);
+  assert.equal((await api('/api/admin/pricing/regular-adjustments',admin.cookie,'POST',{...datedPayload,toDate:'2000-01-01'})).status,400);
+  assert.equal((await api('/api/admin/pricing/regular-adjustments',admin.cookie,'POST',{...datedPayload,pujaIds:[],value:10})).status,400);
+  assert.equal((await api(`/api/admin/pricing/regular-adjustments/${dated.body.id}`,customer.cookie,'DELETE')).status,403);
+  assert.equal((await api(`/api/admin/pricing/regular-adjustments/${dated.body.id}`,admin.cookie,'DELETE')).status,204);
+  assert.equal((await quote(30)).body.totalAmount,3000);
+  assert.equal((await api(`/api/bookings/${booking.body.id}`,customer.cookie)).body.amount,5000);
+  console.log('PASS: multi-puja membership, 24-hour removal, inclusive dated rates, additive totals, overlap prevention and deletion restoring baseline');
+
   browser = await openBrowserTest(); await browser.command('Network.enable');
   await browser.command('Emulation.setTimezoneOverride',{timezoneId:'Asia/Kolkata'});
   await navigate(admin.cookie,'/admin-dashboard',`Array.from(document.querySelectorAll('[role="tab"]')).some(el=>el.textContent.trim()==='Pujas')`);
   await clickText('[role="tab"]','Pujas');
+  await browser.wait(`!!document.querySelector('[aria-label="Search puja catalogue"]')`,'catalogue search');
+  await replaceInput('[aria-label="Search puja catalogue"]',tag);
+  await browser.wait(`document.querySelectorAll('tbody tr').length===3`,'filtered catalogue fixtures');
   await browser.wait(`Array.from(document.querySelectorAll('[role="tab"]')).some(el=>el.textContent.trim()==='Pricing & Rules')`,'visible pricing navigation');
   await clickText('[role="tab"]','Pricing & Rules');
   await browser.wait(`document.body.innerText.includes(${JSON.stringify(`${tag}-12h`)}) && document.body.innerText.includes('Pricing rules')`,'admin pricing controls');
@@ -120,32 +165,38 @@ try {
   await browser.wait(`!!document.querySelector('#rule-name')`,'rule creation dialog');
   const uiName = `${tag}-UI`;
   await replaceInput('#rule-name',uiName);
+  await browser.evaluate(`document.querySelector('[role="dialog"] fieldset [role="checkbox"]').click()`);
+  await replaceInput('[role="dialog"] input[aria-label="Search pujas"]',tag);
+  await browser.evaluate(`document.querySelector('#rule-puja-${pujaId}').click()`);
+  await browser.evaluate(`document.querySelector('#rule-puja-${fixturePujas[1]}').click()`);
   await replaceInput('#rule-window',String(6.5 + randomInt(1,999)/100000));
   await replaceInput('#rule-value','40');
   await clickText('[role="dialog"] button','Create rule');
   await browser.wait(`!document.querySelector('[role="dialog"]') && document.body.innerText.includes(${JSON.stringify(uiName)})`,'created rule through admin form');
   const uiRule = (await api('/api/admin/pricing/rules',admin.cookie)).body.find((r: any)=>r.name===uiName);
   assert.ok(uiRule); rules.push(uiRule.id); assert.equal(uiRule.enabled,false);
+  assert.deepEqual(uiRule.pujaIds,selectedIds);
   await browser.evaluate(`document.querySelector(${JSON.stringify(`button[aria-label="Edit ${uiName}"]`)}).click()`);
   await browser.wait(`!!document.querySelector('#rule-value')`,'rule editing');
   await replaceInput('#rule-value','30');
   await clickText('[role="dialog"] button','Save changes');
   await browser.wait(`!document.querySelector('[role="dialog"]')`,'saved rule edit');
   assert.equal((await api('/api/admin/pricing/rules',admin.cookie)).body.find((r: any)=>r.id===uiRule.id).value,30);
-  await browser.click('#price-puja');
-  await browser.wait(`!!document.querySelector('[role="listbox"]')`,'puja price selector');
-  await browser.evaluate(`Array.from(document.querySelectorAll('[role="option"]')).find(el=>el.textContent.trim()===${JSON.stringify(tag)}).focus()`);
-  await browser.command('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
-  await browser.command('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
-  await browser.wait(`!document.querySelector('[role="listbox"]')`,'selected fixture puja');
+  await replaceInput('input[aria-label="Search pujas"]',tag);
+  await browser.evaluate(`document.querySelector('#regular-puja-${pujaId}').click()`);
+  await browser.evaluate(`document.querySelector('#regular-puja-${fixturePujas[1]}').click()`);
+  await setDate('#adjust-from',datedPayload.fromDate);
+  await setDate('#adjust-to',datedPayload.toDate);
   await replaceInput('#adjust-value','250');
-  await clickText('button','Apply price change');
-  await browser.wait(`document.body.innerText.includes('₹3,250')`,'admin price change confirmed');
-  assert.equal((await api(`/api/pujas/${pujaId}`)).body.price,3250);
+  await clickText('button','Save dated adjustment');
+  await browser.wait(`!!Array.from(document.querySelectorAll('button')).find(el=>el.getAttribute('aria-label')?.startsWith('Delete dated adjustment for '+${JSON.stringify(tag)}))`,'saved dated adjustment');
+  const uiAdjustment = (await api('/api/admin/pricing/regular-adjustments',admin.cookie)).body.find((a: any)=>a.pujaIds.includes(pujaId));
+  assert.ok(uiAdjustment); datedAdjustments.push(uiAdjustment.id); assert.deepEqual(uiAdjustment.pujaIds,selectedIds);
+  assert.equal((await api(`/api/pujas/${pujaId}`)).body.price,3000);
   assert.equal((await api(`/api/admin/pricing/rules/${uiRule.id}`,customer.cookie,'DELETE')).status,403);
   assert.equal((await api(`/api/admin/pricing/rules/${uiRule.id}`,admin.cookie,'DELETE')).status,204);
   assert.ok(!(await api('/api/admin/pricing/rules',admin.cookie)).body.some((r: any)=>r.id===uiRule.id));
-  console.log('PASS: admin creates/edits a rule and changes a fixture puja price through real controls');
+  console.log('PASS: admin searches catalogue and selections, creates/edits a multi-puja rule and saves dated adjustments through real controls');
   await navigate(customer.cookie,`/booking/${booking.body.id}`,`document.body.innerText.includes('Price at booking')`);
   assert.ok(await browser.evaluate(`document.body.innerText.includes('5,000') && document.body.innerText.includes('within 12 hours')`));
   console.log('PASS: signed-in admin Pujas controls load and customer booking detail displays the saved price breakdown and explanation');
@@ -156,11 +207,28 @@ try {
   await browser.evaluate(`sessionStorage.setItem('guruji-booking-registration-draft',${JSON.stringify(JSON.stringify(draft))})`);
   await navigate(customer.cookie,bookingPath,`document.querySelector('[aria-label="Price breakdown"]')?.innerText.includes('5,500')`);
   assert.ok(await browser.evaluate(`document.querySelector('[aria-label="Price breakdown"]').innerText.includes('within 12 hours')`));
+  const additiveRows = await browser.evaluate(`Array.from(document.querySelectorAll('[aria-label="Price breakdown"] dl dd')).map(el=>Number(el.textContent.replace(/[₹,+\\s]/g,'')))`);
+  assert.equal(additiveRows.slice(0,-1).reduce((sum: number,value: number)=>sum+value,0),additiveRows.at(-1));
+  assert.ok(await browser.evaluate(`!document.querySelector('[aria-label="Price breakdown"]').innerText.includes('Adjusted puja price')`));
+  const later = schedule(30), day = Number(later.calendarDate.slice(-2));
+  await browser.evaluate(`Array.from(document.querySelectorAll('button[name="day"]')).find(el=>el.textContent.trim()===${JSON.stringify(String(day))} && !el.disabled).click()`);
+  const laterHour = Math.max(6,Math.min(20,new Date(Date.now()+(30*60+330)*60_000).getUTCHours()));
+  await clickText('button',`${String(laterHour%12||12).padStart(2,'0')}:00 ${laterHour>=12?'PM':'AM'}`);
+  await browser.wait(`document.querySelector('[aria-label="Price breakdown"]')?.innerText.includes('3,250') && !document.querySelector('[aria-label="Price breakdown"] dl')?.innerText.includes('Short-notice adjustment')`,'later selected puja date removes urgency fee');
   await browser.command('Emulation.setDeviceMetricsOverride',{width:402,height:874,deviceScaleFactor:1,mobile:true});
-  await browser.command('Page.reload');
-  await browser.wait(`document.querySelector('[aria-label="Price breakdown"]')?.innerText.includes('5,500')`,'phone booking quote');
+  await browser.wait(`document.querySelector('[aria-label="Price breakdown"]')?.innerText.includes('3,250')`,'phone booking quote');
   assert.ok(await browser.evaluate(`document.documentElement.scrollWidth <= innerWidth + 2`));
   console.log('PASS: customer sees current regular/final prices and short-notice explanation before booking on desktop and phone');
+  await navigate(admin.cookie,'/admin-dashboard',`Array.from(document.querySelectorAll('[role="tab"]')).some(el=>el.textContent.trim()==='Pujas')`);
+  await clickText('[role="tab"]','Pujas'); await clickText('[role="tab"]','Pricing & Rules');
+  await browser.wait(`!!Array.from(document.querySelectorAll('button')).find(el=>el.getAttribute('aria-label')?.startsWith('Delete dated adjustment for '+${JSON.stringify(tag)}))`,'dated adjustment delete control');
+  await browser.evaluate(`(() => { window.confirm=(message)=>{window.__deleteConfirmation=message;return true};
+    Array.from(document.querySelectorAll('button')).find(el=>el.getAttribute('aria-label')?.startsWith('Delete dated adjustment for '+${JSON.stringify(tag)})).click(); })()`);
+  await browser.wait(`!Array.from(document.querySelectorAll('button')).some(el=>el.getAttribute('aria-label')?.startsWith('Delete dated adjustment for '+${JSON.stringify(tag)}))`,'dated adjustment deleted');
+  assert.ok(await browser.evaluate(`window.__deleteConfirmation.includes('Existing bookings will not change')`));
+  assert.equal((await quote(30)).body.totalAmount,3000);
+  assert.equal((await api(`/api/bookings/${booking.body.id}`,customer.cookie)).body.amount,5000);
+  console.log('PASS: customer date selection removes time surcharge; admin delete restores regular price without changing existing booking');
 } finally {
   if (browser) await browser.close();
   await Promise.all(cookies.map(cookie=>api('/api/auth/logout',cookie,'POST')));
@@ -169,8 +237,9 @@ try {
   await pool.query('DELETE FROM bookings WHERE id=ANY($1::int[])',[bookings]);
   await pool.query('DELETE FROM puja_pricing_rules WHERE id=ANY($1::int[])',[rules]);
   await pool.query('DELETE FROM puja_pricing_rules WHERE name LIKE $1',[`${tag}%`]);
+  await pool.query('DELETE FROM puja_regular_price_adjustments WHERE id=ANY($1::int[]) OR (puja_ids<@$2::int[] AND puja_ids && $2::int[])',[datedAdjustments,fixturePujas]);
   if (profileId) await pool.query('DELETE FROM guruji_profiles WHERE id=$1',[profileId]);
-  if (pujaId) await pool.query('DELETE FROM pujas WHERE id=$1',[pujaId]);
+  await pool.query('DELETE FROM pujas WHERE id=ANY($1::int[])',[fixturePujas]);
   await pool.query('DELETE FROM users WHERE id=ANY($1::int[])',[users]);
   await pool.end();
   console.log('All isolated pricing verification fixtures removed.');

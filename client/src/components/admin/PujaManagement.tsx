@@ -30,7 +30,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,6 +90,7 @@ export default function PujaManagement() {
   });
   const [durationHoursInput, setDurationHoursInput] = useState('2');
   const [itemsInput, setItemsInput] = useState('');
+  const [pujaSearch, setPujaSearch] = useState('');
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -104,6 +105,7 @@ export default function PujaManagement() {
   });
 
   const pujas = apiPujas ?? [];
+  const filteredPujas = pujas.filter(puja => puja.name.toLocaleLowerCase().includes(pujaSearch.trim().toLocaleLowerCase()));
   const isLoading = isApiLoading;
   const error = apiError;
 
@@ -311,6 +313,17 @@ export default function PujaManagement() {
         </Button>
       </div>
 
+      <div className="relative mb-4 max-w-sm">
+        <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          aria-label="Search puja catalogue"
+          placeholder="Search puja catalogue"
+          value={pujaSearch}
+          onChange={event => setPujaSearch(event.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -322,6 +335,11 @@ export default function PujaManagement() {
       ) : pujas?.length === 0 ? (
         <div className="text-center p-8 border rounded-md">
           <p className="text-muted-foreground">No pujas found. Add your first puja to get started.</p>
+        </div>
+      ) : filteredPujas.length === 0 ? (
+        <div className="text-center p-8 border border-dashed rounded-md">
+          <p className="font-medium">No matching pujas</p>
+          <p className="mt-1 text-sm text-muted-foreground">Try a different search term.</p>
         </div>
       ) : (
         <div className="rounded-md border">
@@ -338,7 +356,7 @@ export default function PujaManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pujas?.map((puja: Puja) => (
+              {filteredPujas.map((puja: Puja) => (
                 <TableRow key={puja.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">

@@ -156,10 +156,24 @@ export default function BookingPage() {
 
   // Calculate booking amount based on type and consultation type
   const [withSamagri, setWithSamagri] = useState(savedDraft?.withSamagri ?? false);
+  const [quoteClock, setQuoteClock] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setQuoteClock(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  const indiaToday = new Date(quoteClock + 330 * 60_000).toISOString().slice(0, 10);
+  const isElapsedTime = (time: string) => {
+    if (!selectedDate) return false;
+    const match = time.match(/^(\d{1,2}):(\d{2}) (AM|PM)$/i);
+    if (!match) return true;
+    const hour = Number(match[1]) % 12 + (match[3].toUpperCase() === 'PM' ? 12 : 0);
+    return Date.parse(`${format(selectedDate, 'yyyy-MM-dd')}T${String(hour).padStart(2, '0')}:${match[2]}:00+05:30`) <= quoteClock;
+  };
+  const selectedTimeElapsed = !!selectedTime && isElapsedTime(selectedTime);
   const pricingQuoteQuery = usePricingQuote(
     selectedPuja ? Number(selectedPuja.id) : undefined,
     selectedCalendarDate,
-    selectedTime,
+    selectedTimeElapsed ? '' : selectedTime,
     withSamagri,
   );
   const pricingQuote = pricingQuoteQuery.data;
@@ -563,13 +577,14 @@ export default function BookingPage() {
                     selected={selectedDate}
                     onSelect={setSelectedDate}
                     className="mx-auto"
-                    disabled={(date) => date < new Date() || date > new Date(new Date().setMonth(new Date().getMonth() + 3))}
+                    disabled={(date) => format(date, 'yyyy-MM-dd') < indiaToday || date > new Date(new Date().setMonth(new Date().getMonth() + 3))}
                   />
                 </div>
               </div>
               
               <div>
                 <Label className="mb-2 block">Time</Label>
+                <p className="mb-2 text-xs text-muted-foreground">All puja times are in India Standard Time (IST). Past times cannot be booked.</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {timeSlots.map((time) => (
                     <Button
@@ -577,6 +592,7 @@ export default function BookingPage() {
                       type="button"
                       variant={selectedTime === time ? "default" : "outline"}
                       className="justify-start px-2 sm:px-4 text-xs sm:text-sm"
+                      disabled={isElapsedTime(time)}
                       onClick={() => setSelectedTime(time)}
                     >
                       <Clock className="mr-2 h-4 w-4" />

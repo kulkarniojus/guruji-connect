@@ -1,6 +1,13 @@
 import { AlertCircle, Clock3, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { PricingQuote } from './usePricingQuote';
+import type { PricingQuote as SharedPricingQuote } from './usePricingQuote';
+
+type Quote = SharedPricingQuote & {
+  regularAdjustment?: number;
+  timeAdjustment?: number;
+  effectiveRegularPrice?: number;
+  regularPriceAdjustment?: { id: number; pujaIds: number[]; fromDate: string; toDate: string; mode: 'percent' | 'amount' | 'fixed'; value: number } | null;
+};
 
 const money = (amount: number) => `₹${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
@@ -10,7 +17,7 @@ export default function PricingQuoteBreakdown({
   error,
   onRefresh,
 }: {
-  quote?: PricingQuote;
+  quote?: Quote;
   loading: boolean;
   error: boolean;
   onRefresh: () => void;
@@ -38,8 +45,14 @@ export default function PricingQuoteBreakdown({
       </div>
       <dl className="space-y-2 text-sm">
         <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Regular puja price</dt><dd>{money(quote.regularPrice)}</dd></div>
-        <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Adjusted puja price</dt><dd className="font-medium">{money(quote.pujaPrice)}</dd></div>
-        {quote.adjustment !== 0 && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Price adjustment</dt><dd>{quote.adjustment > 0 ? '+' : ''}{money(quote.adjustment)}</dd></div>}
+        {quote.regularAdjustment !== undefined ? (
+          <>
+            {quote.regularAdjustment !== 0 && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Dated price adjustment</dt><dd>{quote.regularAdjustment > 0 ? '+' : '−'}{money(Math.abs(quote.regularAdjustment))}</dd></div>}
+            {quote.timeAdjustment !== undefined && quote.timeAdjustment !== 0 && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Short-notice adjustment</dt><dd>{quote.timeAdjustment > 0 ? '+' : '−'}{money(Math.abs(quote.timeAdjustment))}</dd></div>}
+          </>
+        ) : quote.adjustment !== 0 ? (
+          <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Price adjustment</dt><dd>{quote.adjustment > 0 ? '+' : '−'}{money(Math.abs(quote.adjustment))}</dd></div>
+        ) : null}
         <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Samagri</dt><dd>{money(quote.samagriPrice)}</dd></div>
         <div className="border-t pt-2 flex justify-between gap-4 text-base font-semibold"><dt>Total</dt><dd>{money(quote.totalAmount)}</dd></div>
       </dl>

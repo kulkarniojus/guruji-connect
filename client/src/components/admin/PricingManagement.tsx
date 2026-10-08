@@ -12,37 +12,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, Loader2, Pencil, Plus, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react';
-import type { PricingRule } from '@/components/pricing/usePricingQuote';
+import type { PricingRule, RegularPriceAdjustment } from '@/components/pricing/usePricingQuote';
 import { adjustedPrice } from '@shared/pujaPricing';
+import { pricingRulePujaIds } from '@shared/pujaPricing';
+import MultiPujaSelect from './MultiPujaSelect';
 
 type PujaOption = { id: number; name: string; price?: number | null; basePrice: number };
-type RuleDraft = Omit<PricingRule, 'id'>;
-const blankDraft: RuleDraft = { pujaId: null, name: '', withinHours: 4, mode: 'percent', value: 0, customerMessage: '', enabled: false };
+type Rule = PricingRule;
+type RuleDraft = Omit<Rule, 'id'>;
+type AdjustmentDraft = Omit<RegularPriceAdjustment, 'id'>;
+const blankDraft: RuleDraft = { pujaId: null, pujaIds: [], name: '', withinHours: 4, mode: 'percent', value: 0, customerMessage: '', enabled: false };
+const blankAdjustment: AdjustmentDraft = { pujaIds: [], fromDate: '', toDate: '', mode: 'amount', value: 0 };
+const money = (value: number) => `₹${Number(value).toLocaleString('en-IN')}`;
+const scopeIds = (rule: Pick<PricingRule, 'pujaId' | 'pujaIds'>) => Array.from(new Set(pricingRulePujaIds(rule))).sort((a, b) => a - b);
 
 export default function PricingManagement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [editing, setEditing] = useState<PricingRule | null>(null);
+  const [editing, setEditing] = useState<Rule | null>(null);
   const [draft, setDraft] = useState<RuleDraft>(blankDraft);
   const [ruleDirection, setRuleDirection] = useState<'increase' | 'decrease'>('increase');
+  const [ruleAllPujas, setRuleAllPujas] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [adjustPujaId, setAdjustPujaId] = useState('');
-  const [adjustMode, setAdjustMode] = useState<'percent' | 'amount' | 'fixed'>('amount');
-  const [adjustDirection, setAdjustDirection] = useState<'increase' | 'decrease'>('increase');
-  const [adjustValue, setAdjustValue] = useState('');
+  const [adjustment, setAdjustment] = useState<AdjustmentDraft>(blankAdjustment);
 
-  const rulesQuery = useQuery<PricingRule[]>({ queryKey: ['/api/admin/pricing/rules'] });
+  const rulesQuery = useQuery<Rule[]>({ queryKey: ['/api/admin/pricing/rules'] });
+  const adjustmentsQuery = useQuery<RegularPriceAdjustment[]>({ queryKey: ['/api/admin/pricing/regular-adjustments'] });
   const pujasQuery = useQuery<PujaOption[]>({ queryKey: ['/api/pujas'] });
   const rules = rulesQuery.data ?? [];
+  const adjustments = adjustmentsQuery.data ?? [];
   const pujas = pujasQuery.data ?? [];
-  const selectedAdjustPuja = useMemo(() => pujas.find(p => String(p.id) === adjustPujaId), [pujas, adjustPujaId]);
-
+  const pujaNames = useMemo(() => new Map(pujas.map(p => [p.id, p.name])), [pujas]);
   const refreshRules = () => queryClient.invalidateQueries({ queryKey: ['/api/admin/pricing/rules'] });
+  const refreshAdjustments = () => queryClient.invalidateQueries({ queryKey: ['/api/admin/pricing/regular-adjustments'] });
+  const ruleScope = scopeIds(draft);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const magnitude = Math.abs(Number(draft.value));
       const value = draft.mode === 'fixed' ? magnitude : ruleDirection === 'decrease' ? -magnitude : magnitude;
-      const payload = { ...draft, pujaId: draft.pujaId ? Number(draft.pujaId) : null, withinHours: Number(draft.withinHours), value };
+      const pujaIds = Array.from(new Set(draft.pujaIds ?? [])).sort((a, b) => a - b);
+      if (!ruleAllPujas && !pujaIds.length) throw new Error('Select at least one puja or choose All pujas.');
+      const payload = { ...draft, pujaId: null, pujaIds: ruleAllPujas ? [] : pujaIds, withinHours: Number(draft.withinHours), value };
       const response = await apiRequest(editing ? 'PUT' : 'POST', editing ? `/api/admin/pricing/rules/${editing.id}` : '/api/admin/pricing/rules', payload);
       return response.json();
     },
@@ -54,7 +65,9 @@ export default function PricingManagement() {
     onError: (error: Error) => toast({ title: 'Could not save rule', description: error.message, variant: 'destructive' }),
   });
   const toggleMutation = useMutation({
-    mutationFn: async (rule: PricingRule) => apiRequest('PUT', `/api/admin/pricing/rules/${rule.id}`, { ...rule, enabled: !rule.enabled }),
+    mutationFn: async (rule: Rule) => apiRequest('PUT', `/api/admin/pricing/rules/${rule.id}`, {
+      ...rule, pujaIds: scopeIds(rule), pujaId: null, enabled: !rule.enabled,
+    }),
     onSuccess: () => void refreshRules(),
     onError: (error: Error) => toast({ title: 'Could not update rule', description: error.message, variant: 'destructive' }),
   });
@@ -63,34 +76,47 @@ export default function PricingManagement() {
     onSuccess: () => { void refreshRules(); toast({ title: 'Pricing rule deleted' }); },
     onError: (error: Error) => toast({ title: 'Could not delete rule', description: error.message, variant: 'destructive' }),
   });
-  const adjustMutation = useMutation({
+  const createAdjustmentMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedAdjustPuja) throw new Error('Choose a puja first.');
-      const magnitude = Number(adjustValue);
-      if (!Number.isFinite(magnitude) || magnitude < (adjustMode === 'percent' ? 0.01 : 1) ||
-        (adjustMode !== 'percent' && !Number.isInteger(magnitude))) {
-        throw new Error(adjustMode === 'percent' ? 'Enter a positive percent magnitude.' : 'Enter a positive whole-rupee amount.');
+      const ids = Array.from(new Set(adjustment.pujaIds)).sort((a, b) => a - b);
+      if (!ids.length) throw new Error('Select at least one puja.');
+      if (!adjustment.fromDate || !adjustment.toDate) throw new Error('Choose both a From date and a To date.');
+       const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+      if (!validDate(adjustment.fromDate) || !validDate(adjustment.toDate) || adjustment.fromDate > adjustment.toDate) {
+        throw new Error('Enter valid dates with the From date on or before the To date.');
       }
-      const expectedPrice = Number(selectedAdjustPuja.price ?? selectedAdjustPuja.basePrice);
-      const value = adjustMode === 'fixed' ? magnitude : adjustDirection === 'decrease' ? -magnitude : magnitude;
-      return apiRequest('POST', `/api/admin/pujas/${selectedAdjustPuja.id}/adjust-price`, { mode: adjustMode, value, expectedPrice });
+      const magnitude = Number(adjustment.value);
+      if (!Number.isFinite(magnitude) || magnitude < (adjustment.mode === 'percent' ? 0.01 : 1) ||
+        (adjustment.mode !== 'percent' && !Number.isInteger(magnitude))) {
+        throw new Error(adjustment.mode === 'percent' ? 'Enter a positive percent magnitude.' : 'Enter a positive whole-rupee amount.');
+      }
+      const value = adjustment.mode === 'fixed' ? magnitude : adjustDirection === 'decrease' ? -magnitude : magnitude;
+      const response = await apiRequest('POST', '/api/admin/pricing/regular-adjustments', { ...adjustment, pujaIds: ids, value });
+      return response.json();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
-      toast({ title: 'Regular price updated' });
-      setAdjustValue('');
+      await refreshAdjustments();
+      toast({ title: 'Dated regular-price adjustment saved' });
+      setAdjustment(blankAdjustment);
     },
-    onError: async (error: Error) => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/pujas'] });
-      toast({ title: error.message.includes('409') ? 'Price changed by another admin' : 'Could not adjust price', description: error.message.includes('409') ? 'The latest price has been refreshed. Review it and try again.' : error.message, variant: 'destructive' });
-    },
+    onError: (error: Error) => toast({ title: 'Could not save adjustment', description: error.message, variant: 'destructive' }),
+  });
+  const [adjustDirection, setAdjustDirection] = useState<'increase' | 'decrease'>('increase');
+  const deleteAdjustmentMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest('DELETE', `/api/admin/pricing/regular-adjustments/${id}`),
+    onSuccess: async () => { await refreshAdjustments(); toast({ title: 'Dated adjustment deleted' }); },
+    onError: (error: Error) => toast({ title: 'Could not delete adjustment', description: error.message, variant: 'destructive' }),
   });
 
-  const startCreate = () => { setEditing(null); setDraft({ ...blankDraft }); setRuleDirection('increase'); setDialogOpen(true); };
-  const startEdit = (rule: PricingRule) => {
+  const startCreate = () => { setEditing(null); setDraft({ ...blankDraft }); setRuleDirection('increase'); setRuleAllPujas(true); setDialogOpen(true); };
+  const startEdit = (rule: Rule) => {
     setEditing(rule);
     setRuleDirection(rule.value < 0 ? 'decrease' : 'increase');
-    setDraft({ pujaId: rule.pujaId, name: rule.name, withinHours: rule.withinHours, mode: rule.mode, value: rule.value, customerMessage: rule.customerMessage, enabled: rule.enabled });
+    setRuleAllPujas(scopeIds(rule).length === 0);
+    setDraft({
+      pujaId: null, pujaIds: scopeIds(rule), name: rule.name, withinHours: rule.withinHours,
+      mode: rule.mode, value: rule.value, customerMessage: rule.customerMessage, enabled: rule.enabled,
+    });
     setDialogOpen(true);
   };
   const submitRule = (event: React.FormEvent) => {
@@ -102,23 +128,24 @@ export default function PricingManagement() {
     saveMutation.mutate();
   };
   const preview = (rule: RuleDraft) => {
-    const scope = pujas.find(p => p.id === rule.pujaId);
+    const scope = pujas.find(p => p.id === ruleScope[0]);
     const price = scope ? Number(scope.price ?? scope.basePrice) : Number(pujas[0]?.price ?? pujas[0]?.basePrice ?? 0);
     const magnitude = Math.abs(Number(rule.value));
     const signedValue = rule.mode === 'fixed' ? magnitude : ruleDirection === 'decrease' ? -magnitude : magnitude;
     try {
       const result = adjustedPrice(price, rule.mode, signedValue);
-      return `Example ${scope ? `for ${scope.name}` : `from ${pujas[0]?.name ?? 'a puja'}`}: ₹${price.toLocaleString('en-IN')} → ₹${result.toLocaleString('en-IN')} (rounded to whole rupees)`;
+      return `Example ${scope ? `for ${scope.name}` : `from ${pujas[0]?.name ?? 'a puja'}`}: ${money(price)} → ${money(result)} (rounded to whole rupees)`;
     } catch {
       return 'This rule produces an invalid price. Review the value before saving';
     }
   };
+  const formatScope = (ids: number[]) => ids.length === 0 ? 'All pujas' : ids.map(id => pujaNames.get(id) ?? `Puja #${id}`).join(', ');
 
   return (
     <div className="space-y-5">
       <Card className="border-primary/15">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div><CardTitle className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5" /> Pricing rules</CardTitle><CardDescription className="mt-1">One matching rule applies: the closest booking window wins; a puja-specific rule wins ties. Existing prices stay unchanged unless you adjust them below.</CardDescription></div>
+          <div><CardTitle className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5" /> Pricing rules</CardTitle><CardDescription className="mt-1">One matching rule applies: the closest booking window wins. Multiple pujas can share a rule; rules do not stack.</CardDescription></div>
           <Button onClick={startCreate}><Plus className="mr-2 h-4 w-4" /> Add rule</Button>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -128,7 +155,7 @@ export default function PricingManagement() {
             rules.map(rule => <div key={rule.id} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{rule.name}</p><Badge variant={rule.enabled ? 'default' : 'secondary'}>{rule.enabled ? 'Enabled' : 'Off'}</Badge></div>
-                <p className="mt-1 text-sm text-muted-foreground">{rule.pujaId == null ? 'All pujas' : pujas.find(p => p.id === rule.pujaId)?.name ?? `Puja #${rule.pujaId}`} · within {rule.withinHours} hours · {rule.mode === 'fixed' ? `fixed at ₹${rule.value}` : `${rule.value > 0 && rule.mode === 'amount' ? '+' : ''}${rule.value}${rule.mode === 'percent' ? '%' : ' ₹'}`}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{formatScope(scopeIds(rule))} · within {rule.withinHours} hours · {rule.mode === 'fixed' ? `fixed at ${money(rule.value)}` : `${rule.value > 0 && rule.mode === 'amount' ? '+' : ''}${rule.value}${rule.mode === 'percent' ? '%' : ' ₹'}`}</p>
                 {rule.customerMessage && <p className="mt-1 text-sm">{rule.customerMessage}</p>}
               </div>
               <div className="flex items-center gap-2">
@@ -139,19 +166,43 @@ export default function PricingManagement() {
             </div>)}
         </CardContent>
       </Card>
+
       <Card>
-        <CardHeader><CardTitle>Adjust a regular price</CardTitle><CardDescription>Applies immediately to this puja’s saved regular price. The expected-price check prevents overwriting a concurrent update.</CardDescription></CardHeader>
-        <CardContent>
+        <CardHeader><CardTitle>Schedule a regular-price adjustment</CardTitle><CardDescription>Applies to the scheduled puja date in India. Both boundary dates are included; saved catalogue prices remain unchanged.</CardDescription></CardHeader>
+        <CardContent className="space-y-4">
           {pujasQuery.isError ? <p role="alert" className="text-sm text-destructive">Pujas could not be loaded. Retry in a moment.</p> : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2"><Label htmlFor="price-puja">Puja</Label><Select value={adjustPujaId} onValueChange={setAdjustPujaId}><SelectTrigger id="price-puja"><SelectValue placeholder="Choose a puja" /></SelectTrigger><SelectContent>{pujas.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent></Select></div>
-              <div className="space-y-2"><Label htmlFor="adjust-mode">Adjustment type</Label><Select value={adjustMode} onValueChange={(v: 'percent' | 'amount' | 'fixed') => setAdjustMode(v)}><SelectTrigger id="adjust-mode"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="amount">Amount change (₹)</SelectItem><SelectItem value="percent">Percent change</SelectItem><SelectItem value="fixed">Set final price</SelectItem></SelectContent></Select></div>
-              {adjustMode !== 'fixed' && <div className="space-y-2"><Label htmlFor="adjust-direction">Direction</Label><Select value={adjustDirection} onValueChange={(v: 'increase' | 'decrease') => setAdjustDirection(v)}><SelectTrigger id="adjust-direction"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="increase">Increase</SelectItem><SelectItem value="decrease">Decrease</SelectItem></SelectContent></Select></div>}
-              <div className="space-y-2"><Label htmlFor="adjust-value">{adjustMode === 'fixed' ? 'Final price (whole rupees)' : adjustMode === 'percent' ? 'Percent magnitude' : 'Amount magnitude (₹)'}</Label><Input id="adjust-value" type="number" min={adjustMode === 'percent' ? 0.01 : 1} step={adjustMode === 'percent' ? 'any' : 1} value={adjustValue} onChange={e => setAdjustValue(e.target.value)} placeholder={adjustMode === 'percent' ? 'e.g. 12.5' : 'e.g. 250'} /></div>
-              <div className="flex flex-col justify-end gap-2"><p className="text-xs text-muted-foreground">Current regular price: {selectedAdjustPuja ? `₹${Number(selectedAdjustPuja.price ?? selectedAdjustPuja.basePrice).toLocaleString('en-IN')}` : 'Select a puja'}</p><Button disabled={!selectedAdjustPuja || !adjustValue.trim() || !Number.isFinite(Number(adjustValue)) || Number(adjustValue) < (adjustMode === 'percent' ? 0.01 : 1) || (adjustMode !== 'percent' && !Number.isInteger(Number(adjustValue))) || adjustMutation.isPending} onClick={() => adjustMutation.mutate()}>{adjustMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Apply price change</Button></div>
-            </div>
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <MultiPujaSelect pujas={pujas} selectedIds={adjustment.pujaIds} onChange={pujaIds => setAdjustment(value => ({ ...value, pujaIds }))} idPrefix="regular-puja" />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2"><Label htmlFor="adjust-from">From date (inclusive)</Label><Input id="adjust-from" type="date" value={adjustment.fromDate} onChange={event => setAdjustment(value => ({ ...value, fromDate: event.target.value }))} required /></div>
+                  <div className="space-y-2"><Label htmlFor="adjust-to">To date (inclusive)</Label><Input id="adjust-to" type="date" value={adjustment.toDate} min={adjustment.fromDate || undefined} onChange={event => setAdjustment(value => ({ ...value, toDate: event.target.value }))} required /></div>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2"><Label htmlFor="adjust-mode">Adjustment type</Label><Select value={adjustment.mode} onValueChange={(mode: AdjustmentDraft['mode']) => setAdjustment(value => ({ ...value, mode }))}><SelectTrigger id="adjust-mode"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="amount">Amount change (₹)</SelectItem><SelectItem value="percent">Percent change</SelectItem><SelectItem value="fixed">Set final price</SelectItem></SelectContent></Select></div>
+                {adjustment.mode !== 'fixed' && <div className="space-y-2"><Label htmlFor="adjust-direction">Direction</Label><Select value={adjustDirection} onValueChange={(direction: 'increase' | 'decrease') => setAdjustDirection(direction)}><SelectTrigger id="adjust-direction"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="increase">Increase</SelectItem><SelectItem value="decrease">Decrease</SelectItem></SelectContent></Select></div>}
+                <div className="space-y-2"><Label htmlFor="adjust-value">{adjustment.mode === 'fixed' ? 'Final price (whole rupees)' : adjustment.mode === 'percent' ? 'Percent magnitude' : 'Amount magnitude (₹)'}</Label><Input id="adjust-value" type="number" min={adjustment.mode === 'percent' ? 0.01 : 1} step={adjustment.mode === 'percent' ? 'any' : 1} value={adjustment.value || ''} onChange={event => setAdjustment(value => ({ ...value, value: Number(event.target.value) }))} placeholder={adjustment.mode === 'percent' ? 'e.g. 12.5' : 'e.g. 250'} /></div>
+                <div className="flex flex-col justify-end gap-2"><p className="text-xs text-muted-foreground">Selected pujas: {adjustment.pujaIds.length}</p><Button disabled={!adjustment.pujaIds.length || !adjustment.fromDate || !adjustment.toDate || !adjustment.value || adjustment.fromDate > adjustment.toDate || createAdjustmentMutation.isPending} onClick={() => createAdjustmentMutation.mutate()}>{createAdjustmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Save dated adjustment</Button></div>
+              </div>
+            </>
           )}
-          <p className="mt-3 flex items-start gap-2 text-xs text-muted-foreground"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />Rule creation and editing never modifies a puja’s stored regular price.</p>
+          <p className="flex items-start gap-2 text-xs text-muted-foreground"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />Deleting an adjustment restores the catalogue price for future quotes only. Existing bookings and their saved price snapshots do not change.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Saved dated adjustments</CardTitle><CardDescription>Active price overrides by puja and scheduled date.</CardDescription></CardHeader>
+        <CardContent className="space-y-3">
+          {adjustmentsQuery.isLoading ? <div className="h-16 animate-pulse rounded-md bg-muted" aria-label="Loading saved adjustments" /> :
+            adjustmentsQuery.isError ? <div className="rounded-md border border-destructive/30 p-4 text-sm" role="alert">Adjustments could not be loaded. <Button variant="outline" size="sm" onClick={() => void adjustmentsQuery.refetch()}>Retry</Button></div> :
+            adjustments.length === 0 ? <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">No dated adjustments saved.</div> :
+            adjustments.map(item => <div key={item.id} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1"><p className="font-medium">{formatScope(item.pujaIds)}</p><p className="mt-1 text-sm text-muted-foreground">{item.fromDate} – {item.toDate} · {item.mode === 'fixed' ? `set price to ${money(item.value)}` : `${item.value > 0 && item.mode === 'amount' ? '+' : ''}${item.value}${item.mode === 'percent' ? '%' : ' ₹'}`}</p></div>
+              <Button variant="outline" size="sm" onClick={() => {
+                if (window.confirm(`Delete this dated adjustment for ${formatScope(item.pujaIds)}? Future quotes in its date range will return to catalogue pricing. Existing bookings will not change.`)) deleteAdjustmentMutation.mutate(item.id);
+              }} disabled={deleteAdjustmentMutation.isPending} aria-label={`Delete dated adjustment for ${formatScope(item.pujaIds)}`}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+            </div>)}
         </CardContent>
       </Card>
 
@@ -159,18 +210,18 @@ export default function PricingManagement() {
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
           <DialogHeader><DialogTitle>{editing ? 'Edit pricing rule' : 'Create pricing rule'}</DialogTitle></DialogHeader>
           <form onSubmit={submitRule} className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="rule-name">Rule name</Label><Input id="rule-name" value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} required maxLength={120} /></div>
+            <div className="space-y-2"><Label htmlFor="rule-name">Rule name</Label><Input id="rule-name" value={draft.name} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} required maxLength={120} /></div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2"><Label htmlFor="rule-scope">Applies to</Label><Select value={draft.pujaId == null ? 'all' : String(draft.pujaId)} onValueChange={v => setDraft(d => ({ ...d, pujaId: v === 'all' ? null : Number(v) }))}><SelectTrigger id="rule-scope"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All pujas</SelectItem>{pujas.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent></Select></div>
-              <div className="space-y-2"><Label htmlFor="rule-window">Booking within (hours)</Label><Input id="rule-window" type="number" min="0.01" max="8760" step="any" value={draft.withinHours} onChange={e => setDraft(d => ({ ...d, withinHours: Number(e.target.value) }))} required /><p className="text-xs text-muted-foreground">Positive hours, up to one year; decimals are supported.</p></div>
-              <div className="space-y-2"><Label htmlFor="rule-mode">Price calculation</Label><Select value={draft.mode} onValueChange={(v: RuleDraft['mode']) => setDraft(d => ({ ...d, mode: v }))}><SelectTrigger id="rule-mode"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="percent">Percent change</SelectItem><SelectItem value="amount">Amount change</SelectItem><SelectItem value="fixed">Fixed final puja price</SelectItem></SelectContent></Select></div>
-              {draft.mode !== 'fixed' && <div className="space-y-2"><Label htmlFor="rule-direction">Direction</Label><Select value={ruleDirection} onValueChange={(v: 'increase' | 'decrease') => setRuleDirection(v)}><SelectTrigger id="rule-direction"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="increase">Increase</SelectItem><SelectItem value="decrease">Decrease</SelectItem></SelectContent></Select></div>}
-              <div className="space-y-2"><Label htmlFor="rule-value">{draft.mode === 'fixed' ? 'Final price (whole rupees)' : draft.mode === 'percent' ? 'Percent magnitude' : 'Amount magnitude (₹)'}</Label><Input id="rule-value" type="number" min={draft.mode === 'percent' ? 0.01 : 1} step={draft.mode === 'percent' ? 'any' : 1} value={Math.abs(draft.value)} onChange={e => setDraft(d => ({ ...d, value: Number(e.target.value) }))} required /></div>
+              <MultiPujaSelect pujas={pujas} selectedIds={ruleScope} onChange={pujaIds => { setRuleAllPujas(false); setDraft(value => ({ ...value, pujaIds, pujaId: null })); }} idPrefix="rule-puja" allLabel="All pujas" allSelected={ruleAllPujas} onAllChange={setRuleAllPujas} />
+              <div className="space-y-2"><Label htmlFor="rule-window">Booking within (hours)</Label><Input id="rule-window" type="number" min="0.01" max="8760" step="any" value={draft.withinHours} onChange={event => setDraft(value => ({ ...value, withinHours: Number(event.target.value) }))} required /><p className="text-xs text-muted-foreground">Positive hours, up to one year; decimals are supported.</p></div>
+              <div className="space-y-2"><Label htmlFor="rule-mode">Price calculation</Label><Select value={draft.mode} onValueChange={(mode: RuleDraft['mode']) => setDraft(value => ({ ...value, mode }))}><SelectTrigger id="rule-mode"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="percent">Percent change</SelectItem><SelectItem value="amount">Amount change</SelectItem><SelectItem value="fixed">Fixed final puja price</SelectItem></SelectContent></Select></div>
+              {draft.mode !== 'fixed' && <div className="space-y-2"><Label htmlFor="rule-direction">Direction</Label><Select value={ruleDirection} onValueChange={(direction: 'increase' | 'decrease') => setRuleDirection(direction)}><SelectTrigger id="rule-direction"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="increase">Increase</SelectItem><SelectItem value="decrease">Decrease</SelectItem></SelectContent></Select></div>}
+              <div className="space-y-2"><Label htmlFor="rule-value">{draft.mode === 'fixed' ? 'Final price (whole rupees)' : draft.mode === 'percent' ? 'Percent magnitude' : 'Amount magnitude (₹)'}</Label><Input id="rule-value" type="number" min={draft.mode === 'percent' ? 0.01 : 1} step={draft.mode === 'percent' ? 'any' : 1} value={Math.abs(draft.value)} onChange={event => setDraft(value => ({ ...value, value: Number(event.target.value) }))} required /></div>
             </div>
-            <div className="space-y-2"><Label htmlFor="rule-message">Customer explanation</Label><Textarea id="rule-message" value={draft.customerMessage} onChange={e => setDraft(d => ({ ...d, customerMessage: e.target.value }))} rows={3} maxLength={300} placeholder="Explain the price adjustment to customers" /></div>
-            <div className="flex items-center justify-between rounded-md border p-3"><Label htmlFor="rule-enabled">Enable this rule</Label><Switch id="rule-enabled" checked={draft.enabled} onCheckedChange={enabled => setDraft(d => ({ ...d, enabled }))} /></div>
-            <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">{preview(draft)}. Closest enabled window wins; puja-specific scope wins a tie. Rules do not stack.</p>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button><Button type="submit" disabled={saveMutation.isPending || pujasQuery.isLoading || (draft.mode !== 'percent' && (!Number.isInteger(Math.abs(draft.value)) || Math.abs(draft.value) < 1)) || (draft.mode === 'percent' && Math.abs(draft.value) <= 0)}>{saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{editing ? 'Save changes' : 'Create rule'}</Button></DialogFooter>
+            <div className="space-y-2"><Label htmlFor="rule-message">Customer explanation</Label><Textarea id="rule-message" value={draft.customerMessage} onChange={event => setDraft(value => ({ ...value, customerMessage: event.target.value }))} rows={3} maxLength={300} placeholder="Explain the price adjustment to customers" /></div>
+            <div className="flex items-center justify-between rounded-md border p-3"><Label htmlFor="rule-enabled">Enable this rule</Label><Switch id="rule-enabled" checked={draft.enabled} onCheckedChange={enabled => setDraft(value => ({ ...value, enabled }))} /></div>
+            <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">{preview(draft)}. Closest enabled window wins; rules do not stack.</p>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button><Button type="submit" disabled={saveMutation.isPending || pujasQuery.isLoading || (!ruleAllPujas && !ruleScope.length) || (draft.mode !== 'percent' && (!Number.isInteger(Math.abs(draft.value)) || Math.abs(draft.value) < 1)) || (draft.mode === 'percent' && Math.abs(draft.value) <= 0)}>{saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{editing ? 'Save changes' : 'Create rule'}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

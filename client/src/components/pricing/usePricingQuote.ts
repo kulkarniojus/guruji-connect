@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type { PricingQuote } from '@shared/pujaPricing';
-export type { PricingQuote, PricingRule } from '@shared/pujaPricing';
+export type { PricingQuote, PricingRule, RegularPriceAdjustment } from '@shared/pujaPricing';
 
 export function usePricingQuote(
   pujaId: number | undefined,

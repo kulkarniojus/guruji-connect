@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { adjustedPrice, selectPricingRule, type PricingRule } from '../shared/pujaPricing';
-import { pricingQuotePayload, pricingRulePayload, scheduledIndiaTime } from './pujaPricing';
+import { adjustedPrice, selectPricingRule, selectRegularPriceAdjustment, type PricingRule } from '../shared/pujaPricing';
+import { pricingQuotePayload, pricingRulePayload, regularAdjustmentPayload, scheduledIndiaTime } from './pujaPricing';
 
 const rule = (id: number, withinHours: number, pujaId: number | null = null): PricingRule => ({
   id, withinHours, pujaId, name: 'Short notice', mode: 'fixed', value: 5000, customerMessage: '', enabled: true,
@@ -44,4 +44,31 @@ test('configuration and schedule payloads reject invalid prices/windows and date
   assert.equal(pricingRulePayload.safeParse({...rule(1,0.5),mode:'percent',value:12.5}).success, true);
   assert.equal(pricingQuotePayload.safeParse({pujaId:1,calendarDate:'2030-02-31',time:'12:00 PM'}).success, false);
   assert.equal(pricingQuotePayload.safeParse({pujaId:1,calendarDate:'2030-01-01',time:'15:00 PM'}).success, false);
+});
+test('multi-puja rules apply only to their members and lose to narrower windows', () => {
+  const multi = {...rule(10,24),pujaIds:[1,2]};
+  assert.equal(selectPricingRule([rule(1,24),multi],2,23)?.id,10);
+  assert.equal(selectPricingRule([multi],3,23),null);
+  assert.equal(selectPricingRule([multi],2,24.001),null);
+  assert.equal(selectPricingRule([multi,rule(11,4)],2,3)?.id,11);
+  assert.deepEqual(pricingRulePayload.parse({...rule(1,24),pujaIds:[2,1,2]}).pujaIds,[1,2]);
+  assert.deepEqual(pricingRulePayload.parse({...rule(1,24,5)}).pujaIds,[5]);
+});
+test('temporary regular-price ranges use inclusive scheduled dates and only selected pujas', () => {
+  const a = {id:1,pujaIds:[1,2],fromDate:'2030-01-02',toDate:'2030-01-04',mode:'amount' as const,value:500};
+  assert.equal(selectRegularPriceAdjustment([a],1,'2030-01-01'),null);
+  assert.equal(selectRegularPriceAdjustment([a],1,'2030-01-02')?.id,1);
+  assert.equal(selectRegularPriceAdjustment([a],2,'2030-01-04')?.id,1);
+  assert.equal(selectRegularPriceAdjustment([a],2,'2030-01-05'),null);
+  assert.equal(selectRegularPriceAdjustment([a],3,'2030-01-03'),null);
+  const effective = adjustedPrice(3000,a.mode,a.value);
+  const final = adjustedPrice(effective,'percent',10);
+  assert.equal(3000 + (effective-3000) + (final-effective) + 200,4050);
+});
+test('dated adjustment validation rejects missing members, reversed/invalid dates and unsafe changes', () => {
+  const valid = {pujaIds:[2,1,2],fromDate:'2030-01-02',toDate:'2030-01-04',mode:'percent',value:10};
+  assert.deepEqual(regularAdjustmentPayload.parse(valid).pujaIds,[1,2]);
+  for (const patch of [{pujaIds:[]},{toDate:'2030-01-01'},{fromDate:'2030-02-31'},{value:-100},{mode:'amount',value:1.5}]) {
+    assert.equal(regularAdjustmentPayload.safeParse({...valid,...patch}).success,false);
+  }
 });
