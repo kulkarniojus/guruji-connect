@@ -22,6 +22,8 @@ import PaymentPage from '@/components/payments/PaymentPage';
 import LoginModal from '@/components/auth/LoginModal';
 import { clearBookingDraft, readBookingDraft, saveBookingDraft } from './bookingDraft';
 import { useAuth } from '@/context/AuthContext';
+import { usePricingQuote } from '@/components/pricing/usePricingQuote';
+import PricingQuoteBreakdown from '@/components/pricing/PricingQuoteBreakdown';
 
 function bookingDateTime(date: Date, time: string): Date {
   const match = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time);
@@ -154,6 +156,13 @@ export default function BookingPage() {
 
   // Calculate booking amount based on type and consultation type
   const [withSamagri, setWithSamagri] = useState(savedDraft?.withSamagri ?? false);
+  const pricingQuoteQuery = usePricingQuote(
+    selectedPuja ? Number(selectedPuja.id) : undefined,
+    selectedCalendarDate,
+    selectedTime,
+    withSamagri,
+  );
+  const pricingQuote = pricingQuoteQuery.data;
 
   const goToRegistration = () => {
     saveBookingDraft({
@@ -166,19 +175,7 @@ export default function BookingPage() {
   };
 
   const calculateAmount = () => {
-    if (!selectedPuja) return 0;
-    
-    if (bookingType === 'consultation') {
-      if (consultationType === 'immediate') {
-        return selectedPuja.price * 3; // 3x for immediate consultation
-      }
-    }
-    
-    let total = selectedPuja.price;
-    if (withSamagri && selectedPuja.samagriPrice) {
-      total += selectedPuja.samagriPrice;
-    }
-    return total;
+    return pricingQuote?.totalAmount ?? 0;
   };
 
   const handleNextStep = () => {
@@ -233,6 +230,11 @@ export default function BookingPage() {
       toast({ title: 'Please select an available Guruji', description: 'Choose a Guruji for the selected date and time.', variant: 'destructive' });
       return;
     }
+    if (activeStep === 3 && (!pricingQuote || pricingQuoteQuery.isFetching || pricingQuoteQuery.isError)) {
+      toast({ title: 'Price quote unavailable', description: 'Refresh the price quote before continuing to booking review.', variant: 'destructive' });
+      void pricingQuoteQuery.refetch();
+      return;
+    }
     if (activeStep === 3) {
       // Authentication can remount this form. Preserve the selection before login.
       saveBookingDraft({
@@ -260,6 +262,13 @@ export default function BookingPage() {
 
     try {
       setIsSubmitting(true);
+      if (!selectedPuja || !selectedDate || !selectedTime) throw new Error('Complete your puja date and time before booking.');
+      const refreshedQuote = await pricingQuoteQuery.refetch();
+      if (refreshedQuote.isError || !refreshedQuote.data) throw new Error('The current price could not be confirmed. Refresh and try again.');
+      if (!pricingQuote || refreshedQuote.data.totalAmount !== pricingQuote.totalAmount) {
+        toast({ title: 'Price updated', description: 'The latest quote is shown below. Review it and submit again to confirm.', variant: 'destructive' });
+        return;
+      }
 
       // Format date and time for API
       const dateTime = bookingDateTime(selectedDate!, selectedTime);
@@ -267,8 +276,9 @@ export default function BookingPage() {
       // Create booking data with correct TypeScript interface
       const bookingData: any = {
         pujaId: parseInt(selectedPujaId),
-        type: bookingType,
-        amount: calculateAmount(),
+        type: bookingType === 'consultation' ? 'online' : bookingType,
+        amount: refreshedQuote.data.totalAmount,
+        withSamagri,
         city: selectedCity,
         address: address,
         pincode: pincode || undefined,
@@ -308,12 +318,17 @@ export default function BookingPage() {
     } catch (error) {
       console.error('Booking error:', error);
       if (String(error).includes('409:')) {
+        if (/price|amount|quote/i.test(String(error))) {
+          await pricingQuoteQuery.refetch();
+          toast({ title: 'Price changed', description: 'We refreshed your quote. Review the new total and submit again.', variant: 'destructive' });
+          return;
+        }
         setActiveStep(3);
         queryClient.invalidateQueries({ queryKey: [gurujiQueryUrl] });
       }
       toast({
         title: "Booking failed",
-        description: String(error).includes('409:') ? "That Guruji is now busy. Please select another Guruji or time." : "There was an error processing your booking. Please try again.",
+        description: String(error).includes('409:') ? (/price|amount|quote/i.test(String(error)) ? "We refreshed the quote. Review the new total and submit again." : "That Guruji is now busy. Please select another Guruji or time.") : "There was an error processing your booking. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -413,9 +428,6 @@ export default function BookingPage() {
                         <RadioGroupItem value="immediate" id="immediate" />
                         <Label htmlFor="immediate">
                           Immediate consultation
-                          <Badge className="ml-2 bg-amber-100 text-amber-800 hover:bg-amber-100">
-                            3x Regular Price
-                          </Badge>
                         </Label>
                       </div>
                     </RadioGroup>
@@ -509,7 +521,7 @@ export default function BookingPage() {
                             <div className="bg-neutral-50 p-4 rounded-lg">
                               <h4 className="font-medium mb-2">Included Samagri Items:</h4>
                               <ul className="text-sm space-y-1">
-                                {puja.samagri.map((item, index) => (
+                                {puja.samagri.map((item: any, index: number) => (
                                   <li key={index} className="flex justify-between">
                                     <span>{item.name} × {item.quantity}</span>
                                     {item.optional && <span className="text-neutral-500">(Optional)</span>}
@@ -590,7 +602,7 @@ export default function BookingPage() {
                         </SelectItem>
                       ))}
                       {isCitiesLoading && (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="__loading_cities__" disabled>
                           Loading cities...
                         </SelectItem>
                       )}
@@ -626,12 +638,15 @@ export default function BookingPage() {
                 )}
               </div>
             )}
+            <div className="mt-6">
+              <PricingQuoteBreakdown quote={pricingQuote} loading={pricingQuoteQuery.isFetching} error={pricingQuoteQuery.isError} onRefresh={() => void pricingQuoteQuery.refetch()} />
+            </div>
           </CardContent>
           <CardFooter className="justify-between">
             <Button variant="outline" onClick={handlePreviousStep}>
               Back
             </Button>
-            <Button onClick={handleNextStep}>
+            <Button onClick={handleNextStep} disabled={!pricingQuote || pricingQuoteQuery.isFetching || pricingQuoteQuery.isError}>
               Continue
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -795,8 +810,7 @@ export default function BookingPage() {
                     <div className="flex justify-between">
                       <span className="text-neutral-600">Service Type:</span>
                       <span className="font-medium">
-                        {bookingType === 'offline' ? 'Offline Puja' : 
-                         bookingType === 'online' ? 'Online Puja' : 'Consultation'}
+                         {bookingType === 'online' ? 'Online Puja' : 'Consultation'}
                         {bookingType === 'consultation' && ` (${consultationType === 'auto_select' ? 'Auto-select' : 'Immediate'})`}
                       </span>
                     </div>
@@ -813,13 +827,6 @@ export default function BookingPage() {
                           : 'Not selected'}
                       </span>
                     </div>
-                    
-                    {bookingType === 'offline' && (
-                      <div className="flex justify-between">
-                        <span className="text-neutral-600">Address:</span>
-                        <span className="font-medium">{address || 'Not provided'}</span>
-                      </div>
-                    )}
                     
                     <div className="flex justify-between">
                       <span className="text-neutral-600">Date & Time:</span>
@@ -849,6 +856,7 @@ export default function BookingPage() {
                     </div>
                   </div>
                 </div>
+                <PricingQuoteBreakdown quote={pricingQuote} loading={pricingQuoteQuery.isFetching} error={pricingQuoteQuery.isError} onRefresh={() => void pricingQuoteQuery.refetch()} />
               </div>
             )}
           </CardContent>
@@ -865,12 +873,19 @@ export default function BookingPage() {
       )}
 
       {activeStep === 4 && selectedPuja && user?.role === 'customer' && (
-        <PaymentPage 
-          amount={calculateAmount()}
-          pujaName={selectedPuja.name}
-          onBack={handlePreviousStep}
-          onSuccess={handleSubmitBooking}
-        />
+        <div className="mx-auto max-w-4xl space-y-4">
+          <PricingQuoteBreakdown quote={pricingQuote} loading={pricingQuoteQuery.isFetching} error={pricingQuoteQuery.isError} onRefresh={() => void pricingQuoteQuery.refetch()} />
+          {pricingQuote && !pricingQuoteQuery.isFetching && !pricingQuoteQuery.isError ? (
+            <PaymentPage
+              amount={pricingQuote.totalAmount}
+              pujaName={selectedPuja.name}
+              onBack={handlePreviousStep}
+              onSuccess={handleSubmitBooking}
+            />
+          ) : (
+            <Button type="button" variant="outline" onClick={() => void pricingQuoteQuery.refetch()}>Confirm current price to continue</Button>
+          )}
+        </div>
       )}
 
       {/* Login modal — shown before an unauthenticated customer can send a request */}

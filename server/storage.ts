@@ -917,6 +917,7 @@ export class MemStorage implements IStorage {
   async createBooking(bookingData: InsertBooking): Promise<Booking> {
     const booking: Booking = {
       ...bookingData,
+      pricingSnapshot: bookingData.pricingSnapshot ?? null,
       id: this.bookingIdCounter++,
       status: "pending",
       createdAt: new Date(),

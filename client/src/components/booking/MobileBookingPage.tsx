@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { usePricingQuote } from '@/components/pricing/usePricingQuote';
+import PricingQuoteBreakdown from '@/components/pricing/PricingQuoteBreakdown';
 
 type BookingStep = 'service' | 'datetime' | 'guruji' | 'review';
 
@@ -36,12 +38,30 @@ const TIME_SLOTS = [
   '06:00 PM', '07:00 PM', '08:00 PM',
 ];
 
+function indiaDateKey(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const part = (type: string) => parts.find(item => item.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 function generateDates(count = 14) {
+  const [year, month, day] = indiaDateKey(new Date()).split('-').map(Number);
+  const firstIndiaDate = new Date(year, month - 1, day, 12);
   return Array.from({ length: count }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i + 1);
+    const d = new Date(firstIndiaDate);
+    d.setDate(d.getDate() + i);
     return d;
   });
+}
+
+function localCalendarDate(date: Date | null): string | undefined {
+  if (!date) return undefined;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export function MobileBookingPage() {
@@ -63,6 +83,12 @@ export function MobileBookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [clockNow, setClockNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Fetch pujas, cities, auth
   const { data: pujas = [], isLoading: pujasLoading } = useQuery({ queryKey: ['/api/pujas'] });
@@ -96,13 +122,35 @@ export function MobileBookingPage() {
   });
 
   const selectedGuruji = (gurujis as any[]).find((g: any) => g.id?.toString() === selectedGurujiId) || null;
+  const indiaTodayKey = indiaDateKey(clockNow);
+  const indiaClockParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(clockNow);
+  const indiaCurrentMinutes = Number(indiaClockParts.find(part => part.type === 'hour')?.value ?? 0) * 60 +
+    Number(indiaClockParts.find(part => part.type === 'minute')?.value ?? 0);
+
+  const isElapsedIndiaTime = (date: Date, time: string) => {
+    if (localCalendarDate(date) !== indiaTodayKey) return false;
+    const match = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time);
+    if (!match) return false;
+    const rawHour = Number(match[1]);
+    const slotMinutes = (rawHour % 12 + (match[3] === 'PM' ? 12 : 0)) * 60 + Number(match[2]);
+    return slotMinutes <= indiaCurrentMinutes;
+  };
+  const selectedTimeElapsed = !!selectedDate && !!selectedTime && isElapsedIndiaTime(selectedDate, selectedTime);
+  const pricingQuoteQuery = usePricingQuote(
+    selectedPuja ? Number(selectedPuja.id) : undefined,
+    localCalendarDate(selectedDate),
+    selectedTimeElapsed ? '' : selectedTime,
+    withSamagri,
+  );
+  const pricingQuote = pricingQuoteQuery.data;
 
   const calculateAmount = () => {
-    if (!selectedPuja) return 0;
-    if (bookingType === 'consultation' && consultationType === 'immediate') return selectedPuja.price * 3;
-    let total = selectedPuja.price || 0;
-    if (withSamagri && selectedPuja.samagriPrice) total += selectedPuja.samagriPrice;
-    return total;
+    return pricingQuote?.totalAmount ?? 0;
   };
 
   const stepIndex = STEPS.indexOf(currentStep);
@@ -114,6 +162,7 @@ export function MobileBookingPage() {
     if (currentStep === 'datetime') {
       if (!selectedDate) { toast({ title: 'Select a date', variant: 'destructive' }); return false; }
       if (!selectedTime) { toast({ title: 'Select a time', variant: 'destructive' }); return false; }
+      if (selectedTimeElapsed) { toast({ title: 'Choose a future time', description: 'That time has already passed in India. Please select a later slot.', variant: 'destructive' }); return false; }
       if (bookingType === 'offline') {
         if (!selectedCity) { toast({ title: 'Select a city', variant: 'destructive' }); return false; }
         if (!address) { toast({ title: 'Enter your address', variant: 'destructive' }); return false; }
@@ -146,6 +195,13 @@ export function MobileBookingPage() {
     }
     try {
       setIsSubmitting(true);
+      if (!selectedPuja || !selectedDate || !selectedTime || selectedTimeElapsed) throw new Error('Choose a future puja time before booking.');
+      const refreshedQuote = await pricingQuoteQuery.refetch();
+      if (refreshedQuote.isError || !refreshedQuote.data) throw new Error('The current price could not be confirmed. Refresh and try again.');
+      if (!pricingQuote || refreshedQuote.data.totalAmount !== pricingQuote.totalAmount) {
+        toast({ title: 'Price updated', description: 'Review the latest quote below, then submit again.', variant: 'destructive' });
+        return;
+      }
       const dt = new Date(selectedDate!);
       const parts = selectedTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
       if (parts) {
@@ -158,12 +214,14 @@ export function MobileBookingPage() {
 
       const bookingData: any = {
         pujaId: parseInt(selectedPujaId),
-        type: bookingType,
-        amount: calculateAmount(),
+        type: bookingType === 'consultation' ? 'online' : bookingType,
+        amount: refreshedQuote.data.totalAmount,
+        withSamagri,
         city: selectedCity,
         address,
         pincode: pincode || undefined,
         date: dt.toISOString(),
+        calendarDate: localCalendarDate(selectedDate),
         time: selectedTime,
         duration: selectedPuja?.duration || 120,
         notes: '',
@@ -177,8 +235,13 @@ export function MobileBookingPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
       toast({ title: 'Booking submitted!', description: 'Our team will contact you for payment confirmation.' });
       setLocation('/dashboard');
-    } catch {
-      toast({ title: 'Booking failed', description: 'Please try again.', variant: 'destructive' });
+    } catch (error) {
+      if (String(error).includes('409:') && /price|amount|quote/i.test(String(error))) {
+        await pricingQuoteQuery.refetch();
+        toast({ title: 'Price changed', description: 'We refreshed your quote. Review the new total and submit again.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Booking failed', description: String(error).includes('409:') ? 'That time or Guruji is no longer available. Please choose another.' : 'Please try again.', variant: 'destructive' });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -273,7 +336,7 @@ export function MobileBookingPage() {
                 {([
                   { val: 'own_guruji', label: 'Select your own Guruji' },
                   { val: 'auto_select', label: 'Auto-select best Guruji' },
-                  { val: 'immediate', label: 'Immediate (3× price)' },
+                  { val: 'immediate', label: 'Immediate consultation' },
                 ] as const).map(({ val, label }) => (
                   <label key={val} className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -328,10 +391,7 @@ export function MobileBookingPage() {
                           <p className="text-xs text-muted-foreground mt-0.5">{puja.duration} min</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-semibold text-violet-700">₹{puja.price}</p>
-                          {withSamagri && puja.samagriPrice && (
-                            <p className="text-xs text-orange-600">+₹{puja.samagriPrice} samagri</p>
-                          )}
+                          <p className="text-xs text-muted-foreground">Price confirmed after date and time</p>
                         </div>
                       </div>
                     </button>
@@ -353,7 +413,7 @@ export function MobileBookingPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Selected Puja</p>
-                <p className="text-sm font-medium">{selectedPuja?.name} · ₹{calculateAmount()}</p>
+                <p className="text-sm font-medium">{selectedPuja?.name}</p>
               </div>
             </div>
 
@@ -363,16 +423,16 @@ export function MobileBookingPage() {
                 <Calendar className="h-4 w-4" /> Select Date
               </p>
               <div className="flex overflow-x-auto gap-2 pb-1 -mx-1 px-1">
-                {dates.map(date => {
-                  const isToday = date.toDateString() === new Date().toDateString();
-                  const isTomorrow = date.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                {dates.map((date, dateIndex) => {
+                  const isToday = dateIndex === 0;
+                  const isTomorrow = dateIndex === 1;
                   const label = isToday ? 'Today' : isTomorrow ? 'Tomorrow'
                     : date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
                   const selected = selectedDate?.toDateString() === date.toDateString();
                   return (
                     <button
                       key={date.toISOString()}
-                      onClick={() => setSelectedDate(date)}
+                      onClick={() => { setSelectedDate(date); setSelectedTime(''); }}
                       className={`flex-shrink-0 rounded-xl border px-3 py-2 text-center text-xs font-medium transition-all
                         ${selected ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-200 bg-white text-gray-700'}`}
                     >
@@ -394,8 +454,12 @@ export function MobileBookingPage() {
                   <button
                     key={time}
                     onClick={() => setSelectedTime(time)}
-                    className={`rounded-lg border py-2 text-xs font-medium transition-all
-                      ${selectedTime === time ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-200 bg-white text-gray-700'}`}
+                      disabled={!!selectedDate && isElapsedIndiaTime(selectedDate, time)}
+                      aria-disabled={!!selectedDate && isElapsedIndiaTime(selectedDate, time)}
+                      aria-label={!!selectedDate && isElapsedIndiaTime(selectedDate, time) ? `${time}, elapsed in India` : time}
+                      title={!!selectedDate && isElapsedIndiaTime(selectedDate, time) ? 'This time has passed in India' : undefined}
+                      className={`rounded-lg border py-2 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40
+                        ${selectedTime === time ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-200 bg-white text-gray-700'}`}
                   >
                     {time}
                   </button>
@@ -538,6 +602,14 @@ export function MobileBookingPage() {
         {currentStep === 'review' && (
           <motion.div key="review" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
 
+            {selectedTimeElapsed && <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">This selected slot has already passed in India. Return to Date &amp; Location and choose a future time.</p>}
+            <PricingQuoteBreakdown
+              quote={pricingQuote}
+              loading={pricingQuoteQuery.isFetching}
+              error={pricingQuoteQuery.isError}
+              onRefresh={() => void pricingQuoteQuery.refetch()}
+            />
+
             {paymentSettings?.paymentRequired ? (
               /* ── Payment required: show UPI QR ── */
               <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-3">
@@ -651,12 +723,6 @@ export function MobileBookingPage() {
                     <span className="font-medium text-muted-foreground italic">Auto-assigned</span>
                   </div>
                 )}
-                {withSamagri && selectedPuja?.samagriPrice && (
-                  <div className="flex justify-between text-orange-700">
-                    <span>Samagri</span>
-                    <span className="font-medium">+₹{selectedPuja.samagriPrice}</span>
-                  </div>
-                )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-base">
                   <span>Total</span>
@@ -681,7 +747,7 @@ export function MobileBookingPage() {
           <Button
             className="w-full bg-violet-600 hover:bg-violet-700 text-white"
             onClick={handleSubmit}
-            disabled={isSubmitting || !currentUser || (paymentSettings?.paymentRequired && !paymentConfirmed)}
+            disabled={isSubmitting || !currentUser || selectedTimeElapsed || !pricingQuote || pricingQuoteQuery.isFetching || pricingQuoteQuery.isError || (paymentSettings?.paymentRequired && !paymentConfirmed)}
           >
             {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
             {isSubmitting ? 'Submitting…' : paymentSettings?.paymentRequired ? 'I have paid — Confirm Booking' : 'Confirm Booking Request'}

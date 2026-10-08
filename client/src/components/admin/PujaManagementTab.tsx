@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import PujaManagement from './PujaManagement';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Package2, Presentation, Settings } from 'lucide-react';
+import PricingManagement from './PricingManagement';
 
 export default function PujaManagementTab() {
   return (
@@ -35,7 +36,10 @@ export default function PujaManagementTab() {
               
               <TabsContent value="pujas">
                 <ScrollArea className="h-[65vh]">
-                  <PujaManagement />
+                  <div className="space-y-6 pr-4">
+                    <PujaManagement />
+                    <PricingManagement />
+                  </div>
                 </ScrollArea>
               </TabsContent>
 

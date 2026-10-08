@@ -745,8 +745,8 @@ export class DBStorage implements IStorage {
       `INSERT INTO bookings (
         "customerId", "pujaId", "gurujiId", address, city, state, pincode,
         date, time, "locationType", "totalAmount", "consultationType",
-        notes, status, "createdAt", "updatedAt", duration
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        notes, status, "createdAt", "updatedAt", duration, pricing_snapshot
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *`,
       [
         bookingData.customerId,
@@ -765,7 +765,8 @@ export class DBStorage implements IStorage {
         bookingData.status || 'pending',
         new Date(),
         new Date(),
-        bookingData.duration
+        bookingData.duration,
+        bookingData.pricingSnapshot || null
       ]
     );
     
@@ -1193,6 +1194,7 @@ export class DBStorage implements IStorage {
       consultationType: row.consultationType || row.consultation_type || null,
       isImmediate: row.isImmediate || row.is_immediate || false,
       notes: row.notes || null,
+      pricingSnapshot: row.pricing_snapshot ?? null,
       createdAt: row.createdAt || row.created_at,
       updatedAt: row.updatedAt || row.updated_at,
     };

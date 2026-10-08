@@ -11,3 +11,4 @@
 - [Browser testing fallback](browser-testing-fallback.md) — if the runtime rejects the advertised testing subagent kind, use Chromium/CDP verification instead.
 - [Puja completion verification](puja-completion-verification.md) — only completion needs an OTP; admin must be able to track, resend, and manually complete.
 - [Booking privacy and communications](booking-privacy-and-communications.md) — mutual phones hidden; strict four-hour pre-start address window, with audited admin releases and sends.
+- [Puja pricing policy](puja-pricing-policy.md) — narrowest rule wins without stacking; preserve agreed booking prices and require renewed confirmation when a quote changes.

@@ -271,6 +271,23 @@ export default function BookingDetail() {
                 </div>
               </div>
 
+              {booking.pricingSnapshot && (() => {
+                const snapshot = booking.pricingSnapshot.quote ?? booking.pricingSnapshot;
+                if (snapshot.pujaPrice == null && snapshot.regularPrice == null && snapshot.totalAmount == null) return null;
+                return (
+                  <section className="rounded-lg border border-violet-100 bg-violet-50/60 p-4" aria-label="Saved booking price breakdown">
+                    <h3 className="mb-3 font-semibold">Price at booking</h3>
+                    <dl className="space-y-2 text-sm">
+                      {snapshot.regularPrice != null && <div className="flex justify-between gap-4"><dt className="text-neutral-600">Regular puja price</dt><dd>₹{Number(snapshot.regularPrice).toLocaleString('en-IN')}</dd></div>}
+                      {snapshot.pujaPrice != null && <div className="flex justify-between gap-4"><dt className="text-neutral-600">Adjusted puja price</dt><dd>₹{Number(snapshot.pujaPrice).toLocaleString('en-IN')}</dd></div>}
+                      {snapshot.samagriPrice != null && <div className="flex justify-between gap-4"><dt className="text-neutral-600">Samagri</dt><dd>₹{Number(snapshot.samagriPrice).toLocaleString('en-IN')}</dd></div>}
+                      {snapshot.totalAmount != null && <div className="flex justify-between gap-4 border-t border-violet-200 pt-2 font-semibold"><dt>Total at booking</dt><dd>₹{Number(snapshot.totalAmount).toLocaleString('en-IN')}</dd></div>}
+                      {snapshot.explanation && <p className="pt-1 text-xs text-neutral-600">{snapshot.explanation}</p>}
+                    </dl>
+                  </section>
+                );
+              })()}
+
               {booking.gurujiId && (
                 <div className="bg-violet-50 p-4 rounded-lg border border-violet-100">
                   <div className="flex items-center gap-3">

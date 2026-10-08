@@ -10,6 +10,8 @@ import { changeBookingCompletion, initializeBookingCompletion } from './bookingC
 import { bookingCompletionRouter } from './routes/booking-completion';
 import { initializeBookingCommunications } from './bookingCommunications';
 import { bookingCommunicationsRouter } from './routes/booking-communications';
+import { initializePujaPricing, getPricingQuote, pricingQuotePayload, validatePujaPriceRules } from './pujaPricing';
+import { publicPricingRouter, adminPricingRouter, adminPujaPriceRouter } from './routes/puja-pricing';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -241,6 +243,7 @@ async function resolvePujaNames(pujas: any[]): Promise<string[]> {
 export async function registerRoutes(app: Express): Promise<Server> {
   await initializeBookingCompletion();
   await initializeBookingCommunications();
+  await initializePujaPricing();
   // The live bookings table predates the duration field in the shared schema.
   // Snapshot the configured duration so later admin edits do not change
   // the reserved length of bookings already placed.
@@ -1312,6 +1315,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Puja Routes
+  app.use('/api/pricing', publicPricingRouter);
+  app.use('/api/admin/pricing', adminPricingRouter);
+  app.use('/api/admin/pujas', adminPujaPriceRouter);
   app.get("/api/pujas", async (req: Request, res: Response) => {
     try {
       const pujas = await storageInstance.getAllPujas();
@@ -1326,12 +1332,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/pujas", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const pujaData = createPujaPayload.parse(req.body);
+      await validatePujaPriceRules(null, pujaData.price ?? pujaData.basePrice);
       console.log("Creating new puja:", pujaData);
       const newPuja = await storageInstance.createPuja(pujaData);
       console.log("Created puja:", newPuja);
       res.status(201).json(newPuja);
     } catch (error) {
       console.error("Error creating puja:", error);
+      if ((error as any)?.status) return res.status((error as any).status).json({ message: (error as any).message });
       if (error instanceof ZodError) return res.status(400).json({ message: error.errors.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') });
       res.status(500).json({ message: "Failed to create puja" });
     }
@@ -1343,6 +1351,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       if (!Number.isInteger(id) || id < 1) return res.status(400).json({ message: 'Invalid puja ID' });
       const pujaData = updatePujaPayload.parse(req.body);
+      if (pujaData.price !== undefined || pujaData.basePrice !== undefined) {
+        const currentPuja = await storageInstance.getPuja(id);
+        if (!currentPuja) return res.status(404).json({ message: 'Puja not found' });
+        const price = pujaData.price !== undefined ? pujaData.price ?? pujaData.basePrice ?? currentPuja.basePrice
+          : currentPuja.price ?? pujaData.basePrice ?? currentPuja.basePrice;
+        await validatePujaPriceRules(id, price);
+      }
       console.log("Updating puja:", id, pujaData);
       const updatedPuja = await storageInstance.updatePuja(id, pujaData);
       if (!updatedPuja) {
@@ -1352,6 +1367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedPuja);
     } catch (error) {
       console.error("Error updating puja:", error);
+      if ((error as any)?.status) return res.status((error as any).status).json({ message: (error as any).message });
       if (error instanceof ZodError) return res.status(400).json({ message: error.errors.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') });
       res.status(500).json({ message: "Failed to update puja" });
     }
@@ -1460,6 +1476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: z.enum(["offline", "online"]),
         consultationType: z.enum(["own_guruji", "auto_select", "immediate"]).optional(),
         amount: z.number().positive(),
+        withSamagri: z.boolean().default(false),
         address: z.string().optional(),
         city: z.string().optional(),
         state: z.string().optional(),
@@ -1484,9 +1501,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Puja duration is not configured' });
       }
       const date = new Date(`${dateKey}T12:00:00.000Z`);
+      const pricingSnapshot = await getPricingQuote(pricingQuotePayload.parse({
+        pujaId: bookingData.pujaId, calendarDate: dateKey, time: bookingData.time,
+        withSamagri: bookingData.withSamagri,
+      }));
+      if (bookingData.amount !== pricingSnapshot.totalAmount) {
+        return res.status(409).json({
+          message: 'The puja price has changed. Review the current price and submit again.',
+          quote: pricingSnapshot,
+        });
+      }
       const createBooking = () => storageInstance.createBooking({
         customerId: userId,
         ...bookingData,
+        amount: pricingSnapshot.totalAmount,
+        pricingSnapshot,
         duration: puja.duration,
         date,
         city: bookingData.city || '',
@@ -1558,7 +1587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors: fromZodError(error),
         });
       }
-      res.status(500).json({ message: "Failed to create booking" });
+      res.status((error as any)?.status || 500).json({ message: (error as any)?.status ? (error as any).message : "Failed to create booking" });
     }
   });
 
