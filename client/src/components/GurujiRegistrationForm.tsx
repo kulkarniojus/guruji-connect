@@ -123,6 +123,8 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
         languages: selectedLanguages,
       }),
     onSuccess: () => {
+      queryClient.invalidateQueries({queryKey: ['/api/auth/me']});
+      queryClient.invalidateQueries({queryKey: ['/api/guruji/profile']});
       toast({
         title: 'Application Submitted!',
         description: isSalesRep

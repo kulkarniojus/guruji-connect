@@ -28,8 +28,8 @@ export function rulesBlockBooking(
     const windows = dayRules.filter(r => r.startTime !== null).map(r => ({
       start: clockMinutes(r.startTime!)!, end: clockMinutes(r.endTime!)!, available: r.isAvailable,
     }));
-    const boundaries = [...new Set([from, to, ...windows.flatMap(w => [w.start, w.end])
-      .filter(t => t > from && t < to)])].sort((a, b) => a - b);
+    const boundaries = Array.from(new Set([from, to, ...windows.flatMap(w => [w.start, w.end])
+      .filter(t => t > from && t < to)])).sort((a, b) => a - b);
     for (let i = 0; i < boundaries.length - 1; i++) {
       const minute = (boundaries[i] + boundaries[i + 1]) / 2;
       const matching = windows.filter(w => minute >= w.start && minute < w.end);

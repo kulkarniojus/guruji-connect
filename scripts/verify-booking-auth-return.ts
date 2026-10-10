@@ -20,7 +20,8 @@ try {
   assert.equal(postAuthPath('admin', '/booking'), '/admin-dashboard');
   const pujas = await (await fetch(base + '/api/pujas')).json() as any[];
   const cities = await (await fetch(base + '/api/cities')).json() as any[];
-  const puja = pujas.find(item => item.price > 0);
+  const puja = pujas.find(item => item.isActive !== false && item.price > 0);
+  assert.ok(puja, 'An active puja is required for the booking return check');
   const city = cities[0].name.toLowerCase().replace(/\s+/g, '-');
   const target = `/booking?type=offline&puja=${puja.id}&city=${encodeURIComponent(city)}`;
   const draft = {

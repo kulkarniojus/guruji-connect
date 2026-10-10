@@ -16,6 +16,7 @@ import {
   type UserJourneyItem, type InsertUserJourneyItem
 } from "@shared/schema";
 import { pool } from './db';
+import { getUnavailableGurujiIds } from './gurujiAvailability';
 import { hash, compare } from 'bcrypt';
 import { IStorage } from './storage';
 import { isUnassignedBooking } from '../shared/isUnassignedBooking';
@@ -26,6 +27,7 @@ import { resolveUnassignedBookingAlerts } from './unassignedBookingAlerts';
  * This bypasses Drizzle ORM to work directly with the database schema
  */
 export class DBStorage implements IStorage {
+  constructor(private readonly registrationConnection?: {query: (...args: any[]) => Promise<any>}) {}
   // User Management
   async getUser(id: number): Promise<User | undefined> {
     const result = await pool.query(
@@ -71,7 +73,7 @@ export class DBStorage implements IStorage {
       hashedPassword = await hash(userData.password, 10);
     }
     
-    const result = await pool.query(
+    const result = await (this.registrationConnection ?? pool).query(
       `INSERT INTO users (
         "firstName", "lastName", email, mobile, password, 
         role, "isVerified", "isBlocked", "createdAt", "updatedAt",
@@ -488,23 +490,24 @@ export class DBStorage implements IStorage {
       ? pd.cities
       : (pd.city ? [pd.city] : []);
 
-    const result = await pool.query(
+    const result = await (this.registrationConnection ?? pool).query(
       `INSERT INTO guruji_profiles (
         "userId", description, city, address, state, pincode, experience, "pricePerHour",
         "isVerified", "isAvailable", languages, specialities, rating, "totalReviews",
         aadhar_verified, documents_verified, certificates, profile_picture_url, status,
-        religion, age, video_url, cities, "createdAt", "updatedAt"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+        religion, age, video_url, cities, "createdAt", "updatedAt",
+        "isOnline","isOffline","isConsultation"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       RETURNING *`,
       [
         profileData.userId,
         profileData.bio || pd.description || null,
         pd.city || '',
-        profileData.location || pd.address || null,
+        pd.address || profileData.location || null,
         pd.state || null,
         pd.pincode || null,
         profileData.experience || 0,
-        profileData.pricePerHour || pd.price_per_hour || 500,
+        profileData.pricePerHour ?? pd.price_per_hour ?? 500,
         pd.isVerified ?? false,
         pd.isAvailable ?? false,
         profileData.languages || [],
@@ -521,7 +524,10 @@ export class DBStorage implements IStorage {
         pd.videoUrl || pd.video_url || null,
         citiesArr,
         new Date(),
-        new Date()
+        new Date(),
+        pd.isOnline ?? false,
+        pd.isOffline ?? true,
+        pd.isConsultation ?? false,
       ]
     );
     
@@ -1096,7 +1102,9 @@ export class DBStorage implements IStorage {
       gender: row.gender || null,
       role: row.role,
       aadhar: row.aadhar || null,
-      dob: row.dob ? String(row.dob) : null,
+      dob: row.dob instanceof Date
+        ? `${row.dob.getFullYear()}-${String(row.dob.getMonth() + 1).padStart(2, '0')}-${String(row.dob.getDate()).padStart(2, '0')}`
+        : row.dob ? String(row.dob).slice(0, 10) : null,
       caste: row.caste || null,
       photoUrl: row.photo_url || row.profileImage || null,
       registeredBy: row.registered_by || null,
@@ -1150,10 +1158,10 @@ export class DBStorage implements IStorage {
       radius: row.radius || 10,
       languages: row.languages || [],
       pricePerHour: row.pricePerHour || row.price_per_hour || 0,
-      isOnline: row.isOnline || row.is_online || false,
-      isOffline: row.isOffline || row.is_offline || true,
-      isConsultation: row.isConsultation || row.is_consultation || false,
-      isAvailable: row.isAvailable || row.is_available || false,
+      isOnline: row.isOnline ?? row.is_online ?? false,
+      isOffline: row.isOffline ?? row.is_offline ?? true,
+      isConsultation: row.isConsultation ?? row.is_consultation ?? false,
+      isAvailable: row.isAvailable ?? row.is_available ?? false,
       aadharVerified: row.aadhar_verified || false,
       documentsVerified: row.documents_verified || false,
       verificationDate: row.verification_date || null,
@@ -1713,8 +1721,11 @@ export class DBStorage implements IStorage {
       query += ` ORDER BY gp.rating DESC, gp."totalReviews" DESC`;
 
       const result = await pool.query(query, values);
+      const unavailable = filters.date && filters.time && filters.duration !== undefined
+        ? await getUnavailableGurujiIds(result.rows.map(row => row.id), filters.date, filters.time, filters.duration)
+        : new Set<number>();
       
-      return result.rows.map(row => ({
+      return result.rows.filter(row => !unavailable.has(row.id)).map(row => ({
         id: row.id,
         userId: row.userId,
         firstName: row.firstName,

@@ -35,7 +35,11 @@ import chatbotRoutes from "./routes/chatbot";
 import { analyticsRouter } from "./routes/analytics";
 import journeyRoutes from "./routes/journey";
 import pujaRoutes from "./routes/pujas";
-import demoRoutes from "./routes/demo";
+import { initializeGurujiAvailability, gurujiAvailabilityRouter } from './gurujiAvailability';
+import { isAuthenticated as requireAuthenticated } from './middlewares/auth';
+import { isSampleAccount, startUserSession, disableSampleAccounts } from './authAccess';
+import { validateStaffRegistration } from './registrationValidation';
+import { submitGurujiApplication } from './gurujiApplication';
 import { 
   sendBookingRequests, 
   respondToBookingRequest, 
@@ -248,6 +252,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeBookingCommunications();
   await initializePujaPricing();
   await initializeOurServices();
+  await disableSampleAccounts();
+  await initializeGurujiAvailability();
   // The live bookings table predates the duration field in the shared schema.
   // Snapshot the configured duration so later admin edits do not change
   // the reserved length of bookings already placed.
@@ -257,19 +263,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     FROM pujas p WHERE b."pujaId" = p.id AND b.duration IS NULL
   `);
   // Initialize admin user and app settings
-  await initializeAdminUser();
   await initializeAppSettings();
-  await seedSampleGurujisToDB();
+  // No sample accounts are created or re-enabled on application startup.
 
   // Set up session middleware — use PostgreSQL store so sessions survive restarts
-  app.use(
-    session({
+  if (!process.env.SESSION_SECRET) throw new Error('SESSION_SECRET must be configured');
+  const sessionMiddleware = session({
       store: new PgStore({
         pool,
         tableName: "user_sessions",
         createTableIfMissing: true,
       }),
-      secret: process.env.SESSION_SECRET || "pujaconnect-secret",
+      secret: process.env.SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -277,8 +282,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         httpOnly: true,
       },
-    })
-  );
+    });
+  app.use(sessionMiddleware);
 
   // Error handling middleware
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
@@ -297,16 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Authentication middleware
-  const isAuthenticated = (
-    req: Request, 
-    res: Response, 
-    next: NextFunction
-  ) => {
-    if (req.session && req.session.userId) {
-      return next();
-    }
-    res.status(401).json({ message: "Unauthorized" });
-  };
+  const isAuthenticated = requireAuthenticated;
 
   // Role check middleware
   const checkRole = (roles: string[]) => (
@@ -326,6 +322,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   const isAdmin = checkRole(['admin']);
+  app.use('/api/guruji/availability', isAuthenticated, gurujiAvailabilityRouter);
+  app.get('/api/availability', isAuthenticated, checkRole(['guruji']), (_req, res) => {
+    res.redirect(307, '/api/guruji/availability');
+  });
 
   // Authentication Routes
   app.post("/api/auth/login", async (req: Request, res: Response) => {
@@ -337,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Look up user in database
       const user = await storageInstance.getUserByEmail(email);
-      if (!user) {
+      if (!user || isSampleAccount(user.email)) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
@@ -358,8 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Set session
-      req.session.userId = user.id;
-      req.session.userRole = user.role;
+      await startUserSession(req, user);
 
       // Return user without password
       await new Promise<void>((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
@@ -387,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storageInstance.getUserByEmail(email);
       console.log('User found:', user ? { id: user.id, email: user.email, role: user.role } : 'null');
       
-      if (!user || user.role !== 'admin') {
+      if (!user || user.role !== 'admin' || user.isBlocked || isSampleAccount(user.email)) {
         console.log('User not found or not admin');
         return res.status(401).json({ message: 'Invalid credentials' });
       }
@@ -401,8 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Set session
-      req.session.userId = user.id;
-      req.session.userRole = user.role;
+      await startUserSession(req, user);
       
       res.json({
         user: {
@@ -421,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Database initialization route
-  app.post('/api/db/init', async (req: Request, res: Response) => {
+  app.post('/api/db/init', isAuthenticated, checkRole(['admin']), async (req: Request, res: Response) => {
     try {
       // Create cities table directly
       await pool.query(`
@@ -569,7 +567,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         specialization: specialization as string,
         ...schedule,
       });
-      res.json(gurujis);
+      res.json(gurujis.map(guruji => {
+        const {email, mobile, ...publicProfile} = guruji as any;
+        return publicProfile;
+      }));
     } catch (error) {
       console.error('Error fetching gurujis:', error);
       res.status(500).json({ message: 'Failed to fetch gurujis' });
@@ -577,135 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Guruji Registration Routes
-  app.post('/api/guruji/register', isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const sessionUserId = req.session.userId;
-      if (!sessionUserId) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-
-      const sessionUser = await storageInstance.getUser(sessionUserId);
-      if (!sessionUser) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-
-      const {
-        bio, experience, location, pricePerHour, cities, pujas, languages,
-        isOnline, isOffline, isConsultation, aadharNumber, profilePicture, certificates,
-        firstName, lastName, age, religion, pincode, city, state, address, videoUrl,
-        // Extra fields required when a sales rep registers a guruji
-        email, mobile,
-      } = req.body;
-
-      // Phone number is mandatory for all guruji registrations
-      if (!mobile || !/^\d{10}$/.test(mobile)) {
-        return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
-      }
-
-      // City and experience are mandatory
-      if (!city || city.trim().length < 2) {
-        return res.status(400).json({ message: 'City is required (minimum 2 characters)' });
-      }
-      const expNum = Number(experience);
-      if (!experience || isNaN(expNum) || expNum < 1) {
-        return res.status(400).json({ message: 'Years of experience must be at least 1' });
-      }
-
-      let targetUserId = sessionUserId;
-
-      if (sessionUser.role === 'sales' || sessionUser.role === 'sales_rep') {
-        // Sales rep is registering a new guruji on their behalf
-        if (!email) {
-          return res.status(400).json({ message: 'Email is required when a sales rep registers a Guruji' });
-        }
-
-        // Look up by email first
-        let gurujiUser = await storageInstance.getUserByEmail(email);
-
-        if (!gurujiUser) {
-          // Create a new user account for the guruji - password is the 10-digit mobile number
-          gurujiUser = await storageInstance.createUser({
-            firstName: firstName || '',
-            lastName: lastName || '',
-            email,
-            mobile,
-            password: mobile, // use mobile as initial password
-            role: 'guruji',
-          } as any);
-        } else if (gurujiUser.role === 'customer') {
-          // Upgrade existing customer to guruji role
-          await storageInstance.updateUser(gurujiUser.id, { role: 'guruji' } as any);
-        }
-
-        targetUserId = gurujiUser.id;
-      }
-
-      // Check if target user already has a guruji profile
-      const existingProfile = await storageInstance.getGurujiProfileByUserId(targetUserId);
-      if (existingProfile) {
-        return res.status(400).json({ message: 'This person already has a Guruji application on file' });
-      }
-
-      // Create guruji profile with pending status
-      const resolvedPujaNames = await resolvePujaNames(Array.isArray(pujas) ? pujas : []);
-      const profilePayload: any = {
-        userId: targetUserId,
-        bio,
-        experience,
-        specialization: resolvedPujaNames.join(','),
-        location: address || location,
-        pricePerHour,
-        languages: Array.isArray(languages) ? languages : [],
-        isOnline: isOnline || false,
-        isOffline: isOffline !== undefined ? isOffline : true,
-        isConsultation: isConsultation || false,
-        isAvailable: false,
-        // Auto-verify new gurujis to enable them to receive bookings
-        aadharVerified: true,
-        documentsVerified: true,
-        status: 'pending',
-        rating: 0,
-        totalReviews: 0,
-        profilePictureUrl: profilePicture || null,
-        certificates: certificates || [],
-        city: city || null,
-        state: state || null,
-        pincode: pincode || null,
-        address: address || location || null,
-        religion: religion || null,
-        age: age || null,
-        videoUrl: videoUrl || null,
-      };
-
-      const gurujiProfile = await storageInstance.createGurujiProfile(profilePayload);
-
-      // Notify all admins about the new application
-      try {
-        const applicantName = `${firstName || ''} ${lastName || ''}`.trim() || email || 'A new applicant';
-        const registeredBy = sessionUser.role === 'sales' ? ` (registered by sales rep ${sessionUser.firstName} ${sessionUser.lastName})` : '';
-        const admins = await storageInstance.getUsersByRole('admin');
-        await Promise.all(admins.map(admin =>
-          storageInstance.createNotification({
-            userId: admin.id,
-            title: 'New Guruji Application',
-            message: `${applicantName} has submitted a Guruji registration application${registeredBy}. Please review and approve.`,
-            type: 'guruji_application',
-            isRead: false,
-          } as any)
-        ));
-      } catch (notifErr) {
-        console.error('Failed to create admin notification:', notifErr);
-      }
-
-      res.status(201).json({
-        message: 'Guruji application submitted successfully',
-        profile: gurujiProfile
-      });
-    } catch (error) {
-      console.error('Error creating guruji profile:', error);
-      res.status(500).json({ message: 'Failed to submit application' });
-    }
-  });
+  app.post('/api/guruji/register', isAuthenticated, submitGurujiApplication);
 
   // Admin routes for guruji approval
   app.get('/api/admin/gurujis', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
@@ -1077,6 +950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/auth/register", async (req: Request, res: Response) => {
+    let registrationClient: Awaited<ReturnType<typeof pool.connect>> | undefined;
     try {
       const {
         firstName,
@@ -1089,6 +963,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role,
         aadhar,
         caste,
+        address,
+        city,
+        state,
+        pincode,
+        dob,
+        photoUrl,
         // Guruji-specific fields (optional, only used when role === 'guruji')
         experience,
         specialization,
@@ -1096,16 +976,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         languages,
         qualification,
       } = z.object({
-        firstName: z.string().min(1, "First name is required"),
-        lastName: z.string().min(1, "Last name is required"),
+        firstName: z.string().trim().min(1, "First name is required"),
+        lastName: z.string().trim().min(1, "Last name is required"),
         email: z.string().trim().toLowerCase().email("Invalid email address"),
-        mobile: z.string().length(10, "Mobile number must be 10 digits"),
-        age: z.number().min(18, "You must be at least 18 years old"),
+        mobile: z.string().trim().regex(/^\d{10}$/, "Mobile number must be 10 digits"),
+        age: z.number().int().min(18, "You must be at least 18 years old").max(120),
         gender: z.enum(["male", "female", "other"]),
         password: z.string().min(6, "Password must be at least 6 characters"),
         role: z.enum(["customer", "guruji"]),
         aadhar: z.string().optional(),
         caste: z.string().optional(),
+        address: z.string().trim().optional(),
+        city: z.string().trim().optional(),
+        state: z.string().trim().optional(),
+        pincode: z.string().regex(/^$|^\d{6}$/, 'Pincode must contain six digits').optional(),
+        dob: z.string().refine(value => !value || validBookingDate(value), 'Invalid date of birth').optional(),
+        photoUrl: z.string().optional(),
         experience: z.number().optional(),
         specialization: z.string().optional(),
         location: z.string().optional(),
@@ -1124,8 +1010,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "User already exists with this email" });
       }
 
-      // Create user in database (DBStorage hashes the password internally)
-      const user = await storageInstance.createUser({
+      if (role === 'guruji') {
+        const serviceCities = (location || '').split(',').map(s=>s.trim()).filter(Boolean);
+        const servicePujas = (specialization || '').split(',').map(s=>Number(s.trim()));
+        const [cities,pujas] = await Promise.all([storageInstance.getAllCities(),storageInstance.getAllPujas()]);
+        if (!serviceCities.length || !servicePujas.length || !languages?.trim() || !experience || experience < 1
+          || serviceCities.some(value=>!cities.some(c=>c.isActive && (String(c.id)===value || c.name===value)))
+          || servicePujas.some(id=>!Number.isSafeInteger(id) || !pujas.some(p=>p.id===id && p.isActive))) {
+          return res.status(400).json({message:'Select active service cities, pujas, languages and valid experience'});
+        }
+      }
+      registrationClient = await pool.connect();
+      await registrationClient.query('BEGIN');
+      const registrationStorage = new DBStorage(registrationClient);
+      // Account, profile and service links are committed together.
+      const user = await registrationStorage.createUser({
         firstName,
         lastName,
         email,
@@ -1136,6 +1035,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role,
         aadhar,
         caste,
+        address,
+        city,
+        state,
+        pincode,
+        dob,
+        photoUrl,
       } as any);
 
       // If user is guruji, create profile with all submitted details
@@ -1166,7 +1071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Could not resolve city IDs during registration:", e);
         }
 
-        const gurujiProfile = await storageInstance.createGurujiProfile({
+        const gurujiProfile = await registrationStorage.createGurujiProfile({
           userId: user.id,
           bio: qualification ? `Qualification: ${qualification}` : "",
           experience: experience ?? 0,
@@ -1174,6 +1079,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           location: cityNames.join(', '),
           city: cityNames[0] || "",
           cities: cityNames,
+          address,
+          state,
+          pincode,
+          profilePictureUrl: photoUrl || null,
           languages: languagesArray,
           radius: 10,
           isOnline: false,
@@ -1185,29 +1094,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (specialization && gurujiProfile) {
           const pujaIds = specialization.split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n));
           for (const pujaId of pujaIds) {
-            try {
-              await pool.query(
+              await registrationClient.query(
                 `INSERT INTO guruji_pujas ("gurujiId", "pujaId", "isAvailable", "createdAt", "updatedAt")
                  VALUES ($1, $2, true, NOW(), NOW())
                  ON CONFLICT DO NOTHING`,
                 [gurujiProfile.id, pujaId]
               );
-            } catch (e) {
-              // Non-fatal — specialities text[] is the source of truth fallback
-            }
           }
         }
       }
 
+      await registrationClient.query('COMMIT');
       // Set session
-      req.session.userId = user.id;
-      req.session.userRole = user.role;
+      await startUserSession(req, user);
 
       // Return user without password
       await new Promise<void>((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
       const { password: _, ...userWithoutPassword } = user;
       res.status(201).json(userWithoutPassword);
     } catch (error) {
+      if (registrationClient) await registrationClient.query('ROLLBACK').catch(() => {});
       console.error("Error registering user:", error);
       if (error instanceof ZodError) {
         return res.status(400).json({
@@ -1215,7 +1121,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors: fromZodError(error),
         });
       }
+      if ((error as any)?.code === '23505') return res.status(409).json({message: 'Email or mobile already registered'});
+      if ((error as any)?.code === '23503') return res.status(400).json({message: 'A selected puja or service city is no longer available'});
       res.status(500).json({ message: "Failed to register user" });
+    } finally {
+      registrationClient?.release();
     }
   });
 
@@ -2376,7 +2286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/analytics', analyticsRouter);
   app.use('/api', journeyRoutes);
   app.use('/api/admin/pujas', isAuthenticated, isAdmin, pujaRoutes);
-  app.use('/api/demo', demoRoutes);
+  app.use('/api/demo', (_req, res) => res.status(410).json({message: 'Demo access has been removed. Please use a registered account.'}));
   
   // ── Payment Settings (public read, admin write) ──────────────────────────
   app.get('/api/settings/payment', async (req: Request, res: Response) => {
@@ -2689,7 +2599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           b."totalAmount" AS amount,
           b."createdAt",
           p.name AS puja_name,
-          cu.first_name || ' ' || cu.last_name AS customer_name,
+          cu."firstName" || ' ' || cu."lastName" AS customer_name,
           cu.mobile AS customer_mobile,
           (SELECT COUNT(*) FROM booking_requests br WHERE br."bookingId" = b.id AND br.status = 'pending') AS pending_requests,
           (SELECT COUNT(*) FROM booking_requests br WHERE br."bookingId" = b.id AND br.status = 'declined') AS declined_requests,
@@ -2711,7 +2621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const r = await pool.query(`
         SELECT q.*,
-               u.first_name || ' ' || u.last_name AS customer_name,
+               u."firstName" || ' ' || u."lastName" AS customer_name,
                u.mobile AS customer_mobile,
                b.date AS booking_date,
                b.city AS booking_city,
@@ -2785,6 +2695,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       origin: "*",
       methods: ["GET", "POST"],
     },
+  });
+  io.engine.use(sessionMiddleware);
+  io.use(async (socket,next) => {
+    try {
+      const user = await storageInstance.getUser((socket.request as any).session?.userId || 0);
+      if (!user || user.isBlocked || isSampleAccount(user.email)) return next(new Error('Login required'));
+      socket.data.userId = user.id;
+      socket.data.userRole = user.role;
+      next();
+    } catch {
+      next(new Error('Unable to verify login'));
+    }
   });
   
   // Video conference API endpoints
@@ -3277,7 +3199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storageInstance.getUserByEmail(email);
-      if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+      if (!user || isSampleAccount(user.email)) return res.status(401).json({ message: 'Invalid credentials' });
       if (user.role !== 'sales_rep' && user.role !== 'admin') {
         return res.status(403).json({ message: 'Access denied. Not a sales representative.' });
       }
@@ -3286,8 +3208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isValid = await storageInstance.verifyPassword(user.id, password);
       if (!isValid) return res.status(401).json({ message: 'Invalid credentials' });
 
-      req.session.userId = user.id;
-      req.session.userRole = user.role;
+      await startUserSession(req, user);
 
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
@@ -3338,7 +3259,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/sales-rep/register-customer – sales rep registers a new customer
-  app.post('/api/sales-rep/register-customer', isAuthenticated, isSalesRep, async (req: Request, res: Response) => {
+  const registrationStaffAccess = (req: Request, res: Response, next: NextFunction) => {
+    const role = req.session.userRole;
+    if (req.path.startsWith('/api/admin/') ? role !== 'admin' : !['admin', 'sales_rep'].includes(role || '')) {
+      return res.status(403).json({message: 'Forbidden'});
+    }
+    next();
+  };
+  app.post(['/api/sales-rep/register-customer', '/api/admin/register-customer'], isAuthenticated, registrationStaffAccess, validateStaffRegistration, async (req: Request, res: Response) => {
     try {
       const salesRepId = req.session.userId!;
       const {
@@ -3376,16 +3304,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(safeUser);
     } catch (error) {
       console.error('Error registering customer:', error);
+      if ((error as any)?.code === '23505') return res.status(409).json({message: 'Email or mobile already registered'});
       res.status(500).json({ message: 'Failed to register customer' });
     }
   });
 
   // POST /api/sales-rep/register-guruji – sales rep registers a new guruji with KYC + profile
-  app.post('/api/sales-rep/register-guruji', isAuthenticated, isSalesRep, async (req: Request, res: Response) => {
+  app.post(['/api/sales-rep/register-guruji', '/api/admin/register-guruji'], isAuthenticated, registrationStaffAccess, validateStaffRegistration, async (req: Request, res: Response) => {
+    let registrationClient: Awaited<ReturnType<typeof pool.connect>> | undefined;
     try {
       const salesRepId = req.session.userId!;
       const {
-        firstName, lastName, email, mobile,
+        firstName, lastName, email, mobile, password,
         age, gender, dob, aadhar, caste, religion, address, city, state, pincode, photoUrl,
         bio, experience, location, pricePerHour, cities, pujas, languages,
         isOnline, isOffline, isConsultation, certificates, videoUrl
@@ -3400,9 +3330,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingMobile = await storageInstance.getUserByMobile(mobile);
       if (existingMobile) return res.status(409).json({ message: 'Mobile number already registered' });
 
-      // Create user with guruji role - password is 10-digit mobile number
-      const user = await storageInstance.createUser({
-        firstName, lastName, email, mobile, password: mobile,
+      if (typeof password !== 'string' || password.length < 6) {
+        return res.status(400).json({message: 'A password of at least six characters is required'});
+      }
+      registrationClient = await pool.connect();
+      await registrationClient.query('BEGIN');
+      const registrationStorage = new DBStorage(registrationClient);
+      // Use the password entered by staff, never the publicly known phone number.
+      const user = await registrationStorage.createUser({
+        firstName, lastName, email, mobile, password,
         age: age ? parseInt(age) : 0,
         gender: gender || 'male',
         role: 'guruji',
@@ -3419,7 +3355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create guruji profile
       const specialities = await resolvePujaNames(Array.isArray(pujas) ? pujas : []);
-      const gurujiProfile = await storageInstance.createGurujiProfile({
+      const gurujiProfile = await registrationStorage.createGurujiProfile({
         userId: user.id,
         bio: bio || '',
         experience: experience ? parseInt(experience) : 0,
@@ -3445,11 +3381,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         videoUrl: videoUrl || null,
       } as any);
 
+      for (const pujaId of (Array.isArray(pujas) ? pujas : []).map(Number)) {
+        await registrationClient.query(
+          `INSERT INTO guruji_pujas ("gurujiId","pujaId","isAvailable","createdAt","updatedAt")
+           VALUES ($1,$2,true,NOW(),NOW()) ON CONFLICT DO NOTHING`, [gurujiProfile.id, pujaId],
+        );
+      }
+      await registrationClient.query('COMMIT');
       const { password: _, ...safeUser } = user;
       res.status(201).json({ user: safeUser, profile: gurujiProfile });
     } catch (error) {
+      if (registrationClient) await registrationClient.query('ROLLBACK').catch(() => {});
       console.error('Error registering guruji:', error);
+      if ((error as any)?.code === '23505') return res.status(409).json({message: 'Email or mobile already registered'});
+      if ((error as any)?.code === '23503') return res.status(400).json({message: 'A selected puja is no longer available'});
       res.status(500).json({ message: 'Failed to register guruji' });
+    } finally {
+      registrationClient?.release();
     }
   });
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/context/AuthContext';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -205,7 +206,7 @@ function OverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
 }
 
 // ── Customer Registration Form ────────────────────────────────────────────
-function RegisterCustomerTab() {
+export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-customer'}: {endpoint?: string} = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -219,12 +220,13 @@ function RegisterCustomerTab() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: CustomerForm) => apiRequest('POST', '/api/sales-rep/register-customer', data),
+    mutationFn: (data: CustomerForm) => apiRequest('POST', endpoint, data),
     onSuccess: async (res) => {
       const user = await res.json();
       toast({ title: 'Customer Registered!', description: `${user.firstName} ${user.lastName} has been registered.` });
       form.reset();
       queryClient.invalidateQueries({ queryKey: ['/api/sales-rep/registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/customers'] });
     },
     onError: async (err: any) => {
       const msg = err.message || 'Registration failed';
@@ -316,7 +318,7 @@ function RegisterCustomerTab() {
 }
 
 // ── Guruji Registration Form ──────────────────────────────────────────────
-function RegisterGurujiTab() {
+export function RegisterGurujiTab({endpoint = '/api/sales-rep/register-guruji'}: {endpoint?: string} = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: cities = [], isLoading: citiesLoading, isError: citiesError } = useQuery<{ id: number; name: string; state: string }[]>({
@@ -346,13 +348,14 @@ function RegisterGurujiTab() {
         pujas: data.pujaSpecialization,
         languages: data.languages,
       };
-      return apiRequest('POST', '/api/sales-rep/register-guruji', payload);
+      return apiRequest('POST', endpoint, payload);
     },
     onSuccess: async (res) => {
       const result = await res.json();
       toast({ title: 'Guruji Registered!', description: `${result.user.firstName} ${result.user.lastName} registered, pending approval.` });
       form.reset();
       queryClient.invalidateQueries({ queryKey: ['/api/sales-rep/registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/guruji-profiles'] });
     },
     onError: async (err: any) => {
       toast({ title: 'Error', description: err.message || 'Registration failed', variant: 'destructive' });
@@ -588,6 +591,7 @@ function MyRegistrationsTab() {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────
 export default function SalesRepDashboard() {
+  const {logout} = useAuth();
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -604,16 +608,14 @@ export default function SalesRepDashboard() {
     setActiveTab(getTabFromUrl());
   }, [location]);
 
-  const salesRepUser = (() => {
-    try { return JSON.parse(localStorage.getItem('salesRepUser') || '{}'); } catch { return {}; }
-  })();
+  const {data: salesRepUser = {}} = useQuery<any>({
+    queryKey:['/api/auth/me'],
+    queryFn:async () => (await apiRequest('GET','/api/auth/me')).json(),
+  });
 
   const handleLogout = async () => {
-    try {
-      await apiRequest('POST', '/api/auth/logout', {});
-    } catch (_) {}
+    await logout();
     localStorage.removeItem('salesRepUser');
-    toast({ title: 'Logged out', description: 'See you soon!' });
     setLocation('/sales-rep');
   };
 

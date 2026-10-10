@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { isAuthenticated } from '../middlewares/auth';
 import { DBStorage } from '../dbStorage';
 import { 
   insertUserJourneySchema, 
@@ -10,12 +11,6 @@ import {
 const dbStorage = new DBStorage();
 
 // Authentication middleware
-const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-  if (req.session && req.session.userId) {
-    return next();
-  }
-  res.status(401).json({ message: "Unauthorized" });
-};
 
 const router = Router();
 

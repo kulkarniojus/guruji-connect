@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await authLogin(email, password);
       if (result.success) {
         await queryClient.cancelQueries();
-        queryClient.clear();
+        void queryClient.resetQueries({predicate:query=>query.queryKey[0] !== '/api/auth/me'});
         queryClient.setQueryData(['/api/auth/me'], result.user);
         setUser(result.user as User);
       }
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await registerUser(userData);
       if (result.success) {
         await queryClient.cancelQueries();
-        queryClient.clear();
+        void queryClient.resetQueries({predicate:query=>query.queryKey[0] !== '/api/auth/me'});
         queryClient.setQueryData(['/api/auth/me'], result.user);
         setUser(result.user as User);
       }
@@ -77,7 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await authLogout();
       if (result.success) {
-        queryClient.clear();
+        await queryClient.cancelQueries();
+        void queryClient.resetQueries({predicate:query=>query.queryKey[0] !== '/api/auth/me'});
         queryClient.setQueryData(['/api/auth/me'], null);
         setUser(null);
         toast({

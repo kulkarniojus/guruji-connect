@@ -81,7 +81,7 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({ className }) => {
       color: 'text-yellow-600'
     },
     { 
-      path: '/video-call/demo', 
+      path: '/my-bookings',
       icon: Video, 
       label: 'Video Call',
       color: 'text-teal-600'

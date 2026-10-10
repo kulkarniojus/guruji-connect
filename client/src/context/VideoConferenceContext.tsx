@@ -3,6 +3,8 @@ import { useLocation } from 'wouter';
 import { io, Socket } from 'socket.io-client';
 import SimplePeer from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { getQueryFn } from '@/lib/queryClient';
 
 // Define the interfaces
 interface VideoConferenceContextType {
@@ -31,6 +33,9 @@ const VideoConferenceContext = createContext<VideoConferenceContextType | null>(
 
 // Create the provider component
 export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = ({ children }) => {
+  const {data: authenticatedUser} = useQuery<any>({
+    queryKey:['/api/auth/me'],queryFn:getQueryFn({on401:'returnNull'}),retry:false,
+  });
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isCalling, setIsCalling] = useState(false);
@@ -49,6 +54,7 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
 
   // Initialize socket connection
   useEffect(() => {
+    if (!authenticatedUser?.id) return;
     // Connect to the socket server
     socket.current = io(); // This will connect to the current host
     
@@ -95,7 +101,7 @@ export const VideoConferenceProvider: React.FC<VideoConferenceProviderProps> = (
         }
       };
     }
-  }, []);
+  }, [authenticatedUser?.id]);
 
   // Request permissions only when the user starts or answers a call.
   const getCallStream = async () => {

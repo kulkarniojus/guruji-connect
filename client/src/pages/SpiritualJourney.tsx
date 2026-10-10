@@ -262,19 +262,25 @@ const SpiritualJourneyContent = () => {
     ]
   };
 
-  // Use mock data instead of API calls
+  // All journeys belong to the logged-in user and come from persistent storage.
   const { 
-    data: journeys = demoJourneys, 
-    isLoading: journeysLoading = false, 
-    error: journeysError = null 
-  } = { data: demoJourneys, isLoading: false, error: null };
+    data: journeys = [],
+    isLoading: journeysLoading,
+    error: journeysError
+  } = useQuery<UserJourney[]>({
+    queryKey: ['/api/journey'],
+    queryFn: async () => (await apiRequest('GET', '/api/journey')).json(),
+  });
 
-  // Use mock data for journey details
   const { 
-    data: journeyDetails = selectedJourney === 1 ? demoJourneyDetails : null, 
-    isLoading: journeyDetailsLoading = false, 
-    error: journeyDetailsError = null 
-  } = { data: selectedJourney === 1 ? demoJourneyDetails : null, isLoading: false, error: null };
+    data: journeyDetails,
+    isLoading: journeyDetailsLoading,
+    error: journeyDetailsError
+  } = useQuery<{journey: UserJourney; items: UserJourneyItem[]}>({
+    queryKey: ['/api/journey', selectedJourney],
+    queryFn: async () => (await apiRequest('GET', `/api/journey/${selectedJourney}`)).json(),
+    enabled: selectedJourney !== null,
+  });
 
   // New Journey form
   const newJourneyForm = useForm<z.infer<typeof newJourneySchema>>({
@@ -305,10 +311,18 @@ const SpiritualJourneyContent = () => {
     }
   });
 
-  // Mock journey mutation (demo only)
-  const createJourneyMutation = {
-    mutate: (data: z.infer<typeof newJourneySchema>) => {
-      // Mock success
+  const mutationError = (error: Error) => toast({title: 'Unable to save', description: error.message, variant: 'destructive'});
+  const invalidateJourneys = () => queryClient.invalidateQueries({queryKey: ['/api/journey']});
+  const createJourneyMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof newJourneySchema>) => {
+      const response = await apiRequest('POST', '/api/journey', {
+        ...data, goals: data.goals?.split(',').map(goal => goal.trim()).filter(Boolean) || [],
+      });
+      return response.json();
+    },
+    onSuccess: journey => {
+      invalidateJourneys();
+      setSelectedJourney(journey.id);
       toast({
         title: 'Journey created',
         description: 'Your spiritual journey has been created successfully.',
@@ -316,14 +330,18 @@ const SpiritualJourneyContent = () => {
       newJourneyForm.reset();
       setIsNewJourneyDialogOpen(false);
     },
-    isPending: false,
-    isSuccess: false
-  };
+    onError: mutationError,
+  });
 
-  // Mock journey item mutation (demo only)
-  const createJourneyItemMutation = {
-    mutate: (data: z.infer<typeof newJourneyItemSchema>) => {
-      // Mock success
+  const createJourneyItemMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof newJourneyItemSchema>) => {
+      const response = await apiRequest('POST', `/api/journey/${selectedJourney}/items`, {
+        ...data, pujaId: data.pujaId ? Number(data.pujaId) : null,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      invalidateJourneys();
       toast({
         title: 'Journey milestone added',
         description: 'A new milestone has been added to your journey.',
@@ -331,14 +349,16 @@ const SpiritualJourneyContent = () => {
       newJourneyItemForm.reset();
       setIsNewItemDialogOpen(false);
     },
-    isPending: false,
-    isSuccess: false
-  };
+    onError: mutationError,
+  });
 
-  // Mock mark item complete mutation (demo only)
-  const markItemCompleteMutation = {
-    mutate: (data: { itemId: number, reflection: string }) => {
-      // Mock success
+  const markItemCompleteMutation = useMutation({
+    mutationFn: async (data: {itemId: number; reflection: string}) => {
+      const response = await apiRequest('PATCH', `/api/journey/items/${data.itemId}/complete`, {reflection: data.reflection});
+      return response.json();
+    },
+    onSuccess: () => {
+      invalidateJourneys();
       toast({
         title: 'Milestone completed',
         description: 'Your reflection has been saved and the milestone marked as complete.',
@@ -347,9 +367,8 @@ const SpiritualJourneyContent = () => {
       setIsReflectionDialogOpen(false);
       setSelectedItem(null);
     },
-    isPending: false,
-    isSuccess: false
-  };
+    onError: mutationError,
+  });
 
   // Handle new journey submission
   const onSubmitNewJourney = (data: z.infer<typeof newJourneySchema>) => {

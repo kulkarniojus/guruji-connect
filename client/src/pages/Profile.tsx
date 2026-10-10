@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
@@ -221,6 +221,7 @@ export default function Profile() {
       <main className="flex-grow container mx-auto px-3 sm:px-4 py-5 sm:py-8 max-w-5xl">
         <div className="mb-6 sm:mb-8 flex items-start sm:items-center gap-3 sm:gap-4">
           <Avatar className="h-16 w-16">
+            {user.photoUrl && <AvatarImage src={user.photoUrl} alt={`${user.firstName}'s profile photo`} />}
             <AvatarFallback className="text-xl font-semibold bg-orange-100 text-orange-700">
               {initials}
             </AvatarFallback>
@@ -363,6 +364,7 @@ export default function Profile() {
                       ['Email', user.email],
                       ['Mobile', user.mobile],
                       ['Age', user.age],
+                      ['Date of birth', user.dob],
                       ['Gender', user.gender],
                       ['Caste', user.caste],
                       ['Address', user.address],

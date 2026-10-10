@@ -15,6 +15,7 @@ import BookingManagementTab from '@/components/admin/BookingManagementTab';
 import CancellationRulesTab from '@/components/admin/CancellationRulesTab';
 import CustomerQueriesTab from '@/components/admin/CustomerQueriesTab';
 import CustomersManagementTab from '@/components/admin/CustomersManagementTab';
+import { RegisterCustomerTab, RegisterGurujiTab } from '@/pages/SalesRepDashboard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck, HelpCircle, MapPin, Bell, CreditCard, XCircle, Inbox, AlertTriangle, RefreshCw, Star } from 'lucide-react';
@@ -238,6 +239,7 @@ export default function AdminDashboard() {
             <Package2 className="h-4 w-4" />
             Services
           </TabsTrigger>
+          <TabsTrigger value="register-accounts">Register accounts</TabsTrigger>
           <TabsTrigger value="payment-settings" className="flex items-center gap-1.5">
             <CreditCard className="h-4 w-4" />
             Payment
@@ -266,6 +268,16 @@ export default function AdminDashboard() {
 
         <TabsContent value="customers">
           <CustomersManagementTab />
+        </TabsContent>
+        <TabsContent value="register-accounts">
+          <Tabs defaultValue="customer">
+            <TabsList>
+              <TabsTrigger value="customer">Register customer</TabsTrigger>
+              <TabsTrigger value="guruji">Register Guruji</TabsTrigger>
+            </TabsList>
+            <TabsContent value="customer"><RegisterCustomerTab endpoint="/api/admin/register-customer" /></TabsContent>
+            <TabsContent value="guruji"><RegisterGurujiTab endpoint="/api/admin/register-guruji" /></TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="chatbot">

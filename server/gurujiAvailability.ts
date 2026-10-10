@@ -6,6 +6,11 @@ import { parseBookingTime, validBookingDate } from './bookingSchedule';
 
 export async function initializeGurujiAvailability() {
   await pool.query(`
+    ALTER TABLE guruji_profiles ADD COLUMN IF NOT EXISTS "isOnline" BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE guruji_profiles ADD COLUMN IF NOT EXISTS "isOffline" BOOLEAN NOT NULL DEFAULT true;
+    ALTER TABLE guruji_profiles ADD COLUMN IF NOT EXISTS "isConsultation" BOOLEAN NOT NULL DEFAULT false;
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS guruji_availability_rules (
       id SERIAL PRIMARY KEY,
       guruji_id INTEGER NOT NULL REFERENCES guruji_profiles(id) ON DELETE CASCADE,
@@ -82,9 +87,10 @@ gurujiAvailabilityRouter.use(async (req, res, next) => {
 });
 
 gurujiAvailabilityRouter.get('/', async (req, res) => {
-  const month = String(req.query.month || new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit',
-  }).format(new Date()).split('/').reverse().join('-'));
+  }).formatToParts(new Date());
+  const month = String(req.query.month || `${parts.find(p => p.type === 'year')!.value}-${parts.find(p => p.type === 'month')!.value}`);
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !validBookingDate(`${month}-01`)) {
     return res.status(400).json({message: 'Use month YYYY-MM'});
   }

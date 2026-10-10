@@ -257,6 +257,7 @@ const AnalyticsDashboard: React.FC = () => {
   const { 
     data: overviewData, 
     isLoading: isLoadingOverview,
+    error: overviewError,
     refetch: refetchOverview
   } = useQuery({
     queryKey: ['/api/analytics/overview'],
@@ -265,8 +266,7 @@ const AnalyticsDashboard: React.FC = () => {
         const response = await apiRequest('GET', '/api/analytics/overview');
         return response.json();
       } catch (error) {
-        console.log('Using mock overview data for demo');
-        return mockOverviewData;
+        throw error;
       }
     }
   });
@@ -275,6 +275,7 @@ const AnalyticsDashboard: React.FC = () => {
   const { 
     data: userData, 
     isLoading: isLoadingUsers,
+    error: usersError,
     refetch: refetchUsers
   } = useQuery({
     queryKey: ['/api/analytics/users', dateRange],
@@ -284,8 +285,7 @@ const AnalyticsDashboard: React.FC = () => {
         const response = await apiRequest('GET', `/api/analytics/users?startDate=${startDate}&endDate=${endDate}`);
         return response.json();
       } catch (error) {
-        console.log('Using mock user data for demo');
-        return mockUserData;
+        throw error;
       }
     }
   });
@@ -294,6 +294,7 @@ const AnalyticsDashboard: React.FC = () => {
   const { 
     data: bookingData, 
     isLoading: isLoadingBookings,
+    error: bookingsError,
     refetch: refetchBookings
   } = useQuery({
     queryKey: ['/api/analytics/bookings', dateRange],
@@ -303,8 +304,7 @@ const AnalyticsDashboard: React.FC = () => {
         const response = await apiRequest('GET', `/api/analytics/bookings?startDate=${startDate}&endDate=${endDate}`);
         return response.json();
       } catch (error) {
-        console.log('Using mock booking data for demo');
-        return mockBookingData;
+        throw error;
       }
     }
   });
@@ -313,6 +313,7 @@ const AnalyticsDashboard: React.FC = () => {
   const { 
     data: revenueData, 
     isLoading: isLoadingRevenue,
+    error: revenueError,
     refetch: refetchRevenue
   } = useQuery({
     queryKey: ['/api/analytics/revenue', dateRange],
@@ -322,8 +323,7 @@ const AnalyticsDashboard: React.FC = () => {
         const response = await apiRequest('GET', `/api/analytics/revenue?startDate=${startDate}&endDate=${endDate}`);
         return response.json();
       } catch (error) {
-        console.log('Using mock revenue data for demo');
-        return mockRevenueData;
+        throw error;
       }
     }
   });
@@ -332,6 +332,7 @@ const AnalyticsDashboard: React.FC = () => {
   const { 
     data: chatbotData, 
     isLoading: isLoadingChatbot,
+    error: chatbotError,
     refetch: refetchChatbot
   } = useQuery({
     queryKey: ['/api/analytics/chatbot'],
@@ -340,8 +341,7 @@ const AnalyticsDashboard: React.FC = () => {
         const response = await apiRequest('GET', '/api/analytics/chatbot');
         return response.json();
       } catch (error) {
-        console.log('Using mock chatbot data for demo');
-        return mockChatbotData;
+        throw error;
       }
     }
   });
@@ -350,6 +350,7 @@ const AnalyticsDashboard: React.FC = () => {
   const { 
     data: videoData, 
     isLoading: isLoadingVideo,
+    error: videoError,
     refetch: refetchVideo
   } = useQuery({
     queryKey: ['/api/analytics/video'],
@@ -358,8 +359,7 @@ const AnalyticsDashboard: React.FC = () => {
         const response = await apiRequest('GET', '/api/analytics/video');
         return response.json();
       } catch (error) {
-        console.log('Using mock video data for demo');
-        return mockVideoData;
+        throw error;
       }
     }
   });
@@ -389,6 +389,14 @@ const AnalyticsDashboard: React.FC = () => {
     isLoadingRevenue || 
     isLoadingChatbot || 
     isLoadingVideo;
+
+  if (overviewError || usersError || bookingsError || revenueError || chatbotError || videoError) {
+    return <div className="rounded-lg border p-6">
+      <h2 className="text-xl font-semibold">Analytics unavailable</h2>
+      <p className="mt-2 text-sm text-muted-foreground">Real analytics could not be loaded. No demo figures are displayed.</p>
+      <Button className="mt-4" onClick={handleRefresh}>Try again</Button>
+    </div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -514,6 +522,8 @@ const AnalyticsDashboard: React.FC = () => {
             <div className="flex justify-center items-center h-96">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
+          ) : chatbotData?.available === false ? (
+            <Card><CardContent className="py-10 text-center text-muted-foreground">{chatbotData.message}</CardContent></Card>
           ) : chatbotData ? (
             <ChatbotAnalytics data={chatbotData} />
           ) : (
@@ -530,6 +540,8 @@ const AnalyticsDashboard: React.FC = () => {
             <div className="flex justify-center items-center h-96">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
+          ) : videoData?.available === false ? (
+            <Card><CardContent className="py-10 text-center text-muted-foreground">{videoData.message}</CardContent></Card>
           ) : videoData ? (
             <VideoAnalytics data={videoData} />
           ) : (

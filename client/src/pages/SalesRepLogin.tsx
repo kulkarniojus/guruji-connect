@@ -40,7 +40,7 @@ export default function SalesRepLogin() {
 
       localStorage.setItem('salesRepUser', JSON.stringify(user));
       toast({ title: 'Welcome!', description: `Logged in as ${user.firstName} ${user.lastName}` });
-      setLocation('/sales-rep/dashboard');
+      window.location.href = '/sales-rep/dashboard';
     } catch (error: any) {
       toast({ title: 'Login Failed', description: error.message || 'Invalid credentials', variant: 'destructive' });
     } finally {

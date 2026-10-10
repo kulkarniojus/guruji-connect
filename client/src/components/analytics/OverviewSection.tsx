@@ -104,7 +104,7 @@ const OverviewSection: React.FC<{ data: OverviewData }> = ({ data }) => {
   const totalRevenue = data?.totalRevenue || 0;
   const totalGurujis = data?.totalGurujis || 0;
   const totalPujas = data?.totalPujas || 0;
-  const activeWhatsappUsers = data?.activeWhatsappUsers || 0;
+  const activeWhatsappUsers = data?.activeWhatsappUsers ?? 'Not tracked';
   const newUsers30Days = data?.newUsers30Days || 0;
   const newBookings30Days = data?.newBookings30Days || 0;
   const revenue30Days = data?.revenue30Days || 0;

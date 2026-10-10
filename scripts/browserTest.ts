@@ -48,10 +48,14 @@ export async function openBrowserTest() {
   };
   const wait = async (expression: string, label: string) => {
     for (let attempt = 0; attempt < 120; attempt++) {
-      if (await evaluate(expression)) return;
+      try {
+        if (await evaluate(`!!document.body && (${expression})`)) return;
+      } catch (error) {
+        if (!/Execution context was destroyed|Cannot find context/.test(String(error))) throw error;
+      }
       await sleep(250);
     }
-    const pageState = await evaluate(`({path:location.pathname+location.search,text:document.body.innerText.slice(-1400)})`);
+    const pageState = await evaluate(`({path:location.pathname+location.search,text:document.body?.innerText.slice(-1400)})`);
     throw new Error(`Did not reach ${label}: ${JSON.stringify(pageState)}`);
   };
   const click = async (selector: string, text?: string) => {

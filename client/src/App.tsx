@@ -15,13 +15,16 @@ import BecomeGuruji from "@/pages/BecomeGuruji";
 import Services from "@/pages/Services";
 import ServiceDetail from "@/pages/ServiceDetail";
 import HowItWorks from "@/pages/HowItWorks";
-import SimpleBookingDemo from "@/pages/SimpleBookingDemo";
+import LoginModal from '@/components/auth/LoginModal';
+import RegisterModal from '@/components/auth/RegisterModal';
+import { useQuery } from '@tanstack/react-query';
 import SalesRepLogin from "@/pages/SalesRepLogin";
 import SalesRepDashboard from "@/pages/SalesRepDashboard";
 import { AvailabilityPage } from "@/components/calendar/AvailabilityPage";
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { VideoConferenceProvider } from "@/context/VideoConferenceContext";
+import { queryClient } from "@/lib/queryClient";
 import CustomerPujaReminders from "@/components/CustomerPujaReminders";
 import SiteInformation, { ContactPage, FaqPage } from "@/pages/SiteInformation";
 
@@ -33,17 +36,34 @@ const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const SpiritualJourney = lazy(() => import('@/pages/SpiritualJourney'));
 
 // Protected Route Component
-function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType, path?: string }) {
-  // For demo purposes, we'll just render the component
-  // In a production app, we would use useAuth() hook to check authentication
+function ProtectedRoute({ component: Component, roles }: { component: React.ComponentType, roles?: string[] }) {
+  const [, navigate] = useLocation();
+  const [registration, setRegistration] = useState(false);
+  const {data: user, isPending} = useQuery<any>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const response = await fetch('/api/auth/me', {credentials: 'include'});
+      if (response.status === 401) return null;
+      if (!response.ok) throw new Error('Unable to verify login');
+      return response.json();
+    },
+    retry: false,
+  });
+  if (isPending) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (!user && roles?.[0] === 'admin') return <Redirect to="/admin" />;
+  if (!user && roles?.[0] === 'sales_rep') return <Redirect to="/sales-rep" />;
+  if (!user) return <div className="min-h-screen flex items-center justify-center">
+    <p>Please log in to continue.</p>
+    <LoginModal isOpen={!registration} onClose={() => {if (!queryClient.getQueryData(['/api/auth/me'])) navigate('/');}} onRegisterClick={() => setRegistration(true)} onLoginSuccess={() => {}} />
+    <RegisterModal isOpen={registration} onClose={() => {if (!queryClient.getQueryData(['/api/auth/me'])) navigate('/');}} onLoginClick={() => setRegistration(false)} onRegistrationSuccess={() => {}} />
+  </div>;
+  if (roles && !roles.includes(user.role)) return <Redirect to={user.role === 'admin' ? '/admin-dashboard' : user.role === 'sales_rep' ? '/sales-rep/dashboard' : '/dashboard'} />;
   return <Component />;
 }
 
 // Admin Route Component - Simplified to avoid context issues
 function AdminRoute({ component: Component, ...rest }: { component: React.ComponentType, path?: string }) {
-  // For now, just render the component
-  // In production, you would check authentication and admin role here
-  return <Component />;
+  return <ProtectedRoute component={Component} roles={['admin']} />;
 }
 
 // Router setup
@@ -55,7 +75,7 @@ function Router() {
         <ProtectedRoute component={Dashboard} />
       </Route>
       <Route path="/booking">
-        <ProtectedRoute component={Booking} />
+        <Booking />
       </Route>
       <Route path="/register" component={Register} />
       <Route path="/booking/:id">
@@ -72,7 +92,7 @@ function Router() {
         <AdminRoute component={AdminDashboard} />
       </Route>
       <Route path="/availability">
-        <ProtectedRoute component={AvailabilityPage} />
+        <ProtectedRoute component={AvailabilityPage} roles={['guruji']} />
       </Route>
       <Route path="/chat">
         <ProtectedRoute component={Chat} />
@@ -86,7 +106,7 @@ function Router() {
       <Route path="/pujas" component={PujasList} />
       <Route path="/services" component={Services} />
       <Route path="/services/:slug" component={ServiceDetail} />
-      <Route path="/become-guruji" component={BecomeGuruji} />
+      <Route path="/become-guruji"><ProtectedRoute component={BecomeGuruji} roles={['customer', 'guruji']} /></Route>
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/about"><SiteInformation kind="about" /></Route>
       <Route path="/contact" component={ContactPage} />
@@ -98,9 +118,10 @@ function Router() {
       <Route path="/video-call/:id">
         <ProtectedRoute component={VideoCall} />
       </Route>
-      <Route path="/demo/booking-notifications" component={SimpleBookingDemo} />
       <Route path="/sales-rep" component={SalesRepLogin} />
-      <Route path="/sales-rep/dashboard" component={SalesRepDashboard} />
+      <Route path="/sales-rep/dashboard">
+        <ProtectedRoute component={SalesRepDashboard} roles={['sales_rep']} />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

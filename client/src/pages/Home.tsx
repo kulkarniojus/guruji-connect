@@ -28,13 +28,6 @@ export default function Home() {
 
       <Header />
 
-      <div className="hero-gradient text-white py-3 px-4 text-center shadow-lg">
-        <p className="text-sm md:text-base">
-          ✨ Demo Mode: <a href="/dashboard" className="underline font-bold hover:text-orange-200 transition-colors">View Dashboard</a> to access the Spiritual Journey Tracker | 
-          <a href="/admin-dashboard" className="underline font-bold ml-2 hover:text-orange-200 transition-colors">Admin Analytics</a> for advanced metrics ✨
-        </p>
-      </div>
-
       <main>
         <Hero />
         <CTA />

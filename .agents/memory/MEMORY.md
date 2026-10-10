@@ -13,3 +13,5 @@
 - [Booking privacy and communications](booking-privacy-and-communications.md) — mutual phones hidden; strict four-hour pre-start address window, with audited admin releases and sends.
 - [Puja pricing policy](puja-pricing-policy.md) — narrowest rule wins without stacking; preserve agreed booking prices and require renewed confirmation when a quote changes.
 - [Customer booking controls](customer-booking-controls.md) — customer-only temporary samagri lock, Google address selection, mandatory pincode and first-name Guruji display with ratings.
+- [Real accounts and availability](real-account-availability-policy.md) — all registration channels retain profile details; genuine logins and own availability apply without changing booking selections.
+- [Auth query observers](auth-query-observers.md) — preserve the active auth query when switching identity; clearing the cache can leave protected screens stuck at login.

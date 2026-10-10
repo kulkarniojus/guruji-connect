@@ -130,7 +130,7 @@ export default function GurujiAvailability() {
     ...Array.from({ length: daysCount }, (_, index) => index + 1),
   ], [daysCount, firstWeekday]);
   const selectedRules = rules.filter(rule => rule.date === selectedDate);
-  const selectedBookings = bookings.filter(booking => booking.date.slice(0, 10) === selectedDate && booking.status === 'confirmed');
+  const selectedBookings = bookings.filter(booking => booking.date.slice(0, 10) === selectedDate && ['confirmed', 'in_progress'].includes(booking.status));
   const wholeDayRule = [...selectedRules].reverse().find(rule => !rule.startTime && !rule.endTime);
   const dayAvailable = wholeDayRule?.isAvailable ?? Boolean(data?.isAvailable);
   const today = monthInIST() === month
@@ -217,7 +217,7 @@ export default function GurujiAvailability() {
                   if (!day) return <div key={`blank-${index}`} />;
                   const date = dayString(month, day);
                   const dateRules = rules.filter(rule => rule.date === date);
-                  const dateBookings = bookings.filter(booking => booking.date.slice(0, 10) === date && booking.status === 'confirmed');
+                  const dateBookings = bookings.filter(booking => booking.date.slice(0, 10) === date && ['confirmed', 'in_progress'].includes(booking.status));
                   const wholeDay = [...dateRules].reverse().find(rule => !rule.startTime && !rule.endTime);
                   const isOpen = Boolean(data?.isAvailable) && (wholeDay?.isAvailable ?? true);
                   const isSelected = date === selectedDate;

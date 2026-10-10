@@ -9,6 +9,12 @@ Radix dropdown triggers should be activated with a browser-native pointer click,
 
 **How to apply:** In headless interaction tests, locate the trigger element and use Puppeteer's element-handle click before waiting for menu items.
 
+When switching login and registration dialogs, scope field filling to the intended form and wait for select portals to close before submitting.
+
+**Why:** Closing dialogs can briefly retain matching email/password inputs, and select overlays can intercept the next pointer action. Both produced false registration failures while real registration was working.
+
+**How to apply:** Identify the registration form by its distinct fields, verify checkbox state, wait for option portals to disappear, and use native form submission or settled native keyboard/pointer activation.
+
 For admin tabs and buttons whose coordinates can shift while dashboard data loads, browser-native keyboard activation is more reliable than measuring coordinates immediately after the control appears. CDP Enter events must include the carriage-return text to reproduce the browser's normal button activation.
 
 **Why:** Asynchronous dashboard content shifted pointer targets during catalogue checks. Enter keydown alone changed Radix tabs but did not activate ordinary buttons; including the native Enter text produced the expected click.

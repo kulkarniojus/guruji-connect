@@ -2,7 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { bookingPrivacyMiddleware } from './bookingPrivacy';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { MemStorage } from "./storage";
 
 process.on('unhandledRejection', (reason: any) => {
   console.error('Unhandled promise rejection (non-fatal):', reason?.message || reason);
@@ -15,7 +14,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Use PostgreSQL in production (DATABASE_URL set), memory storage in dev fallback
+// Real accounts and bookings always use persistent database storage.
 async function initStorage() {
   if (process.env.DATABASE_URL) {
     try {
@@ -23,12 +22,10 @@ async function initStorage() {
       (global as any).appStorage = dbStorage;
       log("Connected to PostgreSQL database.");
     } catch (err: any) {
-      log(`Database connection failed, falling back to memory storage: ${err.message}`);
-      (global as any).appStorage = new MemStorage();
+      throw new Error(`Database initialization failed: ${err.message}`);
     }
   } else {
-    (global as any).appStorage = new MemStorage();
-    log("Using in-memory storage (no DATABASE_URL set).");
+    throw new Error('Persistent database configuration is required');
   }
 }
 
