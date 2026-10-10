@@ -49,7 +49,8 @@ export default function ServiceDetail() {
         ) : (
           <article className="overflow-hidden rounded-xl border bg-card">
             <div className="h-64 bg-muted sm:h-80 md:h-[430px]">
-              <img src={service.image} alt={service.title} className="h-full w-full object-cover" />
+              <img src={service.image} alt={service.title} decoding="async"
+                width={1200} height={800} className="h-full w-full object-cover object-top" />
             </div>
             <div className="grid gap-8 p-5 sm:p-8 md:grid-cols-[1fr_auto] md:items-end md:p-10">
               <div className="max-w-3xl">

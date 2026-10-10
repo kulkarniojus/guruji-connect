@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from './db';
+import { defaultServiceImages, upgradeDefaultServiceImages } from './serviceImages';
 
 const appPath = z.string().trim().max(500).refine(
   value => /^\/(?:booking|pujas|services)(?:[/?#]|$)/.test(value) && !value.includes('\\'),
@@ -50,9 +51,10 @@ export async function initializeOurServices() {
       for (let index = 0; index < seeds.length; index++) {
         await client.query(`INSERT INTO our_services
           (slug,title,description,image,"bookingHref","sortOrder") VALUES ($1,$2,$3,$4,$5,$6)`,
-        [...seeds[index], index]);
+        [...seeds[index].slice(0, 3), defaultServiceImages[seeds[index][0]], seeds[index][4], index]);
       }
     }
+    await upgradeDefaultServiceImages(client);
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');

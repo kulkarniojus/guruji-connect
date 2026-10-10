@@ -74,7 +74,11 @@ export default function Services() {
                 <img
                   src={service.image}
                   alt={service.title}
-                  className="w-full h-32 md:h-40 object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  width={1200}
+                  height={800}
+                  className="w-full h-32 md:h-40 object-cover object-top"
                 />
                 <CardContent className="p-3 md:p-4">
                   <h3 className="font-semibold text-base md:text-lg text-neutral-900 font-poppins">

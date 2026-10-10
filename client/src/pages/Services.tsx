@@ -54,7 +54,11 @@ export default function ServicesPage() {
                 <img
                   src={service.image}
                   alt={service.title}
-                  className="w-full h-full object-cover transition-transform hover:scale-105"
+                  loading="lazy"
+                  decoding="async"
+                  width={1200}
+                  height={800}
+                  className="w-full h-full object-cover object-top transition-transform hover:scale-105"
                 />
               </div>
               <CardHeader className="pb-2">
