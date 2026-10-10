@@ -12,6 +12,9 @@ import { initializeBookingCommunications } from './bookingCommunications';
 import { bookingCommunicationsRouter } from './routes/booking-communications';
 import { initializePujaPricing, getPricingQuote, pricingQuotePayload, validatePujaPriceRules } from './pujaPricing';
 import { publicPricingRouter, adminPricingRouter, adminPujaPriceRouter } from './routes/puja-pricing';
+import { initializeOurServices, servicesRouter, adminServicesRouter } from './ourServices';
+import { gurujiFirstName } from '../shared/gurujiDisplayName';
+import { addressesRouter } from './routes/addresses';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -244,6 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeBookingCompletion();
   await initializeBookingCommunications();
   await initializePujaPricing();
+  await initializeOurServices();
   // The live bookings table predates the duration field in the shared schema.
   // Snapshot the configured duration so later admin edits do not change
   // the reserved length of bookings already placed.
@@ -469,10 +473,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cities Management Routes
+  app.use('/api/services', servicesRouter);
+  app.use('/api/addresses', addressesRouter);
+  app.use('/api/admin/services', isAuthenticated, isAdmin, adminServicesRouter);
+  app.get('/api/admin/cities', isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      res.json(await storageInstance.getAllCities());
+    } catch {
+      res.status(500).json({ message: 'Failed to fetch cities' });
+    }
+  });
   app.get('/api/cities', async (req: Request, res: Response) => {
     try {
       const cities = await storageInstance.getAllCities();
-      res.json(cities);
+      res.json(cities.filter(city => city.isActive !== false));
     } catch (error) {
       console.error('Error fetching cities:', error);
       res.status(500).json({ message: 'Failed to fetch cities' });
@@ -493,7 +507,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/cities/:id', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const updates = req.body;
+      const updates = z.object({
+        name: z.string().trim().min(1).optional(),
+        state: z.string().trim().min(1).optional(),
+        isActive: z.boolean().optional(),
+      }).parse(req.body);
       const city = await storageInstance.updateCity(id, updates);
       
       if (!city) {
@@ -1438,7 +1456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Helper: enrich bookings with puja name and guruji name
-  async function enrichBookings(bookings: any[]): Promise<any[]> {
+  async function enrichBookings(bookings: any[], customerView = false): Promise<any[]> {
     const pujaIds = [...new Set(bookings.map(b => b.pujaId).filter(Boolean))];
     const gurujiIds = [...new Set(bookings.map(b => b.gurujiId).filter(Boolean))];
 
@@ -1452,7 +1470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const gurujiUserMap = new Map<number, string>();
     for (const gp of gurujiProfiles.filter(Boolean)) {
       const u = await storageInstance.getUser((gp as any).userId);
-      if (u) gurujiUserMap.set((gp as any).id, `${u.firstName} ${u.lastName}`.trim());
+      if (u) gurujiUserMap.set((gp as any).id, customerView ? gurujiFirstName(u.firstName) : `${u.firstName} ${u.lastName}`.trim());
     }
 
     return bookings.map(b => ({
@@ -1491,6 +1509,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: z.string().optional(),
         gurujiId: z.number().optional(),
       }).parse(req.body);
+
+      if (bookingData.type === 'offline') {
+        if (!bookingData.address?.trim() || !bookingData.city?.trim()) {
+          return res.status(400).json({ message: 'City and full address are required for an offline puja' });
+        }
+        if (!/^[1-9]\d{5}$/.test(bookingData.pincode?.trim() || '')) {
+          return res.status(400).json({ message: 'A valid six-digit pincode is required for an offline puja' });
+        }
+        const cities = await storageInstance.getAllCities();
+        const cityKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, '-');
+        if (!cities.some(city => city.isActive !== false && cityKey(city.name) === cityKey(bookingData.city!))) {
+          return res.status(400).json({ message: 'This city is not currently available. Please select an active service city.' });
+        }
+      }
 
       const dateKey = bookingData.calendarDate || bookingData.date.slice(0, 10);
       if (!validBookingDate(dateKey) || parseBookingTime(bookingData.time) === null) {
@@ -1614,7 +1646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
       
-      const enriched = await enrichBookings(bookings);
+      const enriched = await enrichBookings(bookings, req.session.userRole === 'customer');
       res.json(enriched);
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -1651,7 +1683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const [enriched] = await enrichBookings([booking]);
+      const [enriched] = await enrichBookings([booking], req.session.userRole === 'customer');
       res.json(enriched);
     } catch (error) {
       console.error("Error fetching booking:", error);

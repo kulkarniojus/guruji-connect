@@ -2243,7 +2243,7 @@ export class DBStorage implements IStorage {
         id: row.id,
         name: row.name,
         state: row.state,
-        isActive: row.isActive || true,
+        isActive: row.isActive ?? true,
         createdAt: row.createdAt || new Date(),
         updatedAt: row.updatedAt || new Date()
       }));
@@ -2258,7 +2258,7 @@ export class DBStorage implements IStorage {
       const result = await pool.query(
         `INSERT INTO cities (name, state, "isActive", "createdAt", "updatedAt") 
          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [city.name, city.state, city.isActive || true, new Date(), new Date()]
+        [city.name, city.state, city.isActive ?? true, new Date(), new Date()]
       );
       return result.rows[0];
     } catch (error) {

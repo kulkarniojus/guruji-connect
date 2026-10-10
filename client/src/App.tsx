@@ -13,6 +13,7 @@ import PujaDetails from "@/pages/PujaDetails";
 import PujasList from "@/pages/PujasList";
 import BecomeGuruji from "@/pages/BecomeGuruji";
 import Services from "@/pages/Services";
+import ServiceDetail from "@/pages/ServiceDetail";
 import HowItWorks from "@/pages/HowItWorks";
 import SimpleBookingDemo from "@/pages/SimpleBookingDemo";
 import SalesRepLogin from "@/pages/SalesRepLogin";
@@ -84,6 +85,7 @@ function Router() {
       </Route>
       <Route path="/pujas" component={PujasList} />
       <Route path="/services" component={Services} />
+      <Route path="/services/:slug" component={ServiceDetail} />
       <Route path="/become-guruji" component={BecomeGuruji} />
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/about"><SiteInformation kind="about" /></Route>

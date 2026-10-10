@@ -1,51 +1,21 @@
 import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
-// Define our services
-const services = [
-  {
-    id: "online-puja",
-    title: "Online Puja Booking",
-    description:
-      "Book pujas online from the comfort of your home and participate virtually in real-time",
-    image: "/images/onlinepuja.png",
-  },
-  {
-    id: "online-consultation",
-    title: "Online Consultation",
-    description:
-      "Get expert guidance from verified pandits via video call for astrological or spiritual advice",
-    image: "/images/onlineconsultation.png",
-  },
-  {
-    id: "brahmin-booking",
-    title: "Brahmin Booking",
-    description:
-      "Book experienced Brahmins for various religious ceremonies at your home or preferred location",
-    image: "/images/brahmanbooking.png",
-  },
-  {
-    id: "special-occasions",
-    title: "Special Occasions",
-    description:
-      "Book for special occasions like Varsha shradha, Kumarika, Vat Savitri puja, Mangalagaur, and more",
-    image: "/images/specialoccasion_puja.png",
-  },
-  {
-    id: "traditional-puja",
-    title: "Traditional Puja Ceremony",
-    description:
-      "Experience authentic Hindu rituals performed by trained priests following ancient Vedic traditions",
-    image: "/images/traditional_puja.png",
-  },
-];
+type Service = { id: number; slug: string; title: string; description: string; image: string; isActive: boolean; sortOrder: number };
 
 export default function Services() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const { data: serviceRows = [], isLoading, isError, refetch } = useQuery<Service[]>({
+    queryKey: ["/api/services"],
+    queryFn: () => apiRequest("GET", "/api/services").then(response => response.json()),
+  });
+  const services = serviceRows.filter(service => service.isActive).slice().sort((a, b) => a.sortOrder - b.sortOrder);
 
   const scrollLeft = () => {
     if (carouselRef.current) {
@@ -87,7 +57,16 @@ export default function Services() {
             onScroll={handleScroll}
             className="overflow-x-auto scrollbar-hide pb-4 flex space-x-4 snap-x"
           >
-            {services.map((service) => (
+            {isLoading ? (
+              [0, 1, 2].map(item => <div key={item} className="h-72 w-64 flex-shrink-0 animate-pulse rounded-lg bg-neutral-100 md:w-72" aria-hidden="true" />)
+            ) : isError ? (
+              <div role="alert" className="flex w-full flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-5 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between">
+                <span>Services could not be loaded.</span>
+                <Button type="button" variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button>
+              </div>
+            ) : services.length === 0 ? (
+              <p className="w-full py-8 text-center text-sm text-neutral-600">No services are available at the moment.</p>
+            ) : services.map((service) => (
               <Card
                 key={service.id}
                 className="bg-neutral-50 rounded-lg shadow-sm overflow-hidden w-64 md:w-72 hover:shadow-md transition-shadow duration-300 flex-shrink-0 snap-start"
@@ -105,7 +84,7 @@ export default function Services() {
                     {service.description}
                   </p>
                   <Link
-                    href={`/services/${service.id}`}
+                    href={`/services/${service.slug}`}
                     className="mt-2 md:mt-4 inline-flex items-center text-primary hover:text-primary-700 cursor-pointer text-sm"
                   >
                     Learn more
@@ -137,10 +116,14 @@ export default function Services() {
         </div>
 
         {/* Dot indicators for mobile */}
+        {services.length > 1 && (
         <div className="flex justify-center space-x-2 mt-4 md:hidden">
-          {[0, 1, 2, 3, 4, 5].map((index) => (
+          {services.map((service, index) => (
             <button
-              key={index}
+              key={service.id}
+              type="button"
+              aria-label={`Show service ${index + 1}`}
+              aria-current={index === Math.floor(scrollPosition / 300) ? "true" : undefined}
               className={`h-2 w-2 rounded-full ${index === Math.floor(scrollPosition / 300) ? "bg-primary" : "bg-neutral-300"}`}
               onClick={() => {
                 if (carouselRef.current) {
@@ -153,6 +136,7 @@ export default function Services() {
             />
           ))}
         </div>
+        )}
 
         <div className="text-center mt-6 md:mt-8">
           <Button

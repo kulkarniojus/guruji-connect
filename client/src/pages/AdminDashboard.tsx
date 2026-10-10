@@ -9,6 +9,7 @@ import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import PujaManagementTab from '@/components/admin/PujaManagementTab';
 import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
 import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
+import ServicesManagementTab from '@/components/admin/ServicesManagementTab';
 import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
 import BookingManagementTab from '@/components/admin/BookingManagementTab';
 import CancellationRulesTab from '@/components/admin/CancellationRulesTab';
@@ -233,6 +234,10 @@ export default function AdminDashboard() {
             <MapPin className="h-4 w-4" />
             Cities
           </TabsTrigger>
+          <TabsTrigger value="services" className="flex items-center gap-1.5">
+            <Package2 className="h-4 w-4" />
+            Services
+          </TabsTrigger>
           <TabsTrigger value="payment-settings" className="flex items-center gap-1.5">
             <CreditCard className="h-4 w-4" />
             Payment
@@ -288,6 +293,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="cities">
           <CitiesManagementTab />
+        </TabsContent>
+
+        <TabsContent value="services">
+          <ServicesManagementTab />
         </TabsContent>
 
         <TabsContent value="faq">

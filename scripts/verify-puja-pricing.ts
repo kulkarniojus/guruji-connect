@@ -221,8 +221,8 @@ try {
     await browser.evaluate(`document.querySelector('input[name="gurujiMode"][value="auto_nearby"]').click()`);
     assert.ok(await browser.evaluate(`document.querySelector('input[name="gurujiMode"][value="auto_nearby"]').checked`));
     await browser.evaluate(`document.querySelector('input[name="gurujiMode"][value="specific"]').click()`);
-    await browser.wait(`Array.from(document.querySelectorAll('h3')).some(el=>el.textContent.includes('Pandit PricingQA guruji'))`,'matching available Guruji');
-    await browser.evaluate(`Array.from(document.querySelectorAll('h3')).find(el=>el.textContent.includes('Pandit PricingQA guruji')).closest('[class*="cursor-pointer"]').click()`);
+    await browser.wait(`Array.from(document.querySelectorAll('h3')).some(el=>el.textContent.trim()==='PricingQA')`,'matching available Guruji');
+    await browser.evaluate(`Array.from(document.querySelectorAll('h3')).find(el=>el.textContent.trim()==='PricingQA').closest('[class*="cursor-pointer"]').click()`);
     await clickText('button','Review Booking Request');
     await browser.wait(`document.body.innerText.includes('Send your booking request')`,'original manual request review');
     const nativeDraft = await browser.evaluate(`JSON.parse(sessionStorage.getItem('guruji-booking-registration-draft'))`);
@@ -261,8 +261,8 @@ try {
   console.log('PASS: customer sees current regular/final prices and short-notice explanation before booking on desktop and phone');
   await clickText('button','Continue');
   await browser.wait(`!!document.querySelector('input[name="gurujiMode"][value="specific"]') && !!document.querySelector('input[name="gurujiMode"][value="auto_nearby"]')`,'existing manual and automated Guruji choices');
-  await browser.wait(`Array.from(document.querySelectorAll('h3')).some(el=>el.textContent.includes('Pandit PricingQA guruji'))`,'available fixture Guruji');
-  await browser.evaluate(`Array.from(document.querySelectorAll('h3')).find(el=>el.textContent.includes('Pandit PricingQA guruji')).closest('[class*="cursor-pointer"]').click()`);
+  await browser.wait(`Array.from(document.querySelectorAll('h3')).some(el=>el.textContent.trim()==='PricingQA')`,'available fixture Guruji');
+  await browser.evaluate(`Array.from(document.querySelectorAll('h3')).find(el=>el.textContent.trim()==='PricingQA').closest('[class*="cursor-pointer"]').click()`);
   await clickText('button','Review Booking Request');
   await browser.wait(`document.body.innerText.includes('Send your booking request')`,'manual selection reaches existing request review');
   let reviewDraft = await browser.evaluate(`JSON.parse(sessionStorage.getItem('guruji-booking-registration-draft'))`);

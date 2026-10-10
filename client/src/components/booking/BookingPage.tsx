@@ -24,6 +24,8 @@ import { clearBookingDraft, readBookingDraft, saveBookingDraft } from './booking
 import { useAuth } from '@/context/AuthContext';
 import { usePricingQuote } from '@/components/pricing/usePricingQuote';
 import PricingQuoteBreakdown from '@/components/pricing/PricingQuoteBreakdown';
+import AddressSelection from './AddressSelection';
+import { gurujiFirstName } from '@shared/gurujiDisplayName';
 
 function bookingDateTime(date: Date, time: string): Date {
   const match = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time);
@@ -233,10 +235,18 @@ export default function BookingPage() {
         });
         return;
       }
-      if (bookingType === 'offline' && !address) {
+      if (bookingType === 'offline' && !address.trim()) {
         toast({
           title: "Please enter your address",
           description: "Address is required for offline puja",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (bookingType === 'offline' && !/^[1-9]\d{5}$/.test(pincode)) {
+        toast({
+          title: "Valid pincode required",
+          description: "Enter a six-digit pincode to find nearby Gurujis.",
           variant: "destructive",
         });
         return;
@@ -514,6 +524,7 @@ export default function BookingPage() {
                                 id="without-samagri"
                                 name="samagri"
                                 checked={!withSamagri}
+                                disabled
                                 onChange={() => setWithSamagri(false)}
                                 className="h-4 w-4"
                               />
@@ -525,12 +536,14 @@ export default function BookingPage() {
                                 id="with-samagri"
                                 name="samagri"
                                 checked={withSamagri}
+                                disabled
                                 onChange={() => setWithSamagri(true)}
                                 className="h-4 w-4"
                               />
                               <label htmlFor="with-samagri">With Samagri (+₹{puja.samagriPrice || 0})</label>
                             </div>
                           </div>
+                          <p className="text-xs text-muted-foreground">Samagri selection is temporarily read-only.</p>
                           {withSamagri && puja.samagri && (
                             <div className="bg-neutral-50 p-4 rounded-lg">
                               <h4 className="font-medium mb-2">Included Samagri Items:</h4>
@@ -628,22 +641,17 @@ export default function BookingPage() {
 
                 {bookingType === 'offline' && (
                   <>
+                    <AddressSelection city={selectedCity} address={address}
+                      onAddressChange={setAddress} onPincodeChange={setPincode} />
                     <div>
-                      <Label htmlFor="address">Address</Label>
-                      <Input
-                        id="address"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Enter your full address"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="pincode">Pincode</Label>
+                      <Label htmlFor="pincode">Pincode *</Label>
                       <Input
                         id="pincode"
                         value={pincode}
-                        onChange={(e) => setPincode(e.target.value)}
+                        onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        inputMode="numeric"
+                        pattern="[1-9][0-9]{5}"
+                        required
                         placeholder="6-digit pincode (e.g. 440001)"
                         maxLength={6}
                         className="mt-1"
@@ -757,9 +765,9 @@ export default function BookingPage() {
                             <User className="h-6 w-6" />
                           </div>
                           <div className="flex-1">
-                            <div className="flex justify-between">
-                              <h3 className="font-medium">Pandit {guruji.firstName} {guruji.lastName}</h3>
-                              <div className="flex items-center">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h3 className="font-medium">{gurujiFirstName(guruji.firstName)}</h3>
+                              <div className="flex flex-wrap items-center gap-y-1">
                                 <Badge variant="default" className="mr-2">Available</Badge>
                                 {guruji.totalReviews > 0 ? (
                                   <>
@@ -767,7 +775,7 @@ export default function BookingPage() {
                                     <span className="ml-1 text-sm">{Number(guruji.rating).toFixed(1)} ({guruji.totalReviews} reviews)</span>
                                   </>
                                 ) : (
-                                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">✨ New on portal</span>
+                                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">Not rated yet</span>
                                 )}
                               </div>
                             </div>

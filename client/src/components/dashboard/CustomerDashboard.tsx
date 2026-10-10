@@ -1,3 +1,4 @@
+import { gurujiFirstName } from '@shared/gurujiDisplayName';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -314,7 +315,7 @@ export default function CustomerDashboard() {
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between flex-wrap gap-3">
                       <div className="space-y-1">
-                        <p className="font-medium text-sm">{r.gurujiName || 'Guruji'}</p>
+                        <p className="font-medium text-sm">{gurujiFirstName(r.gurujiName)}</p>
                         <p className="text-xs text-neutral-500">{r.pujaName || 'Puja Service'}</p>
                         {r.review && <p className="text-sm text-neutral-600 mt-1 italic">"{r.review}"</p>}
                       </div>

@@ -9,7 +9,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Edit, Plus, MapPin, X, Check } from 'lucide-react';
+import { Trash2, Edit, Plus, MapPin, X, Check, RefreshCw } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -53,17 +53,22 @@ export default function CitiesManagementTab() {
   });
 
   // Fetch cities
-  const { data: cities = [], isLoading } = useQuery({
-    queryKey: ['/api/cities'],
-    queryFn: () => apiRequest('GET', '/api/cities').then(res => res.json()),
+  const { data: cities = [], isLoading, isError, refetch } = useQuery<City[]>({
+    queryKey: ['/api/admin/cities'],
+    queryFn: () => apiRequest('GET', '/api/admin/cities').then(res => res.json()),
   });
+
+  const refreshCities = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/admin/cities'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/cities'] });
+  };
 
   // Add city mutation
   const addCityMutation = useMutation({
     mutationFn: (data: z.infer<typeof citySchema>) =>
       apiRequest('POST', '/api/cities', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/cities'] });
+      refreshCities();
       setIsAddDialogOpen(false);
       form.reset();
       toast({
@@ -85,7 +90,7 @@ export default function CitiesManagementTab() {
     mutationFn: ({ id, data }: { id: number; data: Partial<City> }) =>
       apiRequest('PUT', `/api/cities/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/cities'] });
+      refreshCities();
       setEditingCity(null);
       toast({
         title: 'Success',
@@ -106,7 +111,7 @@ export default function CitiesManagementTab() {
     mutationFn: (id: number) =>
       apiRequest('DELETE', `/api/cities/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/cities'] });
+      refreshCities();
       toast({
         title: 'Success',
         description: 'City deleted successfully',
@@ -249,6 +254,13 @@ export default function CitiesManagementTab() {
       <CardContent>
         {isLoading ? (
           <div className="text-center py-8">Loading cities...</div>
+        ) : isError ? (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            <span>Cities could not be loaded. Please try again.</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Retry
+            </Button>
+          </div>
         ) : (
           <div className="rounded-md border">
             <Table>
@@ -274,11 +286,7 @@ export default function CitiesManagementTab() {
                       <TableCell className="font-medium">{city.name}</TableCell>
                       <TableCell>{city.state}</TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={city.isActive ? 'default' : 'secondary'}
-                          className="cursor-pointer"
-                          onClick={() => toggleCityStatus(city)}
-                        >
+                        <Badge variant={city.isActive ? 'default' : 'secondary'}>
                           {city.isActive ? (
                             <>
                               <Check className="h-3 w-3 mr-1" />
@@ -290,7 +298,7 @@ export default function CitiesManagementTab() {
                               Inactive
                             </>
                           )}
-                        </Badge>
+                          </Badge>
                       </TableCell>
                       <TableCell>
                         {new Date(city.createdAt).toLocaleDateString()}
@@ -298,9 +306,20 @@ export default function CitiesManagementTab() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={updateCityMutation.isPending}
+                            onClick={() => toggleCityStatus(city)}
+                            aria-label={`${city.isActive ? 'Deactivate' : 'Activate'} ${city.name}`}
+                          >
+                            {updateCityMutation.isPending ? 'Saving…' : city.isActive ? 'Deactivate' : 'Activate'}
+                          </Button>
+                          <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(city)}
+                            aria-label={`Edit ${city.name}`}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -309,6 +328,7 @@ export default function CitiesManagementTab() {
                             size="sm"
                             onClick={() => handleDelete(city.id)}
                             className="text-destructive hover:text-destructive"
+                            aria-label={`Delete ${city.name}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
