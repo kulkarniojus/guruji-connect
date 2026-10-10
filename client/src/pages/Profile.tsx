@@ -206,6 +206,10 @@ export default function Profile() {
 
   const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
   const initials = [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'U';
+  const isVerified = Boolean(
+    user.isVerified || user.verified || user.emailVerified ||
+    (isGuruji && myGurujiProfile?.status === 'approved')
+  );
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
@@ -225,6 +229,9 @@ export default function Profile() {
             <h1 className="text-xl sm:text-2xl font-bold truncate">{userName}</h1>
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <Badge variant="outline" className="capitalize">{user?.role}</Badge>
+              <Badge variant="outline" className={isVerified ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800'}>
+                {isVerified ? 'Verified' : 'Not verified'}
+              </Badge>
               {user.email && <span className="text-sm text-gray-500">{user.email}</span>}
               {user.mobile && <span className="text-sm text-gray-500">· {user.mobile}</span>}
             </div>
@@ -336,6 +343,39 @@ export default function Profile() {
                   <div>
                     <Label>Mobile (read-only)</Label>
                     <Input className="mt-1 bg-gray-50" value={user.mobile || ''} disabled readOnly />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-neutral-900">Registration details</h3>
+                      <p className="text-xs text-neutral-500">Information associated with your Sanatan Guruji account.</p>
+                    </div>
+                    <Badge variant="outline" className={isVerified ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800'}>
+                      {isVerified ? 'Verified' : 'Verification pending'}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {[
+                      ['First name', user.firstName],
+                      ['Last name', user.lastName],
+                      ['Email', user.email],
+                      ['Mobile', user.mobile],
+                      ['Age', user.age],
+                      ['Gender', user.gender],
+                      ['Caste', user.caste],
+                      ['Address', user.address],
+                      ['City', user.city],
+                      ['State', user.state],
+                      ['Pincode', user.pincode],
+                      ['Aadhaar', user.aadhar || user.aadhaar],
+                    ].map(([label, value]) => (
+                      <div key={label} className="min-w-0 rounded-lg bg-white px-3 py-2">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">{label}</p>
+                        <p className="mt-0.5 break-words text-sm font-medium text-neutral-800">{value !== undefined && value !== null && String(value).trim() ? String(value) : 'Not provided'}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

@@ -133,7 +133,7 @@ export default function Header() {
                     <LayoutDashboard className="h-4 w-4" /> Dashboard
                   </Link>
                   <Link href="/dashboard?tab=calendar" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                    <CalendarDays className="h-4 w-4" /> My Calendar
+                    <CalendarDays className="h-4 w-4" /> My Availability
                   </Link>
                   <Link href="/profile" className="flex items-center gap-1.5 text-neutral-700 hover:text-primary hover:bg-primary/5 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                     <UserIcon className="h-4 w-4" /> Profile
@@ -160,7 +160,6 @@ export default function Header() {
                   {!user && (
                     <Link href="/become-guruji" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Become a Guruji</Link>
                   )}
-                  <Link href="/availability" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Availability</Link>
                   <Link href="/about" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">About Us</Link>
                   <Link href="/contact" className="text-neutral-900 hover:text-primary px-3 py-2 text-sm font-medium">Contact</Link>
                 </>
@@ -204,7 +203,7 @@ export default function Header() {
                     {isGuruji && (
                       <DropdownMenuItem onClick={() => setLocation('/dashboard?tab=calendar')} className="cursor-pointer">
                         <CalendarDays className="h-4 w-4 mr-2" />
-                        My Calendar
+                        My Availability
                       </DropdownMenuItem>
                     )}
                     {(!user.role || user.role === 'customer') && (
@@ -266,7 +265,7 @@ export default function Header() {
                     <LayoutDashboard className="h-4 w-4" /> Dashboard
                   </Link>
                   <Link href="/dashboard?tab=calendar" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
-                    <CalendarDays className="h-4 w-4" /> My Calendar
+                    <CalendarDays className="h-4 w-4" /> My Availability
                   </Link>
                   <Link href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100" onClick={() => setMobileMenuOpen(false)}>
                     <UserIcon className="h-4 w-4" /> Profile
@@ -285,7 +284,6 @@ export default function Header() {
                   {!user && (
                     <Link href="/become-guruji" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Become a Guruji</Link>
                   )}
-                  <Link href="/availability" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Availability</Link>
                   <Link href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">About Us</Link>
                   <Link href="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-neutral-900 hover:bg-neutral-100">Contact</Link>
                 </>

@@ -369,7 +369,16 @@ export default function PujaManagement() {
                       {puja.type === 'online' ? 'Online' : 'Offline'}
                     </Badge>
                   </TableCell>
-                  <TableCell>₹{puja.basePrice}</TableCell>
+                  <TableCell>
+                    {puja.price !== undefined && puja.price !== null ? (
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-semibold">₹{puja.price}</span>
+                        <span className="text-xs text-muted-foreground line-through">₹{puja.basePrice}</span>
+                      </div>
+                    ) : (
+                      <>₹{puja.basePrice}</>
+                    )}
+                  </TableCell>
                   <TableCell>{formatDuration(puja.duration)}</TableCell>
                   <TableCell>
                     <Badge variant={puja.isActive ? 'default' : 'destructive'}>

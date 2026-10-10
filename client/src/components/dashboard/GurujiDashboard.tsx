@@ -24,6 +24,7 @@ import { CustomerRatingDialog } from '@/components/rating/RatingSystem';
 import { bookingStatusLabel, BOOKING_STATUS_LABELS as STATUS_LABEL } from '@shared/bookingLifecycle';
 import BookingProgressActions from '@/components/booking/BookingProgressActions';
 import BookingAddressVisibility from '@/components/booking/BookingAddressVisibility';
+import GurujiAvailability from '@/components/dashboard/GurujiAvailability';
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -755,16 +756,7 @@ export default function GurujiDashboard() {
 
         {/* ── CALENDAR VIEW ── */}
         <TabsContent value="calendar">
-          <BookingCalendar
-            bookings={myBookings}
-            calMonth={calMonth}
-            calYear={calYear}
-            setCalMonth={setCalMonth}
-            setCalYear={setCalYear}
-            selectedDay={selectedDay}
-            setSelectedDay={setSelectedDay}
-            onRefresh={refetchMyBookings}
-          />
+          <GurujiAvailability />
         </TabsContent>
 
         {/* ── UPCOMING BOOKINGS ── */}

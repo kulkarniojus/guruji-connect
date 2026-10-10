@@ -1,4 +1,5 @@
 import { pool } from './db';
+import { getUnavailableGurujiIds } from './gurujiAvailability';
 
 export function parseBookingTime(time: string): number | null {
   const match = /^(\d{1,2}):([0-5]\d)\s*(AM|PM)$/i.exec(time.trim());
@@ -49,7 +50,7 @@ export async function getBusyGurujiIds(
         AND b.status::text IN ('confirmed', 'in_progress')`,
     [gurujiIds, date],
   );
-  const busy = new Set<number>();
+  const busy = await getUnavailableGurujiIds(gurujiIds, date, time, durationMinutes);
   for (const row of result.rows) {
     const startMinute = parseBookingTime(row.time);
     if (startMinute === null) continue;
