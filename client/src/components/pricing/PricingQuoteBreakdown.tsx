@@ -1,5 +1,6 @@
 import { AlertCircle, Clock3, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PujaPriceDisplay from './PujaPriceDisplay';
 import type { PricingQuote as SharedPricingQuote } from './usePricingQuote';
 
 type Quote = SharedPricingQuote & {
@@ -44,7 +45,7 @@ export default function PricingQuoteBreakdown({
         </Button>
       </div>
       <dl className="space-y-2 text-sm">
-        <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Regular puja price</dt><dd>{money(quote.regularPrice)}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Regular puja price</dt><dd><PujaPriceDisplay basePrice={quote.basePrice} salePrice={quote.salePrice} fallbackPrice={quote.regularPrice} /></dd></div>
         {quote.regularAdjustment !== undefined ? (
           <>
             {quote.regularAdjustment !== 0 && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Dated price adjustment</dt><dd>{quote.regularAdjustment > 0 ? '+' : '−'}{money(Math.abs(quote.regularAdjustment))}</dd></div>}

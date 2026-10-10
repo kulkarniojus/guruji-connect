@@ -61,7 +61,7 @@ async function setDate(selector: string, value: string) {
 try {
   const admin = await account('admin'), customer = await account('customer'), guruji = await account('guruji');
   const created = await api('/api/pujas',admin.cookie,'POST',{name:tag,description:'Isolated pricing verification fixture.',
-    basePrice:3000,price:3000,type:'offline',duration:60,isActive:true});
+    basePrice:5000,price:3000,type:'offline',duration:60,isActive:true});
   assert.equal(created.status,201,JSON.stringify(created.body)); pujaId = created.body.id;
   fixturePujas.push(pujaId!);
   for (const [suffix,price] of [['second',4000],['unrelated',3000]] as const) {
@@ -96,6 +96,8 @@ try {
   assert.equal((await quote(18)).body.totalAmount,4800);
   const short = await quote(7);
   assert.equal(short.status,200); assert.equal(short.body.totalAmount,5000);
+  assert.equal(short.body.basePrice,5000);
+  assert.equal(short.body.salePrice,3000);
   assert.match(short.body.explanation,/within 12 hours/);
   assert.equal((await quote(2)).body.totalAmount,8000);
   assert.equal((await quote(-1)).status,400);
@@ -202,6 +204,7 @@ try {
   for (const entry of [`/booking?type=puja&pujaId=${pujaId}`,`/booking?pujaId=${pujaId}`,`/booking?puja=${pujaId}`]) {
     await browser.evaluate(`sessionStorage.removeItem('guruji-booking-registration-draft')`);
     await navigate(customer.cookie,entry,`document.body.innerText.includes('Change Selection') && document.body.innerText.includes(${JSON.stringify(tag)})`);
+    assert.ok(await browser.evaluate(`Array.from(document.querySelectorAll('del[aria-label="Base price"]')).some(el=>el.textContent.includes('5,000')) && Array.from(document.querySelectorAll('[aria-label="Sale price"]')).some(el=>el.textContent.includes('3,000'))`),'customer sees struck-through base price and sale price');
     await clickText('button','Continue');
     await browser.wait(`!!document.querySelector('#address') && !!document.querySelector('#pincode') && !!document.querySelector('#city')`,'original city, address and pincode controls');
     await browser.click('#city');
@@ -247,7 +250,8 @@ try {
   await navigate(customer.cookie,bookingPath,`document.querySelector('[aria-label="Price breakdown"]')?.innerText.includes('5,500')`);
   assert.ok(await browser.evaluate(`document.querySelector('#address')?.value===${JSON.stringify(tag)} && document.querySelector('#pincode')?.value==='411001'`));
   assert.ok(await browser.evaluate(`document.querySelector('[aria-label="Price breakdown"]').innerText.includes('within 12 hours')`));
-  const additiveRows = await browser.evaluate(`Array.from(document.querySelectorAll('[aria-label="Price breakdown"] dl dd')).map(el=>Number(el.textContent.replace(/[₹,+\\s]/g,'')))`);
+  assert.ok(await browser.evaluate(`!!document.querySelector('[aria-label="Price breakdown"] del[aria-label="Base price"]') && !!document.querySelector('[aria-label="Price breakdown"] [aria-label="Sale price"]')`));
+  const additiveRows = await browser.evaluate(`Array.from(document.querySelectorAll('[aria-label="Price breakdown"] dl dd')).map(el=>Number((el.querySelector('[aria-label="Sale price"]')?.textContent || el.textContent).replace(/[₹,+\\s]/g,'').replace('−','-')))`);
   assert.equal(additiveRows.slice(0,-1).reduce((sum: number,value: number)=>sum+value,0),additiveRows.at(-1));
   assert.ok(await browser.evaluate(`!document.querySelector('[aria-label="Price breakdown"]').innerText.includes('Adjusted puja price')`));
   const later = schedule(30), day = Number(later.calendarDate.slice(-2));

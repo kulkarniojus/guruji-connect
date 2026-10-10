@@ -4,6 +4,7 @@ import { pool } from '../server/db';
 import { DBStorage } from '../server/dbStorage';
 import { isUnassignedBooking } from '../shared/isUnassignedBooking';
 import { openBrowserTest } from './browserTest';
+import { reconcileDeclinedBookings } from '../server/bookingDeclines';
 
 const domain = process.env.REPLIT_DEV_DOMAIN;
 if (process.env.NODE_ENV === 'production' || !domain?.endsWith('.replit.dev')) throw new Error('Development only');
@@ -12,6 +13,7 @@ const store = new DBStorage();
 const tag = randomBytes(6).toString('hex');
 const password = randomBytes(18).toString('hex');
 const users: number[] = [], profiles: number[] = [], bookings: number[] = [];
+const fixtureCities: number[] = [];
 let browser: Awaited<ReturnType<typeof openBrowserTest>> | undefined;
 
 async function api(path: string, method = 'GET', data?: unknown, cookie = '') {
@@ -44,7 +46,7 @@ try {
   for (const status of ['pending', 'pending_approval']) assert.equal(isUnassignedBooking({ status }), true);
   for (const status of ['cancelled', 'completed', 'confirmed', 'in_progress']) assert.equal(isUnassignedBooking({ status }), false);
   assert.equal(isUnassignedBooking({ status: 'pending_approval', gurujiId: 1 }), false);
-  const puja = (await api('/api/pujas')).data.find((p: any) => Number(p.price) > 0 && p.duration >= 0);
+  const puja = (await api('/api/pujas')).data.find((p: any) => p.isActive !== false && Number(p.price) > 0 && p.duration >= 0);
   const city = `Alerts QA ${tag}`;
   const cityKey = city.toLowerCase().replace(/\s+/g, '-');
   const customer = await user('customer', 'customer');
@@ -78,10 +80,17 @@ try {
   bookings.push(busyBooking.id);
   const customerCookie = await login(customer);
   const adminCookie = await login(admin);
-  const payload = { pujaId: puja.id, type: 'offline', amount: Number(puja.price), city: cityKey,
+  const noMatchCity=`No-match-${tag}`;
+  for (const name of [city,noMatchCity]) {
+    const result=await api('/api/cities','POST',{name,state:'Maharashtra',isActive:true},adminCookie);
+    assert.equal(result.status,201,JSON.stringify(result.data));fixtureCities.push(result.data.id);
+  }
+  const currentQuote=await api('/api/pricing/quote','POST',{pujaId:puja.id,calendarDate:date,time,withSamagri:false});
+  assert.equal(currentQuote.status,200);
+  const payload = { pujaId: puja.id, type: 'offline', amount: currentQuote.data.totalAmount, city: cityKey,
     pincode: '900123', date: `${date}T12:00:00Z`, calendarDate: date, time, address: 'QA address' };
   const created = await api('/api/bookings', 'POST', payload, customerCookie);
-  assert.equal(created.status, 201);
+  assert.equal(created.status, 201,JSON.stringify(created.data));
   bookings.push(created.data.id);
   const id = created.data.id;
   const requests = await store.getBookingRequestsByBookingId(id);
@@ -102,8 +111,8 @@ try {
   assert.equal((await store.getBookingRequestsByBookingId(id)).length, 2);
   console.log('PASS: all eligible local Gurujis and every active admin notified; wrong service/location, unapproved, blocked and busy Gurujis excluded; resend stays local without duplicates');
 
-  const empty = await api('/api/bookings', 'POST', { ...payload, city: `No-match-${tag}`, pincode: '000000' }, customerCookie);
-  assert.equal(empty.status, 201);
+  const empty = await api('/api/bookings', 'POST', { ...payload, city: noMatchCity, pincode: '900999' }, customerCookie);
+  assert.equal(empty.status, 201,JSON.stringify(empty.data));
   bookings.push(empty.data.id);
   assert.equal((await store.getBookingRequestsByBookingId(empty.data.id)).length, 0);
   const emptyAlerts = (await alerts(empty.data.id)).rows;
@@ -136,17 +145,67 @@ try {
   await browser.wait(`!document.body.innerText.includes('#${empty.data.id}')`, 'cancelled puja leaves live unassigned list');
   assert.equal((await api(`/api/admin/bookings/${empty.data.id}/send-requests`, 'POST', {}, adminCookie)).status, 409);
   console.log('PASS: genuine acceptance and cancellation clear current alerts and the live list; resolved bookings cannot be reopened by resend');
+
+  const followupDate=new Date(Date.parse(`${date}T00:00:00Z`)+(Math.ceil(puja.duration/24)+1)*86400000).toISOString().slice(0,10);
+  const followupPayload={...payload,calendarDate:followupDate,date:`${followupDate}T12:00:00Z`};
+  await pool.query(`UPDATE guruji_profiles SET "isAvailable"=false WHERE id=$1`,[candidates.find(c=>c.label==='busy').profileId]);
+  const specific=await api('/api/bookings','POST',{...followupPayload,gurujiId:candidates[0].profileId},customerCookie);
+  assert.equal(specific.status,201,JSON.stringify(specific.data));bookings.push(specific.data.id);
+  const specificRequests=await store.getBookingRequestsByBookingId(specific.data.id);
+  assert.equal(specificRequests.length,1);
+  const decline=await api(`/api/bookings/${specific.data.id}/respond`,'POST',{action:'reject',message:'QA unavailable for this request'},gurujiCookie);
+  assert.equal(decline.status,200);
+  const declinedBooking=await store.getBooking(specific.data.id);
+  assert.equal(declinedBooking?.status,'pending');
+  assert.equal(declinedBooking?.gurujiId,null);
+  assert.ok(isUnassignedBooking(declinedBooking!));
+  const declineAlerts=await pool.query(`SELECT "userId",message FROM notifications WHERE type='booking_declined' AND message LIKE $1`,
+    [`Booking #${specific.data.id}: %`]);
+  assert.deepEqual(declineAlerts.rows.map(r=>r.userId).sort((a,b)=>a-b),expectedAdmins);
+  assert.ok(declineAlerts.rows.every(r=>r.message.includes('QA unavailable for this request')));
+  assert.ok((await alerts(specific.data.id)).rows.some(r=>!r.isRead));
+  const adminNotifications=await api('/api/notifications','GET',undefined,adminCookie);
+  assert.ok(adminNotifications.data.some((n:any)=>n.type==='booking_declined' && n.message.startsWith(`Booking #${specific.data.id}: `)));
+  assert.ok((await api('/api/admin/bookings','GET',undefined,adminCookie)).data.some((b:any)=>b.id===specific.data.id && isUnassignedBooking(b)));
+  assert.ok((await api(`/api/bookings/${specific.data.id}/respond`,'POST',{action:'reject'},gurujiCookie)).status>=400);
+  console.log('PASS: specific Guruji rejection clears the selected assignment, keeps booking open and appears in every active admin notification feed and Unassigned list');
+
+  await pool.query(`DELETE FROM notifications WHERE type IN ('unassigned_booking','booking_declined') AND message LIKE $1`,
+    [`Booking #${specific.data.id}: %`]);
+  await pool.query(`UPDATE bookings SET "gurujiId"=$2 WHERE id=$1`,[specific.data.id,candidates[0].profileId]);
+  await reconcileDeclinedBookings([specific.data.id,id]);
+  assert.ok(isUnassignedBooking((await store.getBooking(specific.data.id))!));
+  assert.equal((await store.getBooking(id))?.status,'confirmed');
+  const count=await pool.query(`SELECT count(*)::int AS count FROM notifications WHERE type='booking_declined' AND message LIKE $1`,[`Booking #${specific.data.id}: %`]);
+  await reconcileDeclinedBookings([specific.data.id]);
+  assert.equal((await pool.query(`SELECT count(*)::int AS count FROM notifications WHERE type='booking_declined' AND message LIKE $1`,[`Booking #${specific.data.id}: %`])).rows[0].count,count.rows[0].count);
+  console.log('PASS: historical rejected bookings repaired without duplicate alerts or changing genuinely accepted bookings');
+
+  const multi=await api('/api/bookings','POST',followupPayload,customerCookie);
+  assert.equal(multi.status,201);bookings.push(multi.data.id);
+  const multiRequests=await store.getBookingRequestsByBookingId(multi.data.id);
+  assert.equal(multiRequests.length,2);
+  for (let index=0;index<2;index++){
+    const candidate=candidates[index];
+    const cookie=await login(candidate);
+    const request=multiRequests.find((r:any)=>r.gurujiId===candidate.profileId);
+    assert.equal((await api(`/api/booking-requests/${request.id}/respond`,'POST',{response:'decline'},cookie)).status,200);
+    assert.equal((await store.getBooking(multi.data.id))?.status,index===0 ? 'pending_approval' : 'pending');
+  }
+  assert.ok(isUnassignedBooking((await store.getBooking(multi.data.id))!));
+  console.log('PASS: partial auto-search rejection preserves other open requests; last rejection returns the booking to admin attention');
 } finally {
   await browser?.close();
   const fixtureBookings = await pool.query(`SELECT id FROM bookings WHERE "customerId"=ANY($1::int[])`, [users]);
   for (const row of fixtureBookings.rows) if (!bookings.includes(row.id)) bookings.push(row.id);
-  await pool.query(`DELETE FROM notifications WHERE type='unassigned_booking' AND message LIKE ANY($1::text[])`, [bookings.map(id => `Booking #${id}: %`)]);
+  await pool.query(`DELETE FROM notifications WHERE type IN ('unassigned_booking','booking_declined') AND message LIKE ANY($1::text[])`, [bookings.map(id => `Booking #${id}: %`)]);
   await pool.query(`DELETE FROM notifications WHERE "userId"=ANY($1::int[])`, [users]);
   await pool.query(`DELETE FROM booking_requests WHERE "bookingId"=ANY($1::int[])`, [bookings]);
   await pool.query(`DELETE FROM bookings WHERE id=ANY($1::int[])`, [bookings]);
   await pool.query(`DELETE FROM guruji_pujas WHERE "gurujiId"=ANY($1::int[])`, [profiles]);
   await pool.query(`DELETE FROM guruji_profiles WHERE id=ANY($1::int[])`, [profiles]);
   await pool.query(`DELETE FROM users WHERE id=ANY($1::int[])`, [users]);
+  await pool.query(`DELETE FROM cities WHERE id=ANY($1::int[])`,[fixtureCities]);
   await pool.end();
   console.log('Temporary alert test fixtures removed.');
 }

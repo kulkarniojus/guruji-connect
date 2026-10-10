@@ -4,7 +4,7 @@ import { isUnassignedBooking } from '../shared/isUnassignedBooking';
 
 export async function resolveUnassignedBookingAlerts(bookingId: number): Promise<void> {
   await pool.query(
-    `UPDATE notifications SET "isRead" = true WHERE type = 'unassigned_booking' AND message LIKE $1`,
+    `UPDATE notifications SET "isRead" = true WHERE type IN ('unassigned_booking','booking_declined') AND message LIKE $1`,
     [`Booking #${bookingId}: %`],
   );
 }

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { DBStorage } from '../dbStorage';
 import { pool } from '../db';
 import { getBusyGurujiIds, parseBookingTime } from '../bookingSchedule';
+import { declineBookingRequest } from '../bookingDeclines';
 
 const db = new DBStorage();
 
@@ -28,7 +29,7 @@ export async function sendBookingRequests(req: Request, res: Response) {
 
     const nearbyGurujis = await db.getNearbyGurujis(
       booking.city || '', 
-      booking.pujaId, 
+      booking.pujaId ?? undefined,
       20,
       (booking as any).pincode
     );
@@ -191,22 +192,15 @@ export async function respondToBookingRequest(req: Request, res: Response) {
       
       res.status(200).json({ message: "Booking request accepted" });
     } else {
-      await db.updateBookingRequestStatus(requestId, 'declined', message);
-      
-      const allRequests = await db.getBookingRequestsByBookingId(booking.id);
-      const allDeclined = allRequests.every(r => 
-        r.status === 'declined' || r.status === 'expired' || r.status === 'cancelled'
-      );
+      const allDeclined = await declineBookingRequest(booking.id,requestId,guruji.id,message);
       
       if (allDeclined) {
-        await db.updateBookingStatus(booking.id, 'pending');
-        
         const customer = await db.getUser(booking.customerId);
         if (customer) {
           await db.createNotification({
             userId: customer.id,
             title: 'Booking Update',
-            message: 'We couldn\'t find an available guruji for your booking. Please try again later.',
+            message: 'The requested Gurujis could not accept your puja. Your booking remains open and the admin has been alerted to help arrange another Guruji.',
             type: 'booking_update',
           });
         }
@@ -216,6 +210,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
     }
   } catch (error) {
     console.error("Error responding to booking request:", error);
+    if ((error as any)?.status === 409) return res.status(409).json({message:(error as Error).message});
     if (error instanceof ZodError) {
       return res.status(400).json({ message: "Validation error", errors: fromZodError(error) });
     }

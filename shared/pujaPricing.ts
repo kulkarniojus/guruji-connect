@@ -20,6 +20,8 @@ export interface RegularPriceAdjustment {
 }
 export interface PricingQuote {
   pujaId: number;
+  basePrice?: number | null;
+  salePrice?: number | null;
   regularPrice: number;
   pujaPrice: number;
   samagriPrice: number;

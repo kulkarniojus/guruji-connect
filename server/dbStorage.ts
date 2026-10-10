@@ -1648,10 +1648,10 @@ export class DBStorage implements IStorage {
 
       // Filter by city: match primary city OR service cities array (case-insensitive)
       if (filters.city) {
-        query += ` AND (LOWER(gp.city) = LOWER($${paramIndex}) OR EXISTS (
-          SELECT 1 FROM unnest(gp.cities) c WHERE LOWER(c) = LOWER($${paramIndex})
+        query += ` AND (REGEXP_REPLACE(LOWER(TRIM(gp.city)), '[[:space:]_-]+', ' ', 'g') = $${paramIndex} OR EXISTS (
+          SELECT 1 FROM unnest(gp.cities) c WHERE REGEXP_REPLACE(LOWER(TRIM(c)), '[[:space:]_-]+', ' ', 'g') = $${paramIndex}
         ))`;
-        values.push(filters.city);
+        values.push(filters.city.trim().toLowerCase().replace(/[\s_-]+/g, ' '));
         paramIndex++;
       }
 

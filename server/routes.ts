@@ -38,6 +38,7 @@ import pujaRoutes from "./routes/pujas";
 import { initializeGurujiAvailability, gurujiAvailabilityRouter } from './gurujiAvailability';
 import { isAuthenticated as requireAuthenticated } from './middlewares/auth';
 import { isSampleAccount, startUserSession, disableSampleAccounts } from './authAccess';
+import { reconcileDeclinedBookings } from './bookingDeclines';
 import { validateStaffRegistration } from './registrationValidation';
 import { submitGurujiApplication } from './gurujiApplication';
 import { 
@@ -254,6 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeOurServices();
   await disableSampleAccounts();
   await initializeGurujiAvailability();
+  await reconcileDeclinedBookings();
   // The live bookings table predates the duration field in the shared schema.
   // Snapshot the configured duration so later admin edits do not change
   // the reserved length of bookings already placed.

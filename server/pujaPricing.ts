@@ -142,7 +142,10 @@ export async function getPricingQuote(input: z.infer<typeof pricingQuotePayload>
       : 'The regular price applies.'}${rule.customerMessage ? ` ${rule.customerMessage}` : ''}`
     : 'No short-notice surcharge applies: your selected time is outside the configured booking windows, or no enabled rule matches this puja.');
   return {
-    pujaId: puja.id, regularPrice, pujaPrice, samagriPrice, totalAmount: pujaPrice + samagriPrice,
+    pujaId: puja.id,
+    basePrice: puja.basePrice == null ? null : Number(puja.basePrice),
+    salePrice: puja.price == null ? null : Number(puja.price),
+    regularPrice, pujaPrice, samagriPrice, totalAmount: pujaPrice + samagriPrice,
     adjustment, rule, explanation, quotedAt: new Date(now).toISOString(), scheduledAt: new Date(scheduledAt).toISOString(),
     regularPriceAdjustment, regularAdjustment, timeAdjustment, effectiveRegularPrice,
   };

@@ -24,6 +24,7 @@ import { clearBookingDraft, readBookingDraft, saveBookingDraft } from './booking
 import { useAuth } from '@/context/AuthContext';
 import { usePricingQuote } from '@/components/pricing/usePricingQuote';
 import PricingQuoteBreakdown from '@/components/pricing/PricingQuoteBreakdown';
+import PujaPriceDisplay from '@/components/pricing/PujaPriceDisplay';
 import AddressSelection from './AddressSelection';
 import { gurujiFirstName } from '@shared/gurujiDisplayName';
 
@@ -508,7 +509,7 @@ export default function BookingPage() {
                     >
                       <div className="flex justify-between">
                         <h3 className="font-medium">{puja.name}</h3>
-                        <span className="font-medium text-primary">₹{puja.price}</span>
+                        <span className="text-primary"><PujaPriceDisplay basePrice={puja.basePrice} salePrice={puja.price} fallbackPrice={Number(puja.price ?? puja.basePrice ?? 0)} /></span>
                       </div>
                       <p className="text-sm text-neutral-600 mt-1">{puja.description}</p>
                       <div className="flex items-center mt-2 text-xs text-neutral-500">
