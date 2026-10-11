@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, jsonb, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, jsonb, primaryKey, numeric } from "drizzle-orm/pg-core";
 import type { PricingQuote } from './pujaPricing';
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -574,8 +574,10 @@ export const cancellationRules = pgTable("cancellation_rules", {
   userType: text("user_type").notNull(), // 'guruji' | 'customer'
   name: text("name").notNull(),
   hoursThreshold: integer("hours_threshold").notNull(), // cancel must happen AT LEAST this many hours before booking
+  timeBasis: text("time_basis").notNull().default('at_least'), // preserve legacy policies; new rules may use 'within'
+  pujaId: integer("puja_id").references(()=>pujas.id),
   chargeType: text("charge_type").notNull(), // 'free' | 'percentage' | 'fixed' | 'full'
-  chargeValue: integer("charge_value").default(0), // % or fixed ₹ amount (0 for free/full)
+  chargeValue: numeric("charge_value", { precision:14, scale:2 }).default('0'), // % or fixed ₹ amount
   description: text("description"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),

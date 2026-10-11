@@ -20,6 +20,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { RatingDialog } from '@/components/rating/RatingSystem';
 import { bookingStatusLabel } from '@shared/bookingLifecycle';
 import BookingCompletionControls from '@/components/booking/BookingCompletionControls';
+import CancellationHistory from '@/components/booking/CancellationHistory';
 import BookingAddressVisibility from '@/components/booking/BookingAddressVisibility';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -81,11 +82,12 @@ export default function BookingDetail() {
     enabled: !!id && booking?.status === 'completed',
   });
 
-  const { data: cancelPreview } = useQuery<any>({
+  const { data: cancelPreview, isLoading: cancelPreviewLoading, isError: cancelPreviewError, refetch: refetchCancelPreview } = useQuery<any>({
     queryKey: [`/api/bookings/${id}/cancellation-preview`],
     queryFn: async () => {
       const r = await fetch(`/api/bookings/${id}/cancellation-preview`, { credentials: 'include' });
-      return r.ok ? r.json() : null;
+      if (!r.ok) throw new Error('Unable to load cancellation policy');
+      return r.json();
     },
     enabled: showCancel,
   });
@@ -102,17 +104,19 @@ export default function BookingDetail() {
 
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      const r = await apiRequest('POST', `/api/bookings/${id}/cancel`, { reason: cancelReason });
+      const r = await apiRequest('POST', `/api/bookings/${id}/cancel`, { reason: cancelReason, quoteToken:cancelPreview?.quoteToken });
       return r.json();
     },
     onSuccess: () => {
-      toast({ title: 'Booking cancelled', description: 'Your booking has been cancelled.' });
+      toast({ title: 'Cancellation request submitted', description: 'The Sanatan Guruji support team will review it. Your booking stays open until approved.' });
       setShowCancel(false);
       setCancelReason('');
       queryClient.invalidateQueries({ queryKey: [`/api/bookings/${id}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/${id}/cancellation-history`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/${id}/cancellation-preview`] });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => { refetchCancelPreview();toast({ title: 'Please review cancellation details', description: e.message, variant: 'destructive' }); },
   });
 
   const rateMutation = useMutation({
@@ -330,6 +334,7 @@ export default function BookingDetail() {
           </Card>
 
           <BookingCompletionControls booking={booking} />
+          <CancellationHistory bookingId={Number(id)} />
 
           {/* Action buttons */}
           {isOwner && (
@@ -342,7 +347,7 @@ export default function BookingDetail() {
               )}
               {canCancel && (
                 <Button variant="destructive" onClick={() => setShowCancel(true)} className="gap-2">
-                  <XCircle className="h-4 w-4" /> Cancel Booking
+                  <XCircle className="h-4 w-4" /> Request Cancellation
                 </Button>
               )}
               {canRate && (
@@ -431,28 +436,37 @@ export default function BookingDetail() {
 
       {/* Cancel dialog */}
       <Dialog open={showCancel} onOpenChange={setShowCancel}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cancel this booking?</DialogTitle>
+            <DialogTitle>Request booking cancellation?</DialogTitle>
             <DialogDescription>
               {cancelPreview ? (
                 cancelPreview.charge > 0 ? (
                   <span>
-                    A cancellation charge of <strong className="text-red-600">₹{cancelPreview.charge}</strong> will apply
+                    Proposed cancellation charge: <strong className="text-red-600">₹{cancelPreview.charge}</strong>
                     {cancelPreview.rule?.description && ` (${cancelPreview.rule.description})`}.
                   </span>
                 ) : (
-                  <span className="text-green-600">No cancellation charge will apply.</span>
+                  <span className="text-green-600">No cancellation charge under the current rule.</span>
                 )
               ) : (
-                'Loading charge details...'
+                cancelPreviewError ? 'Unable to load the cancellation policy. Please retry.' : 'Loading charge details...'
               )}
             </DialogDescription>
           </DialogHeader>
+          {cancelPreview && <div className="rounded border p-3 text-sm space-y-2">
+            <p>{cancelPreview.outcome}</p><p>{cancelPreview.paymentNotice}</p>
+            <p>{cancelPreview.chargeDescription}</p>
+            {cancelPreview.rule && <p>Rule: {cancelPreview.rule.name} · {cancelPreview.rule.time_basis==='within' ? 'within' : 'at least'} {cancelPreview.rule.hours_threshold} hours before puja.</p>}
+            {cancelPreview.pendingRequestId && <p role="status">Your existing cancellation request is awaiting support-team approval.</p>}
+            {!cancelPreview.canCancel && !cancelPreview.pendingRequestId && <p>Contact the Sanatan Guruji support team to discuss this booking.</p>}
+          </div>}
+          {cancelPreviewError && <Button variant="outline" onClick={()=>refetchCancelPreview()}>Retry policy</Button>}
           <Textarea
+            aria-label="Cancellation request reason"
             value={cancelReason}
             onChange={e => setCancelReason(e.target.value)}
-            placeholder="Reason for cancellation (optional)"
+            placeholder="Reason for cancellation (at least 5 characters)"
             rows={3}
           />
           <DialogFooter>
@@ -460,10 +474,10 @@ export default function BookingDetail() {
             <Button
               variant="destructive"
               onClick={() => cancelMutation.mutate()}
-              disabled={cancelMutation.isPending}
+              disabled={cancelMutation.isPending || cancelPreviewLoading || cancelPreviewError || !cancelPreview?.canCancel || cancelReason.trim().length<5}
             >
               {cancelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirm Cancel
+              Submit Cancellation Request
             </Button>
           </DialogFooter>
         </DialogContent>

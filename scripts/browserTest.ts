@@ -1,19 +1,20 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import WebSocket from 'ws';
 
 export async function openBrowserTest() {
   const directory = await mkdtemp(`${tmpdir()}/guruji-auth-qa-`);
   const browser = spawn('chromium', [
-    '--headless', '--no-sandbox', '--disable-gpu', '--remote-debugging-port=9225',
+    '--headless', '--no-sandbox', '--disable-gpu', '--remote-debugging-port=0',
     '--remote-debugging-address=127.0.0.1', `--user-data-dir=${directory}`, 'about:blank',
   ], { stdio: 'ignore' });
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   let page: any;
   for (let attempt = 0; attempt < 80; attempt++) {
     try {
-      const pages = await (await fetch('http://127.0.0.1:9225/json')).json() as any[];
+      const port=(await readFile(`${directory}/DevToolsActivePort`,'utf8')).split('\n')[0].trim();
+      const pages = await (await fetch(`http://127.0.0.1:${port}/json`)).json() as any[];
       page = pages.find(item => item.type === 'page');
       if (page) break;
     } catch {}

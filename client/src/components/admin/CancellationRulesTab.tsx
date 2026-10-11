@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Plus, Edit2, Trash2, Loader2, Clock, IndianRupee, Users, UserCheck } from 'lucide-react';
+import CancellationRequests from './CancellationRequests';
 
 const CHARGE_TYPE_LABELS: Record<string, string> = {
   free: 'Free (No Charge)',
@@ -39,6 +40,8 @@ const emptyForm = {
   userType: 'guruji',
   name: '',
   hoursThreshold: '',
+  timeBasis: 'within',
+  pujaId: null,
   chargeType: 'free',
   chargeValue: '',
   description: '',
@@ -54,6 +57,7 @@ export default function CancellationRulesTab() {
   const { data: rules = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/cancellation-rules'],
   });
+  const {data:pujas=[]}=useQuery<any[]>({queryKey:['/api/pujas']});
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => editRule
@@ -79,8 +83,15 @@ export default function CancellationRulesTab() {
   });
 
   const toggleActive = (rule: any) => {
-    saveMutation.mutate({ ...rule, userType: rule.user_type, hoursThreshold: rule.hours_threshold, chargeType: rule.charge_type, chargeValue: rule.charge_value, isActive: !rule.is_active });
+    toggleMutation.mutate({id:rule.id,isActive:!rule.is_active});
   };
+
+  const toggleMutation = useMutation({
+    mutationFn: ({id,isActive}: {id:number;isActive:boolean}) =>
+      apiRequest('PUT', `/api/admin/cancellation-rules/${id}`, {isActive}),
+    onSuccess: () => queryClient.invalidateQueries({queryKey:['/api/admin/cancellation-rules']}),
+    onError: (e: Error) => toast({title:'Cannot change rule',description:e.message,variant:'destructive'}),
+  });
 
   const openNew = () => {
     setEditRule(null);
@@ -94,6 +105,8 @@ export default function CancellationRulesTab() {
       userType: rule.user_type,
       name: rule.name,
       hoursThreshold: String(rule.hours_threshold),
+      timeBasis: rule.time_basis || 'at_least',
+      pujaId: rule.puja_id ?? null,
       chargeType: rule.charge_type,
       chargeValue: String(rule.charge_value ?? ''),
       description: rule.description || '',
@@ -103,7 +116,10 @@ export default function CancellationRulesTab() {
   };
 
   const handleSave = () => {
-    if (!form.name || !form.hoursThreshold || !form.chargeType) {
+    if (!form.name.trim() || form.hoursThreshold === '' || !form.chargeType ||
+      !Number.isInteger(Number(form.hoursThreshold)) || Number(form.hoursThreshold) < 0 ||
+      (['fixed','percentage'].includes(form.chargeType) && (form.chargeValue === '' ||
+        Number(form.chargeValue) < 0 || (form.chargeType === 'percentage' && Number(form.chargeValue) > 100)))) {
       toast({ title: 'Fill all required fields', variant: 'destructive' });
       return;
     }
@@ -138,20 +154,22 @@ export default function CancellationRulesTab() {
                         {ruleChargeLabel(rule)}
                       </span>
                       {!rule.is_active && <Badge variant="outline" className="text-xs">Inactive</Badge>}
+                       <Badge variant="outline">{rule.puja_id ? pujas.find(p=>p.id===rule.puja_id)?.name || `Puja #${rule.puja_id}` : 'All pujas'}</Badge>
                     </div>
                     <p className="text-sm text-neutral-600 flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 text-neutral-400" />
-                      When cancelling &gt;= <strong>{rule.hours_threshold}h</strong> before booking
+                       {rule.time_basis === 'within' ? 'Within' : 'At least'} <strong>{rule.hours_threshold}h</strong> before the puja
                     </p>
                     {rule.description && <p className="text-xs text-neutral-500 mt-1">{rule.description}</p>}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Switch checked={rule.is_active} onCheckedChange={() => toggleActive(rule)} />
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(rule)}>
+                    <Switch aria-label={`Activate ${rule.name}`} checked={rule.is_active} disabled={toggleMutation.isPending} onCheckedChange={() => toggleActive(rule)} />
+                    <Button aria-label={`Edit ${rule.name}`} variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(rule)}>
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="ghost" size="icon"
+                       aria-label={`Delete ${rule.name}`}
                       className="h-8 w-8 text-red-500 hover:bg-red-50"
                       onClick={() => { if (confirm('Delete this rule?')) deleteMutation.mutate(rule.id); }}
                     >
@@ -182,7 +200,11 @@ export default function CancellationRulesTab() {
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-4 text-sm text-blue-800 space-y-1">
           <p className="font-semibold">How rules work:</p>
-          <p>When a cancellation happens, the system checks how many hours remain until the booking. It applies the rule whose <strong>hours threshold</strong> is the closest match (without exceeding). For example, if a guruji cancels with 10 hours left, the "within 12h" rule applies.</p>
+          <p>Rules use the selected puja date and time in India time and the saved booking amount. For “within” rules, the smallest matching hourly threshold wins: with 10 hours left, a 12-hour rule wins over a 24-hour rule. Otherwise, the largest matching “at least” threshold applies. Charges never stack.</p>
+          <p>Use “at least 0 hours” as an all-time fallback. Existing rules retain their original “at least” meaning until you edit them.</p>
+          <p>A matching puja-specific rule takes priority over an all-pujas rule.</p>
+          <p>Customers request cancellation; admin approves or rejects it. Guruji withdrawal never closes a booking: other eligible Gurujis are contacted and admin controls reassignment or final cancellation.</p>
+          <p className="font-medium">Payments are disabled. Charges are recorded only—not deducted or refunded.</p>
           <ul className="list-disc list-inside space-y-0.5 mt-1">
             <li><strong>Free</strong> — No charge applied</li>
             <li><strong>Percentage</strong> — % of total booking amount is charged</li>
@@ -200,6 +222,7 @@ export default function CancellationRulesTab() {
           <RuleList rules={customerRules} label="Customer" icon={Users} />
         </div>
       )}
+      <CancellationRequests />
 
       {/* Add / Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
@@ -223,15 +246,35 @@ export default function CancellationRulesTab() {
                 </Select>
               </div>
               <div>
-                <Label>Min hours before booking *</Label>
+                <Label>Hours before puja *</Label>
                 <Input
-                  type="number" min="0" className="mt-1"
+                  aria-label="Hours before puja" type="number" min="0" step="1" className="mt-1"
                   value={form.hoursThreshold}
                   onChange={e => setForm((f: any) => ({ ...f, hoursThreshold: e.target.value }))}
                   placeholder="e.g. 12"
                 />
-                <p className="text-xs text-neutral-400 mt-0.5">Rule applies if cancelled ≥ this many hours before</p>
+                <p className="text-xs text-neutral-400 mt-0.5">Hourly threshold only—no date or hour ranges.</p>
               </div>
+            </div>
+
+            <div>
+              <Label>Timing basis</Label>
+              <Select value={form.timeBasis} onValueChange={v => setForm((f:any) => ({...f,timeBasis:v}))}>
+                <SelectTrigger aria-label="Timing basis"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="within">Within these hours before the puja</SelectItem>
+                  <SelectItem value="at_least">At least these hours before the puja</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Applies to puja</Label>
+              <Select value={form.pujaId==null ? 'all' : String(form.pujaId)} onValueChange={v=>setForm((f:any)=>({...f,pujaId:v==='all' ? null : Number(v)}))}>
+                <SelectTrigger aria-label="Cancellation puja scope"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="all">All pujas</SelectItem>
+                  {pujas.map(p=><SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -263,7 +306,7 @@ export default function CancellationRulesTab() {
                 <div>
                   <Label>{form.chargeType === 'percentage' ? 'Percentage (%)' : 'Amount (₹)'} *</Label>
                   <Input
-                    type="number" min="0" className="mt-1"
+                    aria-label="Cancellation charge value" type="number" min="0" step="0.01" max={form.chargeType === 'percentage' ? 100 : undefined} className="mt-1"
                     value={form.chargeValue}
                     onChange={e => setForm((f: any) => ({ ...f, chargeValue: e.target.value }))}
                     placeholder={form.chargeType === 'percentage' ? 'e.g. 50' : 'e.g. 500'}

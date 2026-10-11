@@ -6,6 +6,7 @@ import { DBStorage } from '../dbStorage';
 import { pool } from '../db';
 import { getBusyGurujiIds, parseBookingTime } from '../bookingSchedule';
 import { declineBookingRequest } from '../bookingDeclines';
+import { cancellationEndpoint } from './cancellations';
 
 const db = new DBStorage();
 
@@ -117,6 +118,12 @@ export async function respondToBookingRequest(req: Request, res: Response) {
         await client.query('SELECT pg_advisory_xact_lock(8157, $1)', [bookingRequest.gurujiId]);
         const latestBooking = await db.getBooking(booking.id);
         const latestRequest = await db.getBookingRequest(requestId);
+        const cancellationPending = (await client.query(`SELECT id FROM booking_cancellation_events
+          WHERE booking_id=$1 AND kind='customer_request' AND status='pending'`, [booking.id])).rows.length > 0;
+        if (cancellationPending) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({message:'The Sanatan Guruji support team is reviewing a cancellation request for this booking.'});
+        }
         if (latestBooking?.status !== 'pending_approval' || latestRequest?.status !== 'pending') {
           await client.query('ROLLBACK');
           return res.status(409).json({ message: 'This booking request is no longer open' });
@@ -219,52 +226,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
 }
 
 export async function cancelBookingByGuruji(req: Request, res: Response) {
-  try {
-    const { id } = z.object({
-      id: z.string().refine((val) => !isNaN(parseInt(val)), { message: "ID must be a number" }),
-    }).parse(req.params);
-
-    const { reason } = z.object({
-      reason: z.string().min(10, "Please provide a detailed reason for cancellation"),
-    }).parse(req.body);
-
-    const booking = await db.getBooking(parseInt(id));
-    
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
-    
-    const userId = req.session.userId as number;
-    const guruji = await db.getGurujiProfileByUserId(userId);
-    
-    if (!guruji || booking.gurujiId !== guruji.id) {
-      return res.status(403).json({ message: "You are not authorized to cancel this booking" });
-    }
-    
-    if (booking.status !== 'confirmed') {
-      return res.status(400).json({ message: `Cannot cancel booking in ${booking.status} state` });
-    }
-    
-    await db.updateBookingStatus(booking.id, 'cancelled');
-    
-    const customer = await db.getUser(booking.customerId);
-    if (customer) {
-      await db.createNotification({
-        userId: customer.id,
-        title: 'Booking Cancelled',
-        message: `Your booking has been cancelled by the guruji. Reason: ${reason}`,
-        type: 'booking_cancelled',
-      });
-    }
-    
-    res.status(200).json({ message: "Booking cancelled successfully" });
-  } catch (error) {
-    console.error("Error cancelling booking:", error);
-    if (error instanceof ZodError) {
-      return res.status(400).json({ message: "Validation error", errors: fromZodError(error) });
-    }
-    res.status(500).json({ message: "Failed to cancel booking" });
-  }
+  return cancellationEndpoint(req,res);
 }
 
 export async function getGurujiBookingRequests(req: Request, res: Response) {

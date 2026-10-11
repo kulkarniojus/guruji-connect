@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import CancellationHistory from '@/components/booking/CancellationHistory';
 import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import {
@@ -761,6 +762,7 @@ export default function GurujiDashboard() {
 
         {/* ── UPCOMING BOOKINGS ── */}
         <TabsContent value="upcoming">
+          <CancellationHistory />
           {upcoming.length === 0 ? (
             <div className="text-center py-16 text-neutral-500">
               <Calendar className="h-10 w-10 mx-auto mb-3 text-neutral-300" />
@@ -1184,22 +1186,25 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
     enabled: booking.status === 'completed',
   });
 
-  const { data: preview, isLoading: previewLoading } = useQuery<any>({
+  const { data: preview, isLoading: previewLoading, isError: previewError, refetch: refetchPreview } = useQuery<any>({
     queryKey: ['/api/bookings', booking.id, 'cancellation-preview'],
     queryFn: () => apiRequest('GET', `/api/bookings/${booking.id}/cancellation-preview`).then(r => r.json()),
     enabled: showCancel,
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () => apiRequest('POST', `/api/bookings/${booking.id}/cancel`, { reason: cancelReason }),
+    mutationFn: async () => (await apiRequest('POST', `/api/bookings/${booking.id}/cancel`, { reason: cancelReason,quoteToken:preview?.quoteToken })).json(),
     onSuccess: () => {
-      toast({ title: 'Booking Cancelled', description: preview?.charge > 0 ? `A charge of ₹${preview.charge} has been applied.` : 'No cancellation charges applied.' });
+      toast({ title: 'Withdrawal recorded', description: 'The booking remains open for another Guruji. Any charge is recorded only; no money is deducted.' });
       setShowCancel(false);
       queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji/cancellation-history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji/availability'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => {refetchPreview();toast({ title: 'Please review withdrawal details', description: e.message, variant: 'destructive' });},
   });
 
   const canCancel = booking.status === 'confirmed' || booking.status === 'in_progress';
@@ -1241,7 +1246,7 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
             )}
             {canCancel && (
               <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => setShowCancel(true)}>
-                <Ban className="h-3.5 w-3.5 mr-1" /> Cancel Booking
+                <Ban className="h-3.5 w-3.5 mr-1" /> Withdraw from Booking
               </Button>
             )}
             <BookingProgressActions booking={booking} />
@@ -1265,9 +1270,9 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" /> Cancel Booking #{booking.id}
+              <AlertTriangle className="h-5 w-5" /> Withdraw from Booking #{booking.id}
             </DialogTitle>
-            <DialogDescription>Please provide a reason. Cancellation charges may apply based on the Sanatan Guruji support team's policies.</DialogDescription>
+            <DialogDescription>You cannot close this booking. Withdrawal starts a replacement search and alerts the Sanatan Guruji support team.</DialogDescription>
           </DialogHeader>
 
           {/* Charge Preview */}
@@ -1278,9 +1283,10 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
           ) : preview && (
             <div className={`rounded-lg p-3 text-sm border ${preview.charge > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
               <p className="font-medium mb-1">
-                {preview.charge > 0 ? `⚠️ Charge: ₹${preview.charge}` : '✅ Free Cancellation'}
+                {preview.charge > 0 ? `Recorded withdrawal charge: ₹${preview.charge}` : 'No withdrawal charge'}
               </p>
               <p className="text-neutral-600">{preview.chargeDescription}</p>
+              <p className="text-xs text-neutral-600">{preview.paymentNotice}</p>
               {preview.hoursUntil !== undefined && (
                 <p className="text-neutral-500 mt-1 text-xs">
                   Booking is {preview.hoursUntil > 0 ? `${preview.hoursUntil} hours away` : 'in the past'}
@@ -1291,6 +1297,7 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
 
           <div className="space-y-2">
             <Label>Reason for cancellation *</Label>
+            {previewError && <Button variant="outline" onClick={()=>refetchPreview()}>Retry withdrawal policy</Button>}
             <Textarea
               value={cancelReason}
               onChange={e => setCancelReason(e.target.value)}
@@ -1303,11 +1310,11 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
             <Button variant="outline" onClick={() => setShowCancel(false)}>Keep Booking</Button>
             <Button
               variant="destructive"
-              disabled={cancelReason.trim().length < 5 || cancelMutation.isPending}
+              disabled={cancelReason.trim().length < 5 || cancelMutation.isPending || previewLoading || previewError || !preview?.canCancel}
               onClick={() => cancelMutation.mutate()}
             >
               {cancelMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Ban className="h-4 w-4 mr-2" />}
-              Confirm Cancellation
+              Confirm Withdrawal
             </Button>
           </DialogFooter>
         </DialogContent>

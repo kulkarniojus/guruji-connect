@@ -15,6 +15,7 @@ import BookingRatings from '@/components/admin/BookingRatings';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, UserCheck, Send, Search, Calendar, MapPin, User, IndianRupee, RefreshCw, AlertTriangle } from 'lucide-react';
 import { isUnassignedBooking } from '@shared/isUnassignedBooking';
+import BookingCancellationAdmin from './BookingCancellationAdmin';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -267,6 +268,7 @@ export default function BookingManagementTab({
                       <BookingRatings bookingId={booking.id} />
                       <BookingProgressActions booking={booking} />
                       <BookingCommunications booking={booking} />
+                      <BookingCancellationAdmin booking={booking} />
                       {['pending', 'pending_approval'].includes(booking.status) && (
                       <Button
                         size="sm"

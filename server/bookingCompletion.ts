@@ -146,6 +146,11 @@ export async function changeBookingCompletion(id: number, actor: CompletionActor
     }
     if (action === 'start') {
       if (booking.status !== 'confirmed') return await finish(409, { message: 'Only an accepted booking can be started' });
+      const cancellationPending = (await client.query(`SELECT id FROM booking_cancellation_events
+        WHERE booking_id=$1 AND kind='customer_request' AND status='pending'`,[id])).rows.length>0;
+      if (cancellationPending && actor.role!=='admin') return await finish(409,{
+        message:'The Sanatan Guruji support team must review the pending cancellation request before this puja starts.',
+      });
       const accepted = await client.query(
         `SELECT id FROM booking_requests WHERE "bookingId"=$1 AND "gurujiId"=$2 AND status='accepted' LIMIT 1`,
         [id, booking.gurujiId]);
