@@ -62,7 +62,9 @@ try {
         "createdAt","updatedAt",status,specialities,aadhar_verified,documents_verified)
        VALUES ($1,$2,$3,1,100,true,true,NOW(),NOW(),$4,$5,true,true) RETURNING id`,
       [account.id, label === 'wrong-location' ? `Elsewhere ${tag}` : city,
-        label === 'wrong-location' ? '900124' : '900123',
+        // A same-city specialist at another pincode must still be notified.
+        // A wrong-city specialist sharing the customer's pincode must not.
+        label === 'legacy' ? '900124' : '900123',
         label === 'unapproved' ? 'pending' : 'approved',
         label === 'linked' ? [] : [label === 'wrong-service' ? `Other service ${tag}` : puja.name]],
     );
@@ -98,6 +100,11 @@ try {
   for (const candidate of candidates) {
     const notices = (await store.getNotifications(candidate.id)).filter(n => n.type === 'booking_request');
     assert.equal(notices.length, ['linked', 'legacy'].includes(candidate.label) ? 1 : 0);
+    if (['linked','legacy'].includes(candidate.label)) {
+      const gurujiInbox=await api('/api/notifications','GET',undefined,await login(candidate));
+      assert.equal(gurujiInbox.status,200);
+      assert.ok(gurujiInbox.data.some((n:any)=>n.type==='booking_request' && n.isRead===false));
+    }
   }
   const expectedAdmins = (await pool.query(`SELECT id FROM users WHERE role='admin' AND "isBlocked"=false`)).rows.map(r => r.id).sort((a,b)=>a-b);
   const persisted = (await alerts(id)).rows;
@@ -149,10 +156,17 @@ try {
   const followupDate=new Date(Date.parse(`${date}T00:00:00Z`)+(Math.ceil(puja.duration/24)+1)*86400000).toISOString().slice(0,10);
   const followupPayload={...payload,calendarDate:followupDate,date:`${followupDate}T12:00:00Z`};
   await pool.query(`UPDATE guruji_profiles SET "isAvailable"=false WHERE id=$1`,[candidates.find(c=>c.label==='busy').profileId]);
+  const beforeSpecific=await Promise.all(candidates.slice(0,2).map(async(g)=>
+    (await store.getNotifications(g.id)).filter(n=>n.type==='booking_request').length));
   const specific=await api('/api/bookings','POST',{...followupPayload,gurujiId:candidates[0].profileId},customerCookie);
   assert.equal(specific.status,201,JSON.stringify(specific.data));bookings.push(specific.data.id);
   const specificRequests=await store.getBookingRequestsByBookingId(specific.data.id);
   assert.equal(specificRequests.length,1);
+  for (let index=0;index<2;index++) {
+    const inbox=await api('/api/notifications','GET',undefined,await login(candidates[index]));
+    assert.equal(inbox.status,200);
+    assert.equal(inbox.data.filter((n:any)=>n.type==='booking_request').length,beforeSpecific[index]+(index===0?1:0));
+  }
   const decline=await api(`/api/bookings/${specific.data.id}/respond`,'POST',{action:'reject',message:'QA unavailable for this request'},gurujiCookie);
   assert.equal(decline.status,200);
   const declinedBooking=await store.getBooking(specific.data.id);

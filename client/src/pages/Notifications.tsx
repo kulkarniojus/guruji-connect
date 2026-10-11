@@ -105,7 +105,8 @@ function NotificationsView({ mobile = false }: { mobile?: boolean }) {
 
   const { data: notifications = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ['/api/notifications'],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
   });
 
   const markReadMutation = useMutation({

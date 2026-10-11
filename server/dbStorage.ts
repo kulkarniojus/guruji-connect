@@ -636,18 +636,16 @@ export class DBStorage implements IStorage {
           WHERE gpu."gurujiId" = gp.id AND gpu."pujaId" = $${params.length}
         )
         OR EXISTS (
-          SELECT 1 FROM unnest(gp.specialities) s
-          WHERE s ~ '^[0-9]+$' AND s::int = $${params.length}
-        )
-        OR EXISTS (
-          SELECT 1 FROM pujas p
-          WHERE p.id = $${params.length} AND gp.specialities @> ARRAY[p.name]
+          SELECT 1 FROM pujas p JOIN unnest(gp.specialities) s
+            ON LOWER(TRIM(s)) = LOWER(p.name) OR TRIM(s) = p.id::text
+          WHERE p.id = $${params.length}
         )
       )`;
     }
 
-    if (pincode) {
-      // First try exact pincode match
+    if (pincode && !city.trim()) {
+      // Without a service city, only the exact pincode is safe to match.
+      // With a city, search ALL eligible Gurujis serving it below.
       params.push(pincode);
       const exactResult = await pool.query(
         `SELECT gp.* FROM guruji_profiles gp
@@ -668,9 +666,9 @@ export class DBStorage implements IStorage {
       params.pop();
     }
 
-    // Fallback: match by city name (primary city field, service cities array, or address)
+    // A pincode match must not cut off other eligible Gurujis in the service city.
     if (!city.trim()) return [];
-    params.push(`%${city.trim().replace(/-/g, ' ')}%`);
+    params.push(city.trim().toLowerCase().replace(/[\s_-]+/g, ' '));
     const cityResult = await pool.query(
       `SELECT gp.* FROM guruji_profiles gp
        JOIN users u ON gp."userId" = u.id
@@ -678,10 +676,10 @@ export class DBStorage implements IStorage {
           AND gp.status = 'approved'
          AND u."isBlocked" = false
          AND (
-            LOWER(REPLACE(gp.city, '-', ' ')) LIKE LOWER($${params.length})
-            OR LOWER(REPLACE(gp.address, '-', ' ')) LIKE LOWER($${params.length})
+            REGEXP_REPLACE(LOWER(TRIM(gp.city)), '[[:space:]_-]+', ' ', 'g') = $${params.length}
            OR EXISTS (
-              SELECT 1 FROM unnest(gp.cities) c WHERE LOWER(REPLACE(c, '-', ' ')) LIKE LOWER($${params.length})
+              SELECT 1 FROM unnest(gp.cities) c
+              WHERE REGEXP_REPLACE(LOWER(TRIM(c)), '[[:space:]_-]+', ' ', 'g') = $${params.length}
            )
          )
          ${pujaFilter}

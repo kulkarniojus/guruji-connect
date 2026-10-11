@@ -23,9 +23,17 @@ export async function sendBookingRequests(req: Request, res: Response) {
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
+    if (booking.customerId !== req.session.userId) {
+      return res.status(403).json({ message: 'This booking belongs to another customer' });
+    }
     
     if (booking.status !== 'pending') {
       return res.status(400).json({ message: `Booking is already in ${booking.status} state` });
+    }
+    const review=await pool.query(`SELECT id FROM booking_cancellation_events WHERE booking_id=$1
+      AND (kind='admin_reassignment' OR (kind='customer_request' AND status='pending')) LIMIT 1`,[booking.id]);
+    if(review.rows.length) {
+      return res.status(409).json({message:'The Sanatan Guruji support team is managing this request. Contact the support team before restarting the search.'});
     }
 
     const nearbyGurujis = await db.getNearbyGurujis(
@@ -35,10 +43,16 @@ export async function sendBookingRequests(req: Request, res: Response) {
       (booking as any).pincode
     );
     
-    const verifiedGurujis = nearbyGurujis.filter(g => g.aadharVerified && g.documentsVerified);
+    const busy = await getBusyGurujiIds(
+      nearbyGurujis.map(g=>g.id),new Date(booking.date).toISOString().slice(0,10),
+      (booking as typeof booking & { time: string }).time,booking.duration ?? 0,
+    );
+    const existing = new Set((await db.getBookingRequestsByBookingId(booking.id)).map(r=>r.gurujiId));
+    const verifiedGurujis = nearbyGurujis.filter(g =>
+      g.aadharVerified && g.documentsVerified && !busy.has(g.id) && !existing.has(g.id));
     
     if (verifiedGurujis.length === 0) {
-      return res.status(404).json({ message: "No verified gurujis found in this area" });
+      return res.status(404).json({ message: "No additional eligible Guruji is available at the selected date and time" });
     }
 
     await db.updateBookingStatus(booking.id, 'pending_approval');

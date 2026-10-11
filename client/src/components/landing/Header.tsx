@@ -26,7 +26,8 @@ interface CurrentUser {
 function NotificationBell({ userId }: { userId: number }) {
   const { data: notifications = [] } = useQuery<any[]>({
     queryKey: ['/api/notifications'],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
   });
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
   return (
