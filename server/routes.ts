@@ -15,6 +15,7 @@ import { publicPricingRouter, adminPricingRouter, adminPujaPriceRouter } from '.
 import { initializeOurServices, servicesRouter, adminServicesRouter } from './ourServices';
 import { gurujiFirstName } from '../shared/gurujiDisplayName';
 import { addressesRouter } from './routes/addresses';
+import { participantNotification } from './supportTeamNotifications';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -728,7 +729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storageInstance.updateBookingStatus(bookingId, 'pending_approval');
       await storageInstance.createNotification({
         userId: guruji.userId,
-        title: 'Booking Request from Admin',
+        title: 'Booking Request from Sanatan Guruji Support Team',
         message: `Please accept or decline booking #${bookingId}.`,
         type: 'booking_request',
       });
@@ -1632,7 +1633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (status === 'completed') {
-        return res.status(409).json({ message: 'Completion requires the customer OTP. Admins must use the manual completion override with a reason.' });
+        return res.status(409).json({ message: 'Completion requires the customer OTP. The Sanatan Guruji support team can manually complete a booking with a recorded reason.' });
       }
       const result = await changeBookingCompletion(parseInt(id), { id: userId, role: userRole }, 'start');
       if (result.status !== 200) return res.status(result.status).json(result.body);
@@ -1680,9 +1681,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.session.userId as number;
-      const notifications = await storageInstance.getNotifications(userId);
+      const [notifications, user] = await Promise.all([
+        storageInstance.getNotifications(userId),
+        storageInstance.getUser(userId),
+      ]);
       
-      res.json(notifications);
+      res.json(notifications.map(notification => participantNotification(notification, user?.role)));
     } catch (error) {
       console.error("Error fetching notifications:", error);
       res.status(500).json({ message: "Failed to fetch notifications" });
@@ -2663,7 +2667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         await storageInstance.createNotification({
           userId: q.customer_id,
-          title: 'Admin replied to your query',
+          title: 'Sanatan Guruji support team replied to your query',
           message: `Reply on booking #${q.booking_id}: ${String(reply).slice(0, 80)}`,
           type: 'query_reply',
         });
@@ -2930,7 +2934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storageInstance.createNotification({
           userId: booking.customerId,
           title: 'Searching for a Guruji',
-          message: `No eligible Guruji is currently available for your puja in ${city}. The admin has been alerted to help with your unassigned request.`,
+          message: `No eligible Guruji is currently available for your puja in ${city}. The Sanatan Guruji support team has been alerted to help with your unassigned request.`,
           type: 'booking_update',
         });
       }

@@ -15,3 +15,4 @@
 - [Customer booking controls](customer-booking-controls.md) — customer-only temporary samagri lock, Google address selection, mandatory pincode and first-name Guruji display with ratings.
 - [Real accounts and availability](real-account-availability-policy.md) — all registration channels retain profile details; genuine logins and own availability apply without changing booking selections.
 - [Auth query observers](auth-query-observers.md) — preserve the active auth query when switching identity; clearing the cache can leave protected screens stuck at login.
+- [Support-team wording](support-team-wording.md) — customer/Guruji references to admin must say Sanatan Guruji support team; internal roles and permissions stay unchanged.

@@ -146,9 +146,9 @@ export default function BookingCompletionControls({ booking }: { booking: { id: 
             ) : (
               <div className="mt-1 text-sm text-violet-900">
                 {status === 'completed' ? (
-                  <p className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" />{data?.completionMethod === 'admin_override' ? 'Completed by admin override.' : data?.completionMethod === 'admin_shared_otp' ? 'Completed using an admin-shared OTP. Customer confirmation was bypassed.' : data?.completionMethod === 'customer_otp' ? 'Completed using the customer OTP.' : 'Completed. The completion method was not recorded for this booking.'}</p>
+                  <p className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" />{data?.completionMethod === 'admin_override' ? 'Manually completed by the Sanatan Guruji support team.' : data?.completionMethod === 'admin_shared_otp' ? 'Completed using an OTP shared by the Sanatan Guruji support team. Customer confirmation was bypassed.' : data?.completionMethod === 'customer_otp' ? 'Completed using the customer OTP.' : 'Completed. The completion method was not recorded for this booking.'}</p>
                 ) : data?.verifiedAt ? (
-                  <p className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" />{data?.completionMethod === 'admin_shared_otp' ? 'Admin-shared code verified. Customer confirmation was bypassed.' : 'Customer code verified. Completion is recorded.'}</p>
+                  <p className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" />{data?.completionMethod === 'admin_shared_otp' ? 'Code shared by the Sanatan Guruji support team verified. Customer confirmation was bypassed.' : 'Customer code verified. Completion is recorded.'}</p>
                 ) : locked ? (
                   <p role="status">Code entry is locked after five unsuccessful attempts. Ask an admin for help.</p>
                 ) : customerHasCode ? (
@@ -159,8 +159,8 @@ export default function BookingCompletionControls({ booking }: { booking: { id: 
                   </div>
                 ) : gurujiHasAdminSharedCode ? (
                   <div className="space-y-1 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-950">
-                    <p className="font-semibold">Completion code shared by an admin</p>
-                    <p className="font-mono text-2xl font-bold tracking-[0.3em]" aria-label="Admin-shared completion code">{data?.otp}</p>
+                    <p className="font-semibold">Completion code shared by the Sanatan Guruji support team</p>
+                    <p className="font-mono text-2xl font-bold tracking-[0.3em]" aria-label="Completion code shared by the Sanatan Guruji support team">{data?.otp}</p>
                     <p className="text-xs font-medium">Customer confirmation was bypassed when this code was shared. Use it only to verify this booking. Valid until {dateLabel(data?.expiresAt)}.</p>
                   </div>
                 ) : data?.requestedAt && !codeExpired ? (

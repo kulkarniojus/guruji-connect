@@ -128,7 +128,7 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
       toast({
         title: 'Application Submitted!',
         description: isSalesRep
-          ? 'The Guruji has been registered and their application is pending admin review.'
+          ? 'The Guruji has been registered and their application is pending review by the Sanatan Guruji support team.'
           : 'Your Guruji application has been submitted for review. You will be notified once approved.',
       });
       form.reset();
@@ -190,7 +190,7 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
         <CardDescription>
           {isSalesRep
             ? 'Register a new spiritual guide on their behalf. They will receive login credentials via their mobile number.'
-            : 'Join our platform as a spiritual guide. Your application will be reviewed by our admin team.'}
+            : 'Join our platform as a spiritual guide. Your application will be reviewed by the Sanatan Guruji support team.'}
         </CardDescription>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
           <div className="flex items-start gap-2">

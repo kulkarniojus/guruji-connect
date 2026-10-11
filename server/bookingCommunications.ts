@@ -86,7 +86,7 @@ export async function sendBookingCommunication(id: number, adminId: number, inpu
     let summary = message;
     if (input.kind === 'address') {
       if (!booking.address?.trim()) return await finish(409, { message: 'This booking has no exact address to send.' });
-      message = `Booking #${id} exact address: ${[booking.address, booking.city, booking.state, booking.pincode].filter(Boolean).join(', ')}. Shared by admin.`;
+      message = `Booking #${id} exact address: ${[booking.address, booking.city, booking.state, booking.pincode].filter(Boolean).join(', ')}. Shared by the Sanatan Guruji support team.`;
       summary = message;
     } else if (input.kind === 'otp') {
       const challenge = (await client.query('SELECT * FROM booking_completion_challenges WHERE booking_id=$1 FOR UPDATE', [id])).rows[0];
@@ -94,7 +94,7 @@ export async function sendBookingCommunication(id: number, adminId: number, inpu
       // Keep the code encrypted in challenge storage. The notification directs each
       // authorized recipient to its live, expiring code in the booking screen.
       const expiry = new Date(challenge.expires_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-      message = `Admin shared your completion OTP for booking #${id}. Open the booking details to view it. Share or use it only after the ceremony has finished. Valid until ${expiry} IST.`;
+      message = `The Sanatan Guruji support team shared your completion OTP for booking #${id}. Open the booking details to view it. Share or use it only after the ceremony has finished. Valid until ${expiry} IST.`;
       summary = 'Completion OTP access sent; the code is not stored in the audit history.';
       if (recipients.some(r => r.role === 'guruji')) {
         await client.query('UPDATE booking_completion_challenges SET admin_shared_with_guruji_at=NOW() WHERE booking_id=$1', [id]);

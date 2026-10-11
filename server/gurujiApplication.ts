@@ -105,7 +105,7 @@ export async function submitGurujiApplication(req: Request, res: Response) {
         type:'guruji_application',isRead:false,
       } as any)));
     } catch {console.error('Unable to notify admins about the submitted Guruji application');}
-    res.status(201).json({message: 'Guruji application submitted for admin approval', profile, user: safeUser});
+    res.status(201).json({message: 'Guruji application submitted for approval by the Sanatan Guruji support team', profile, user: safeUser});
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     if ((error as any)?.code === '23505') return res.status(409).json({message: 'Email or mobile already registered'});

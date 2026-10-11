@@ -200,7 +200,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
           await db.createNotification({
             userId: customer.id,
             title: 'Booking Update',
-            message: 'The requested Gurujis could not accept your puja. Your booking remains open and the admin has been alerted to help arrange another Guruji.',
+            message: 'The requested Gurujis could not accept your puja. Your booking remains open and the Sanatan Guruji support team has been alerted to help arrange another Guruji.',
             type: 'booking_update',
           });
         }

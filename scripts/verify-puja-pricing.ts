@@ -241,7 +241,8 @@ try {
   console.log('PASS: real Book Puja/catalogue entry URLs retain address/pincode, both Guruji modes and review, with pricing added separately');
   await navigate(customer.cookie,`/booking/${booking.body.id}`,`document.body.innerText.includes('Price at booking')`);
   assert.ok(await browser.evaluate(`document.body.innerText.includes('5,000') && document.body.innerText.includes('within 12 hours')`));
-  console.log('PASS: signed-in admin Pujas controls load and customer booking detail displays the saved price breakdown and explanation');
+  assert.ok(await browser.evaluate(`document.body.innerText.includes('Queries to Sanatan Guruji Support Team') && !!document.querySelector('textarea[aria-label="Message to the Sanatan Guruji support team"]') && !!document.querySelector('button[aria-label="Send message to the Sanatan Guruji support team"]')`),'customer queries and messages address the support team');
+  console.log('PASS: signed-in admin Pujas controls load and customer booking detail displays saved pricing and support-team queries');
   const bookingPath = `/booking?puja=${pujaId}`;
   const draft = {returnTo:bookingPath,activeStep:2,bookingType:'puja',consultationType:'own_guruji',gurujiSelectionMode:'specific',
     selectedPujaId:'',selectedDate:when.calendarDate,selectedTime:when.time,selectedCity:'Pune',address:tag,
