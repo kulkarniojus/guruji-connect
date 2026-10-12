@@ -3,8 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PujaManagement from './PujaManagement';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Package2, Presentation, Settings, SlidersHorizontal } from 'lucide-react';
+import { Coins, Package2, Presentation, Settings, SlidersHorizontal } from 'lucide-react';
 import PricingManagement from './PricingManagement';
+import CommissionSettings from './CommissionSettings';
 
 export default function PujaManagementTab() {
   return (
@@ -28,6 +29,10 @@ export default function PujaManagementTab() {
                   <SlidersHorizontal className="h-4 w-4 mr-2" />
                   Pricing &amp; Rules
                 </TabsTrigger>
+                <TabsTrigger value="commission" className="flex items-center">
+                  <Coins className="h-4 w-4 mr-2" />
+                  Commission
+                </TabsTrigger>
                 <TabsTrigger value="templates" className="flex items-center">
                   <Presentation className="h-4 w-4 mr-2" />
                   Templates
@@ -48,6 +53,14 @@ export default function PujaManagementTab() {
 
               <TabsContent value="pricing">
                 <PricingManagement />
+              </TabsContent>
+
+              <TabsContent value="commission">
+                <ScrollArea className="h-[65vh]">
+                  <div className="pr-4">
+                    <CommissionSettings />
+                  </div>
+                </ScrollArea>
               </TabsContent>
 
               <TabsContent value="templates">

@@ -11,6 +11,8 @@ import { bookingCompletionRouter } from './routes/booking-completion';
 import { initializeBookingCommunications } from './bookingCommunications';
 import { bookingCommunicationsRouter } from './routes/booking-communications';
 import { initializePujaPricing, getPricingQuote, pricingQuotePayload, validatePujaPriceRules } from './pujaPricing';
+import { initializePujaCommissions } from './pujaCommission';
+import { commissionsRouter } from './routes/commissions';
 import { publicPricingRouter, adminPricingRouter, adminPujaPriceRouter } from './routes/puja-pricing';
 import { initializeOurServices, servicesRouter, adminServicesRouter } from './ourServices';
 import { gurujiFirstName } from '../shared/gurujiDisplayName';
@@ -256,6 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeBookingCommunications();
   await initializeCancellations();
   await initializePujaPricing();
+  await initializePujaCommissions();
   await initializeOurServices();
   await disableSampleAccounts();
   await initializeGurujiAvailability();
@@ -1391,6 +1394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     return bookings.map(b => ({
       ...b,
+      ...(customerView ? {commissionSnapshot:undefined} : {}),
       pujaName: pujaMap.get(b.pujaId) || null,
       gurujiName: b.gurujiId ? (gurujiUserMap.get(b.gurujiId) || null) : null,
     }));
@@ -1526,7 +1530,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await notifyGurujisPujaRequest(booking, bookingData.city || '');
       }
 
-      res.status(201).json(booking);
+      if(!booking) throw new Error('Booking was not saved');
+      const {commissionSnapshot: _internalCommission, ...customerBooking}=booking;
+      res.status(201).json(customerBooking);
     } catch (error) {
       console.error("Error creating booking:", error);
       if (error instanceof ZodError) {
@@ -2346,6 +2352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Shared policy for customer requests, Guruji withdrawal, and admin decisions.
   app.use(cancellationsRouter);
+  app.use(commissionsRouter);
 
   // ── Booking Queries (customer ↔ admin messages per booking) ─────────────
 

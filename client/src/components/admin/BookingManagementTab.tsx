@@ -16,6 +16,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Loader2, UserCheck, Send, Search, Calendar, MapPin, User, IndianRupee, RefreshCw, AlertTriangle } from 'lucide-react';
 import { isUnassignedBooking } from '@shared/isUnassignedBooking';
 import BookingCancellationAdmin from './BookingCancellationAdmin';
+import BookingCommissionBreakdown from './BookingCommissionBreakdown';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -298,6 +299,7 @@ export default function BookingManagementTab({
                       )}
                     </div>
                   </div>
+                  <BookingCommissionBreakdown snapshot={booking.commissionSnapshot??null} className="mt-3" />
                 </CardContent>
               </Card>
             ))}

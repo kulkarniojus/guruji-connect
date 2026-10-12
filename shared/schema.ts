@@ -1,5 +1,6 @@
 import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, jsonb, primaryKey, numeric } from "drizzle-orm/pg-core";
 import type { PricingQuote } from './pujaPricing';
+import type { CommissionSnapshot } from './pujaCommission';
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -161,6 +162,7 @@ export const bookings = pgTable("bookings", {
   duration: integer("duration").notNull(), // in minutes
   isImmediate: boolean("is_immediate").default(false),
   pricingSnapshot: jsonb("pricing_snapshot").$type<PricingQuote>(),
+  commissionSnapshot: jsonb("commission_snapshot").$type<CommissionSnapshot>(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

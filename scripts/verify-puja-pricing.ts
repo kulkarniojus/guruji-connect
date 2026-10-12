@@ -204,6 +204,7 @@ try {
   for (const entry of [`/booking?type=puja&pujaId=${pujaId}`,`/booking?pujaId=${pujaId}`,`/booking?puja=${pujaId}`]) {
     await browser.evaluate(`sessionStorage.removeItem('guruji-booking-registration-draft')`);
     await navigate(customer.cookie,entry,`document.body.innerText.includes('Change Selection') && document.body.innerText.includes(${JSON.stringify(tag)})`);
+    await browser.wait(`Array.from(document.querySelectorAll('del[aria-label="Base price"]')).some(el=>el.textContent.includes('5,000')) && Array.from(document.querySelectorAll('[aria-label="Sale price"]')).some(el=>el.textContent.includes('3,000'))`,'loaded customer base and sale prices');
     assert.ok(await browser.evaluate(`Array.from(document.querySelectorAll('del[aria-label="Base price"]')).some(el=>el.textContent.includes('5,000')) && Array.from(document.querySelectorAll('[aria-label="Sale price"]')).some(el=>el.textContent.includes('3,000'))`),'customer sees struck-through base price and sale price');
     await clickText('button','Continue');
     await browser.wait(`!!document.querySelector('#address') && !!document.querySelector('#pincode') && !!document.querySelector('#city')`,'original city, address and pincode controls');
