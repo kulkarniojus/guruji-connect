@@ -2,8 +2,8 @@ import { pool } from './db';
 import type { IStorage } from './storage';
 import { isUnassignedBooking } from '../shared/isUnassignedBooking';
 
-export async function resolveUnassignedBookingAlerts(bookingId: number): Promise<void> {
-  await pool.query(
+export async function resolveUnassignedBookingAlerts(bookingId: number, db: Pick<typeof pool,'query'>=pool): Promise<void> {
+  await db.query(
     `UPDATE notifications SET "isRead" = true WHERE (type IN ('unassigned_booking','booking_declined')
       OR (type='guruji_withdrawal' AND "userId" IN (SELECT id FROM users WHERE role='admin'))) AND message LIKE $1`,
     [`Booking #${bookingId}: %`],

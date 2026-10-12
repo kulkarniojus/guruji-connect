@@ -142,7 +142,7 @@ try {
   console.log('PASS: actual admin overview warning opens a working unassigned-only list; assigned bookings excluded');
 
   const gurujiCookie = await login(candidates[0]);
-  assert.equal((await api(`/api/booking-requests/${requests.find((r:any)=>r.gurujiId===candidates[0].profileId).id}/respond`, 'POST', { response: 'accept' }, gurujiCookie)).status, 200);
+  assert.equal((await api(`/api/booking-requests/${requests.find((r:any)=>r.gurujiId===candidates[0].profileId).id}/respond`, 'POST', { response: 'accept', commissionAcknowledged:true }, gurujiCookie)).status, 200);
   assert.ok((await alerts(id)).rows.every(n => n.isRead));
   await browser.wait(`!document.body.innerText.includes('#${id}')`, 'accepted puja leaves live unassigned list');
   assert.equal((await api(`/api/admin/bookings/${id}/send-requests`, 'POST', {}, adminCookie)).status, 409);

@@ -14,3 +14,9 @@ Individual puja percentages override the default. Ordinary default changes prese
 **Why:** The user needs both all-puja configuration and individual control. A routine default change must not silently erase individual configuration.
 
 **How to apply:** New bookings retain a commission snapshot that later configuration changes must not rewrite. Do not invent a starting percentage from the user's 20%/30% examples, or backfill historical bookings using today's policy. Allocations are records, not proof of payment or payout.
+
+Guruji must see the saved commission payable to Sanatan Guruji and their remaining share before accepting, and explicitly acknowledge positive commission.
+
+**Why:** The user said Guruji was unaware of commission and asked for the commission obligation and expected share to be explained when accepting a puja.
+
+**How to apply:** Disclose the booking's saved percentage rather than hardcoding 20%; record the acknowledgement together with genuine acceptance. Unknown historical allocations must stay unknown, not be silently priced using current rules.

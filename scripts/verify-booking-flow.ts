@@ -179,8 +179,8 @@ try {
   const request = (await store.getBookingRequestsByBookingId(bookingId))[0];
   assert.equal((await api(`/api/bookings/${bookingId}/status`, 'PUT', { status: 'in_progress' }, customerCookie)).status, 403);
   assert.equal((await api(`/api/bookings/${bookingId}/status`, 'PUT', { status: 'in_progress' }, adminCookie)).status, 409);
-  assert.equal((await api(`/api/booking-requests/${request.id}/respond`, 'POST', { response: 'accept' }, outsiderCookie)).status, 403);
-  assert.equal((await api(`/api/booking-requests/${request.id}/respond`, 'POST', { response: 'accept' }, gurujiCookie)).status, 200);
+  assert.equal((await api(`/api/booking-requests/${request.id}/respond`, 'POST', { response: 'accept', commissionAcknowledged:true }, outsiderCookie)).status, 403);
+  assert.equal((await api(`/api/booking-requests/${request.id}/respond`, 'POST', { response: 'accept', commissionAcknowledged:true }, gurujiCookie)).status, 200);
   assert.equal((await api(`/api/bookings/${bookingId}/status`, 'PUT', { status: 'completed' }, gurujiCookie)).status, 409);
   for (const cookie of [customerCookie, gurujiCookie, adminCookie]) {
     const bookings = (await api('/api/bookings', 'GET', undefined, cookie)).data;
@@ -215,7 +215,7 @@ try {
   }, customerCookie);
   assert.equal(adminBooking.status, 201);
   const adminRequest = (await store.getBookingRequestsByBookingId(adminBooking.data.id))[0];
-  assert.equal((await api(`/api/booking-requests/${adminRequest.id}/respond`, 'POST', { response: 'accept' }, gurujiCookie)).status, 200);
+  assert.equal((await api(`/api/booking-requests/${adminRequest.id}/respond`, 'POST', { response: 'accept', commissionAcknowledged:true }, gurujiCookie)).status, 200);
   assert.equal((await api(`/api/bookings/${adminBooking.data.id}/status`, 'PUT', { status: 'in_progress' }, outsiderCookie)).status, 403);
   assert.equal((await api(`/api/bookings/${adminBooking.data.id}/status`, 'PUT', { status: 'in_progress' }, adminCookie)).status, 200);
   assert.equal((await api(`/api/bookings/${adminBooking.data.id}/status`, 'PUT', { status: 'completed' }, adminCookie)).status, 200);

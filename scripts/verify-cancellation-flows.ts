@@ -107,7 +107,7 @@ try {
       address:'Isolated cancellation verification address',gurujiId:gurus[0].profileId,withSamagri:false});
     assert.equal(result.status,201,JSON.stringify(result.data));bookings.push(result.data.id);
     const reqs=await store.getBookingRequestsByBookingId(result.data.id);
-    if(accept)assert.equal((await api(`/api/booking-requests/${reqs[0].id}/respond`,gurus[0].cookie,'POST',{response:'accept'})).status,200);
+    if(accept)assert.equal((await api(`/api/booking-requests/${reqs[0].id}/respond`,gurus[0].cookie,'POST',{response:'accept',commissionAcknowledged:true})).status,200);
     return {id:result.data.id,amount:Number(result.data.amount),requestId:reqs[0].id,...s};
   }
   const one=await book(8);
@@ -171,7 +171,7 @@ try {
   assert.ok((await api('/api/admin/cancellation-requests',admin.cookie)).data.some((e:any)=>e.id===event.id));
   assert.equal((await api(`/api/guruji/bookings/${three.id}/cancel`,gurus[0].cookie,'POST',{reason:'Duplicate withdrawal forbidden',quoteToken:event.quote.quoteToken})).status,403);
   const replacement=replacementRequests.find(r=>r.status==='pending');
-  assert.equal((await api(`/api/booking-requests/${replacement!.id}/respond`,gurus[1].cookie,'POST',{response:'accept'})).status,200);
+  assert.equal((await api(`/api/booking-requests/${replacement!.id}/respond`,gurus[1].cookie,'POST',{response:'accept',commissionAcknowledged:true})).status,200);
   assert.equal((await store.getBooking(three.id))?.gurujiId,gurus[1].profileId);
   assert.equal((await api(`/api/admin/bookings/${three.id}/cancellation-action`,admin.cookie,'POST',
     {action:'review_withdrawal',eventId:event.id,chargeOverride:0,reason:'Admin waives original Guruji fee'})).status,200);
@@ -236,7 +236,7 @@ try {
   await browser.wait(`document.body.innerText.includes('Cancellation request submitted')`,'customer request submitted');
   const pending=(await pool.query(`SELECT id FROM booking_cancellation_events WHERE booking_id=$1 AND status='pending'`,[four.id])).rows[0];
   assert.ok(pending);
-  assert.equal((await api(`/api/booking-requests/${four.requestId}/respond`,gurus[0].cookie,'POST',{response:'accept'})).status,409);
+  assert.equal((await api(`/api/booking-requests/${four.requestId}/respond`,gurus[0].cookie,'POST',{response:'accept',commissionAcknowledged:true})).status,409);
   await navigate(admin.cookie,'/admin-dashboard',`!!document.querySelector('[role="tab"][id$="-trigger-cancellation-rules"]')`);
   await click(`document.querySelector('[role="tab"][id$="-trigger-cancellation-rules"]')`);
   await browser.wait(`!!document.querySelector('[data-cancellation-event-id="${pending.id}"]')`,'admin request queue');

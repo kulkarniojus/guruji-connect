@@ -7,6 +7,7 @@ import { pool } from '../db';
 import { getBusyGurujiIds, parseBookingTime } from '../bookingSchedule';
 import { declineBookingRequest } from '../bookingDeclines';
 import { cancellationEndpoint } from './cancellations';
+import { resolveUnassignedBookingAlerts } from '../unassignedBookingAlerts';
 
 const db = new DBStorage();
 
@@ -93,9 +94,10 @@ export async function respondToBookingRequest(req: Request, res: Response) {
       id: z.string().refine((val) => !isNaN(parseInt(val)), { message: "ID must be a number" }),
     }).parse(req.params);
 
-    const { response, message } = z.object({
+    const { response, message, commissionAcknowledged } = z.object({
       response: z.enum(['accept', 'decline']),
       message: z.string().optional(),
+      commissionAcknowledged: z.boolean().optional(),
     }).parse(req.body);
 
     const requestId = parseInt(id);
@@ -142,6 +144,11 @@ export async function respondToBookingRequest(req: Request, res: Response) {
           await client.query('ROLLBACK');
           return res.status(409).json({ message: 'This booking request is no longer open' });
         }
+        const commission=latestBooking.commissionSnapshot;
+        if(commission && commission.percentage>0 && commissionAcknowledged!==true) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({message:'Please acknowledge the commission payable to Sanatan Guruji and your remaining share before accepting this booking.'});
+        }
         const puja = booking.pujaId ? await db.getPuja(booking.pujaId) : undefined;
         const date = new Date(booking.date).toISOString().slice(0, 10);
         const scheduledTime = (booking as any).time as string | undefined;
@@ -156,9 +163,19 @@ export async function respondToBookingRequest(req: Request, res: Response) {
           await client.query('ROLLBACK');
           return res.status(409).json({ message: 'You are already booked at this time' });
         }
-        await db.updateBookingRequestStatus(requestId, 'accepted', message);
-        await db.assignGurujiToBooking(booking.id, bookingRequest.gurujiId);
-        await db.updateBookingStatus(booking.id, 'confirmed');
+        // The acknowledgement and genuine acceptance are recorded atomically.
+        // Do not apply today's policy to a legacy booking or claim a payment.
+        await client.query(`UPDATE booking_requests SET status='accepted',message=$2,"updatedAt"=NOW(),
+          commission_acknowledged_at=CASE WHEN $3 THEN NOW() ELSE NULL END,
+          commission_acknowledgement=$4 WHERE id=$1`,
+          [requestId,message||null,commissionAcknowledged===true,commissionAcknowledged===true?{
+            snapshot:commission??null,acknowledgedByUserId:req.session.userId,
+            disclosure:commission?'Recorded commission payable to Sanatan Guruji and remaining Guruji share acknowledged':
+              'Commission not recorded; advised to confirm with Sanatan Guruji support team',
+          }:null]);
+        await client.query(`UPDATE bookings SET "gurujiId"=$2,status='confirmed',"updatedAt"=NOW() WHERE id=$1`,
+          [booking.id,bookingRequest.gurujiId]);
+        await resolveUnassignedBookingAlerts(booking.id,client);
         await client.query('COMMIT');
       } catch (error) {
         await client.query('ROLLBACK');
@@ -188,7 +205,9 @@ export async function respondToBookingRequest(req: Request, res: Response) {
         await db.createNotification({
           userId: guruji.userId,
           title: 'Booking Accepted',
-          message: `You have accepted booking #${booking.id} for ${booking.type === 'offline' ? 'in-person' : 'online'} puja in ${booking.city || 'your area'}. Please be ready on the scheduled date.`,
+          message: `You have accepted booking #${booking.id} for ${booking.type === 'offline' ? 'in-person' : 'online'} puja in ${booking.city || 'your area'}. Please be ready on the scheduled date.` +
+            (booking.commissionSnapshot ? ` Sanatan Guruji commission: ${booking.commissionSnapshot.percentage}% (₹${booking.commissionSnapshot.portalAmount.toLocaleString('en-IN')})${booking.commissionSnapshot.portalAmount>0?' payable to Sanatan Guruji':''}. Your remaining share: ₹${booking.commissionSnapshot.gurujiAmount.toLocaleString('en-IN')}. This records the allocation, not a payment.` :
+              ' Commission is not recorded for this booking. Please confirm your share with the Sanatan Guruji support team.'),
           type: 'booking_confirmed',
         });
       }

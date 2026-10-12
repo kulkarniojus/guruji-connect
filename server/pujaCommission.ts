@@ -17,6 +17,9 @@ export async function initializePujaCommissions() {
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
   await pool.query('ALTER TABLE bookings ADD COLUMN IF NOT EXISTS commission_snapshot JSONB');
+  await pool.query(`ALTER TABLE booking_requests
+    ADD COLUMN IF NOT EXISTS commission_acknowledged_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS commission_acknowledgement JSONB`);
 }
 
 export async function getBookingCommission(pujaId: number|null, finalBookingAmount: number): Promise<CommissionSnapshot> {

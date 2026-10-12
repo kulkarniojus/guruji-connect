@@ -25,6 +25,7 @@ import { CustomerRatingDialog } from '@/components/rating/RatingSystem';
 import { bookingStatusLabel, BOOKING_STATUS_LABELS as STATUS_LABEL } from '@shared/bookingLifecycle';
 import BookingProgressActions from '@/components/booking/BookingProgressActions';
 import BookingAddressVisibility from '@/components/booking/BookingAddressVisibility';
+import GurujiCommissionNotice from '@/components/booking/GurujiCommissionNotice';
 import GurujiAvailability from '@/components/dashboard/GurujiAvailability';
 
 function statusBadge(status: string) {
@@ -57,6 +58,8 @@ export default function GurujiDashboard() {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
   const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
+  const [acceptingRequest, setAcceptingRequest] = useState<any>(null);
+  const [commissionAcknowledged, setCommissionAcknowledged] = useState(false);
 
   // calendar state
   const now = new Date();
@@ -205,13 +208,19 @@ export default function GurujiDashboard() {
   const pendingRequests = bookingRequests.filter((r: any) => r.status === 'pending');
   const upcoming = myBookings.filter((b: any) => b.status === 'confirmed' || b.status === 'in_progress');
   const completed = myBookings.filter((b: any) => b.status === 'completed');
-  const totalEarnings = completed.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
+  const completedWithSavedShare = completed.filter((b: any) => b.commissionSnapshot);
+  const legacyCompletedCount = completed.length - completedWithSavedShare.length;
+  const recordedGurujiShare = completedWithSavedShare.reduce(
+    (sum: number, b: any) => sum + Number(b.commissionSnapshot.gurujiAmount || 0),
+    0,
+  );
 
   // Accept a booking request
   const acceptMutation = useMutation({
     mutationFn: async (requestId: number) => {
       const res = await apiRequest('POST', `/api/booking-requests/${requestId}/respond`, {
         response: 'accept',
+        commissionAcknowledged: true,
       });
       if (!res.ok) {
         const err = await res.json();
@@ -221,6 +230,8 @@ export default function GurujiDashboard() {
     },
     onSuccess: () => {
       toast({ title: 'Booking accepted!', description: 'The customer has been notified.' });
+      setAcceptingRequest(null);
+      setCommissionAcknowledged(false);
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
       queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
     },
@@ -228,6 +239,18 @@ export default function GurujiDashboard() {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     },
   });
+
+  const openAcceptConfirmation = (request: any) => {
+    acceptMutation.reset();
+    setCommissionAcknowledged(false);
+    setAcceptingRequest(request);
+  };
+  const closeAcceptConfirmation = () => {
+    if (acceptMutation.isPending) return;
+    setAcceptingRequest(null);
+    setCommissionAcknowledged(false);
+    acceptMutation.reset();
+  };
 
   // Decline a booking request
   const declineMutation = useMutation({
@@ -588,8 +611,11 @@ export default function GurujiDashboard() {
           <CardContent className="pt-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-neutral-500">Earnings</p>
-                <p className="text-3xl font-bold text-violet-600">₹{totalEarnings.toLocaleString('en-IN')}</p>
+                <p className="text-sm text-neutral-500">Recorded Guruji shares</p>
+                <p className="text-3xl font-bold text-violet-600">₹{recordedGurujiShare.toLocaleString('en-IN')}</p>
+                <p className="mt-1 max-w-[190px] text-xs leading-4 text-neutral-500">
+                  Saved share allocations, not payouts. {legacyCompletedCount} legacy {legacyCompletedCount === 1 ? 'booking' : 'bookings'} not included.
+                </p>
               </div>
               <div className="p-3 bg-violet-50 rounded-full">
                 <IndianRupee className="h-5 w-5 text-violet-500" />
@@ -688,13 +714,14 @@ export default function GurujiDashboard() {
                             </span>
                           )}
                         </div>
+                        <GurujiCommissionNotice snapshot={req.booking?.commissionSnapshot} className="mt-4" />
                       </div>
 
                       {/* Accept / Decline buttons */}
                       <div className="flex flex-col gap-2 min-w-[160px]">
                         <Button
                           className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => acceptMutation.mutate(req.id)}
+                          onClick={() => openAcceptConfirmation(req)}
                           disabled={acceptMutation.isPending}
                         >
                           {acceptMutation.isPending ? (
@@ -819,6 +846,7 @@ export default function GurujiDashboard() {
                           {req.booking?.date ? ` · ${formatDate(req.booking.date)}` : ''}
                           {req.booking?.city ? ` · ${req.booking.city}` : ''}
                         </p>
+                        <GurujiCommissionNotice snapshot={req.booking?.commissionSnapshot} className="mt-3 max-w-2xl" />
                       </div>
                       <div className="flex items-center gap-3">
                         {req.booking?.amount != null && (
@@ -933,6 +961,67 @@ export default function GurujiDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={!!acceptingRequest}
+        onOpenChange={(open) => {
+          if (!open) closeAcceptConfirmation();
+        }}
+      >
+        <DialogContent aria-describedby="accept-commission-description" className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Review the saved booking split</DialogTitle>
+            <DialogDescription id="accept-commission-description">
+              Confirm you understand this booking’s recorded customer total and commission/share before accepting.
+            </DialogDescription>
+          </DialogHeader>
+          {acceptingRequest && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-muted/50 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Request #{acceptingRequest.id}</p>
+                <p className="font-semibold">
+                  {acceptingRequest.puja?.name || acceptingRequest.booking?.type || 'Puja Service'}
+                </p>
+              </div>
+              <GurujiCommissionNotice snapshot={acceptingRequest.booking?.commissionSnapshot} />
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-950">
+                Accepting this request does not make a payment or transfer. Any commission payment arrangements are separate.
+              </div>
+              <div className="flex items-start gap-3 rounded-lg border p-4">
+                <input
+                  id="commission-acknowledgement"
+                  type="checkbox"
+                  checked={commissionAcknowledged}
+                  onChange={(event) => setCommissionAcknowledged(event.target.checked)}
+                  disabled={acceptMutation.isPending}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-neutral-400 accent-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+                />
+                <Label htmlFor="commission-acknowledgement" className="cursor-pointer text-sm leading-5">
+                  I have reviewed and acknowledge the commission and Guruji share information above, including if this booking has no saved record.
+                </Label>
+              </div>
+              {acceptMutation.isError && (
+                <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  {acceptMutation.error instanceof Error ? acceptMutation.error.message : 'The request could not be accepted. Please try again.'}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={closeAcceptConfirmation} disabled={acceptMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-green-700 text-white hover:bg-green-800"
+              onClick={() => acceptingRequest && commissionAcknowledged && acceptMutation.mutate(acceptingRequest.id)}
+              disabled={!acceptingRequest || !commissionAcknowledged || acceptMutation.isPending}
+            >
+              {acceptMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+              Confirm acceptance
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Customer Rating Dialog */}
       {selectedBookingForRating && (
@@ -1263,6 +1352,7 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
             )}
           </div>
         </div>
+        <GurujiCommissionNotice snapshot={booking.commissionSnapshot} className="mt-4" />
       </CardContent>
 
       {/* Cancel Dialog */}
