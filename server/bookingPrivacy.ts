@@ -75,6 +75,13 @@ export async function privateResponse(body: any, actor: { id?: number; role?: st
     const result: any = {};
     for (const [key, item] of Object.entries(value)) {
       const field = normalize(key);
+      // Server-generated SHA-256 quote identifiers are not display text.
+      // Redacting digit runs inside a digest invalidates the confirmation,
+      // even when the booking and cancellation charge have not changed.
+      if (field === 'quoteToken' && typeof item === 'string' && /^[a-f0-9]{64}$/.test(item)) {
+        result[key] = item;
+        continue;
+      }
       if (!isOwn && phoneField.test(field) && (typeof item === 'string' || typeof item === 'number')) continue;
       if (actor.role === 'guruji' && !isOwn &&
           (privateAddressFields.test(field) || (field === 'notes' && context && !context.visible))) {

@@ -20,3 +20,9 @@ Admin may explicitly send the exact address at any time, and send address, OTP, 
 **Why:** The user said “admin should b able to send anytime in app,, whatsapp, email” and permitted OTP sharing to “both”.
 
 **How to apply:** Audit releases and sends by booking and recipient. An admin address release is a deliberate exception to the automatic window, bound to its recipient. Sending the OTP to Guruji bypasses independent customer confirmation; disclose and record that distinction.
+
+Privacy redaction must distinguish free text from validated machine-readable confirmation identifiers.
+
+**Why:** Phone-pattern matching can accidentally match digit runs inside a SHA-256 quote token, causing repeated stale-quote rejections even when the booking and charges are unchanged.
+
+**How to apply:** Preserve only explicitly recognized token fields with the expected digest format. Keep phone-field removal, free-text phone masking and address visibility checks in place; do not exempt arbitrary strings or whole financial responses.
