@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { clearBookingDraft } from "@/components/booking/bookingDraft";
 import { useLocation } from "wouter";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,8 @@ export default function Hero() {
     }
 
     // Redirect to booking page with query params
+    // A new search is not a return from authentication for an old booking.
+    clearBookingDraft();
     setLocation(`/booking?${params.toString()}`);
   };
 

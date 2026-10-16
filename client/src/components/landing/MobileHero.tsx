@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { clearBookingDraft } from '@/components/booking/bookingDraft';
 import { useLocation } from 'wouter';
 import { CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,6 +78,8 @@ export default function MobileHero() {
     }
 
     // Redirect to booking page with query params
+    // Keep authentication returns resumable, but start explicit searches fresh.
+    clearBookingDraft();
     setLocation(`/booking?${params.toString()}`);
   };
 
