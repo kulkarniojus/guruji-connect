@@ -54,7 +54,7 @@ export default function CancellationRulesTab() {
   const [editRule, setEditRule] = useState<any>(null);
   const [form, setForm] = useState<any>(emptyForm);
 
-  const { data: rules = [], isLoading } = useQuery<any[]>({
+  const { data: rules = [], isLoading, isError, refetch } = useQuery<any[]>({
     queryKey: ['/api/admin/cancellation-rules'],
   });
   const {data:pujas=[]}=useQuery<any[]>({queryKey:['/api/pujas']});
@@ -128,6 +128,10 @@ export default function CancellationRulesTab() {
 
   const gurujiRules = rules.filter(r => r.user_type === 'guruji');
   const customerRules = rules.filter(r => r.user_type === 'customer');
+  const conflicts = form.isActive ? rules.filter(r => r.is_active && r.id !== editRule?.id &&
+    r.user_type === form.userType && (r.time_basis || 'at_least') === form.timeBasis &&
+    Number(r.hours_threshold) === Number(form.hoursThreshold) &&
+    (r.puja_id ?? null) === (form.pujaId ?? null)) : [];
 
   const RuleList = ({ rules: list, label, icon: Icon }: { rules: any[], label: string, icon: any }) => (
     <Card>
@@ -222,11 +226,12 @@ export default function CancellationRulesTab() {
           <RuleList rules={customerRules} label="Customer" icon={Users} />
         </div>
       )}
+      {isError && <p role="alert">Unable to load rules. <Button variant="outline" onClick={()=>void refetch()}>Retry</Button></p>}
       <CancellationRequests />
 
       {/* Add / Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editRule ? 'Edit Rule' : 'Add Cancellation Rule'}</DialogTitle>
           </DialogHeader>
@@ -236,7 +241,7 @@ export default function CancellationRulesTab() {
               <div>
                 <Label>Applies to *</Label>
                 <Select value={form.userType} onValueChange={v => setForm((f: any) => ({ ...f, userType: v }))}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger aria-label="Cancellation applies to" className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -280,6 +285,7 @@ export default function CancellationRulesTab() {
             <div>
               <Label>Rule Name *</Label>
               <Input
+                aria-label="Cancellation rule name"
                 className="mt-1"
                 value={form.name}
                 onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))}
@@ -291,7 +297,7 @@ export default function CancellationRulesTab() {
               <div>
                 <Label>Charge Type *</Label>
                 <Select value={form.chargeType} onValueChange={v => setForm((f: any) => ({ ...f, chargeType: v }))}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger aria-label="Cancellation charge type" className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -334,9 +340,20 @@ export default function CancellationRulesTab() {
             </div>
           </div>
 
+          {form.hoursThreshold !== '' && conflicts.length > 0 && (
+            <div role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm space-y-2">
+              <p>An active rule already uses this role, puja and hourly setting. Edit it instead, or explicitly deactivate it before saving this rule. Existing booking history is retained.</p>
+              {conflicts.map(rule=><div key={rule.id} className="flex flex-wrap items-center gap-2">
+                <span>{rule.name}</span>
+                <Button type="button" size="sm" variant="outline" onClick={()=>openEdit(rule)}>Edit existing rule</Button>
+                <Button type="button" size="sm" variant="outline" disabled={toggleMutation.isPending}
+                  onClick={()=>toggleMutation.mutate({id:rule.id,isActive:false})}>Deactivate conflicting rule</Button>
+              </div>)}
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saveMutation.isPending}>
+            <Button onClick={handleSave} disabled={saveMutation.isPending || (form.hoursThreshold !== '' && conflicts.length > 0)}>
               {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editRule ? 'Save Changes' : 'Create Rule'}
             </Button>

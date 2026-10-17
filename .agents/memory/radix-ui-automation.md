@@ -29,6 +29,6 @@ Radix Select validates items even when the dropdown is closed. Disabled loading 
 
 Set explicit desktop and phone viewports when verifying native controls, and use instant scrolling before measuring pointer coordinates.
 
-**Why:** The city dropdown worked on a fresh anonymous page but failed in an authenticated fixture at the default headless viewport; explicit desktop sizing resolved the discrepancy. Existing reminder panels make the authenticated layout different.
+**Why:** The city dropdown worked on a fresh anonymous page but failed in an authenticated fixture at the default headless viewport; explicit desktop sizing resolved the discrepancy. Existing reminder panels make the authenticated layout different. In long admin Select lists, DOM scrolling also left the target option outside the visible portal, while native keyboard selection worked.
 
-**How to apply:** Do not infer a broken dropdown solely from a failed centre-point click. Inspect the hit target and overlays, and verify at intended viewport sizes before changing production controls.
+**How to apply:** Do not infer a broken dropdown solely from a failed centre-point click. Inspect the hit target and overlays, and verify at intended viewport sizes before changing production controls. For long Select lists, open with a native pointer, then use Home/ArrowDown/Enter with focus checks to choose off-screen options. Wait for the listbox portal to unmount before continuing.

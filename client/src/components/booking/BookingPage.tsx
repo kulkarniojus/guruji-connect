@@ -48,7 +48,8 @@ export default function BookingPage() {
   const bookingUrl = window.location.pathname + window.location.search;
   const [savedDraft] = useState(() => readBookingDraft(bookingUrl));
   const initialType = normalizeBookingType(searchParams.get('type'));
-  const initialPujaId = searchParams.get('puja') || searchParams.get('pujaId') || '';
+  const [changingSelection, setChangingSelection] = useState(false);
+  const initialPujaId = changingSelection ? '' : searchParams.get('puja') || searchParams.get('pujaId') || '';
   const initialPujaName = searchParams.get('pujaName') || '';
   const initialCity = searchParams.get('city') || ''; // Will be auto-populated from user profile
   const initialDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : undefined;
@@ -476,10 +477,11 @@ export default function BookingPage() {
                       // Clear the initial selection to show all pujas
                       const url = new URL(window.location.href);
                       url.searchParams.delete('puja');
+                      url.searchParams.delete('pujaId');
                       url.searchParams.delete('pujaName');
-                      window.history.replaceState({}, '', url.toString());
+                      setChangingSelection(true);
                       setSelectedPujaId('');
-                      window.location.reload(); // Reload to reset initialPujaId
+                      setLocation(`${url.pathname}${url.search}${url.hash}`, { replace: true });
                     }}
                     className="text-primary hover:text-primary-700"
                   >

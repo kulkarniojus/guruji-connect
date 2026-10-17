@@ -19,3 +19,4 @@
 - [Cancellation controls](cancellation-controls.md) — hourly charges; Guruji withdrawal never closes bookings; admin decides cancellation and reassignment with frozen request quotes.
 - [Browser test isolation](browser-test-isolation.md) — separate debugging endpoints prevent concurrent signed-in suites from sharing pages and cookies.
 - [Puja commission policy](puja-commission-policy.md) — split the final booking total; individual overrides win, uniform resets are explicit, and existing allocations remain unchanged.
+- [Guruji finance policy](guruji-finance-policy.md) — portal collects an advance, Guruji collects the balance; monthly records post automatically without moving money or changing booking flows.

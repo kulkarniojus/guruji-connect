@@ -19,6 +19,9 @@ import { gurujiFirstName } from '../shared/gurujiDisplayName';
 import { addressesRouter } from './routes/addresses';
 import { participantNotification } from './supportTeamNotifications';
 import { initializeCancellations } from './cancellationPolicy';
+import { initializeGurujiFinance } from './gurujiFinanceStore';
+import { startGurujiFinanceScheduler } from './gurujiFinanceScheduler';
+import { gurujiFinanceRouter } from './routes/guruji-finance';
 import { cancellationsRouter } from './routes/cancellations';
 
 // Use database storage in production, memory storage for quick testing
@@ -259,6 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeCancellations();
   await initializePujaPricing();
   await initializePujaCommissions();
+  await initializeGurujiFinance();
   await initializeOurServices();
   await disableSampleAccounts();
   await initializeGurujiAvailability();
@@ -2353,6 +2357,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Shared policy for customer requests, Guruji withdrawal, and admin decisions.
   app.use(cancellationsRouter);
   app.use(commissionsRouter);
+  app.use(gurujiFinanceRouter);
+  startGurujiFinanceScheduler();
 
   // ── Booking Queries (customer ↔ admin messages per booking) ─────────────
 

@@ -22,6 +22,8 @@ import { Loader2, BarChart3, MessageCircle, Users, Calendar, Package2, UserCheck
 import { useLocation } from 'wouter';
 import { isUnassignedBooking } from '@shared/isUnassignedBooking';
 import { RatingsTab } from '@/components/dashboard/AdminDashboard';
+import GurujiFinanceTab from '@/components/admin/guruji-finance/GurujiFinanceTab';
+import { WalletCards } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
@@ -227,6 +229,10 @@ export default function AdminDashboard() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="guruji-finance" className="flex items-center gap-1.5">
+            <WalletCards className="h-4 w-4" />
+            Guruji Finance
+          </TabsTrigger>
           <TabsTrigger value="pujas" className="flex items-center gap-1.5">
             <Package2 className="h-4 w-4" />
             Pujas
@@ -301,6 +307,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="guruji-registrations">
           <GurujiRegistrationTab />
+        </TabsContent>
+
+        <TabsContent value="guruji-finance">
+          <GurujiFinanceTab />
         </TabsContent>
 
         <TabsContent value="cities">
