@@ -46,6 +46,7 @@ export default function BookingPage() {
   // Parse query parameters
   const searchParams = new URLSearchParams(window.location.search);
   const bookingUrl = window.location.pathname + window.location.search;
+  const [pujaSearch, setPujaSearch] = useState('');
   const [savedDraft] = useState(() => readBookingDraft(bookingUrl));
   const initialType = normalizeBookingType(searchParams.get('type'));
   const [changingSelection, setChangingSelection] = useState(false);
@@ -489,13 +490,20 @@ export default function BookingPage() {
                   </Button>
                 )}
               </div>
+              {!initialPujaId && <div className="mb-3">
+                <Input aria-label="Search pujas for booking" placeholder="Search pujas by name..." value={pujaSearch}
+                  onChange={e => setPujaSearch(e.target.value)} />
+              </div>}
+              {!isPujasLoading && !initialPujaId && !(pujas as any[]).some(p => p.name.toLowerCase().includes(pujaSearch.trim().toLowerCase())) &&
+                <p role="status" className="py-3 text-sm text-muted-foreground">No pujas match your search.</p>}
               {isPujasLoading ? (
                 <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  {(initialPujaId ? (pujas as any[])?.filter((puja: any) => puja.id.toString() === initialPujaId) : (pujas as any[]))?.map((puja: any) => (
+                  {(initialPujaId ? (pujas as any[])?.filter((puja: any) => puja.id.toString() === initialPujaId) :
+                    (pujas as any[]).filter(p => p.name.toLowerCase().includes(pujaSearch.trim().toLowerCase())))?.map((puja: any) => (
                     <div 
                       key={puja.id}
                       className={`border rounded-lg p-4 transition-colors ${

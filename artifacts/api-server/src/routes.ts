@@ -19,6 +19,8 @@ import { gurujiFirstName } from '@workspace/portal-shared/gurujiDisplayName';
 import { addressesRouter } from './routes/addresses';
 import { participantNotification } from './supportTeamNotifications';
 import { initializeCancellations } from './cancellationPolicy';
+import { initializeCustomerFinance } from './customerFinance';
+import { customerFinanceRouter } from './routes/customerFinance';
 import { initializeGurujiFinance } from './gurujiFinanceStore';
 import { startGurujiFinanceScheduler } from './gurujiFinanceScheduler';
 import { gurujiFinanceRouter } from './routes/guruji-finance';
@@ -263,6 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializePujaPricing();
   await initializePujaCommissions();
   await initializeGurujiFinance();
+  await initializeCustomerFinance();
   await initializeOurServices();
   await disableSampleAccounts();
   await initializeGurujiAvailability();
@@ -1262,7 +1265,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/pujas", async (req: Request, res: Response) => {
     try {
       const pujas = await storageInstance.getAllPujas();
-      res.json(pujas);
+      if (req.query.includeInactive === 'true') {
+        const user = req.session.userId
+          ? (await pool.query('SELECT role,"isBlocked" FROM users WHERE id=$1', [req.session.userId])).rows[0] : null;
+        if (!user || user.role !== 'admin' || user.isBlocked) return res.status(403).json({ message: 'Admin access required' });
+        return res.json(pujas);
+      }
+      res.json(pujas.filter(p => p.isActive !== false));
     } catch (error) {
       console.error("Error fetching pujas:", error);
       res.status(500).json({ message: "Failed to fetch pujas" });
@@ -1361,7 +1370,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const puja = await storageInstance.getPuja(parseInt(id));
       
-      if (!puja) {
+      if (!puja || (puja.isActive === false && !(req.session.userId &&
+        (await pool.query('SELECT id FROM users WHERE id=$1 AND role=$2 AND "isBlocked"=false',
+          [req.session.userId, 'admin'])).rows.length))) {
         return res.status(404).json({ message: "Puja not found" });
       }
       
@@ -1453,7 +1464,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'A valid booking date and time are required' });
       }
       const puja = await storageInstance.getPuja(bookingData.pujaId);
-      if (!puja || !Number.isInteger(puja.duration) || puja.duration < 0 || puja.duration > 1440) {
+      if (!puja || puja.isActive === false) {
+        return res.status(409).json({ message: 'This puja is no longer available. Please select an active puja.' });
+      }
+      if (!Number.isInteger(puja.duration) || puja.duration < 0 || puja.duration > 1440) {
         return res.status(400).json({ message: 'Puja duration is not configured' });
       }
       const date = new Date(`${dateKey}T12:00:00.000Z`);
@@ -1714,7 +1728,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const success = await storageInstance.markNotificationAsRead(parseInt(id));
+      const success = (await pool.query('UPDATE notifications SET "isRead"=true WHERE id=$1 AND "userId"=$2 RETURNING id',
+        [parseInt(id), req.session.userId])).rowCount;
       
       if (!success) {
         return res.status(404).json({ message: "Notification not found" });
@@ -1736,7 +1751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/notifications/read-all", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.session.userId as number;
-      await pool.query(`UPDATE notifications SET is_read = true WHERE user_id = $1`, [userId]);
+      await pool.query(`UPDATE notifications SET "isRead" = true WHERE "userId" = $1`, [userId]);
       res.json({ message: "All notifications marked as read" });
     } catch (error) {
       res.status(500).json({ message: "Failed to mark all notifications as read" });
@@ -1747,7 +1762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const userId = req.session.userId as number;
-      await pool.query(`DELETE FROM notifications WHERE id = $1 AND user_id = $2`, [id, userId]);
+      await pool.query(`DELETE FROM notifications WHERE id = $1 AND "userId" = $2`, [id, userId]);
       res.json({ message: "Notification deleted" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete notification" });
@@ -2356,6 +2371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Shared policy for customer requests, Guruji withdrawal, and admin decisions.
   app.use(cancellationsRouter);
+  app.use(customerFinanceRouter);
   app.use(commissionsRouter);
   app.use(gurujiFinanceRouter);
   startGurujiFinanceScheduler();

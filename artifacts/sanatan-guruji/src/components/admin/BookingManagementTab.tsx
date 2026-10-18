@@ -245,7 +245,10 @@ export default function BookingManagementTab({
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Calendar className="h-3.5 w-3.5 shrink-0" />
-                          <span>{booking.date ? new Date(booking.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date TBD'}</span>
+                          <span>Puja: {booking.date ? new Date(booking.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date TBD'} · {booking.time || 'Time TBD'}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Booked / transaction: {booking.createdAt ? new Date(booking.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : 'Not recorded'} IST
                         </div>
                         <div className="flex items-center gap-1.5">
                           <MapPin className="h-3.5 w-3.5 shrink-0" />
@@ -321,6 +324,8 @@ export default function BookingManagementTab({
                 <div><span className="text-muted-foreground">Customer:</span> {selectedBooking.customerName}</div>
                 <div><span className="text-muted-foreground">City:</span> {selectedBooking.city || 'Not set'}</div>
                 <div><span className="text-muted-foreground">Date:</span> {selectedBooking.date ? new Date(selectedBooking.date).toLocaleDateString('en-IN') : 'TBD'}</div>
+                <div><span className="text-muted-foreground">Puja time:</span> {selectedBooking.time || 'TBD'}</div>
+                <div><span className="text-muted-foreground">Booked / transaction (IST):</span> {selectedBooking.createdAt ? new Date(selectedBooking.createdAt).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) : 'Not recorded'}</div>
               </div>
 
               <div className="space-y-2">

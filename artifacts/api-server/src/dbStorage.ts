@@ -58,8 +58,11 @@ export class DBStorage implements IStorage {
     if (!mobile) return undefined;
     
     const result = await pool.query(
-      `SELECT * FROM users WHERE mobile = $1`,
-      [mobile]
+      `SELECT * FROM users WHERE mobile = $1 OR
+        (length(regexp_replace(COALESCE(mobile,''),'[^0-9]','','g'))>=10
+          AND right(regexp_replace(mobile,'[^0-9]','','g'),10)=$2)
+        ORDER BY (mobile=$1) DESC,id LIMIT 1`,
+      [mobile, mobile.replace(/\D/g, '').slice(-10)]
     );
     
     if (result.rows.length === 0) return undefined;

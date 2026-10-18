@@ -86,6 +86,9 @@ gurujiFinanceRouter.post(`${root}/receipts/:id/void`,endpoint(async(req,res,acto
     const old=(await client.query('SELECT * FROM guruji_finance_receipts WHERE id=$1',[id])).rows[0];
     if(!old)throw financeError(404,'Receipt not found');
     await client.query('SELECT pg_advisory_xact_lock(8158,$1)',[old.booking_id]);
+    if ((await client.query(`SELECT id FROM customer_finance_entries WHERE booking_id=$1 AND type='refund' LIMIT 1`,
+      [old.booking_id])).rows.length)
+      throw financeError(409,'This booking has a recorded paid refund. Its source receipt cannot be voided without an audited refund correction.');
     const changed=await client.query('UPDATE guruji_finance_receipts SET voided_at=NOW(),voided_by=$2,void_reason=$3 WHERE id=$1 AND voided_at IS NULL RETURNING id',[id,actor,reason]);
     if(!changed.rows.length)throw financeError(409,'Receipt was already voided');
   });

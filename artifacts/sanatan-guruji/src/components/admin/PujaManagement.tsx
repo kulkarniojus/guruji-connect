@@ -101,7 +101,8 @@ export default function PujaManagement() {
     isLoading: isApiLoading, 
     error: apiError 
   } = useQuery<Puja[]>({
-    queryKey: ['/api/pujas'],
+    queryKey: ['/api/pujas', 'admin-catalog'],
+    queryFn: async () => (await apiRequest('GET', '/api/pujas?includeInactive=true')).json(),
   });
 
   const pujas = apiPujas ?? [];

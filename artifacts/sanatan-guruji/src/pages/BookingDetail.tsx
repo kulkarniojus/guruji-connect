@@ -107,8 +107,8 @@ export default function BookingDetail() {
       const r = await apiRequest('POST', `/api/bookings/${id}/cancel`, { reason: cancelReason, quoteToken:cancelPreview?.quoteToken });
       return r.json();
     },
-    onSuccess: () => {
-      toast({ title: 'Cancellation request submitted', description: 'The Sanatan Guruji support team will review it. Your booking stays open until approved.' });
+    onSuccess: (result: any) => {
+      toast({ title: 'Booking cancelled', description: result.message || 'Your booking is cancelled. Any refund owed will be paid manually by the Sanatan Guruji support team.' });
       setShowCancel(false);
       setCancelReason('');
       queryClient.invalidateQueries({ queryKey: [`/api/bookings/${id}`] });
@@ -347,7 +347,7 @@ export default function BookingDetail() {
               )}
               {canCancel && (
                 <Button variant="destructive" onClick={() => setShowCancel(true)} className="gap-2">
-                  <XCircle className="h-4 w-4" /> Request Cancellation
+                  <XCircle className="h-4 w-4" /> Cancel Booking
                 </Button>
               )}
               {canRate && (
@@ -438,12 +438,12 @@ export default function BookingDetail() {
       <Dialog open={showCancel} onOpenChange={setShowCancel}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Request booking cancellation?</DialogTitle>
+            <DialogTitle>Cancel booking now?</DialogTitle>
             <DialogDescription>
               {cancelPreview ? (
                 cancelPreview.charge > 0 ? (
                   <span>
-                    Proposed cancellation charge: <strong className="text-red-600">₹{cancelPreview.charge}</strong>
+                    Policy cancellation charge: <strong className="text-red-600">₹{cancelPreview.charge}</strong>
                     {cancelPreview.rule?.description && ` (${cancelPreview.rule.description})`}.
                   </span>
                 ) : (
@@ -458,12 +458,19 @@ export default function BookingDetail() {
             <p>{cancelPreview.outcome}</p><p>{cancelPreview.paymentNotice}</p>
             <p>{cancelPreview.chargeDescription}</p>
             {cancelPreview.rule && <p>Rule: {cancelPreview.rule.name} · {cancelPreview.rule.time_basis==='within' ? 'within' : 'at least'} {cancelPreview.rule.hours_threshold} hours before puja.</p>}
-            {cancelPreview.pendingRequestId && <p role="status">Your existing cancellation request is awaiting support-team approval.</p>}
+            {cancelPreview.customerFunds && <div className="space-y-1 border-t pt-2">
+              <p>Actual recorded payment: ₹{cancelPreview.customerFunds.recordedPaid}</p>
+              <p>Retained under policy (limited to payment): ₹{cancelPreview.customerFunds.retainedCharge}</p>
+              <p>Additional charges / credits: ₹{cancelPreview.customerFunds.adjustments}</p>
+              <p className="font-semibold">Manual refund owed: ₹{cancelPreview.customerFunds.refundOwed}</p>
+              <p>Already refunded: ₹{cancelPreview.customerFunds.refunded}</p>
+            </div>}
+            {cancelPreview.pendingRequestId && <p role="status">Your older pending request will be replaced by immediate cancellation at its saved policy charge.</p>}
             {!cancelPreview.canCancel && !cancelPreview.pendingRequestId && <p>Contact the Sanatan Guruji support team to discuss this booking.</p>}
           </div>}
           {cancelPreviewError && <Button variant="outline" onClick={()=>refetchCancelPreview()}>Retry policy</Button>}
           <Textarea
-            aria-label="Cancellation request reason"
+            aria-label="Cancellation reason"
             value={cancelReason}
             onChange={e => setCancelReason(e.target.value)}
             placeholder="Reason for cancellation (at least 5 characters)"
@@ -477,7 +484,7 @@ export default function BookingDetail() {
               disabled={cancelMutation.isPending || cancelPreviewLoading || cancelPreviewError || !cancelPreview?.canCancel || cancelReason.trim().length<5}
             >
               {cancelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Submit Cancellation Request
+              Confirm Cancellation
             </Button>
           </DialogFooter>
         </DialogContent>

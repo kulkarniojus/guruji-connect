@@ -13,6 +13,7 @@ import {
 import LoginModal from '../auth/LoginModal';
 import RegisterModal from '../auth/RegisterModal';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import NotificationBell from '@/components/NotificationBell';
 import { useToast } from '@/hooks/use-toast';
 
 interface CurrentUser {
@@ -21,27 +22,6 @@ interface CurrentUser {
   lastName?: string;
   email?: string;
   role?: string;
-}
-
-function NotificationBell({ userId }: { userId: number }) {
-  const { data: notifications = [] } = useQuery<any[]>({
-    queryKey: ['/api/notifications'],
-    refetchInterval: 10000,
-    refetchIntervalInBackground: true,
-  });
-  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
-  return (
-    <Link href="/notifications">
-      <Button variant="ghost" size="icon" className="relative p-1 rounded-full text-neutral-600 hover:text-primary">
-        <Bell className="h-6 w-6" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </Button>
-    </Link>
-  );
 }
 
 export default function Header() {

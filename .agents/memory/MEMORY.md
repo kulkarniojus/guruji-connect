@@ -17,7 +17,7 @@
 - [Real accounts and availability](real-account-availability-policy.md) — all registration channels retain profile details; genuine logins and own availability apply without changing booking selections.
 - [Auth query observers](auth-query-observers.md) — preserve the active auth query when switching identity; clearing the cache can leave protected screens stuck at login.
 - [Support-team wording](support-team-wording.md) — customer/Guruji references to admin must say Sanatan Guruji support team; internal roles and permissions stay unchanged.
-- [Cancellation controls](cancellation-controls.md) — hourly charges; Guruji withdrawal never closes bookings; admin decides cancellation and reassignment with frozen request quotes.
+- [Cancellation controls](cancellation-controls.md) — customers cancel directly with manual refund records; Guruji withdrawal stays open for reassignment; hourly policies and frozen legacy quotes.
 - [Browser test isolation](browser-test-isolation.md) — separate debugging endpoints prevent concurrent signed-in suites from sharing pages and cookies.
 - [Puja commission policy](puja-commission-policy.md) — split the final booking total; individual overrides win, uniform resets are explicit, and existing allocations remain unchanged.
 - [Guruji finance policy](guruji-finance-policy.md) — portal collects an advance, Guruji collects the balance; monthly records post automatically without moving money or changing booking flows.

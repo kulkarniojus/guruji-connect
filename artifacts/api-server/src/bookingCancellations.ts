@@ -29,7 +29,7 @@ async function admins(client: Client) {
   return (await client.query(`SELECT id FROM users WHERE role='admin' AND "isBlocked"=false`)).rows.map((u: any) => u.id);
 }
 
-async function closeBooking(client: Client, booking: any, reason: string, party: string, charge: number) {
+async function closeBooking(client: Client, booking: any, reason: string, party: string, charge: number, origin = 'admin', funds?: any) {
   const requestedGurujis=(await client.query(`SELECT DISTINCT g."userId" AS user_id FROM booking_requests r
     JOIN guruji_profiles g ON g.id=r."gurujiId" WHERE r."bookingId"=$1 AND r.status IN ('pending','accepted')`,
     [booking.id])).rows;
@@ -46,10 +46,11 @@ async function closeBooking(client: Client, booking: any, reason: string, party:
     'SELECT "userId" FROM guruji_profiles WHERE id=$1', [booking.gurujiId],
   )).rows[0] : null;
   await notify(client, [booking.customerId,...await admins(client)], 'Booking Cancelled',
-    `Booking #${booking.id}: cancelled by the Sanatan Guruji support team. Reason: ${reason}. ` +
-    (charge ? `Recorded ${party} cancellation charge: ₹${charge}. No money has been deducted.` : 'No cancellation charge.'), 'booking_cancelled');
+    `Booking #${booking.id}: cancelled by ${origin === 'customer' ? 'the customer' : 'the Sanatan Guruji support team'}. Reason: ${reason}. ` +
+    (funds ? `Recorded payment ₹${funds.recordedPaid}; policy retention ₹${funds.retainedCharge}; manual refund owed ₹${funds.refundOwed}. No automatic money transfer.`
+      : charge ? `Recorded ${party} cancellation charge: ₹${charge}. No money has been deducted.` : 'No cancellation charge.'), 'booking_cancelled');
   await notify(client,[guruji?.userId,...requestedGurujis.map((g:any)=>g.user_id)],'Booking Cancelled',
-    `Booking #${booking.id}: cancelled by the Sanatan Guruji support team. Contact the support team for details. `+
+    `Booking #${booking.id}: the booking is cancelled. Contact the Sanatan Guruji support team for details. `+
     (party==='guruji' && charge ? `Recorded Guruji charge: ₹${charge}. No money has been deducted.` : 'No Guruji cancellation charge.'),'booking_cancelled');
 }
 
@@ -95,7 +96,7 @@ export async function performCancellation(bookingId: number, userId: number, inp
       FROM bookings b WHERE id=$1 FOR UPDATE`, [bookingId])).rows[0];
     if (!booking) throw fail(404, 'Booking not found');
     const actor = await cancellationActor(client, userId, booking);
-    const action = actor === 'admin' ? input.action || 'cancel' : actor === 'customer' ? 'request' : 'withdraw';
+    const action = actor === 'admin' ? input.action || 'cancel' : actor === 'customer' ? 'cancel' : 'withdraw';
     if (!['pending','pending_approval','confirmed','in_progress'].includes(booking.status) && !(actor==='admin' && action==='review_withdrawal'))
       throw fail(409, 'This booking is closed and cannot be cancelled or reassigned');
     let quote = await cancellationQuote(client, booking, actor);
@@ -108,7 +109,7 @@ export async function performCancellation(bookingId: number, userId: number, inp
     }
     let charge = quote.charge;
     let party = actor;
-    let kind = actor === 'customer' ? 'customer_request' : actor === 'guruji' ? 'guruji_withdrawal' : 'admin_cancel';
+    let kind = actor === 'customer' ? 'customer_cancel' : actor === 'guruji' ? 'guruji_withdrawal' : 'admin_cancel';
     let eventId: number;
     if (actor==='admin' && action==='review_withdrawal') {
       const event=(await client.query(`SELECT * FROM booking_cancellation_events WHERE id=$1 AND booking_id=$2
@@ -161,14 +162,14 @@ export async function performCancellation(bookingId: number, userId: number, inp
       const event = (await client.query(`INSERT INTO booking_cancellation_events
         (booking_id,requested_by,user_type,kind,status,reason,charge,quote,previous_guruji_id,reviewed_by,reviewed_at)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-        [bookingId,userId,party,kind,actor === 'customer' ? 'pending' : 'recorded',input.reason,charge,
+        [bookingId,userId,party,kind,'recorded',input.reason,charge,
           JSON.stringify(quote),booking.gurujiId,actor === 'admin' ? userId : null,actor === 'admin' ? new Date() : null])).rows[0];
       eventId = event.id;
       if (actor === 'customer') {
-        await notify(client, await admins(client), 'Customer Cancellation Request',
-          `Booking #${bookingId}: cancellation request #${eventId}. Reason: ${input.reason}. Proposed customer charge ₹${charge}. Approve or reject in Cancellation requests.`, 'cancellation_request');
-        await notify(client, [userId], 'Cancellation Request Submitted',
-          `Booking #${bookingId}: the Sanatan Guruji support team will review your cancellation request. Your booking remains open until approved. Proposed charge ₹${charge}; no money has been deducted.`, 'booking_update');
+        await closeBooking(client, booking, input.reason, party, charge, 'customer', quote.customerFunds);
+        await client.query(`UPDATE booking_cancellation_events SET status='superseded',reviewed_by=$2,
+          review_reason='Customer cancelled directly',reviewed_at=NOW()
+          WHERE booking_id=$1 AND kind='customer_request' AND status='pending'`, [bookingId,userId]);
       } else if (actor === 'guruji' || action === 'reassign') {
         const oldGuruji = booking.gurujiId;
         await client.query(`UPDATE booking_requests SET status=$2,message=$3,"updatedAt"=NOW()
@@ -198,7 +199,8 @@ export async function performCancellation(bookingId: number, userId: number, inp
         `Booking #${bookingId}: ${party} charge ₹${charge} recorded. Payments are disabled; no money has been deducted.`, 'cancellation_charge');
     }
     await client.query('COMMIT');
-    return { eventId, charge, action, message: action === 'request' ? 'Cancellation request submitted for support-team approval'
+    return { eventId, charge, action, customerFunds: quote.customerFunds, message: actor === 'customer'
+      ? `Booking cancelled. Manual refund owed: ₹${quote.customerFunds?.refundOwed ?? 0}. No automatic money transfer.`
       : action === 'withdraw' || action === 'reassign' ? 'Booking reopened for reassignment; not cancelled'
       : action === 'reject' ? 'Cancellation request rejected; booking remains open'
       : action === 'review_withdrawal' ? 'Withdrawal charge reviewed; booking unchanged' : 'Booking cancelled by the support team' };

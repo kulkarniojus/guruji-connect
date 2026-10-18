@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { pool } from './db';
 import { parseBookingTime } from './bookingSchedule';
+import { bookingCustomerFunds } from './customerFinance';
 
 export const cancellationRuleInput = z.object({
   userType: z.enum(['customer', 'guruji']),
@@ -82,29 +83,40 @@ export async function cancellationQuote(client: { query: any }, booking: any, us
   const rules = userType === 'admin' ? [] : (await client.query(
     'SELECT * FROM cancellation_rules WHERE user_type=$1 AND is_active=true AND (puja_id IS NULL OR puja_id=$2)', [userType,booking.pujaId],
   )).rows;
-  const rule = selectCancellationRule(rules.filter((r:any)=>r.puja_id!=null), hoursUntil)
+  let rule = selectCancellationRule(rules.filter((r:any)=>r.puja_id!=null), hoursUntil)
     || selectCancellationRule(rules.filter((r:any)=>r.puja_id==null), hoursUntil);
   // Physical storage uses totalAmount; the application's Booking model uses amount.
   const bookingAmount = Number(booking.totalAmount ?? booking.amount);
-  const charge = calculateCancellationCharge(bookingAmount, rule);
-  const pending = (await client.query(`SELECT id FROM booking_cancellation_events
+  let charge = calculateCancellationCharge(bookingAmount, rule);
+  const pending = (await client.query(`SELECT id,charge,quote FROM booking_cancellation_events
     WHERE booking_id=$1 AND kind='customer_request' AND status='pending'`, [booking.id])).rows[0];
+  // Honor the originally frozen fee when converting an older pending request.
+  if (userType === 'customer' && pending) {
+    charge = Number(pending.charge);
+    if (pending.quote && Object.hasOwn(pending.quote, 'rule')) rule = pending.quote.rule;
+  }
+  const customerFunds = userType === 'customer' ? await bookingCustomerFunds(client, {
+    ...booking, status: 'cancelled', cancelled_by: 'customer', cancellation_charge: charge,
+  }) : null;
   const canCancel = userType === 'guruji' ? ['confirmed','in_progress'].includes(booking.status)
     : userType === 'admin' ? ['pending','pending_approval','confirmed','in_progress'].includes(booking.status)
-    : ['pending','pending_approval','confirmed'].includes(booking.status) && hoursUntil > 0 && !pending;
+    : ['pending','pending_approval','confirmed'].includes(booking.status) && hoursUntil > 0;
   const chargeDescription = rule?.charge_type === 'percentage' ? `${rule.charge_value}% of the saved booking amount: ₹${charge}`
     : rule?.charge_type === 'fixed' ? `Fixed charge: ₹${charge}`
     : rule?.charge_type === 'full' ? `Full saved booking amount: ₹${charge}` : 'No cancellation charge';
   const quoteToken = createHash('sha256').update(JSON.stringify({
     bookingId: booking.id, status: booking.status, gurujiId: booking.gurujiId,
-    userType, bookingAmount, rule, charge, pending: pending?.id ?? null, canCancel,
+    userType, bookingAmount, rule, charge, customerFunds, pending: pending?.id ?? null, canCancel,
   })).digest('hex');
   return {
-    hoursUntil, bookingAmount, rule, charge, chargeDescription, quoteToken, canCancel,
+    hoursUntil, bookingAmount, rule,
+    charge, chargeDescription, quoteToken, canCancel, customerFunds,
     pendingRequestId: pending?.id ?? null,
-    paymentNotice: 'Payments are currently disabled. Charges are recorded only; no money is deducted or refunded.',
+    paymentNotice: userType === 'customer'
+      ? 'Deductions are limited to actual recorded payments. Any refund owed is paid manually by the Sanatan Guruji support team and recorded afterward; this portal does not transfer money.'
+      : 'Payments are currently disabled. Charges are recorded only; no money is deducted or refunded.',
     outcome: userType === 'guruji' ? 'Reopen the booking and search for another eligible Guruji; the booking will not be closed.'
-      : userType === 'customer' ? 'Send a cancellation request to the Sanatan Guruji support team for approval. The booking stays open until approved.'
+      : userType === 'customer' ? 'Confirm to cancel your booking immediately. Support-team approval is not required.'
       : 'Admin controls cancellation and reassignment.',
   };
 }

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Pencil, LockKeyhole, UnlockKeyhole, BellRing, Loader2, Users } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import CustomerActivityDialog from './CustomerActivityDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -266,6 +267,7 @@ export default function CustomersManagementTab() {
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">
+                      <CustomerActivityDialog customerId={customer.id} customerName={`${customer.firstName} ${customer.lastName}`} />
                       <Button size="sm" variant="outline" onClick={() => startEditing(customer)} aria-label={`Edit ${customer.firstName} ${customer.lastName}`}>
                         <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
                       </Button>

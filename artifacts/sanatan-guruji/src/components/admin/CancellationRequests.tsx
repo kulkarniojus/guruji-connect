@@ -10,7 +10,7 @@ export default function CancellationRequests() {
     queryFn:async()=>(await apiRequest('GET','/api/admin/cancellation-requests')).json(),
     refetchInterval:15000,
   });
-  return <Card><CardHeader><CardTitle>Cancellation requests &amp; withdrawal history</CardTitle></CardHeader>
+  return <Card><CardHeader><CardTitle>Cancellations &amp; withdrawal history</CardTitle></CardHeader>
     <CardContent className="space-y-3">
       {isLoading ? <p>Loading requests…</p> : isError ? <p role="alert">Unable to load cancellation requests. Please refresh.</p>
         : !data.length ? <p>No cancellation requests yet.</p> : data.map(event=>
@@ -24,7 +24,11 @@ export default function CancellationRequests() {
             </p>}
             <p>{event.reason}</p>
             {event.review_reason && <p>Admin decision: {event.review_reason}</p>}
-            <p className="text-xs text-muted-foreground">No money deducted. {new Date(event.created_at).toLocaleString('en-IN')}</p>
+            {event.kind === 'customer_cancel' && event.quote?.customerFunds && <p className="text-xs">
+              At cancellation: retained ₹{event.quote.customerFunds.retainedCharge} from recorded payments;
+              manual refund owed ₹{event.quote.customerFunds.refundOwed}. Check Customers → Activity for current refund payments.
+            </p>}
+            <p className="text-xs text-muted-foreground">No automatic money transfer. {new Date(event.created_at).toLocaleString('en-IN')}</p>
             {(event.status==='pending' || (event.status==='recorded' && event.user_type==='guruji' && ['guruji_withdrawal','admin_reassignment'].includes(event.kind))) &&
               <BookingCancellationAdmin booking={{id:event.booking_id,status:event.booking_status}} event={event} />}
           </div>)}

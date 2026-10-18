@@ -207,7 +207,7 @@ export default function CancellationRulesTab() {
           <p>Rules use the selected puja date and time in India time and the saved booking amount. For “within” rules, the smallest matching hourly threshold wins: with 10 hours left, a 12-hour rule wins over a 24-hour rule. Otherwise, the largest matching “at least” threshold applies. Charges never stack.</p>
           <p>Use “at least 0 hours” as an all-time fallback. Existing rules retain their original “at least” meaning until you edit them.</p>
           <p>A matching puja-specific rule takes priority over an all-pujas rule.</p>
-          <p>Customers request cancellation; admin approves or rejects it. Guruji withdrawal never closes a booking: other eligible Gurujis are contacted and admin controls reassignment or final cancellation.</p>
+          <p>Customers cancel immediately under the configured policy, without admin approval. Any refund owed is paid manually and recorded by admin. Guruji withdrawal never closes a booking: other eligible Gurujis are contacted and admin controls reassignment or final cancellation.</p>
           <p className="font-medium">Payments are disabled. Charges are recorded only—not deducted or refunded.</p>
           <ul className="list-disc list-inside space-y-0.5 mt-1">
             <li><strong>Free</strong> — No charge applied</li>

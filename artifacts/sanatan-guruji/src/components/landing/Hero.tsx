@@ -20,11 +20,13 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
 
 export default function Hero() {
   const [, setLocation] = useLocation();
   const [city, setCity] = useState<string>("");
   const [puja, setPuja] = useState<string>("");
+  const [pujaSearch, setPujaSearch] = useState("");
   const [date, setDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
 
@@ -160,7 +162,11 @@ export default function Hero() {
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {pujasData.map((puja) => (
+                      <div className="sticky top-0 z-10 bg-popover p-2">
+                        <Input aria-label="Search pujas on home page" placeholder="Search pujas..." value={pujaSearch}
+                          onChange={e => setPujaSearch(e.target.value)} onKeyDown={e => { if (e.key !== 'Escape') e.stopPropagation(); }} />
+                      </div>
+                      {pujasData.filter(p => p.label.toLowerCase().includes(pujaSearch.trim().toLowerCase())).map((puja) => (
                         <SelectItem key={puja.value} value={puja.value}>
                           {puja.label}
                         </SelectItem>
@@ -194,7 +200,13 @@ export default function Hero() {
                       <Calendar
                         mode="single"
                         selected={date}
+                        fromDate={new Date()}
                         onSelect={setDate}
+                        disabled={day => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return day < today;
+                        }}
                         initialFocus
                       />
                     </PopoverContent>

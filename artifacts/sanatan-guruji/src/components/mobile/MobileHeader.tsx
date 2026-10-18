@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { ArrowLeft, Bell, Search, MoreVertical } from 'lucide-react';
+import NotificationBell from '@/components/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -64,19 +65,7 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({
             </motion.button>
 
             {/* Notifications Button */}
-            <motion.button
-              onClick={() => setLocation('/notifications')}
-              className="p-2 rounded-full hover:bg-gray-100 relative"
-              whileTap={{ scale: 0.95 }}
-            >
-              <Bell size={20} className="text-gray-600" />
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
-              >
-                5
-              </Badge>
-            </motion.button>
+            <NotificationBell />
 
             {/* Menu Button */}
             <motion.button

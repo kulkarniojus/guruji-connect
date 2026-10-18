@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
@@ -121,6 +121,8 @@ function NotificationsView({ mobile = false }: { mobile?: boolean }) {
       toast({ title: 'All notifications marked as read' });
     },
   });
+  // Also covers alternate mobile/dashboard bell links to this same page.
+  useEffect(() => { markAllReadMutation.mutate(); }, []);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest('DELETE', `/api/notifications/${id}`),
