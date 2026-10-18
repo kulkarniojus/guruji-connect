@@ -26,3 +26,9 @@ Booking bug fixes must preserve the existing selection, address/pincode, specifi
 **Why:** The user repeatedly requested bug-only changes without changing existing booking functionality, and specifically requested accessible Continue navigation and Step 2 starting at the top.
 
 **How to apply:** Scope navigation/layout fixes to the affected booking step; keep existing validation and data selections intact and avoid covering the support/chat controls.
+
+Keep Continue's original right-aligned button appearance while keeping it visible during scrolling; do not replace it with a centered full-width bottom action bar.
+
+**Why:** The user rejected that visual change and explicitly requested the original button made sticky instead.
+
+**How to apply:** Preserve the Step 2 scroll-to-top fix and all existing booking behavior when adjusting this control.

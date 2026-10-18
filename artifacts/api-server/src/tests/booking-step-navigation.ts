@@ -21,6 +21,11 @@ try {
     await b.click('button', 'Change Selection');
     await b.wait('!!document.querySelector(\'input[aria-label="Search pujas for booking"]\')', 'full puja list');
     assert(await b.evaluate('document.documentElement.scrollHeight > innerHeight * 2'), 'Must exercise a long list');
+    assert(await b.evaluate(`(()=>{
+      const actions=document.querySelector('[data-testid="booking-service-actions"]');
+      const button=actions.querySelector('button').getBoundingClientRect(),style=getComputedStyle(actions);
+      return button.x+button.width/2>innerWidth/2 && style.backgroundColor==='rgba(0, 0, 0, 0)' && style.borderTopWidth==='0px';
+    })()`), 'Original right-aligned button without a full-width background bar');
     const visibleContinue = async () => {
       const state = await b.evaluate(`(()=>{
         const button=document.querySelector('[data-testid="booking-service-actions"] button');
@@ -40,6 +45,12 @@ try {
     await b.click('[data-testid="booking-service-actions"] button');
     await b.wait('document.body.innerText.includes("You need to select a puja to continue")', 'selection validation');
     assert(await b.evaluate('!!document.querySelector(\'input[aria-label="Search pujas for booking"]\')'));
+    await b.wait('[...document.querySelectorAll("li[data-state=open]")].every(e=>e.getAnimations().every(a=>a.playState!=="running"))', 'validation toast entrance animation');
+    await b.click('button[toast-close]');
+    await b.wait(`(()=>{
+      const button=document.querySelector('[data-testid="booking-service-actions"] button'),r=button.getBoundingClientRect();
+      return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===button;
+    })()`, 'validation toast dismissed');
     const point = await b.evaluate(`(()=>{
       const heading=[...document.querySelectorAll('h3')].find(e=>e.textContent===${JSON.stringify(puja.name)});
       const card=heading.closest('.cursor-pointer');card.scrollIntoView({block:'center'});

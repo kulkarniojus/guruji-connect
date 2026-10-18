@@ -585,9 +585,9 @@ export default function BookingPage() {
           </CardContent>
           <CardFooter className="h-24">
             <div data-testid="booking-service-actions"
-              className="fixed inset-x-0 bottom-0 z-30 border-t bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-              <div className="mx-auto flex max-w-4xl justify-center p-4 pr-20 sm:p-4">
-                <Button onClick={handleNextStep}>
+              className="pointer-events-none fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 sm:bottom-24">
+              <div className="mx-auto flex max-w-4xl justify-end px-6 pr-20 sm:pr-6">
+                <Button className="pointer-events-auto" onClick={handleNextStep}>
                   Continue
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
