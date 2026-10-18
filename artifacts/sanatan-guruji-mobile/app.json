@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Sanatan Guruji Mobile",
+    "slug": "sanatan-guruji-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/portal-icon.png",
+    "scheme": "sanatan-guruji-mobile",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/portal-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Use the camera when you choose to upload profile or verification photos or join a portal video call.",
+        "NSMicrophoneUsageDescription": "Use the microphone when you choose to join a portal video call.",
+        "NSPhotoLibraryUsageDescription": "Select photos for profile and verification uploads on the portal.",
+        "NSLocationWhenInUseUsageDescription": "Use your location when you request nearby services or an address on the portal."
+      }
+    },
+    "android": {
+      "permissions": ["CAMERA", "RECORD_AUDIO", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/portal-icon.png",
+        "backgroundColor": "#4d80b3"
+      }
+    },
+    "web": {
+      "favicon": "./assets/images/portal-icon.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

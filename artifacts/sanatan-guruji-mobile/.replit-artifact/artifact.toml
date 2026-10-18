@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "Sanatan Guruji Mobile"
+description = "Android and iOS companion to the live Sanatan Guruji portal, using the same accounts, bookings and backend without duplicating the web application."
+version = "1.0.0"
+id = "artifacts/sanatan-guruji-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/mobile/" ]
+localPort = 24235
+
+[services.development]
+run = "pnpm --filter @workspace/sanatan-guruji-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sanatan-guruji-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/sanatan-guruji-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "24235"
+BASE_PATH = "/mobile/"
