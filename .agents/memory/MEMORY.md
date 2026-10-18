@@ -22,3 +22,4 @@
 - [Puja commission policy](puja-commission-policy.md) — split the final booking total; individual overrides win, uniform resets are explicit, and existing allocations remain unchanged.
 - [Guruji finance policy](guruji-finance-policy.md) — portal collects an advance, Guruji collects the balance; monthly records post automatically without moving money or changing booking flows.
 - [Mobile and web parity](mobile-web-parity.md) — separate Android/iOS apps must share the portal/database and reflect web updates without changing existing web behavior.
+- [Stripe connector compatibility](stripe-connector-compatibility.md) — healthy proxy access does not supply the raw key required by managed Stripe sync; do not reconnect a healthy account.
