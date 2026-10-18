@@ -20,3 +20,9 @@ Customer-facing Guruji names show only the first name, without Pandit or surname
 **Why:** The user explicitly requested first-name-only Guruji display and visible Guruji ratings.
 
 **How to apply:** Apply to booking selection and customer booking summaries; do not fabricate ratings or remove full names from admin workflows.
+
+Booking bug fixes must preserve the existing selection, address/pincode, specific-or-nearby Guruji, and authentication flows except for the explicitly requested change. Keep Step 1 Continue accessible while browsing long puja lists, and open Step 2 at the page top.
+
+**Why:** The user repeatedly requested bug-only changes without changing existing booking functionality, and specifically requested accessible Continue navigation and Step 2 starting at the top.
+
+**How to apply:** Scope navigation/layout fixes to the affected booking step; keep existing validation and data selections intact and avoid covering the support/chat controls.

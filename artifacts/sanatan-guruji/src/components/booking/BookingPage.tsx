@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -66,6 +66,13 @@ export default function BookingPage() {
 
   // State for the booking form
   const [activeStep, setActiveStep] = useState<number>(savedDraft?.activeStep ?? 1);
+  const previousStep = useRef(activeStep);
+  useLayoutEffect(() => {
+    if (previousStep.current === 1 && activeStep === 2) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+    previousStep.current = activeStep;
+  }, [activeStep]);
   const [bookingType, setBookingType] = useState<'offline' | 'online' | 'consultation'>(() => normalizeBookingType(savedDraft?.bookingType ?? initialType));
   const [consultationType, setConsultationType] = useState<'own_guruji' | 'auto_select' | 'immediate'>(savedDraft?.consultationType ?? 'auto_select');
   const [gurujiSelectionMode, setGurujiSelectionMode] = useState<'specific' | 'auto_nearby'>(savedDraft?.gurujiSelectionMode ?? 'specific');
@@ -576,11 +583,16 @@ export default function BookingPage() {
               )}
             </div>
           </CardContent>
-          <CardFooter className="justify-end">
-            <Button onClick={handleNextStep}>
-              Continue
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+          <CardFooter className="h-24">
+            <div data-testid="booking-service-actions"
+              className="fixed inset-x-0 bottom-0 z-30 border-t bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+              <div className="mx-auto flex max-w-4xl justify-center p-4 pr-20 sm:p-4">
+                <Button onClick={handleNextStep}>
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </CardFooter>
         </Card>
       )}

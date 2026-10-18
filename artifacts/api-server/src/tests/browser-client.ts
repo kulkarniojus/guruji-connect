@@ -59,5 +59,5 @@ export async function browserClient() {
     await command('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2});
     await command('Input.insertText',{text});
   };
-  return {command,evaluate,wait,click,fill,close:async()=>{socket.close();browser.kill();await pause(150);await rm(directory,{recursive:true,force:true});}};
+  return {command,evaluate,wait,click,fill,close:async()=>{socket.close();browser.kill();await pause(150);await rm(directory,{recursive:true,force:true,maxRetries:5,retryDelay:150});}};
 }
