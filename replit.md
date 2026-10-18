@@ -1,218 +1,34 @@
-# Sanatan Guruji - Spiritual Services Platform
+# Sanatan Guruji
 
-## Overview
+Existing web portal for puja bookings, Guruji availability, customer and staff accounts, notifications, pricing, cancellation, commissions and Guruji Finance.
 
-Sanatan Guruji is a comprehensive spiritual services platform built with a modern tech stack. It serves as a marketplace connecting customers with verified spiritual guides (Gurujis) for online and offline puja services, consultations, and religious ceremonies. The platform features both a web application (React frontend with TypeScript, Express.js backend) and native mobile applications (React Native with Expo) designed to use PostgreSQL with Drizzle ORM for data management.
+## Run and operate
 
-### Brand and public contact
-- Use **Sanatan Guruji** for all public-facing branding.
-- Public support phone: **8087138429** (`tel:+918087138429`); messaging link: `https://wa.me/918087138429`.
-- Do not invent office addresses, support email addresses, social accounts, or support hours.
-- Keep existing account emails and native app package identifiers intact during display-name changes; these are identities, not public brand copy.
+- Start the managed workflows `artifacts/api-server: API Server` and `artifacts/sanatan-guruji: web`.
+- The web portal is at `/`; the backend owns `/api` and `/socket.io`.
+- Deployment remains an autoscaled application: the web artifact serves the built SPA and the API artifact runs the existing Express/Socket.IO backend.
+- Do not run a root development server or publish as part of the structural port.
 
-## System Architecture
+## Database and authentication
 
-### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite for fast development and optimized builds
-- **Styling**: Tailwind CSS with custom spiritual themes and shadcn/ui components
-- **State Management**: React Query (TanStack Query) for server state management
-- **Routing**: Wouter for lightweight client-side routing
-- **Form Management**: React Hook Form with Zod validation
-- **Responsive Design**: Mobile-first approach with dedicated mobile components
+- Preserve the existing external PostgreSQL adapter and its `DATABASE_URL` reference, plus `SESSION_SECRET`.
+- `NEON_DATABASE_URL` also remains an existing workspace secret; do not replace or disclose connection settings.
+- Sessions use the existing PostgreSQL `user_sessions` store. Production cookies remain secure behind the shared HTTPS gateway.
+- The physical database differs from the shared models. **Do not run DB push, reconcile the schema, create another application database, or copy production data.**
+- The scaffold `lib/db` package is not the portal's active adapter. The portal continues using its original backend storage implementation.
+- Post-merge setup installs dependencies only; it must not push a database schema.
 
-### Backend Architecture
-- **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: Session-based authentication with bcrypt for password hashing
-- **Real-time Communication**: Socket.io for live features
-- **API Design**: RESTful API endpoints with proper error handling
-- **File Structure**: Modular architecture with separate routes, services, and storage layers
+## Workspace
 
-### Key Components
+- `artifacts/sanatan-guruji`: original React frontend, styles, public images and custom request/query layer.
+- `artifacts/api-server/src`: original backend and business logic, with workspace startup wiring.
+- `lib/portal-shared`: original browser-safe shared models and helpers, without a database connection.
+- `mobile/`: retained original mobile project for the follow-up; not a replacement app and not part of web deployment.
+- `.migration-backup/`: retained migration input, excluded from application deployment.
+- `attached_assets/` and generated output are not bundled into the application. Required portal images live in its public directory.
 
-1. **Authentication System**
-   - OTP-based mobile verification
-   - Role-based access control (Customer, Guruji, Admin)
-   - Session management with secure cookies
+## Scope
 
-2. **Booking System**
-   - Multi-stage booking process
-   - Booking request notifications to Gurujis
-   - Status tracking and management
+The user wants separate Android/iOS apps sharing the live portal and database without changing existing web behavior. This structural port does not build those apps. Ask the user to verify web parity before proceeding with mobile work.
 
-3. **Payment Integration**
-   - Stripe integration for secure payments
-   - Multiple payment status handling
-   - Revenue tracking for analytics
-
-4. **Admin Dashboard**
-   - Comprehensive analytics with charts and metrics
-   - User management and verification
-   - Puja configuration and management
-
-5. **Spiritual Journey Tracker**
-   - Personalized spiritual progress tracking
-   - Animated milestones and achievements
-   - User journey analytics
-
-6. **Real-time Features**
-   - Video conferencing capabilities
-   - Live chat system
-   - WebRTC peer-to-peer connections
-
-## Data Flow
-
-1. **User Registration/Login Flow**
-   - Mobile OTP verification → User creation → Session establishment → Role-based dashboard redirect
-
-2. **Booking Flow**
-   - Puja selection → Booking form → Payment → Guruji notification → Booking confirmation
-
-3. **Admin Analytics Flow**
-   - Data aggregation → Real-time metrics calculation → Dashboard visualization
-
-4. **Notification System**
-   - Event triggers → Notification creation → Multi-channel delivery (SMS, Email, Push)
-
-## External Dependencies
-
-### Core Dependencies
-- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
-- **UI Components**: Radix UI primitives with shadcn/ui component library
-- **Authentication**: bcrypt for secure password hashing
-- **Payment Processing**: Stripe for secure payment handling
-- **Real-time Communication**: Socket.io for live features
-- **Video Conferencing**: WebRTC with SimplePeer for peer-to-peer video calls
-
-### Development Dependencies
-- **Build Tools**: Vite, ESBuild for fast compilation
-- **Type Checking**: TypeScript with strict configuration
-- **Code Quality**: ESLint, Prettier for consistent code style
-- **Testing**: React Testing Library, Vitest for unit testing
-
-## Deployment Strategy
-
-### Build Process
-1. **Frontend**: Vite builds optimized static assets to `dist/public`
-2. **Backend**: ESBuild compiles TypeScript server code to `dist/index.js`
-3. **Database**: Drizzle migrations handle schema changes
-
-### Environment Configuration
-- **Development**: Uses tsx for hot reloading and development server
-- **Production**: Compiled JavaScript with NODE_ENV=production
-- **Database**: Neon PostgreSQL with connection pooling
-
-### Deployment Steps
-1. Install dependencies with `npm install`
-2. Build frontend and backend with `npm run build`
-3. Run database migrations with `npm run db:push`
-4. Start production server with `npm start`
-
-## Mobile Application
-
-### React Native Implementation
-The platform now includes a complete React Native mobile application built with Expo:
-
-**Core Features:**
-- Native iOS and Android applications
-- Bottom tab navigation with 5 main screens (Home, Bookings, Journey, Chat, Profile)
-- OTP-based authentication with biometric support
-- Home dashboard with featured pujas and gurujis
-- Dashboard with user stats, upcoming/past bookings, and spending analytics
-- PujasList with search, category filters, and detailed puja cards
-- Notifications screen with read/unread tabs and notification management
-- Services overview with feature highlights
-- HowItWorks guide with step-by-step process and FAQ accordion
-- BecomeGuruji registration form for spiritual guides
-- Booking management with status tracking
-- Real-time chat system with online indicators
-- Spiritual journey tracking with progress milestones
-- Profile management with settings and statistics
-- Video calling capabilities
-- Push notification support
-
-**Technical Stack:**
-- React Native with Expo SDK 50
-- TypeScript for type safety
-- React Navigation for routing
-- React Query for data management
-- Linear gradients and animations
-- Native device features (camera, location, notifications)
-
-**Project Structure:**
-```
-mobile/
-├── src/screens/           # All app screens (14 total)
-│   ├── HomeScreen.tsx         # Main home with featured content
-│   ├── AuthScreen.tsx         # Login/registration
-│   ├── BookingScreen.tsx      # Booking management
-│   ├── ProfileScreen.tsx      # User profile
-│   ├── ChatScreen.tsx         # Messaging
-│   ├── SpiritualJourneyScreen.tsx  # Spiritual progress tracking
-│   ├── GurujiDetailScreen.tsx # Guruji profiles
-│   ├── VideoCallScreen.tsx    # Video consultations
-│   ├── DashboardScreen.tsx    # User dashboard with stats
-│   ├── NotificationsScreen.tsx # Notification center
-│   ├── PujasListScreen.tsx    # Browse all pujas
-│   ├── ServicesScreen.tsx     # Services overview
-│   ├── HowItWorksScreen.tsx   # Platform guide
-│   └── BecomeGurujiScreen.tsx # Guruji registration
-├── App.tsx               # Main navigation with stack + tab navigators
-├── app.json             # Expo configuration
-└── package.json         # Dependencies
-```
-
-**Getting Started:**
-1. `cd mobile && npm install`
-2. `npm start`
-3. Use Expo Go app to test on device
-
-## Changelog
-
-```
-Changelog:
-- July 05, 2025. Initial setup
-- July 05, 2025. Added comprehensive React Native mobile application with all web features
-- January 19, 2026. Mobile-web frontend alignment: Added 6 new mobile screens
-- April 01, 2026. Fixed booking time null error (added time field to POST /api/bookings payload)
-- April 01, 2026. Admin payment settings: new app_settings table, Payment tab in admin dashboard,
-  configurable UPI ID/QR code, enable/disable payment switch. When enabled, customers see UPI QR
-  and must confirm payment before booking is sent to Guruji. Works on both web and mobile booking flows.
-- April 01, 2026. Fixed Dashboard.tsx: replaced hardcoded mockUser (role: 'customer') with real
-  authenticated user fetched from /api/auth/me; now correctly routes Gurujis to GurujiDashboard,
-  Admins to AdminDashboard, Customers to CustomerDashboard.
-- April 01, 2026. Rewrote GurujiDashboard.tsx with real API calls: fetches pending booking requests
-  from /api/guruji/booking-requests, allows accept/decline via /api/booking-requests/:id/respond,
-  shows upcoming/completed bookings from /api/bookings, displays live earnings total.
-- April 01, 2026. Added mandatory phone number field to guruji registration (both self-registration and sales rep
-  registration). Phone number must be 10 digits. When sales rep registers a guruji, the initial password is
-  automatically set to the 10-digit phone number (no separate password field).
-- April 01, 2026. Fixed multiple booking flow issues and added auto-search guruji feature:
-  • When customer selects a specific guruji, that guruji is immediately assigned (status: confirmed)
-  • Added "Auto-Search Nearby Gurujis" option: sends request to all nearby gurujis for the location & puja type
-  • First guruji to accept gets the booking locked; other requests are auto-expired
-  • If a guruji rejects, others still see the request (can accept later)
-  • Notification sent only to selected guruji (specific mode) or all nearby gurujis (auto-search mode)
-  • Cache invalidation after booking ensures customer dashboard updates immediately
-  • Created BookingDetail page: customers can view full booking details with guruji assignment, location, date/time
-  • "View Details" button now functional and links to dedicated booking detail page (/booking/:id)
-  • Admin Bookings tab displays all bookings with assignment status and manage options
-  • Fixed critical issues with new gurujis not receiving bookings:
-    - Auto-verify new gurujis (aadharVerified & documentsVerified set to true at registration)
-    - Admin bookings query now returns all bookings instead of empty array
-    - Gurujis list shows both pending and approved gurujis for selection
-- April 07, 2026. Fixed admin guruji edit save error (missing cities column in DB - added via SQL). Rewrote Profile.tsx: now role-aware, always available for all users. Customer tab: basic info edit. Guruji tab: puja specializations, service cities, pricing, bio. Security tab: password change. Added PUT /api/users/:id and POST /api/auth/change-password backend routes. Updated guruji DB mapper to return cities[] array.
-- April 20, 2026. Completed cancellation rules system:
-  • Admin Cancellation tab in AdminDashboard: full CRUD UI for time-based rules (guruji + customer), supports free/percentage/fixed/full charge types, toggle active/inactive, edit/delete
-  • Backend endpoints: GET/POST/PUT/DELETE /api/admin/cancellation-rules, GET /api/cancellation-rules (public), GET /api/bookings/:id/cancellation-preview (charge preview)
-  • Updated POST /api/bookings/:id/cancel: works for both guruji and customer, calculates charge based on rules, records cancellation_charge/reason/cancelled_by, sends notifications to both parties
-  • GurujiDashboard BookingCard: "Cancel Booking" button for confirmed/in-progress bookings, shows charge preview dialog with reason input before confirming
-  • Notification bell in Header: live unread count badge (red dot), polls /api/notifications every 30s, links to /notifications page
-```
-
-## User Preferences
-
-```
-Preferred communication style: Simple, everyday language.
-```
+Preserve the existing booking wizard, genuine session authentication and Guruji acceptance, availability, pricing, cancellation, notification, commission and finance behavior. Do not rewrite API contracts or replace legacy validation during a structural move.

@@ -1,34 +1,20 @@
-modules = ["nodejs-20", "web", "python-base-3.13", "postgresql-16"]
-run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
-
-[nix]
-channel = "stable-24_05"
+modules = ["nodejs-24", "python-base-3.13"]
 
 [deployment]
+router = "application"
 deploymentTarget = "autoscale"
-build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
 
 [workflows]
-runButton = "Start application"
+runButton = "Project"
 
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
-
-[[ports]]
-localPort = 5000
-externalPort = 80
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 180000
+timeoutMs = 20000

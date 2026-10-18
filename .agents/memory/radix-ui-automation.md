@@ -15,6 +15,12 @@ When switching login and registration dialogs, scope field filling to the intend
 
 **How to apply:** Identify the registration form by its distinct fields, verify checkbox state, wait for option portals to disappear, and use native form submission or settled native keyboard/pointer activation.
 
+When selecting successive dropdowns, wait for the previous listbox to unmount and for its trigger's displayed selection to change before opening the next one.
+
+**Why:** A fast browser check selected a city but then targeted the closing city's option portal instead of the puja list. The form correctly stayed on the landing page because no puja was selected; this was an automation timing failure, not a booking regression.
+
+**How to apply:** Use native pointer opening and keyboard selection where needed, then assert both the closed portal and the updated trigger label before continuing.
+
 For admin tabs and buttons whose coordinates can shift while dashboard data loads, browser-native keyboard activation is more reliable than measuring coordinates immediately after the control appears. CDP Enter events must include the carriage-return text to reproduce the browser's normal button activation.
 
 **Why:** Asynchronous dashboard content shifted pointer targets during catalogue checks. Enter keydown alone changed Radix tabs but did not activate ordinary buttons; including the native Enter text produced the expected click.

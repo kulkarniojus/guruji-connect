@@ -1,0 +1,1123 @@
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogClose 
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { 
+  Loader2, 
+  Search, 
+  Eye, 
+  CheckCircle, 
+  XCircle, 
+  Info, 
+  Award, 
+  User, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  FileText, 
+  Calendar,
+  AlertTriangle 
+} from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
+
+// Types
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  age: number;
+  gender: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  aadhar?: string;
+  caste?: string;
+  isVerified: boolean;
+  isBlocked: boolean;
+  createdAt: string;
+}
+
+interface GurujiProfile {
+  id: number;
+  userId: number;
+  user?: User;
+  bio?: string;
+  experience?: number;
+  specialization?: string;
+  location: string;
+  radius?: number;
+  pricePerHour: number;
+  isOnline: boolean;
+  isOffline: boolean;
+  isConsultation: boolean;
+  isAvailable: boolean;
+  aadharVerified: boolean;
+  documentsVerified: boolean;
+  verificationDate?: string;
+  rating: number;
+  totalReviews: number;
+  languages?: string[];
+  certificates?: string[];
+  profilePictureUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApplicationStatus {
+  status: 'pending' | 'approved' | 'rejected' | 'all';
+}
+
+// Main Component
+export function GurujiApplicationManagement({ status }: ApplicationStatus) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProfile, setSelectedProfile] = useState<GurujiProfile | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [activeTab, setActiveTab] = useState('personal');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    city: '', state: '', address: '', pincode: '',
+    experience: '', pricePerHour: '', bio: '', age: '', religion: '',
+  });
+  const [editPujas, setEditPujas] = useState<string[]>([]);
+  const [editServiceCities, setEditServiceCities] = useState<string[]>([]);
+  
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Fetch pujas to resolve IDs → names in specialization
+  const { data: allPujas = [] } = useQuery<any[]>({
+    queryKey: ['/api/pujas'],
+    queryFn: async () => {
+      const res = await fetch('/api/pujas');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  // Fetch cities to resolve IDs → names in location/cities
+  const { data: allCities = [] } = useQuery<any[]>({
+    queryKey: ['/api/cities'],
+    queryFn: async () => {
+      const res = await fetch('/api/cities');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  // Helper: convert specialization string (may be "1,2,3" or "Puja Name,...")
+  const resolveSpecialization = (spec: string | null | undefined): string => {
+    if (!spec) return 'Not specified';
+    return spec.split(',').map(item => {
+      const trimmed = item.trim();
+      const asNum = parseInt(trimmed);
+      if (!isNaN(asNum)) {
+        const puja = allPujas.find(p => p.id === asNum);
+        return puja ? puja.name : trimmed;
+      }
+      return trimmed;
+    }).join(', ');
+  };
+
+  // Helper: resolve cities array or location string (may have city IDs) → readable city names
+  const resolveCities = (profile: any): string => {
+    // Prefer the `cities` array if available
+    const citiesArr: string[] = Array.isArray(profile.cities) && profile.cities.length > 0
+      ? profile.cities
+      : profile.location ? profile.location.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+
+    if (citiesArr.length === 0) return 'Not specified';
+
+    return citiesArr.map(item => {
+      const asNum = parseInt(item);
+      if (!isNaN(asNum)) {
+        const city = allCities.find((c: any) => c.id === asNum);
+        return city ? `${city.name}, ${city.state}` : item;
+      }
+      return item;
+    }).join(' | ');
+  };
+
+  // Fetch guruji profiles from real API
+  const { 
+    data: gurujiProfiles, 
+    isLoading, 
+    error 
+  } = useQuery<GurujiProfile[]>({
+    queryKey: ['/api/admin/gurujis'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/gurujis', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch guruji applications');
+      return res.json();
+    },
+    refetchInterval: 30000, // auto-refresh every 30 seconds
+  });
+
+  // Mock guruji profiles for demo purposes
+  // In a real implementation, this data would come from the API
+  const getMockGurujiProfiles = () => {
+    return [
+      {
+        id: 1,
+        userId: 101,
+        user: {
+          id: 101,
+          firstName: "Ramesh",
+          lastName: "Sharma",
+          email: "ramesh.sharma@example.com",
+          mobile: "+91 9876543210",
+          age: 45,
+          gender: "Male",
+          address: "123 Temple Street",
+          city: "Mumbai",
+          state: "Maharashtra",
+          pincode: "400001",
+          aadhar: "XXXX-XXXX-1234",
+          isVerified: false,
+          isBlocked: false,
+          createdAt: "2023-01-15T10:30:00Z"
+        },
+        bio: "I am a traditional Vedic priest with over 20 years of experience performing various pujas and rituals.",
+        experience: 20,
+        specialization: "Satyanarayan Puja, Griha Pravesh",
+        location: "Mumbai, Maharashtra",
+        radius: 25,
+        pricePerHour: 1500,
+        isOnline: true,
+        isOffline: true,
+        isConsultation: true,
+        isAvailable: true,
+        aadharVerified: false,
+        documentsVerified: false,
+        verificationDate: null,
+        rating: 0,
+        totalReviews: 0,
+        languages: ["Hindi", "Marathi", "English", "Sanskrit"],
+        certificates: ["Vedic_Education.jpg", "Priest_Training_Certificate.jpg"],
+        profilePictureUrl: "https://randomuser.me/api/portraits/men/32.jpg",
+        createdAt: "2023-01-15T10:30:00Z",
+        updatedAt: "2023-01-15T10:30:00Z",
+        applicationStatus: "pending"
+      },
+      {
+        id: 2,
+        userId: 102,
+        user: {
+          id: 102,
+          firstName: "Sunita",
+          lastName: "Acharya",
+          email: "sunita.acharya@example.com",
+          mobile: "+91 9765432109",
+          age: 38,
+          gender: "Female",
+          address: "45 Divine Avenue",
+          city: "Pune",
+          state: "Maharashtra",
+          pincode: "411001",
+          aadhar: "XXXX-XXXX-5678",
+          isVerified: false,
+          isBlocked: false,
+          createdAt: "2023-02-20T14:15:00Z"
+        },
+        bio: "Specialized in traditional women's ceremonies with a focus on Mangalagaur and Satyanarayan pujas.",
+        experience: 15,
+        specialization: "Mangalagaur, Women's ceremonies",
+        location: "Pune, Maharashtra",
+        radius: 15,
+        pricePerHour: 1200,
+        isOnline: true,
+        isOffline: true,
+        isConsultation: false,
+        isAvailable: true,
+        aadharVerified: false,
+        documentsVerified: false,
+        verificationDate: null,
+        rating: 0,
+        totalReviews: 0,
+        languages: ["Hindi", "Marathi", "English"],
+        certificates: ["Traditional_Rituals_Certificate.jpg"],
+        profilePictureUrl: "https://randomuser.me/api/portraits/women/45.jpg",
+        createdAt: "2023-02-20T14:15:00Z",
+        updatedAt: "2023-02-20T14:15:00Z",
+        applicationStatus: "pending"
+      },
+      {
+        id: 3,
+        userId: 103,
+        user: {
+          id: 103,
+          firstName: "Mohan",
+          lastName: "Joshi",
+          email: "mohan.joshi@example.com",
+          mobile: "+91 9567432108",
+          age: 60,
+          gender: "Male",
+          address: "78 Spiritual Lane",
+          city: "Varanasi",
+          state: "Uttar Pradesh",
+          pincode: "221001",
+          aadhar: "XXXX-XXXX-9012",
+          isVerified: true,
+          isBlocked: false,
+          createdAt: "2023-03-05T09:45:00Z"
+        },
+        bio: "Senior priest from Varanasi with expertise in traditional Vedic rituals and astrological consultations.",
+        experience: 40,
+        specialization: "Vedic rituals, Astrological consultations",
+        location: "Varanasi, Uttar Pradesh",
+        radius: 20,
+        pricePerHour: 2000,
+        isOnline: true,
+        isOffline: true,
+        isConsultation: true,
+        isAvailable: true,
+        aadharVerified: true,
+        documentsVerified: true,
+        verificationDate: "2023-03-10T12:00:00Z",
+        rating: 4.8,
+        totalReviews: 25,
+        languages: ["Hindi", "Sanskrit", "English"],
+        certificates: ["Vedic_Expert.jpg", "Astrology_Certificate.jpg", "Varanasi_Temple_Recognition.jpg"],
+        profilePictureUrl: "https://randomuser.me/api/portraits/men/67.jpg",
+        createdAt: "2023-03-05T09:45:00Z",
+        updatedAt: "2023-03-10T12:00:00Z",
+        applicationStatus: "approved"
+      },
+      {
+        id: 4,
+        userId: 104,
+        user: {
+          id: 104,
+          firstName: "Bhaskar",
+          lastName: "Rao",
+          email: "bhaskar.rao@example.com",
+          mobile: "+91 9876543219",
+          age: 42,
+          gender: "Male",
+          address: "23 Devotion Road",
+          city: "Bangalore",
+          state: "Karnataka",
+          pincode: "560001",
+          aadhar: "XXXX-XXXX-3456",
+          isVerified: false,
+          isBlocked: false,
+          createdAt: "2023-01-25T11:30:00Z"
+        },
+        bio: "Tech-savvy modern priest specializing in online consultations and simplified rituals.",
+        experience: 12,
+        specialization: "Online pujas, Simplified rituals",
+        location: "Bangalore, Karnataka",
+        radius: 30,
+        pricePerHour: 1000,
+        isOnline: true,
+        isOffline: false,
+        isConsultation: true,
+        isAvailable: true,
+        aadharVerified: false,
+        documentsVerified: false,
+        verificationDate: null,
+        rating: 0,
+        totalReviews: 0,
+        languages: ["Kannada", "English", "Hindi", "Telugu"],
+        certificates: ["Modern_Priesthood_Course.jpg"],
+        profilePictureUrl: "https://randomuser.me/api/portraits/men/22.jpg",
+        createdAt: "2023-01-25T11:30:00Z",
+        updatedAt: "2023-01-25T11:30:00Z",
+        applicationStatus: "pending"
+      },
+      {
+        id: 5,
+        userId: 105,
+        user: {
+          id: 105,
+          firstName: "Lakshmi",
+          lastName: "Gupta",
+          email: "lakshmi.gupta@example.com",
+          mobile: "+91 9765432187",
+          age: 35,
+          gender: "Female",
+          address: "56 Sacred Circle",
+          city: "Chennai",
+          state: "Tamil Nadu",
+          pincode: "600001",
+          aadhar: "XXXX-XXXX-7890",
+          isVerified: false,
+          isBlocked: false,
+          createdAt: "2023-02-10T13:20:00Z"
+        },
+        bio: "Specializing in Tamil rituals and ceremonies with a modern approach.",
+        experience: 8,
+        specialization: "Tamil rituals, Modern ceremonies",
+        location: "Chennai, Tamil Nadu",
+        radius: 20,
+        pricePerHour: 1300,
+        isOnline: true,
+        isOffline: true,
+        isConsultation: true,
+        isAvailable: true,
+        aadharVerified: false,
+        documentsVerified: false,
+        verificationDate: null,
+        rating: 0,
+        totalReviews: 0,
+        languages: ["Tamil", "English", "Telugu"],
+        certificates: ["Tamil_Rituals_Expert.jpg", "Cultural_Heritage_Certificate.jpg"],
+        profilePictureUrl: "https://randomuser.me/api/portraits/women/28.jpg",
+        createdAt: "2023-02-10T13:20:00Z",
+        updatedAt: "2023-02-10T13:20:00Z",
+        applicationStatus: "rejected"
+      }
+    ];
+  };
+
+  // Filter profiles based on the selected status (use `status` field from DB)
+  const filteredProfiles = gurujiProfiles?.filter((profile: any) => {
+    if (status === 'all') return true;
+    return (profile.status || profile.applicationStatus) === status;
+  }) || [];
+
+  // Further filter profiles based on search query
+  const searchedProfiles = filteredProfiles.filter((profile) => {
+    const searchText = searchQuery.toLowerCase();
+    const userFullName = `${profile.user?.firstName || ''} ${profile.user?.lastName || ''}`.toLowerCase();
+    const userEmail = (profile.user?.email || '').toLowerCase();
+    const userMobile = (profile.user?.mobile || '').toLowerCase();
+    const location = (profile.location || '').toLowerCase();
+    
+    return (
+      userFullName.includes(searchText) ||
+      userEmail.includes(searchText) ||
+      userMobile.includes(searchText) ||
+      location.includes(searchText) ||
+      (profile.specialization?.toLowerCase() || '').includes(searchText)
+    );
+  });
+
+  // Approve application mutation
+  const approveApplicationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/gurujis/${id}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to approve');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/gurujis'] });
+      toast({
+        title: 'Approved!',
+        description: 'Guruji application has been approved. They will be notified.',
+      });
+      setIsDetailsDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to approve application',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Reject application mutation
+  const rejectApplicationMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: number, reason: string }) => {
+      const res = await fetch(`/api/admin/gurujis/${id}/reject`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to reject');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/gurujis'] });
+      toast({
+        title: 'Application Rejected',
+        description: 'The applicant has been notified.',
+      });
+      setRejectionReason('');
+      setIsRejectDialogOpen(false);
+      setIsDetailsDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reject application',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Edit guruji profile mutation
+  const editGurujiMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await fetch(`/api/admin/gurujis/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to update');
+      }
+      return res.json();
+    },
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/gurujis'] });
+      setSelectedProfile((prev: any) => prev ? { ...prev, ...updated } : prev);
+      toast({ title: 'Profile Updated', description: 'Guruji profile has been updated successfully.' });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'Failed to update profile', variant: 'destructive' });
+    },
+  });
+
+  // Open edit dialog pre-filled with current data
+  const handleOpenEdit = () => {
+    if (!selectedProfile) return;
+    const p = selectedProfile as any;
+    setEditForm({
+      city: p.city || '',
+      state: p.state || '',
+      address: p.address || '',
+      pincode: p.pincode || '',
+      experience: String(p.experience || ''),
+      pricePerHour: String(p.pricePerHour || ''),
+      bio: p.bio || '',
+      age: String(p.age || ''),
+      religion: p.religion || '',
+    });
+    // Pre-populate pujas from specialization string (comma-separated names)
+    const specStr = p.specialization || '';
+    const pujaNames = specStr ? specStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+    setEditPujas(pujaNames);
+    // Pre-populate service cities from cities array
+    const citiesArr = Array.isArray(p.cities) ? p.cities : [];
+    setEditServiceCities(citiesArr);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedProfile) return;
+    const data: any = {};
+    if (editForm.city) data.city = editForm.city;
+    if (editForm.state) data.state = editForm.state;
+    if (editForm.address) data.address = editForm.address;
+    if (editForm.pincode) data.pincode = editForm.pincode;
+    if (editForm.experience) data.experience = Number(editForm.experience);
+    if (editForm.pricePerHour) data.pricePerHour = Number(editForm.pricePerHour);
+    if (editForm.bio) data.bio = editForm.bio;
+    if (editForm.age) data.age = Number(editForm.age);
+    if (editForm.religion) data.religion = editForm.religion;
+    data.pujas = editPujas;
+    data.serviceCities = editServiceCities;
+    editGurujiMutation.mutate({ id: selectedProfile.id, data });
+  };
+
+  // View application details
+  const handleViewDetails = (profile: GurujiProfile) => {
+    setSelectedProfile(profile);
+    setIsDetailsDialogOpen(true);
+  };
+
+  // Handle approve application
+  const handleApproveApplication = () => {
+    if (selectedProfile) {
+      approveApplicationMutation.mutate(selectedProfile.id);
+    }
+  };
+
+  // Handle reject application
+  const handleRejectApplication = () => {
+    setIsRejectDialogOpen(true);
+  };
+
+  // Submit rejection
+  const handleSubmitRejection = () => {
+    if (selectedProfile && rejectionReason) {
+      rejectApplicationMutation.mutate({ 
+        id: selectedProfile.id, 
+        reason: rejectionReason 
+      });
+    }
+  };
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">
+          {status === 'pending' && 'Pending Applications'}
+          {status === 'approved' && 'Approved Gurujis'}
+          {status === 'rejected' && 'Rejected Applications'}
+          {status === 'all' && 'All Guruji Profiles'}
+        </h2>
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search applications..."
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="text-center text-red-500 p-4 border border-red-200 rounded-md">
+          Error loading applications. Please try again.
+        </div>
+      ) : searchedProfiles.length === 0 ? (
+        <div className="text-center p-8 border rounded-md">
+          <p className="text-muted-foreground">No applications found matching your criteria.</p>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Experience</TableHead>
+                <TableHead>Specialization</TableHead>
+                <TableHead>Applied On</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {searchedProfiles.map((profile) => (
+                <TableRow key={profile.id}>
+                  <TableCell className="font-medium">
+                    {profile.user?.firstName} {profile.user?.lastName}
+                  </TableCell>
+                  <TableCell>{resolveCities(profile)}</TableCell>
+                  <TableCell>{profile.experience ? `${profile.experience} years` : '—'}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">
+                    {resolveSpecialization(profile.specialization)}
+                  </TableCell>
+                  <TableCell>{formatDate(profile.createdAt)}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const s = (profile as any).status || profile.applicationStatus;
+                      return (
+                        <Badge variant={s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : 'outline'}>
+                          {s === 'pending' ? 'Pending Review' : s === 'approved' ? 'Approved' : s === 'rejected' ? 'Rejected' : s}
+                        </Badge>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleViewDetails(profile)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Application Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Guruji Application Details</DialogTitle>
+          </DialogHeader>
+
+          {selectedProfile && (
+            <div>
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="md:w-1/3">
+                  <div className="rounded-lg overflow-hidden border aspect-square">
+                    {selectedProfile.profilePictureUrl ? (
+                      <img 
+                        src={selectedProfile.profilePictureUrl} 
+                        alt={`${selectedProfile.user?.firstName} ${selectedProfile.user?.lastName}`} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <User className="h-16 w-16 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="md:w-2/3">
+                  <h2 className="text-2xl font-bold mb-2">
+                    {selectedProfile.user?.firstName} {selectedProfile.user?.lastName}
+                  </h2>
+                  <div className="flex items-center text-muted-foreground mb-2">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    <span>{resolveCities(selectedProfile)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <Badge variant="outline">
+                      {selectedProfile.experience} Years Experience
+                    </Badge>
+                    {selectedProfile.languages?.map((language, index) => (
+                      <Badge key={index} variant="secondary">
+                        {language}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="mb-4">{selectedProfile.bio}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center text-muted-foreground">
+                      <Phone className="h-4 w-4 mr-2" />
+                      <span>{selectedProfile.user?.mobile}</span>
+                    </div>
+                    <div className="flex items-center text-muted-foreground">
+                      <Mail className="h-4 w-4 mr-2" />
+                      <span>{selectedProfile.user?.email}</span>
+                    </div>
+                    <div className="flex items-center text-muted-foreground">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <span>Applied on {formatDate(selectedProfile.createdAt)}</span>
+                    </div>
+                    <div className="flex items-center">
+                      {(() => {
+                        const s = (selectedProfile as any).status || selectedProfile.applicationStatus;
+                        return (
+                          <Badge variant={s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : 'outline'}>
+                            {s === 'pending' ? 'Pending Review' : s === 'approved' ? 'Approved' : s === 'rejected' ? 'Rejected' : s}
+                          </Badge>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="w-full grid grid-cols-3">
+                  <TabsTrigger value="personal">
+                    <User className="h-4 w-4 mr-2" />
+                    Personal Info
+                  </TabsTrigger>
+                  <TabsTrigger value="professional">
+                    <Award className="h-4 w-4 mr-2" />
+                    Professional Info
+                  </TabsTrigger>
+                  <TabsTrigger value="certificates">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Certificates
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="personal">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Personal Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Full Name</h4>
+                          <p>{selectedProfile.user?.firstName} {selectedProfile.user?.lastName}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Age</h4>
+                          <p>{(selectedProfile as any).age || selectedProfile.user?.age ? `${(selectedProfile as any).age || selectedProfile.user?.age} years` : 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Religion</h4>
+                          <p>{(selectedProfile as any).religion || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Gender</h4>
+                          <p>{selectedProfile.user?.gender || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Email</h4>
+                          <p>{selectedProfile.user?.email}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Mobile</h4>
+                          <p>{selectedProfile.user?.mobile}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Aadhar</h4>
+                          <p>{selectedProfile.user?.aadhar || 'Not provided'}</p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Address</h4>
+                          <p>
+                            {(() => {
+                              const p = selectedProfile as any;
+                              const parts = [p.address, p.city, p.state].filter(Boolean);
+                              const pincode = p.pincode;
+                              if (parts.length === 0) return 'Not provided';
+                              return parts.join(', ') + (pincode ? ' - ' + pincode : '');
+                            })()}
+                          </p>
+                        </div>
+                        {selectedProfile.user?.caste && (
+                          <div>
+                            <h4 className="text-sm font-medium text-muted-foreground mb-1">Caste</h4>
+                            <p>{selectedProfile.user?.caste}</p>
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Aadhar Verification</h4>
+                          <Badge variant={selectedProfile.aadharVerified ? "default" : "outline"}>
+                            {selectedProfile.aadharVerified ? "Verified" : "Not Verified"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="professional">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Professional Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Experience</h4>
+                          <p>{selectedProfile.experience} years</p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Service Cities</h4>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {resolveCities(selectedProfile).split(' | ').map((city, i) => (
+                              <Badge key={i} variant="outline" className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />{city}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Service Radius</h4>
+                          <p>{selectedProfile.radius} km</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Price Per Hour</h4>
+                          <p>₹{selectedProfile.pricePerHour}</p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Specialization</h4>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {resolveSpecialization(selectedProfile.specialization).split(', ').map((name, i) => (
+                              name !== 'Not specified' ? (
+                                <Badge key={i} variant="outline">{name}</Badge>
+                              ) : <span key={i} className="text-muted-foreground">Not specified</span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="md:col-span-2">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Languages</h4>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {selectedProfile.languages?.map((language, index) => (
+                              <Badge key={index} variant="secondary">
+                                {language}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Service Types</h4>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {selectedProfile.isOnline && (
+                              <Badge variant="outline">Online</Badge>
+                            )}
+                            {selectedProfile.isOffline && (
+                              <Badge variant="outline">In-Person</Badge>
+                            )}
+                            {selectedProfile.isConsultation && (
+                              <Badge variant="outline">Consultation</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-muted-foreground mb-1">Document Verification</h4>
+                          <Badge variant={selectedProfile.documentsVerified ? "default" : "outline"}>
+                            {selectedProfile.documentsVerified ? "Verified" : "Not Verified"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="certificates">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Uploaded Certificates</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {selectedProfile.certificates && selectedProfile.certificates.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {selectedProfile.certificates.map((certificate, index) => (
+                            <div key={index} className="border rounded-md p-2">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-primary" />
+                                <span className="text-sm font-medium">{certificate}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center p-6">
+                          <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">No certificates uploaded</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+
+          <DialogFooter className="mt-6">
+            {(() => {
+              const s = selectedProfile ? ((selectedProfile as any).status || selectedProfile.applicationStatus) : null;
+              return (
+                <>
+                  <Button variant="outline" onClick={handleOpenEdit}>
+                    Edit Details
+                  </Button>
+                  {s === 'pending' && (
+                    <>
+                      <Button variant="outline" onClick={handleRejectApplication} disabled={rejectApplicationMutation.isPending}>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Reject
+                      </Button>
+                      <Button onClick={handleApproveApplication} disabled={approveApplicationMutation.isPending}>
+                        {approveApplicationMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                        Approve
+                      </Button>
+                    </>
+                  )}
+                  {s === 'approved' && (
+                    <Button variant="outline" onClick={handleRejectApplication} disabled={rejectApplicationMutation.isPending}>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Revoke Approval
+                    </Button>
+                  )}
+                  {s === 'rejected' && (
+                    <Button onClick={handleApproveApplication} disabled={approveApplicationMutation.isPending}>
+                      {approveApplicationMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                      Re-Approve
+                    </Button>
+                  )}
+                </>
+              );
+            })()}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Reason Dialog */}
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Rejection Reason</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="mb-4 text-sm text-muted-foreground">
+              Please provide a reason for rejecting this application. This information will be shared with the applicant.
+            </p>
+            <Label htmlFor="rejectionReason">Reason</Label>
+            <Input
+              id="rejectionReason"
+              className="mt-2"
+              placeholder="Enter rejection reason"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button 
+              onClick={handleSubmitRejection}
+              disabled={!rejectionReason.trim()}
+            >
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Guruji Profile — {selectedProfile?.user?.firstName} {selectedProfile?.user?.lastName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>City *</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Mumbai"
+                  value={editForm.city}
+                  onChange={e => setEditForm(f => ({ ...f, city: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>State</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Maharashtra"
+                  value={editForm.state}
+                  onChange={e => setEditForm(f => ({ ...f, state: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Full Address</Label>
+              <Input
+                className="mt-1"
+                placeholder="Street address"
+                value={editForm.address}
+                onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Pincode</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="6-digit pincode"
+                  maxLength={6}
+                  value={editForm.pincode}
+                  onChange={e => setEditForm(f => ({ ...f, pincode: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Religion</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Hindu"
+                  value={editForm.religion}
+                  onChange={e => setEditForm(f => ({ ...f, religion: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Years of Experience *</Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  min="1"
+                  max="50"
+                  placeholder="e.g. 5"
+                  value={editForm.experience}
+                  onChange={e => setEditForm(f => ({ ...f, experience: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Price Per Hour (₹)</Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  min="100"
+                  placeholder="e.g. 500"
+                  value={editForm.pricePerHour}
+                  onChange={e => setEditForm(f => ({ ...f, pricePerHour: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Bio / Description</Label>
+              <textarea
+                className="mt-1 w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Describe the guruji's background and expertise..."
+                value={editForm.bio}
+                onChange={e => setEditForm(f => ({ ...f, bio: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label className="mb-1 block">Puja Specializations</Label>
+              <PujaMultiSelect selectedPujas={editPujas} onChange={setEditPujas} />
+            </div>
+
+            <div>
+              <Label className="mb-1 block">Service Cities (where they can serve)</Label>
+              <CityMultiSelect selectedCities={editServiceCities} onChange={setEditServiceCities} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={editGurujiMutation.isPending || !editForm.city.trim() || !editForm.experience}
+            >
+              {editGurujiMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

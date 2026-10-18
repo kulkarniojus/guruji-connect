@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Sanatan Guruji"
+description = "The existing Sanatan Guruji web portal, preserving puja bookings, Guruji availability, customer and staff accounts, notifications, pricing, cancellations, commissions and Guruji Finance."
+version = "1.0.0"
+id = "artifacts/sanatan-guruji"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24817
+
+[services.development]
+run = "pnpm --filter @workspace/sanatan-guruji run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sanatan-guruji", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sanatan-guruji/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24817"
+BASE_PATH = "/"
