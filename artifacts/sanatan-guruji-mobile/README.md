@@ -18,7 +18,7 @@ Published portal changes appear on the next page load/reload; unsaved or unpubli
 
 ## Release configuration — deliberately not invented
 
-This project reported no active published portal URL when this app was built. Configure `EXPO_PUBLIC_PORTAL_URL` to your **verified live HTTPS portal origin**, for example your own real domain with no path, credentials or query parameters. It is public configuration, not a secret. Never put database URLs, session secrets, access tokens or passwords in any `EXPO_PUBLIC_` setting.
+The user confirmed **https://sanatanguruji.com** as the intended live portal address. `EXPO_PUBLIC_PORTAL_URL` is configured to this address in the **production** environment only; development previews continue to use the workspace portal. The website must be republished and checked before a usable mobile release can connect to it. This setting is public configuration, not a secret. Never put database URLs, session secrets, access tokens or passwords in any `EXPO_PUBLIC_` setting.
 
 Production builds do not fall back to development. With an absent or development portal address they show **Live portal setup required**, instead of connecting to the wrong database/environment. Public Expo variables are embedded at bundle/build time: restart the mobile workflow after configuring them and rebuild a release after changing its origin.
 
@@ -35,7 +35,7 @@ Do not create dynamic `app.config.js`/`app.config.ts`, remove the managed Expo l
 ## Verification
 
 - Mobile TypeScript check: `pnpm --filter @workspace/sanatan-guruji-mobile run typecheck`.
-- Policy tests: from the workspace, run the TypeScript test with the workspace's `tsx` runner and Node test mode.
+- Policy tests: `pnpm --filter @workspace/sanatan-guruji-mobile run test:policy`.
 - Native export: run Expo export for iOS/Android into ignored `generated-artifacts/` or a temporary directory. This checks JavaScript/asset bundling, not a signed native binary or device behavior.
 - The remote-update fixture test changes only its temporary HTTP server response; it never changes the portal, database, business settings or real user data.
 

@@ -14,3 +14,9 @@ The mobile release must not infer its production portal from the workspace's dev
 **Why:** A mobile wrapper connects to whichever portal origin it loads. Accidentally shipping a preview origin connects real users to development rather than the intended live portal.
 
 **How to apply:** Require an explicitly confirmed HTTPS live origin for release; allow a clearly labelled development fallback only in development. Preserve first-party portal sessions rather than inventing native account storage or copying database credentials into the app. Browser iframe previews and native bundle exports do not prove native-device login, permission or restart behavior.
+
+The intended public portal origin is **https://sanatanguruji.com**.
+
+**Why:** The user explicitly named this domain as the site where they intend to republish the portal.
+
+**How to apply:** Keep the production mobile origin pointed at this confirmed domain, with development pointed at the workspace. Check live availability and canonical redirects before release rather than assuming a configured URL is a working deployment.

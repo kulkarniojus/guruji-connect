@@ -22,6 +22,14 @@ test('development portal is labelled, and configured production is authoritative
     { ok: true, url: origin, development: false });
 });
 
+test('the confirmed live portal origin takes precedence over any workspace host in release', () => {
+  assert.deepEqual(resolvePortalConfig({
+    development: false,
+    productionUrl: 'https://sanatanguruji.com',
+    developmentDomain: 'fixture.replit.dev',
+  }), { ok: true, url: 'https://sanatanguruji.com/', development: false });
+});
+
 test('role pages, auth, files and booking return URLs stay on their real portal origin', () => {
   for (const path of ['booking?puja=1&returnTo=%2Fbooking', 'login', 'auth', 'guruji-dashboard',
     'admin-dashboard', 'sales-dashboard', 'api/admin/guruji-finance/export?section=ledger',
