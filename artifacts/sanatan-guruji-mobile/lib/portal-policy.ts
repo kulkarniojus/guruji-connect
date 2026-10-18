@@ -31,7 +31,7 @@ export function resolvePortalConfig(input: {
   }
 }
 
-export type NavigationDecision = 'internal' | 'external' | 'device' | 'blocked';
+export type NavigationDecision = 'internal' | 'payment' | 'external' | 'device' | 'blocked';
 
 export function classifyNavigation(target: string, portal: string): NavigationDecision {
   if (!target || /[\u0000-\u0020\u007f]/.test(target)) return 'blocked';
@@ -39,6 +39,9 @@ export function classifyNavigation(target: string, portal: string): NavigationDe
     const url = new URL(target);
     if (url.username || url.password) return 'blocked';
     if (url.protocol === 'https:') {
+      // Keep hosted checkout in the same WebView so the return retains the
+      // customer's existing portal session. Other external sites stay outside.
+      if (['checkout.stripe.com','hooks.stripe.com','payments.stripe.com'].includes(url.hostname)) return 'payment';
       return url.origin === new URL(portal).origin ? 'internal' : 'external';
     }
     if (url.protocol === 'tel:') return /^tel:\+?[0-9().-]{3,30}$/i.test(target) ? 'device' : 'blocked';

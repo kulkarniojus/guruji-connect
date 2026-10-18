@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -8,34 +8,25 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Loader2, CreditCard, QrCode, AlertCircle, CheckCircle2 } from 'lucide-react';
+import CheckoutHistory from './CheckoutHistory';
+import type { PaymentConfiguration } from '@workspace/api-client-react';
 
-interface PaymentSettings {
-  checkoutAvailable?: boolean;
-  paymentRequired: boolean;
-  upiId: string | null;
-  upiName: string | null;
-  upiQrImageUrl: string | null;
-}
+type PaymentSettings=PaymentConfiguration;
 
 export default function PaymentSettingsTab() {
   const { toast } = useToast();
   const [form, setForm] = useState<PaymentSettings | null>(null);
 
-  const { data, isLoading } = useQuery<PaymentSettings>({
+  const { data, isLoading, isError, refetch } = useQuery<PaymentSettings>({
     queryKey: ['/api/settings/payment'],
     queryFn: async () => {
       const res = await fetch('/api/settings/payment');
+      if (!res.ok) throw new Error('Payment settings could not be loaded');
       const json = await res.json();
       return json;
     },
-    onSuccess: (data) => {
-      if (!form) setForm(data);
-    },
-  } as any);
-
-  if (!form && data && !isLoading) {
-    setForm(data);
-  }
+  });
+  useEffect(()=>{if (data) setForm(previous=>previous??data);},[data]);
 
   const mutation = useMutation({
     mutationFn: async (payload: PaymentSettings) => {
@@ -43,15 +34,17 @@ export default function PaymentSettingsTab() {
       if (!res.ok) throw new Error('Failed to save');
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      setForm(saved);
       queryClient.invalidateQueries({ queryKey: ['/api/settings/payment'] });
       toast({ title: 'Payment settings saved', description: 'Changes will apply to all new bookings immediately.' });
     },
-    onError: () => {
-      toast({ title: 'Error', description: 'Could not save settings. Please try again.', variant: 'destructive' });
+    onError: (error) => {
+      toast({ title: 'Error', description: String(error), variant: 'destructive' });
     },
   });
 
+  if (isError) return <div role="alert" className="space-y-3"><p>Payment settings could not be loaded.</p><Button variant="outline" onClick={()=>void refetch()}>Retry</Button></div>;
   if (isLoading || !form) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -63,7 +56,7 @@ export default function PaymentSettingsTab() {
   const handleSave = () => mutation.mutate(form);
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-5xl">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -77,7 +70,7 @@ export default function PaymentSettingsTab() {
         <CardContent className="space-y-6">
           {!data?.checkoutAvailable && (
             <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-              Secure payment checkout is not connected. New booking requests are paused; enabling the UPI setting below will not enable checkout.
+              Stripe checkout or signed webhooks are not ready. Payments cannot be enabled yet. When the switch is off, the existing no-payment booking flow continues.
             </div>
           )}
 
@@ -87,12 +80,13 @@ export default function PaymentSettingsTab() {
               <p className="font-medium">Require payment before booking</p>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {form.paymentRequired
-                  ? 'Customers must pay via UPI before the request is sent to the Guruji.'
+                  ? 'Customers complete verified Stripe checkout before the request is sent to the Guruji.'
                   : 'Bookings are sent to Guruji without any advance payment.'}
               </p>
             </div>
             <Switch
               checked={form.paymentRequired}
+              disabled={!data?.checkoutAvailable&&!form.paymentRequired}
               onCheckedChange={(val) => setForm(prev => prev ? { ...prev, paymentRequired: val } : prev)}
             />
           </div>
@@ -100,8 +94,21 @@ export default function PaymentSettingsTab() {
           {/* Status indicator */}
           <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${form.paymentRequired ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
             {form.paymentRequired
-              ? <><CheckCircle2 className="h-4 w-4 flex-shrink-0" /> Payment required — customers will see UPI details before confirming</>
+              ? <><CheckCircle2 className="h-4 w-4 flex-shrink-0" /> Payment required — Stripe must verify the advance before sending the booking request</>
               : <><AlertCircle className="h-4 w-4 flex-shrink-0" /> Payment not required — bookings proceed without advance payment</>}
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-3">
+            <h3 className="font-medium">Stripe connection: {data?.checkoutAvailable?'Ready':'Not ready'} · {data?.providerMode?.toUpperCase()}</h3>
+            {data?.providerMode==='test' && <p className="text-sm text-amber-800">TEST mode only. Use test cards; no real money is collected and test checkouts do not become actual finance receipts. Configure your live Stripe server key before accepting real payments.</p>}
+            {data?.providerMode==='live' && <p className="text-sm text-green-800">LIVE mode: enabling and saving the switch will require real customer advance payments for new bookings.</p>}
+            <div className="space-y-2">
+              <Label htmlFor="paymentAdvance">Customer advance (% of final booking total)</Label>
+              <Input id="paymentAdvance" type="number" min="1" max="100" step="0.01" value={form.advancePercentage}
+                onChange={e=>setForm(previous=>previous?{...previous,advancePercentage:Number(e.target.value)}:previous)} />
+              <p className="text-xs text-muted-foreground">Example: ₹3,000 at {form.advancePercentage}% collects ₹{(Math.round(300000*form.advancePercentage/100)/100).toFixed(2)} online; the rest is paid directly to Guruji. This is separate from your commission configuration. Existing booking totals and paid advances never change when settings change.</p>
+            </div>
+            <p className="text-sm text-muted-foreground">Payment does not mean a Guruji has accepted. Failed/cancelled checkout sends no request. Cancellation deductions still use the configured policy and actual collections; refunds are paid and recorded manually by the support team.</p>
           </div>
 
           {/* UPI Settings */}
@@ -111,7 +118,7 @@ export default function PaymentSettingsTab() {
               UPI Payment Details
             </h3>
             <p className="text-sm text-muted-foreground">
-              These details are shown to customers when payment is required. Configure them even if payment is currently disabled.
+              Your existing manual UPI reference details are retained. They do not enable checkout or prove payment; online booking advances are verified through Stripe, not a checkbox or QR screenshot.
             </p>
 
             <div className="space-y-2">
@@ -166,6 +173,7 @@ export default function PaymentSettingsTab() {
           </Button>
         </CardContent>
       </Card>
+      <CheckoutHistory />
     </div>
   );
 }

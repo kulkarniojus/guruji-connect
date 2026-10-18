@@ -15,6 +15,8 @@ process.on('uncaughtException', (err: any) => {
 const app = express();
 // The shared gateway terminates HTTPS; production session cookies remain secure.
 app.set("trust proxy", 1);
+// Stripe signatures must be checked against the original bytes.
+app.use('/api/stripe/webhook', express.raw({type:'application/json',limit:'2mb'}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.get("/api/healthz", (_req, res) => res.json({ status: "ok" }));
@@ -50,7 +52,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       // Completion responses can contain a customer's private OTP or audit details.
-      if (capturedJsonResponse && !/\/(?:completion|communications|notifications|bookings|booking-requests|addresses)(?:\/|$)/.test(path)) {
+      if (capturedJsonResponse && !/\/(?:completion|communications|notifications|bookings|booking-requests|addresses|payments|stripe)(?:\/|$)/.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
       if (logLine.length > 80) {

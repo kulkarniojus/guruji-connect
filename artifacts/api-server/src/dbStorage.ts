@@ -870,7 +870,7 @@ export class DBStorage implements IStorage {
   
   async getPaymentsByBookingId(bookingId: number): Promise<Payment[]> {
     const result = await pool.query(
-      `SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC`,
+      `SELECT * FROM payments WHERE "bookingId" = $1 ORDER BY "createdAt" DESC`,
       [bookingId]
     );
     
@@ -1216,13 +1216,13 @@ export class DBStorage implements IStorage {
   private mapPaymentFromDb(row: any): Payment {
     return {
       id: row.id,
-      bookingId: row.booking_id,
-      amount: row.amount,
+      bookingId: row.bookingId ?? row.booking_id,
+      amount: Number(row.amount),
       status: row.status,
-      transactionId: row.transaction_id,
-      paymentMethod: row.payment_method,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      transactionId: row.transactionId ?? row.transaction_id,
+      paymentMethod: row.method ?? row.payment_method,
+      createdAt: row.createdAt ?? row.created_at,
+      updatedAt: row.updatedAt ?? row.updated_at
     };
   }
   

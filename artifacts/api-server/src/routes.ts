@@ -25,13 +25,11 @@ import { initializeGurujiFinance } from './gurujiFinanceStore';
 import { startGurujiFinanceScheduler } from './gurujiFinanceScheduler';
 import { gurujiFinanceRouter } from './routes/guruji-finance';
 import { cancellationsRouter } from './routes/cancellations';
+import { initializePaymentStorage, initializeStripeGateway, paymentSettings, savePaymentSettings,
+  startCheckout, checkoutResult, processPaymentWebhook, checkoutReturnOrigin } from './stripePayments';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
-// Enable only after a gateway checkout and server-side payment verification are wired up.
-const PAYMENT_CHECKOUT_AVAILABLE = false;
-// Explicit temporary product mode: requests are allowed without collecting payment.
-const BOOKING_PAYMENT_SKIPPED = true;
 import { bookingStatusLabel } from '@workspace/portal-shared/bookingLifecycle';
 import { z } from "zod";
 import { ZodError } from "zod";
@@ -280,6 +278,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   `);
   // Initialize admin user and app settings
   await initializeAppSettings();
+  await initializePaymentStorage();
+  await initializeStripeGateway();
   // No sample accounts are created or re-enabled on application startup.
 
   // Set up session middleware — use PostgreSQL store so sessions survive restarts
@@ -1418,8 +1418,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking Routes
   app.post("/api/bookings", isAuthenticated, checkRole(['customer']), async (req: Request, res: Response) => {
     try {
-      if (!PAYMENT_CHECKOUT_AVAILABLE && !BOOKING_PAYMENT_SKIPPED) {
-        return res.status(503).json({ message: 'Secure payment checkout is not configured yet. No booking was created.' });
+      if ((await paymentSettings()).paymentRequired) {
+        return res.status(402).json({ message: 'Complete verified Stripe checkout before sending this booking request.' });
       }
 
       const userId = req.session.userId as number;
@@ -2325,22 +2325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Payment Settings (public read, admin write) ──────────────────────────
   app.get('/api/settings/payment', async (req: Request, res: Response) => {
     try {
-      if (!process.env.DATABASE_URL) {
-        return res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentSkipped: BOOKING_PAYMENT_SKIPPED, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
-      }
-      const result = await pool.query('SELECT * FROM app_settings LIMIT 1');
-      if (result.rows.length === 0) {
-        return res.json({ checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE, paymentSkipped: BOOKING_PAYMENT_SKIPPED, paymentRequired: false, upiId: null, upiName: null, upiQrImageUrl: null });
-      }
-      const row = result.rows[0];
-      res.json({
-        checkoutAvailable: PAYMENT_CHECKOUT_AVAILABLE,
-        paymentSkipped: BOOKING_PAYMENT_SKIPPED,
-        paymentRequired: BOOKING_PAYMENT_SKIPPED ? false : row.payment_required,
-        upiId: row.upi_id,
-        upiName: row.upi_name,
-        upiQrImageUrl: row.upi_qr_image_url,
-      });
+      res.json(await paymentSettings());
     } catch (err) {
       console.error('Error fetching payment settings:', err);
       res.status(500).json({ message: 'Could not load payment settings' });
@@ -2349,18 +2334,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/settings/payment', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
-      const { paymentRequired, upiId, upiName, upiQrImageUrl } = req.body;
-      if (!process.env.DATABASE_URL) {
-        return res.status(503).json({ message: 'Database not available' });
-      }
-      await pool.query(
-        `UPDATE app_settings SET payment_required=$1, upi_id=$2, upi_name=$3, upi_qr_image_url=$4, updated_at=NOW()`,
-        [!!paymentRequired, upiId || null, upiName || null, upiQrImageUrl || null]
-      );
-      res.json({ success: true });
+      res.json(await savePaymentSettings(req.body));
     } catch (err) {
-      console.error('Error updating payment settings:', err);
-      res.status(500).json({ message: 'Failed to update payment settings' });
+      res.status(err instanceof ZodError ? 400 : (err as any).status || 500).json({
+        message:err instanceof ZodError ? 'Enter a valid advance percentage (1–100) and HTTPS QR image URL.' : (err as any).status ? (err as Error).message : 'Failed to update payment settings',
+      });
+    }
+  });
+
+  const paidBookingEligible = (booking: any) => eligiblePujaRequestGurujis(booking,booking.city||'');
+  const paidBookingBroadcast = (booking: any, gurujis: any[]) => {
+    for (const g of gurujis) io.to(`user_${g.userId}`).emit('newPujaRequest',{
+      bookingId:booking.id,title:'New Puja Request',message:`New puja request in ${booking.city||'your area'}`,
+      amount:booking.amount,date:booking.date,city:booking.city,pincode:booking.pincode,timestamp:new Date(),
+    });
+  };
+  app.post('/api/payments/checkout',isAuthenticated,checkRole(['customer']),async(req,res)=>{
+    try {
+      return res.json(await startCheckout(req.session.userId!,req.body,
+        checkoutReturnOrigin(req.get('origin')||`https://${req.hostname}`)));
+    } catch(error:any) {
+      return res.status(error instanceof ZodError?400:error.status||503).json({message:
+        error instanceof ZodError?'Complete the booking details before paying.':error.status?error.message:
+          'Stripe could not open checkout. No booking request was sent. Please retry or contact the Sanatan Guruji support team.'});
+    }
+  });
+  app.get('/api/payments/checkout/:sessionId',isAuthenticated,checkRole(['customer']),async(req,res)=>{
+    try {
+      res.json(await checkoutResult(req.session.userId!,req.params.sessionId,paidBookingEligible,paidBookingBroadcast));
+    } catch(error:any) { res.status(error.status||503).json({message:error.status?error.message:'Payment verification is temporarily unavailable. Do not pay again; retry verification.'}); }
+  });
+  app.get('/api/payments/orders/:id',isAuthenticated,checkRole(['customer']),async(req,res)=>{
+    try {
+    if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({message:'Invalid payment attempt'});
+    const order=(await pool.query(`SELECT stripe_session_id AS "sessionId",booking_id AS "bookingId",state
+      FROM portal_checkout_orders WHERE id=$1 AND customer_id=$2`,[req.params.id,req.session.userId])).rows[0];
+    if (!order) return res.status(404).json({message:'Payment attempt not found'});
+    return res.json(order);
+    } catch { return res.status(503).json({message:'Payment attempt could not be loaded'}); }
+  });
+  app.get('/api/admin/payments/checkouts',isAuthenticated,isAdmin,async(_req,res)=>{
+    try {
+    res.json((await pool.query(`SELECT o.id,o.customer_id AS "customerId",u."firstName" AS "customerName",
+      o.booking_id AS "bookingId",o.state,o.needs_support AS "needsSupport",(o.advance_paise/100.0)::float8 AS "advanceAmount",
+      o.advance_percentage::float8 AS "advancePercentage",(o.pricing_snapshot->>'totalAmount')::float8 AS "totalAmount",
+      o.created_at AS "createdAt",o.livemode,o.stripe_payment_intent_id AS "paymentReference",
+      o.stripe_session_id AS "sessionId"
+      FROM portal_checkout_orders o JOIN users u ON u.id=o.customer_id ORDER BY o.created_at DESC LIMIT 100`)).rows);
+    } catch { res.status(503).json({message:'Checkout history could not be loaded'}); }
+  });
+  app.post('/api/admin/payments/checkouts/:id/reconcile',isAuthenticated,isAdmin,async(req,res)=>{
+    try {
+      if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({message:'Invalid payment attempt'});
+      const order=(await pool.query('SELECT customer_id,stripe_session_id FROM portal_checkout_orders WHERE id=$1',[req.params.id])).rows[0];
+      if (!order?.stripe_session_id) return res.status(404).json({message:'Checkout session not found'});
+      return res.json(await checkoutResult(order.customer_id,order.stripe_session_id,paidBookingEligible,paidBookingBroadcast));
+    } catch(error:any) { return res.status(error.status||503).json({message:error.status?error.message:'Stripe verification is unavailable. No new charge was made.'}); }
+  });
+  app.post('/api/stripe/webhook',async(req,res)=>{
+    const signature=req.headers['stripe-signature'];
+    if (!signature || Array.isArray(signature)) return res.status(400).json({message:'A Stripe signature is required'});
+    try {
+      await processPaymentWebhook(req.body,signature,paidBookingEligible,paidBookingBroadcast);
+      return res.json({received:true});
+    } catch(error:any) {
+      return res.status(error.type==='StripeSignatureVerificationError'?400:500).json({message:'Payment webhook verification or processing failed'});
     }
   });
 

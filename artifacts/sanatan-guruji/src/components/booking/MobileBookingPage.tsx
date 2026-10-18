@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { submitBooking } from '@/components/payments/bookingCheckout';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Calendar, Clock, MapPin,
@@ -230,7 +231,8 @@ export function MobileBookingPage() {
       if (bookingType === 'consultation') bookingData.consultationType = consultationType;
       if (selectedGurujiId) bookingData.gurujiId = parseInt(selectedGurujiId);
 
-      await apiRequest('POST', '/api/bookings', bookingData);
+      const submitted=await submitBooking(bookingData);
+      if (!submitted) return;
       queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
       toast({ title: 'Booking submitted!', description: 'Our team will contact you for payment confirmation.' });
@@ -611,53 +613,16 @@ export function MobileBookingPage() {
             />
 
             {paymentSettings?.paymentRequired ? (
-              /* ── Payment required: show UPI QR ── */
               <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-3">
                 <p className="font-semibold text-violet-900 flex items-center gap-2">
                   <QrCode className="h-4 w-4" />
-                  Pay via UPI to confirm booking
+                  Secure Stripe checkout
                 </p>
                 <p className="text-sm text-violet-700">
-                  Pay <strong>₹{calculateAmount()}</strong> to complete your booking request.
+                  Pay an advance of <strong>{paymentSettings.advancePercentage}%</strong> of the final booking total.
+                  The remaining balance is paid directly to your Guruji. Stripe must verify payment before your request is sent.
                 </p>
-                {paymentSettings?.upiQrImageUrl && (
-                  <div className="flex justify-center">
-                    <img
-                      src={paymentSettings.upiQrImageUrl}
-                      alt="UPI QR Code"
-                      className="w-40 h-40 object-contain bg-white rounded-lg border p-2"
-                    />
-                  </div>
-                )}
-                {paymentSettings?.upiId && (
-                  <div className="flex items-center justify-between bg-white border rounded-lg px-3 py-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground">{paymentSettings.upiName ?? 'UPI ID'}</p>
-                      <p className="font-mono text-sm font-medium">{paymentSettings.upiId}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(paymentSettings.upiId);
-                        toast({ title: 'UPI ID copied!' });
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                <div className="flex items-start gap-2 pt-1">
-                  <Checkbox
-                    id="mobPayConfirm"
-                    checked={paymentConfirmed}
-                    onCheckedChange={(val) => setPaymentConfirmed(!!val)}
-                    className="mt-0.5"
-                  />
-                  <label htmlFor="mobPayConfirm" className="text-xs text-violet-800 cursor-pointer">
-                    I have completed the UPI payment and understand it will be verified before my booking is confirmed.
-                  </label>
-                </div>
+                {paymentSettings.providerMode==='test' && <p className="text-sm font-semibold">TEST MODE — no real money is collected or posted as an actual receipt.</p>}
               </div>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm space-y-1">
@@ -747,10 +712,10 @@ export function MobileBookingPage() {
           <Button
             className="w-full bg-violet-600 hover:bg-violet-700 text-white"
             onClick={handleSubmit}
-            disabled={isSubmitting || !currentUser || selectedTimeElapsed || !pricingQuote || pricingQuoteQuery.isFetching || pricingQuoteQuery.isError || (paymentSettings?.paymentRequired && !paymentConfirmed)}
+            disabled={isSubmitting || !currentUser || selectedTimeElapsed || !pricingQuote || pricingQuoteQuery.isFetching || pricingQuoteQuery.isError || (paymentSettings?.paymentRequired && !paymentSettings.checkoutAvailable)}
           >
             {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-            {isSubmitting ? 'Submitting…' : paymentSettings?.paymentRequired ? 'I have paid — Confirm Booking' : 'Confirm Booking Request'}
+            {isSubmitting ? 'Submitting…' : paymentSettings?.paymentRequired ? 'Continue to secure payment' : 'Confirm Booking Request'}
           </Button>
         ) : (
           <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white" onClick={goNext}>

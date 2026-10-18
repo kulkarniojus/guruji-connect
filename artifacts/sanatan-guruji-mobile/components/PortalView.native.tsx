@@ -45,7 +45,7 @@ export default function PortalView({ url }: { url: string }) {
 
   function allowNavigation(target: string) {
     const decision = classifyNavigation(target, url);
-    if (decision === 'internal') return true;
+    if (decision === 'internal' || decision === 'payment') return true;
     if (decision === 'external' || decision === 'device') {
       void openOutside(target);
     } else {
@@ -102,7 +102,7 @@ export default function PortalView({ url }: { url: string }) {
           // replace the portal or silently open the system browser.
           if (request.isTopFrame === false) {
             const decision = classifyNavigation(request.url, url);
-            return decision === 'internal' || decision === 'external';
+            return decision === 'internal' || decision === 'payment' || decision === 'external';
           }
           return allowNavigation(request.url);
         }}

@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon, Clock, MapPin, User, ArrowRight, CreditCard, Calendar as CalendarIcon2, Check, UserX, Loader2 } from 'lucide-react';
 import { BookingProgressIndicator, BookingStep } from './BookingProgressIndicator';
 import PaymentPage from '@/components/payments/PaymentPage';
+import { submitBooking } from '@/components/payments/bookingCheckout';
 import LoginModal from '@/components/auth/LoginModal';
 import { clearBookingDraft, readBookingDraft, saveBookingDraft } from './bookingDraft';
 import { useAuth } from '@/context/AuthContext';
@@ -334,8 +335,8 @@ export default function BookingPage() {
       }
       // If auto-search mode, don't set gurujiId - it will be handled by the API
 
-      const response = await apiRequest('POST', '/api/bookings', bookingData);
-      const data = await response.json();
+      const data = await submitBooking(bookingData);
+      if (!data) return;
       if (typeof data.id !== 'number') throw new Error('Booking response did not include an ID');
 
       // Invalidate bookings cache to refresh the dashboard

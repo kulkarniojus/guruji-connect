@@ -11,6 +11,96 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /settings/payment:
+    get:
+      operationId: getPaymentConfiguration
+      responses:
+        "200":
+          description: Public payment configuration, never credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentConfiguration" }
+  /admin/settings/payment:
+    put:
+      operationId: savePaymentConfiguration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentConfigurationInput" }
+      responses:
+        "200":
+          description: Admin payment configuration saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentConfiguration" }
+  /payments/checkout:
+    post:
+      operationId: startBookingCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentCheckoutInput" }
+      responses:
+        "200":
+          description: Checkout URL or existing paid booking; no payment is assumed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CheckoutStartResult" }
+  /payments/checkout/{sessionId}:
+    get:
+      operationId: verifyBookingCheckout
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Owner-only server-verified payment outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentCheckoutResult" }
+  /payments/orders/{orderId}:
+    get:
+      operationId: getBookingPaymentOrder
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Owner-only attempt summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentOrderSummary" }
+  /admin/payments/checkouts:
+    get:
+      operationId: listAdminBookingCheckouts
+      responses:
+        "200":
+          description: Latest 100 checkout attempts; actual collections are in Customer Activity and Guruji Finance
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminCheckoutRecord" }
+  /admin/payments/checkouts/{orderId}/reconcile:
+    post:
+      operationId: reconcileBookingCheckout
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Rechecked with Stripe; never initiates a charge
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentCheckoutResult" }
   /admin/customers/{customerId}/activity:
     get:
       operationId: getCustomerActivity
@@ -76,6 +166,92 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    PaymentConfigurationInput:
+      type: object
+      required: [paymentRequired, advancePercentage]
+      properties:
+        paymentRequired: { type: boolean }
+        advancePercentage: { type: number, minimum: 1, maximum: 100, multipleOf: 0.01 }
+        upiId: { type: [string, "null"] }
+        upiName: { type: [string, "null"] }
+        upiQrImageUrl: { type: [string, "null"] }
+    PaymentConfiguration:
+      allOf:
+        - { $ref: "#/components/schemas/PaymentConfigurationInput" }
+        - type: object
+          required: [checkoutAvailable, providerMode, paymentSkipped]
+          properties:
+            checkoutAvailable: { type: boolean }
+            provider: { type: string }
+            providerMode: { type: string, enum: [test, live, unavailable] }
+            paymentSkipped: { type: boolean }
+    CheckoutBooking:
+      type: object
+      required: [pujaId, type, amount, date, time]
+      properties:
+        pujaId: { type: integer, minimum: 1 }
+        type: { type: string, enum: [offline, online] }
+        amount: { type: number, exclusiveMinimum: 0 }
+        withSamagri: { type: boolean }
+        date: { type: string }
+        calendarDate: { type: string }
+        time: { type: string }
+        address: { type: string }
+        city: { type: string }
+        state: { type: string }
+        pincode: { type: string }
+        gurujiId: { type: integer, minimum: 1 }
+        duration: { type: number }
+        notes: { type: string }
+        isImmediate: { type: boolean }
+        consultationType: { type: string, enum: [own_guruji, auto_select, immediate] }
+    PaymentCheckoutInput:
+      type: object
+      required: [booking, requestId]
+      properties:
+        booking: { $ref: "#/components/schemas/CheckoutBooking" }
+        requestId: { type: string, format: uuid }
+    CheckoutStartResult:
+      type: object
+      properties:
+        checkoutUrl: { type: string }
+        orderId: { type: string }
+        sessionId: { type: string }
+        bookingId: { type: integer }
+        advanceAmount: { type: number }
+    PaymentCheckoutResult:
+      type: object
+      required: [state]
+      properties:
+        state: { type: string, enum: [paid, expired, processing, unpaid, failed] }
+        bookingId: { type: integer }
+        advanceAmount: { type: number }
+        needsSupport: { type: boolean }
+        testMode: { type: boolean }
+    PaymentOrderSummary:
+      type: object
+      required: [state, sessionId, bookingId]
+      properties:
+        state: { type: string }
+        sessionId: { type: [string, "null"] }
+        bookingId: { type: [integer, "null"] }
+    AdminCheckoutRecord:
+      type: object
+      required: [id, customerId, customerName, state, advanceAmount, advancePercentage, totalAmount, createdAt, livemode]
+      properties:
+        id: { type: string }
+        customerId: { type: integer }
+        customerName: { type: string }
+        state: { type: string }
+        bookingId: { type: [integer, "null"] }
+        needsSupport: { type: boolean }
+        advanceAmount: { type: number }
+        advancePercentage: { type: number }
+        totalAmount: { type: number }
+        createdAt: { type: string }
+        livemode: { type: boolean }
+        paymentReference: { type: [string, "null"] }
+        sessionId: { type: [string, "null"] }
     CustomerFinanceEntryInput:
       type: object
       required: [bookingId, type, amount, reason]

@@ -8,6 +8,149 @@
 import * as zod from 'zod';
 
 
+export const getPaymentConfigurationResponseOneAdvancePercentageMax = 100;
+export const getPaymentConfigurationResponseOneAdvancePercentageMultipleOf = 0.01;
+
+
+
+export const GetPaymentConfigurationResponse = zod.object({
+  "paymentRequired": zod.boolean(),
+  "advancePercentage": zod.number().min(1).max(getPaymentConfigurationResponseOneAdvancePercentageMax).multipleOf(getPaymentConfigurationResponseOneAdvancePercentageMultipleOf),
+  "upiId": zod.string().nullish(),
+  "upiName": zod.string().nullish(),
+  "upiQrImageUrl": zod.string().nullish()
+}).and(zod.object({
+  "checkoutAvailable": zod.boolean(),
+  "provider": zod.string().optional(),
+  "providerMode": zod.enum(['test', 'live', 'unavailable']),
+  "paymentSkipped": zod.boolean()
+}))
+
+
+export const savePaymentConfigurationBodyAdvancePercentageMax = 100;
+export const savePaymentConfigurationBodyAdvancePercentageMultipleOf = 0.01;
+
+
+
+export const SavePaymentConfigurationBody = zod.object({
+  "paymentRequired": zod.boolean(),
+  "advancePercentage": zod.number().min(1).max(savePaymentConfigurationBodyAdvancePercentageMax).multipleOf(savePaymentConfigurationBodyAdvancePercentageMultipleOf),
+  "upiId": zod.string().nullish(),
+  "upiName": zod.string().nullish(),
+  "upiQrImageUrl": zod.string().nullish()
+})
+
+export const savePaymentConfigurationResponseOneAdvancePercentageMax = 100;
+export const savePaymentConfigurationResponseOneAdvancePercentageMultipleOf = 0.01;
+
+
+
+export const SavePaymentConfigurationResponse = zod.object({
+  "paymentRequired": zod.boolean(),
+  "advancePercentage": zod.number().min(1).max(savePaymentConfigurationResponseOneAdvancePercentageMax).multipleOf(savePaymentConfigurationResponseOneAdvancePercentageMultipleOf),
+  "upiId": zod.string().nullish(),
+  "upiName": zod.string().nullish(),
+  "upiQrImageUrl": zod.string().nullish()
+}).and(zod.object({
+  "checkoutAvailable": zod.boolean(),
+  "provider": zod.string().optional(),
+  "providerMode": zod.enum(['test', 'live', 'unavailable']),
+  "paymentSkipped": zod.boolean()
+}))
+
+
+
+export const startBookingCheckoutBodyBookingAmountExclusiveMin = 0;
+
+
+
+
+export const StartBookingCheckoutBody = zod.object({
+  "booking": zod.object({
+  "pujaId": zod.number().int().min(1),
+  "type": zod.enum(['offline', 'online']),
+  "amount": zod.number().gt(startBookingCheckoutBodyBookingAmountExclusiveMin),
+  "withSamagri": zod.boolean().optional(),
+  "date": zod.string(),
+  "calendarDate": zod.string().optional(),
+  "time": zod.string(),
+  "address": zod.string().optional(),
+  "city": zod.string().optional(),
+  "state": zod.string().optional(),
+  "pincode": zod.string().optional(),
+  "gurujiId": zod.number().int().min(1).optional(),
+  "duration": zod.number().optional(),
+  "notes": zod.string().optional(),
+  "isImmediate": zod.boolean().optional(),
+  "consultationType": zod.enum(['own_guruji', 'auto_select', 'immediate']).optional()
+}),
+  "requestId": zod.string().uuid()
+})
+
+export const StartBookingCheckoutResponse = zod.object({
+  "checkoutUrl": zod.string().optional(),
+  "orderId": zod.string().optional(),
+  "sessionId": zod.string().optional(),
+  "bookingId": zod.number().int().optional(),
+  "advanceAmount": zod.number().optional()
+})
+
+
+export const VerifyBookingCheckoutParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const VerifyBookingCheckoutResponse = zod.object({
+  "state": zod.enum(['paid', 'expired', 'processing', 'unpaid', 'failed']),
+  "bookingId": zod.number().int().optional(),
+  "advanceAmount": zod.number().optional(),
+  "needsSupport": zod.boolean().optional(),
+  "testMode": zod.boolean().optional()
+})
+
+
+export const GetBookingPaymentOrderParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const GetBookingPaymentOrderResponse = zod.object({
+  "state": zod.string(),
+  "sessionId": zod.string().nullable(),
+  "bookingId": zod.number().int().nullable()
+})
+
+
+export const ListAdminBookingCheckoutsResponseItem = zod.object({
+  "id": zod.string(),
+  "customerId": zod.number().int(),
+  "customerName": zod.string(),
+  "state": zod.string(),
+  "bookingId": zod.number().int().nullish(),
+  "needsSupport": zod.boolean().optional(),
+  "advanceAmount": zod.number(),
+  "advancePercentage": zod.number(),
+  "totalAmount": zod.number(),
+  "createdAt": zod.string(),
+  "livemode": zod.boolean(),
+  "paymentReference": zod.string().nullish(),
+  "sessionId": zod.string().nullish()
+})
+export const ListAdminBookingCheckoutsResponse = zod.array(ListAdminBookingCheckoutsResponseItem)
+
+
+export const ReconcileBookingCheckoutParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const ReconcileBookingCheckoutResponse = zod.object({
+  "state": zod.enum(['paid', 'expired', 'processing', 'unpaid', 'failed']),
+  "bookingId": zod.number().int().optional(),
+  "advanceAmount": zod.number().optional(),
+  "needsSupport": zod.boolean().optional(),
+  "testMode": zod.boolean().optional()
+})
+
+
 /**
  * @summary Admin-only customer booking, cancellation and manual finance history
  */

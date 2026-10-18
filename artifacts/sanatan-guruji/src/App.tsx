@@ -4,6 +4,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Booking from "@/pages/Booking";
+import PaymentReturn from "@/pages/PaymentReturn";
 import Register from "@/pages/Register";
 import BookingDetail from "@/pages/BookingDetail";
 import MyBookings from "@/pages/MyBookings";
@@ -76,6 +77,9 @@ function Router() {
       </Route>
       <Route path="/booking">
         <Booking />
+      </Route>
+      <Route path="/payment-return">
+        <ProtectedRoute component={PaymentReturn} roles={['customer']} />
       </Route>
       <Route path="/register" component={Register} />
       <Route path="/booking/:id">

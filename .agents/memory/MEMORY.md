@@ -3,7 +3,7 @@
 - [Guruji puja matching](guruji-puja-matching.md) — approved profiles may list real services without join-table links; preserve both matching paths until data is reconciled.
 - [Booking schedule schema](booking-schedule-schema.md) — live booking storage uses a calendar date and separate text time, unlike the shared schema; check reality before schedule changes.
 - [Radix UI automation](radix-ui-automation.md) — use browser-native pointer clicks to open dropdowns in headless tests; synthetic element clicks may not trigger them.
-- [Booking payment and acceptance](booking-payment-acceptance.md) — payments temporarily skipped at the user's request; Guruji acceptance is always genuine, never inferred from selection or payment.
+- [Booking payment and acceptance](booking-payment-acceptance.md) — admin-controlled payments preserve the off path; payment never replaces genuine Guruji acceptance.
 - [Live storage schema](user-table-column-mapping.md) — connected tables differ from shared models; verify physical columns and database defaults before writes or fixture creation.
 - [Booking authentication return](booking-authentication-return.md) — registration and login from booking must resume the same URL and step with all selections preserved, including header entry points.
 - [Unassigned puja alerts](unassigned-puja-alerts.md) — auto-search requests need admin oversight even with no matches; only eligible local Gurujis should receive requests.

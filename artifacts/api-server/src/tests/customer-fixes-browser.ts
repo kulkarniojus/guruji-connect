@@ -56,6 +56,8 @@ export async function verifyCustomerFixesBrowser(input:{
     await b.click('button','Cancel Booking');
     await b.wait('!!document.querySelector("textarea[aria-label=\\"Cancellation reason\\"]")','immediate cancellation dialog');
     await b.fill('textarea[aria-label="Cancellation reason"]','Browser cancellation verification');
+    await b.wait('[...document.querySelectorAll("button")].some(e=>e.textContent.trim()==="Confirm Cancellation"&&!e.disabled)',
+      'cancellation policy preview ready');
     await b.click('button','Confirm Cancellation');
     await b.wait('!document.querySelector("textarea[aria-label=\\"Cancellation reason\\"]")','customer cancellation saved');
     assert.equal(await b.evaluate(`(await (await fetch('/api/bookings/${input.uiCancellationBookingId}')).json()).status`),'cancelled');

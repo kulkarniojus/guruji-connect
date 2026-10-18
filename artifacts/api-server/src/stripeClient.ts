@@ -18,7 +18,7 @@ async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecre
     { headers: { Accept: 'application/json', X_REPLIT_TOKEN: token }, signal: AbortSignal.timeout(10_000) },
   );
   if (!response.ok) throw new Error(`Stripe connection could not be loaded (${response.status}).`);
-  const data = await response.json();
+  const data = await response.json() as {items?:Array<{settings?:{secret_key?:string;webhook_secret?:string}}>};
   const settings = data.items?.[0]?.settings;
   if (!settings?.secret_key) throw new Error('The Stripe connection does not contain a payment API key.');
   return { secretKey: settings.secret_key, webhookSecret: settings.webhook_secret };
@@ -29,12 +29,12 @@ export async function getUncachableStripeClient(): Promise<Stripe> {
   return new Stripe(secretKey);
 }
 
-export async function getStripeSync(): Promise<StripeSync> {
+export async function getStripeSync(signingSecret?: string): Promise<StripeSync> {
   if (!process.env.DATABASE_URL) throw new Error('Persistent database configuration is required for Stripe.');
   const { secretKey, webhookSecret } = await getStripeCredentials();
   return new StripeSync({
-    poolConfig: { connectionString: process.env.DATABASE_URL },
+    poolConfig: { connectionString: process.env.DATABASE_URL, max: 2, idleTimeoutMillis: 1000 },
     stripeSecretKey: secretKey,
-    stripeWebhookSecret: webhookSecret ?? '',
+    stripeWebhookSecret: signingSecret ?? webhookSecret ?? '',
   });
 }

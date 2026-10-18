@@ -20,9 +20,16 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminCheckoutRecord,
+  CheckoutStartResult,
   CustomerFinanceEntryInput,
   GetCustomerActivity200,
   HealthStatus,
+  PaymentCheckoutInput,
+  PaymentCheckoutResult,
+  PaymentConfiguration,
+  PaymentConfigurationInput,
+  PaymentOrderSummary,
   RecordCustomerFinance201
 } from './api.schemas';
 
@@ -52,6 +59,522 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetPaymentConfigurationUrl = () => {
+
+
+
+
+  return `/api/settings/payment`
+}
+
+export const getPaymentConfiguration = async ( options?: Parameters<typeof customFetch>[1]): Promise<PaymentConfiguration> => {
+
+  return customFetch<PaymentConfiguration>(getGetPaymentConfigurationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPaymentConfigurationQueryKey = () => {
+    return [
+    `/api/settings/payment`
+    ] as const;
+    }
+
+
+export const getGetPaymentConfigurationQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentConfiguration>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaymentConfigurationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentConfiguration>>> = ({ signal }) => getPaymentConfiguration({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPaymentConfigurationQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentConfiguration>>>
+export type GetPaymentConfigurationQueryError = ErrorType<unknown>
+
+
+
+export function useGetPaymentConfiguration<TData = Awaited<ReturnType<typeof getPaymentConfiguration>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPaymentConfigurationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSavePaymentConfigurationUrl = () => {
+
+
+
+
+  return `/api/admin/settings/payment`
+}
+
+export const savePaymentConfiguration = async (paymentConfigurationInput: PaymentConfigurationInput, options?: Parameters<typeof customFetch>[1]): Promise<PaymentConfiguration> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PaymentConfiguration>(getSavePaymentConfigurationUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentConfigurationInput)
+  }
+);}
+
+
+
+
+
+export const getSavePaymentConfigurationMutationKey = () => ['savePaymentConfiguration'] as const;
+
+export const getSavePaymentConfigurationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePaymentConfiguration>>, TError,SavePaymentConfigurationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof savePaymentConfiguration>>, TError,SavePaymentConfigurationMutationVariables, TContext> => {
+
+const mutationKey = getSavePaymentConfigurationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof savePaymentConfiguration>>, SavePaymentConfigurationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  savePaymentConfiguration(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SavePaymentConfigurationMutationResult = NonNullable<Awaited<ReturnType<typeof savePaymentConfiguration>>>
+    export type SavePaymentConfigurationMutationBody = BodyType<PaymentConfigurationInput>
+    export type SavePaymentConfigurationMutationError = ErrorType<unknown>
+    export type SavePaymentConfigurationMutationVariables = {data: BodyType<PaymentConfigurationInput>}
+
+    export const useSavePaymentConfiguration = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePaymentConfiguration>>, TError,SavePaymentConfigurationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof savePaymentConfiguration>>,
+        TError,
+        SavePaymentConfigurationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSavePaymentConfigurationMutationOptions(options));
+    }
+
+export const getStartBookingCheckoutUrl = () => {
+
+
+
+
+  return `/api/payments/checkout`
+}
+
+export const startBookingCheckout = async (paymentCheckoutInput: PaymentCheckoutInput, options?: Parameters<typeof customFetch>[1]): Promise<CheckoutStartResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CheckoutStartResult>(getStartBookingCheckoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentCheckoutInput)
+  }
+);}
+
+
+
+
+
+export const getStartBookingCheckoutMutationKey = () => ['startBookingCheckout'] as const;
+
+export const getStartBookingCheckoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startBookingCheckout>>, TError,StartBookingCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startBookingCheckout>>, TError,StartBookingCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getStartBookingCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startBookingCheckout>>, StartBookingCheckoutMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startBookingCheckout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartBookingCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof startBookingCheckout>>>
+    export type StartBookingCheckoutMutationBody = BodyType<PaymentCheckoutInput>
+    export type StartBookingCheckoutMutationError = ErrorType<unknown>
+    export type StartBookingCheckoutMutationVariables = {data: BodyType<PaymentCheckoutInput>}
+
+    export const useStartBookingCheckout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startBookingCheckout>>, TError,StartBookingCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startBookingCheckout>>,
+        TError,
+        StartBookingCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartBookingCheckoutMutationOptions(options));
+    }
+
+export const getVerifyBookingCheckoutUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/payments/checkout/${sessionId}`
+}
+
+export const verifyBookingCheckout = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<PaymentCheckoutResult> => {
+
+  return customFetch<PaymentCheckoutResult>(getVerifyBookingCheckoutUrl(sessionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getVerifyBookingCheckoutQueryKey = (sessionId: string,) => {
+    return [
+    `/api/payments/checkout/${sessionId}`
+    ] as const;
+    }
+
+
+export const getVerifyBookingCheckoutQueryOptions = <TData = Awaited<ReturnType<typeof verifyBookingCheckout>>, TError = ErrorType<unknown>>(sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof verifyBookingCheckout>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getVerifyBookingCheckoutQueryKey(sessionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof verifyBookingCheckout>>> = ({ signal }) => verifyBookingCheckout(sessionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof verifyBookingCheckout>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type VerifyBookingCheckoutQueryResult = NonNullable<Awaited<ReturnType<typeof verifyBookingCheckout>>>
+export type VerifyBookingCheckoutQueryError = ErrorType<unknown>
+
+
+
+export function useVerifyBookingCheckout<TData = Awaited<ReturnType<typeof verifyBookingCheckout>>, TError = ErrorType<unknown>>(
+ sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof verifyBookingCheckout>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getVerifyBookingCheckoutQueryOptions(sessionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBookingPaymentOrderUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/payments/orders/${orderId}`
+}
+
+export const getBookingPaymentOrder = async (orderId: string, options?: Parameters<typeof customFetch>[1]): Promise<PaymentOrderSummary> => {
+
+  return customFetch<PaymentOrderSummary>(getGetBookingPaymentOrderUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookingPaymentOrderQueryKey = (orderId: string,) => {
+    return [
+    `/api/payments/orders/${orderId}`
+    ] as const;
+    }
+
+
+export const getGetBookingPaymentOrderQueryOptions = <TData = Awaited<ReturnType<typeof getBookingPaymentOrder>>, TError = ErrorType<unknown>>(orderId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookingPaymentOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookingPaymentOrderQueryKey(orderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookingPaymentOrder>>> = ({ signal }) => getBookingPaymentOrder(orderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookingPaymentOrder>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookingPaymentOrderQueryResult = NonNullable<Awaited<ReturnType<typeof getBookingPaymentOrder>>>
+export type GetBookingPaymentOrderQueryError = ErrorType<unknown>
+
+
+
+export function useGetBookingPaymentOrder<TData = Awaited<ReturnType<typeof getBookingPaymentOrder>>, TError = ErrorType<unknown>>(
+ orderId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookingPaymentOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookingPaymentOrderQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminBookingCheckoutsUrl = () => {
+
+
+
+
+  return `/api/admin/payments/checkouts`
+}
+
+export const listAdminBookingCheckouts = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminCheckoutRecord[]> => {
+
+  return customFetch<AdminCheckoutRecord[]>(getListAdminBookingCheckoutsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminBookingCheckoutsQueryKey = () => {
+    return [
+    `/api/admin/payments/checkouts`
+    ] as const;
+    }
+
+
+export const getListAdminBookingCheckoutsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminBookingCheckouts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminBookingCheckouts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminBookingCheckoutsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminBookingCheckouts>>> = ({ signal }) => listAdminBookingCheckouts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminBookingCheckouts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminBookingCheckoutsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminBookingCheckouts>>>
+export type ListAdminBookingCheckoutsQueryError = ErrorType<unknown>
+
+
+
+export function useListAdminBookingCheckouts<TData = Awaited<ReturnType<typeof listAdminBookingCheckouts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminBookingCheckouts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminBookingCheckoutsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReconcileBookingCheckoutUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/admin/payments/checkouts/${orderId}/reconcile`
+}
+
+export const reconcileBookingCheckout = async (orderId: string, options?: Parameters<typeof customFetch>[1]): Promise<PaymentCheckoutResult> => {
+
+  return customFetch<PaymentCheckoutResult>(getReconcileBookingCheckoutUrl(orderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReconcileBookingCheckoutMutationKey = () => ['reconcileBookingCheckout'] as const;
+
+export const getReconcileBookingCheckoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileBookingCheckout>>, TError,ReconcileBookingCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileBookingCheckout>>, TError,ReconcileBookingCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getReconcileBookingCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileBookingCheckout>>, ReconcileBookingCheckoutMutationVariables> = (props) => {
+          const {orderId} = props ?? {};
+
+          return  reconcileBookingCheckout(orderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileBookingCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileBookingCheckout>>>
+
+    export type ReconcileBookingCheckoutMutationError = ErrorType<unknown>
+    export type ReconcileBookingCheckoutMutationVariables = {orderId: string}
+
+    export const useReconcileBookingCheckout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileBookingCheckout>>, TError,ReconcileBookingCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileBookingCheckout>>,
+        TError,
+        ReconcileBookingCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReconcileBookingCheckoutMutationOptions(options));
+    }
 
 export const getGetCustomerActivityUrl = (customerId: number,) => {
 

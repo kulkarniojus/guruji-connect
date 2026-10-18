@@ -5,6 +5,135 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface PaymentConfigurationInput {
+  paymentRequired: boolean;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  advancePercentage: number;
+  /** @nullable */
+  upiId?: string | null;
+  /** @nullable */
+  upiName?: string | null;
+  /** @nullable */
+  upiQrImageUrl?: string | null;
+}
+
+export type PaymentConfigurationProviderMode = typeof PaymentConfigurationProviderMode[keyof typeof PaymentConfigurationProviderMode];
+
+
+export const PaymentConfigurationProviderMode = {
+  test: 'test',
+  live: 'live',
+  unavailable: 'unavailable',
+} as const;
+
+export type PaymentConfiguration = PaymentConfigurationInput & {
+  checkoutAvailable: boolean;
+  provider?: string;
+  providerMode: PaymentConfigurationProviderMode;
+  paymentSkipped: boolean;
+};
+
+export type CheckoutBookingType = typeof CheckoutBookingType[keyof typeof CheckoutBookingType];
+
+
+export const CheckoutBookingType = {
+  offline: 'offline',
+  online: 'online',
+} as const;
+
+export type CheckoutBookingConsultationType = typeof CheckoutBookingConsultationType[keyof typeof CheckoutBookingConsultationType];
+
+
+export const CheckoutBookingConsultationType = {
+  own_guruji: 'own_guruji',
+  auto_select: 'auto_select',
+  immediate: 'immediate',
+} as const;
+
+export interface CheckoutBooking {
+  /** @minimum 1 */
+  pujaId: number;
+  type: CheckoutBookingType;
+  /** @exclusiveMinimum 0 */
+  amount: number;
+  withSamagri?: boolean;
+  date: string;
+  calendarDate?: string;
+  time: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  /** @minimum 1 */
+  gurujiId?: number;
+  duration?: number;
+  notes?: string;
+  isImmediate?: boolean;
+  consultationType?: CheckoutBookingConsultationType;
+}
+
+export interface PaymentCheckoutInput {
+  booking: CheckoutBooking;
+  requestId: string;
+}
+
+export interface CheckoutStartResult {
+  checkoutUrl?: string;
+  orderId?: string;
+  sessionId?: string;
+  bookingId?: number;
+  advanceAmount?: number;
+}
+
+export type PaymentCheckoutResultState = typeof PaymentCheckoutResultState[keyof typeof PaymentCheckoutResultState];
+
+
+export const PaymentCheckoutResultState = {
+  paid: 'paid',
+  expired: 'expired',
+  processing: 'processing',
+  unpaid: 'unpaid',
+  failed: 'failed',
+} as const;
+
+export interface PaymentCheckoutResult {
+  state: PaymentCheckoutResultState;
+  bookingId?: number;
+  advanceAmount?: number;
+  needsSupport?: boolean;
+  testMode?: boolean;
+}
+
+export interface PaymentOrderSummary {
+  state: string;
+  /** @nullable */
+  sessionId: string | null;
+  /** @nullable */
+  bookingId: number | null;
+}
+
+export interface AdminCheckoutRecord {
+  id: string;
+  customerId: number;
+  customerName: string;
+  state: string;
+  /** @nullable */
+  bookingId?: number | null;
+  needsSupport?: boolean;
+  advanceAmount: number;
+  advancePercentage: number;
+  totalAmount: number;
+  createdAt: string;
+  livemode: boolean;
+  /** @nullable */
+  paymentReference?: string | null;
+  /** @nullable */
+  sessionId?: string | null;
+}
+
 export type CustomerFinanceEntryInputType = typeof CustomerFinanceEntryInputType[keyof typeof CustomerFinanceEntryInputType];
 
 

@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminCheckoutRecord';
+export * from './checkoutBooking';
+export * from './checkoutBookingConsultationType';
+export * from './checkoutBookingType';
+export * from './checkoutStartResult';
 export * from './customerFinanceEntryInput';
 export * from './customerFinanceEntryInputPaidBy';
 export * from './customerFinanceEntryInputType';
@@ -16,4 +21,11 @@ export * from './getCustomerActivity200Customer';
 export * from './getCustomerActivity200EntriesItem';
 export * from './getCustomerActivity200Summary';
 export * from './healthStatus';
+export * from './paymentCheckoutInput';
+export * from './paymentCheckoutResult';
+export * from './paymentCheckoutResultState';
+export * from './paymentConfiguration';
+export * from './paymentConfigurationInput';
+export * from './paymentConfigurationProviderMode';
+export * from './paymentOrderSummary';
 export * from './recordCustomerFinance201';
