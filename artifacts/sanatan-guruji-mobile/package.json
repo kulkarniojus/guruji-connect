@@ -9,7 +9,7 @@
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:policy": "tsx --test tests/portal-policy.test.ts",
-    "test:push": "tsx --test tests/push-bridge.test.ts",
+    "test:push": "tsx --test tests/push-bridge.test.ts tests/push-runtime.test.ts",
     "release:check": "node scripts/verify-release.mjs"
   },
   "devDependencies": {

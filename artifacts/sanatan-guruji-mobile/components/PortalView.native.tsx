@@ -4,7 +4,7 @@ import WebView, { type WebViewNavigation } from 'react-native-webview';
 import { useColors } from '@/hooks/useColors';
 import { PortalState } from './PortalState';
 import { classifyNavigation, shouldHandleAndroidBack } from '@/lib/portal-policy';
-import { useGurujiPush } from '@/hooks/useGurujiPush';
+import { usePortalPush } from '@/hooks/usePortalPush';
 
 type Failure = { title: string; detail: string; rendererLost?: boolean };
 
@@ -18,7 +18,7 @@ export default function PortalView({ url }: { url: string }) {
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
-  const push = useGurujiPush(webview,url,target=>setSource({uri:target}));
+  const push = usePortalPush(webview,url,target=>setSource({uri:target}));
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
