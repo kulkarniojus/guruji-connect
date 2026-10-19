@@ -4,6 +4,7 @@ import { Server as SocketServer } from "socket.io";
 import { storage, IStorage, MemStorage } from "./storage";
 import { DBStorage } from "./dbStorage";
 import { pool } from './db';
+import { initializeGurujiPush, startGurujiPushWorker, gurujiPushRouter } from './gurujiPush';
 import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingSchedule';
 import { createPujaPayload, updatePujaPayload } from './pujaValidation';
 import { changeBookingCompletion, initializeBookingCompletion } from './bookingCompletion';
@@ -300,6 +301,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       },
     });
   app.use(sessionMiddleware);
+  // Session table must exist before the additive request push trigger is installed.
+  await pool.query(`CREATE TABLE IF NOT EXISTS user_sessions (
+    sid VARCHAR PRIMARY KEY, sess JSON NOT NULL, expire TIMESTAMP(6) NOT NULL
+  )`);
+  await initializeGurujiPush();
+  startGurujiPushWorker();
+  app.use('/api/mobile/push',gurujiPushRouter);
 
   // Error handling middleware
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {

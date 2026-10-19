@@ -4,6 +4,7 @@ import WebView, { type WebViewNavigation } from 'react-native-webview';
 import { useColors } from '@/hooks/useColors';
 import { PortalState } from './PortalState';
 import { classifyNavigation, shouldHandleAndroidBack } from '@/lib/portal-policy';
+import { useGurujiPush } from '@/hooks/useGurujiPush';
 
 type Failure = { title: string; detail: string; rendererLost?: boolean };
 
@@ -17,6 +18,7 @@ export default function PortalView({ url }: { url: string }) {
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
+  const push = useGurujiPush(webview,url,target=>setSource({uri:target}));
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -81,6 +83,13 @@ export default function PortalView({ url }: { url: string }) {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.toolbar, { borderColor: colors.border }]}>
         <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Live portal</Text>
+        {push.isGuruji && <Pressable testID="guruji-puja-alerts" accessibilityRole="button"
+          accessibilityLabel={push.enabled?'Turn off puja alerts':'Enable puja alerts'}
+          disabled={push.busy} onPress={push.toggle} style={styles.reload}>
+          <Text style={{color:colors.primary,fontSize:13,fontWeight:'600'}}>
+            {push.busy?'Setting up…':push.enabled?'Puja alerts on':'Enable puja alerts'}
+          </Text>
+        </Pressable>}
         <Pressable testID="reload-live-portal" accessibilityRole="button" accessibilityLabel="Reload live portal"
           style={styles.reload} onPress={() => Alert.alert('Reload the portal?', 'Save any unfinished form first. Reloading loads the latest published portal but may discard unsaved entries.', [
             { text: 'Stay here', style: 'cancel' },
@@ -112,7 +121,8 @@ export default function PortalView({ url }: { url: string }) {
           setLoading(true);
           setFailure(null);
         }}
-        onLoad={() => { setLoading(false); }}
+        onLoad={() => { setLoading(false); push.onPortalLoad(); }}
+        onMessage={push.onMessage}
         onLoadEnd={() => setLoading(false)}
         onError={() => {
           setLoading(false);

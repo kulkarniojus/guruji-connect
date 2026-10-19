@@ -11,6 +11,34 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /mobile/push:
+    put:
+      operationId: registerGurujiPushDevice
+      description: Guruji session only. Called inside the first-party native WebView to retain HttpOnly session authentication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GurujiPushDeviceInput" }
+      responses:
+        "200":
+          description: Device registered for new puja requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PushDeviceResult" }
+    delete:
+      operationId: disableGurujiPushDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GurujiPushDisableInput" }
+      responses:
+        "200":
+          description: This session's device disabled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PushDeviceResult" }
   /settings/payment:
     get:
       operationId: getPaymentConfiguration
@@ -166,6 +194,25 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    GurujiPushDeviceInput:
+      type: object
+      required: [installationId, token, platform, projectId, accountId]
+      properties:
+        installationId: { type: string, minLength: 20, maxLength: 100 }
+        token: { type: string, maxLength: 250 }
+        platform: { type: string, enum: [android, ios] }
+        projectId: { type: string, format: uuid }
+        accountId: { type: integer, minimum: 1, description: Must match the authenticated Guruji; prevents account-switch races. }
+    GurujiPushDisableInput:
+      type: object
+      required: [installationId]
+      properties:
+        installationId: { type: string, minLength: 20, maxLength: 100 }
+    PushDeviceResult:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
     PaymentConfigurationInput:
       type: object
       required: [paymentRequired, advancePercentage]

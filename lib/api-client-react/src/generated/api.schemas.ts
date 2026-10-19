@@ -5,6 +5,43 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type GurujiPushDeviceInputPlatform = typeof GurujiPushDeviceInputPlatform[keyof typeof GurujiPushDeviceInputPlatform];
+
+
+export const GurujiPushDeviceInputPlatform = {
+  android: 'android',
+  ios: 'ios',
+} as const;
+
+export interface GurujiPushDeviceInput {
+  /**
+     * @minLength 20
+     * @maxLength 100
+     */
+  installationId: string;
+  /** @maxLength 250 */
+  token: string;
+  platform: GurujiPushDeviceInputPlatform;
+  projectId: string;
+  /**
+     * Must match the authenticated Guruji; prevents account-switch races.
+     * @minimum 1
+     */
+  accountId: number;
+}
+
+export interface GurujiPushDisableInput {
+  /**
+     * @minLength 20
+     * @maxLength 100
+     */
+  installationId: string;
+}
+
+export interface PushDeviceResult {
+  enabled: boolean;
+}
+
 export interface PaymentConfigurationInput {
   paymentRequired: boolean;
   /**

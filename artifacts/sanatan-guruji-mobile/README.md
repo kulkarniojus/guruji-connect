@@ -45,7 +45,24 @@ Check genuine customer/Guruji/sales/admin login/logout, persistent sign-in after
 
 Check camera/photo/document selection, permission denial, optional location, microphone/video calls where enabled, external maps/phone/mail links, `target="_blank"` links, Android back and iOS gestures, offline/retry, interrupted submissions and renderer recovery. Renderer loss requires an explicit reopen; unsaved entries cannot be guaranteed recoverable.
 
-Current portal credentials use the existing first-party session login. A future external OAuth/provider login must be separately tested and integrated correctly; opening a provider in the system browser does not automatically transfer its login into the WebView. Background native push is not added; existing portal notifications work while the portal is running.
+Current portal credentials use the existing first-party session login. A future external OAuth/provider login must be separately tested and integrated correctly; opening a provider in the system browser does not automatically transfer its login into the WebView.
+
+## Guruji puja push alerts
+
+Signed-in Gurujis have an **Enable puja alerts** button in the native portal toolbar. It starts off and asks for notification permission only when tapped. Each newly created pending request queues one push per opted-in device, including specific Guruji, nearby auto-search, reassignment and support-team request paths. Existing portal notifications, eligibility, acceptance, pricing and payment remain unchanged. Tapping an alert opens the dashboard Requests tab; no booking is accepted automatically.
+
+Android uses the high-importance `guruji-puja-requests` channel, default sound and vibration pattern. iOS uses standard alert sound and system-controlled vibration. Silent mode, Do Not Disturb, connectivity, operating-system restrictions and notification preferences can suppress alerts. This is not a critical alarm, call or repeating notification.
+
+Registration runs inside the first-party WebView with the existing HttpOnly session; no cookies are copied into native storage. Push destinations are revalidated against current role, account, session and pending booking/request before dispatch. Logout invalidates subsequent sends. Disabling alerts removes this installation's subscription, not the user's other devices. A notification already handed to the operating system cannot be recalled reliably. Account switches clear visible notifications locally and never open another account's request.
+
+### Release prerequisites and verification
+
+- `expo-notifications` is configured in static `app.json`. An installed native build is required; Expo Go/browser preview does not verify background push.
+- A valid Expo project ID must be supplied by the native build (`Constants.easConfig.projectId` or static `extra.eas.projectId`). Never invent an ID or use the Replit ID as an Expo project ID.
+- Apple APNs and Android FCM credentials must be provisioned for the actual app identifiers through the supported release/credential flow. Never put service-account JSON or signing keys in chat/source. Package identifiers and credentials are not currently configured by this change.
+- The deployed API must be running for delivery. It checks the additive transactional request outbox every five seconds. Only new requests after opt-in are queued, with no historical alert flood. Stale/non-pending requests are suppressed; payload TTL is five minutes.
+- At most one provider submission is attempted per request/device. Provider acceptance is not proof of phone delivery. Ambiguous failures are not retried to avoid duplicate alarms; existing in-app requests stay available. Expo receipts retire invalid device tokens. Delivery rows are retained for seven days; inactive registrations for thirty days.
+- Run `pnpm --filter @workspace/sanatan-guruji-mobile run test:push` and `typecheck`. Before release, test foreground/background/closed-app delivery, one-alert deduplication, permission denial/settings, notification tap, logout/account switching and Android/iOS sound/vibration on actual installed builds.
 
 ## Navigation security
 

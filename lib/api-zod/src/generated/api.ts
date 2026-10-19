@@ -8,6 +8,44 @@
 import * as zod from 'zod';
 
 
+/**
+ * Guruji session only. Called inside the first-party native WebView to retain HttpOnly session authentication.
+ */
+export const registerGurujiPushDeviceBodyInstallationIdMin = 20;
+export const registerGurujiPushDeviceBodyInstallationIdMax = 100;
+
+export const registerGurujiPushDeviceBodyTokenMax = 250;
+
+
+
+
+export const RegisterGurujiPushDeviceBody = zod.object({
+  "installationId": zod.string().min(registerGurujiPushDeviceBodyInstallationIdMin).max(registerGurujiPushDeviceBodyInstallationIdMax),
+  "token": zod.string().max(registerGurujiPushDeviceBodyTokenMax),
+  "platform": zod.enum(['android', 'ios']),
+  "projectId": zod.string().uuid(),
+  "accountId": zod.number().int().min(1).describe('Must match the authenticated Guruji; prevents account-switch races.')
+})
+
+export const RegisterGurujiPushDeviceResponse = zod.object({
+  "enabled": zod.boolean()
+})
+
+
+export const disableGurujiPushDeviceBodyInstallationIdMin = 20;
+export const disableGurujiPushDeviceBodyInstallationIdMax = 100;
+
+
+
+export const DisableGurujiPushDeviceBody = zod.object({
+  "installationId": zod.string().min(disableGurujiPushDeviceBodyInstallationIdMin).max(disableGurujiPushDeviceBodyInstallationIdMax)
+})
+
+export const DisableGurujiPushDeviceResponse = zod.object({
+  "enabled": zod.boolean()
+})
+
+
 export const getPaymentConfigurationResponseOneAdvancePercentageMax = 100;
 export const getPaymentConfigurationResponseOneAdvancePercentageMultipleOf = 0.01;
 

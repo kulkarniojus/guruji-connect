@@ -24,12 +24,15 @@ import type {
   CheckoutStartResult,
   CustomerFinanceEntryInput,
   GetCustomerActivity200,
+  GurujiPushDeviceInput,
+  GurujiPushDisableInput,
   HealthStatus,
   PaymentCheckoutInput,
   PaymentCheckoutResult,
   PaymentConfiguration,
   PaymentConfigurationInput,
   PaymentOrderSummary,
+  PushDeviceResult,
   RecordCustomerFinance201
 } from './api.schemas';
 
@@ -59,6 +62,173 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getRegisterGurujiPushDeviceUrl = () => {
+
+
+
+
+  return `/api/mobile/push`
+}
+
+/**
+ * Guruji session only. Called inside the first-party native WebView to retain HttpOnly session authentication.
+ */
+export const registerGurujiPushDevice = async (gurujiPushDeviceInput: GurujiPushDeviceInput, options?: Parameters<typeof customFetch>[1]): Promise<PushDeviceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PushDeviceResult>(getRegisterGurujiPushDeviceUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(gurujiPushDeviceInput)
+  }
+);}
+
+
+
+
+
+export const getRegisterGurujiPushDeviceMutationKey = () => ['registerGurujiPushDevice'] as const;
+
+export const getRegisterGurujiPushDeviceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerGurujiPushDevice>>, TError,RegisterGurujiPushDeviceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerGurujiPushDevice>>, TError,RegisterGurujiPushDeviceMutationVariables, TContext> => {
+
+const mutationKey = getRegisterGurujiPushDeviceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerGurujiPushDevice>>, RegisterGurujiPushDeviceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerGurujiPushDevice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterGurujiPushDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof registerGurujiPushDevice>>>
+    export type RegisterGurujiPushDeviceMutationBody = BodyType<GurujiPushDeviceInput>
+    export type RegisterGurujiPushDeviceMutationError = ErrorType<unknown>
+    export type RegisterGurujiPushDeviceMutationVariables = {data: BodyType<GurujiPushDeviceInput>}
+
+    export const useRegisterGurujiPushDevice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerGurujiPushDevice>>, TError,RegisterGurujiPushDeviceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerGurujiPushDevice>>,
+        TError,
+        RegisterGurujiPushDeviceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRegisterGurujiPushDeviceMutationOptions(options));
+    }
+
+export const getDisableGurujiPushDeviceUrl = () => {
+
+
+
+
+  return `/api/mobile/push`
+}
+
+export const disableGurujiPushDevice = async (gurujiPushDisableInput: GurujiPushDisableInput, options?: Parameters<typeof customFetch>[1]): Promise<PushDeviceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PushDeviceResult>(getDisableGurujiPushDeviceUrl(),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(gurujiPushDisableInput)
+  }
+);}
+
+
+
+
+
+export const getDisableGurujiPushDeviceMutationKey = () => ['disableGurujiPushDevice'] as const;
+
+export const getDisableGurujiPushDeviceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableGurujiPushDevice>>, TError,DisableGurujiPushDeviceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disableGurujiPushDevice>>, TError,DisableGurujiPushDeviceMutationVariables, TContext> => {
+
+const mutationKey = getDisableGurujiPushDeviceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disableGurujiPushDevice>>, DisableGurujiPushDeviceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  disableGurujiPushDevice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisableGurujiPushDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof disableGurujiPushDevice>>>
+    export type DisableGurujiPushDeviceMutationBody = BodyType<GurujiPushDisableInput>
+    export type DisableGurujiPushDeviceMutationError = ErrorType<unknown>
+    export type DisableGurujiPushDeviceMutationVariables = {data: BodyType<GurujiPushDisableInput>}
+
+    export const useDisableGurujiPushDevice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableGurujiPushDevice>>, TError,DisableGurujiPushDeviceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disableGurujiPushDevice>>,
+        TError,
+        DisableGurujiPushDeviceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisableGurujiPushDeviceMutationOptions(options));
+    }
 
 export const getGetPaymentConfigurationUrl = () => {
 
