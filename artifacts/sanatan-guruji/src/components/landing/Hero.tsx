@@ -103,7 +103,7 @@ export default function Hero() {
         <div className="flex w-full min-w-0 flex-col md:flex-row items-center">
           <div className="w-full min-w-0 md:w-1/2 mb-8 md:mb-0">
             <h1 className="break-words text-3xl md:text-4xl lg:text-5xl font-bold mb-4 font-poppins leading-tight">
-              Connect with verified Pandits for your spiritual needs
+              Connecting Hearts with Sanatan Wisdom
             </h1>
             <p className="text-lg md:text-xl mb-8 text-white text-opacity-90">
               Book online or in-person puja services, consultations, and more

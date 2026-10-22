@@ -90,7 +90,7 @@ export default function Footer() {
 
         <div className="flex flex-col gap-2 border-t border-white/15 pt-5 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; {year} Sanatan Guruji. All rights reserved.</p>
-          <p>Rooted in tradition. Here for your family.</p>
+          <p>Connecting Hearts with Sanatan Wisdom</p>
         </div>
       </div>
       <style>{`

@@ -26,3 +26,4 @@
 - [Guruji mobile alerts](guruji-mobile-alerts.md) — one sound-and-vibration alert per new request, not repeating alarms; native credentials and real-device delivery checks are required.
 - [Booking samagri](booking-samagri-policy.md) — mandatory/optional checklists and photos stay separate from pricing; explicit resends refresh the booked list without claiming unconnected WhatsApp delivery.
 - [Events management](events-management-policy.md) — per-event online/manual/both payment choice stays independent of puja finances; children’s registration data remains private.
+- [Brand tagline](brand-tagline.md) — use the user-provided tagline exactly.
