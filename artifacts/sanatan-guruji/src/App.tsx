@@ -15,6 +15,9 @@ import PujasList from "@/pages/PujasList";
 import BecomeGuruji from "@/pages/BecomeGuruji";
 import Services from "@/pages/Services";
 import ServiceDetail from "@/pages/ServiceDetail";
+import EventsList from "@/pages/events/EventsList";
+import EventDetail from "@/pages/events/EventDetail";
+import MyEventRegistrations from "@/pages/events/MyEventRegistrations";
 import HowItWorks from "@/pages/HowItWorks";
 import LoginModal from '@/components/auth/LoginModal';
 import RegisterModal from '@/components/auth/RegisterModal';
@@ -109,6 +112,11 @@ function Router() {
       </Route>
       <Route path="/pujas" component={PujasList} />
       <Route path="/services" component={Services} />
+      <Route path="/services/events" component={EventsList} />
+      <Route path="/services/events/:eventId" component={EventDetail} />
+      <Route path="/events/registrations">
+        <ProtectedRoute component={MyEventRegistrations} roles={['customer']} />
+      </Route>
       <Route path="/services/:slug" component={ServiceDetail} />
       <Route path="/become-guruji"><ProtectedRoute component={BecomeGuruji} roles={['customer', 'guruji']} /></Route>
       <Route path="/how-it-works" component={HowItWorks} />

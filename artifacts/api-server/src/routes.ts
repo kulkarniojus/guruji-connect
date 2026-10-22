@@ -11,6 +11,9 @@ import { changeBookingCompletion, initializeBookingCompletion } from './bookingC
 import { bookingCompletionRouter } from './routes/booking-completion';
 import { initializeBookingCommunications } from './bookingCommunications';
 import { initializeBookingSamagri, bookingSamagriRouter } from './bookingSamagri';
+import { initializeEvents } from './eventsModel';
+import { eventsRouter } from './eventsRoutes';
+import { eventMediaRouter } from './eventMedia';
 import { bookingCommunicationsRouter } from './routes/booking-communications';
 import { initializePujaPricing, getPricingQuote, pricingQuotePayload, validatePujaPriceRules } from './pujaPricing';
 import { initializePujaCommissions } from './pujaCommission';
@@ -262,6 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeBookingCompletion();
   await initializeBookingCommunications();
   await initializeBookingSamagri();
+  await initializeEvents();
   await initializeCancellations();
   await initializePujaPricing();
   await initializePujaCommissions();
@@ -349,6 +353,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const isAdmin = checkRole(['admin']);
   app.use('/api', bookingSamagriRouter);
+  app.use('/api', eventsRouter);
+  app.use('/api', eventMediaRouter);
   app.use('/api/guruji/availability', isAuthenticated, gurujiAvailabilityRouter);
   app.get('/api/availability', isAuthenticated, checkRole(['guruji']), (_req, res) => {
     res.redirect(307, '/api/guruji/availability');

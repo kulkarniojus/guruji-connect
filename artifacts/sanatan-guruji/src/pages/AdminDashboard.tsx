@@ -9,7 +9,7 @@ import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import PujaManagementTab from '@/components/admin/PujaManagementTab';
 import GurujiRegistrationTab from '@/components/admin/GurujiRegistrationTab';
 import CitiesManagementTab from '@/components/admin/CitiesManagementTab';
-import ServicesManagementTab from '@/components/admin/ServicesManagementTab';
+import ServicesAdminSection from '@/components/events/ServicesAdminSection';
 import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
 import BookingManagementTab from '@/components/admin/BookingManagementTab';
 import CancellationRulesTab from '@/components/admin/CancellationRulesTab';
@@ -318,7 +318,7 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="services">
-          <ServicesManagementTab />
+          <ServicesAdminSection />
         </TabsContent>
 
         <TabsContent value="faq">

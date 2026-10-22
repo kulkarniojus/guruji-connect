@@ -8,6 +8,649 @@
 import * as zod from 'zod';
 
 
+export const ListEventsQueryParams = zod.object({
+  "q": zod.coerce.string().optional()
+})
+
+export const ListEventsResponseItem = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "classType": zod.string(),
+  "ageMin": zod.number().int(),
+  "ageMax": zod.number().int(),
+  "instructorName": zod.string(),
+  "instructorDetails": zod.string(),
+  "mode": zod.enum(['online', 'offline']),
+  "location": zod.string(),
+  "meetingUrl": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "startTime": zod.string(),
+  "durationMinutes": zod.number().int(),
+  "frequency": zod.enum(['once', 'daily', 'weekly']),
+  "weekdays": zod.array(zod.number().int()),
+  "basePrice": zod.number(),
+  "discountedPrice": zod.number().nullable(),
+  "registrationDeadline": zod.string().describe('ISO timestamp with timezone'),
+  "capacity": zod.number().int(),
+  "paymentMode": zod.enum(['online', 'manual', 'both']),
+  "media": zod.array(zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+}))
+}).and(zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['draft', 'published', 'cancelled']),
+  "version": zod.number().int(),
+  "availableSeats": zod.number().int(),
+  "currentPrice": zod.number(),
+  "registrationOpen": zod.boolean(),
+  "checkoutAvailable": zod.boolean(),
+  "checkoutMode": zod.string(),
+  "cancellationReason": zod.string().optional(),
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "startAt": zod.string(),
+  "endAt": zod.string(),
+  "status": zod.string()
+}))
+}))
+export const ListEventsResponse = zod.array(ListEventsResponseItem)
+
+
+export const GetEventParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const GetEventResponse = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "classType": zod.string(),
+  "ageMin": zod.number().int(),
+  "ageMax": zod.number().int(),
+  "instructorName": zod.string(),
+  "instructorDetails": zod.string(),
+  "mode": zod.enum(['online', 'offline']),
+  "location": zod.string(),
+  "meetingUrl": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "startTime": zod.string(),
+  "durationMinutes": zod.number().int(),
+  "frequency": zod.enum(['once', 'daily', 'weekly']),
+  "weekdays": zod.array(zod.number().int()),
+  "basePrice": zod.number(),
+  "discountedPrice": zod.number().nullable(),
+  "registrationDeadline": zod.string().describe('ISO timestamp with timezone'),
+  "capacity": zod.number().int(),
+  "paymentMode": zod.enum(['online', 'manual', 'both']),
+  "media": zod.array(zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+}))
+}).and(zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['draft', 'published', 'cancelled']),
+  "version": zod.number().int(),
+  "availableSeats": zod.number().int(),
+  "currentPrice": zod.number(),
+  "registrationOpen": zod.boolean(),
+  "checkoutAvailable": zod.boolean(),
+  "checkoutMode": zod.string(),
+  "cancellationReason": zod.string().optional(),
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "startAt": zod.string(),
+  "endAt": zod.string(),
+  "status": zod.string()
+}))
+}))
+
+
+export const RegisterForEventParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const RegisterForEventBody = zod.object({
+  "requestId": zod.string(),
+  "childName": zod.string(),
+  "childAge": zod.number().int(),
+  "guardianConsent": zod.boolean(),
+  "paymentMethod": zod.enum(['online', 'manual']),
+  "eventVersion": zod.number().int()
+})
+
+export const RegisterForEventResponse = zod.object({
+  "id": zod.string(),
+  "eventId": zod.number().int(),
+  "eventName": zod.string(),
+  "guardianName": zod.string(),
+  "childName": zod.string(),
+  "childAge": zod.number().int(),
+  "status": zod.string(),
+  "paymentMethod": zod.string(),
+  "fee": zod.number(),
+  "paid": zod.number(),
+  "refunded": zod.number(),
+  "balanceDue": zod.number(),
+  "refundDue": zod.number(),
+  "isTest": zod.boolean(),
+  "holdUntil": zod.string().nullish(),
+  "cancellationReason": zod.string().optional(),
+  "createdAt": zod.string(),
+  "payments": zod.array(zod.object({
+  "type": zod.string(),
+  "amount": zod.number(),
+  "reference": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+export const ListMyEventRegistrationsResponseItem = zod.object({
+  "id": zod.string(),
+  "eventId": zod.number().int(),
+  "eventName": zod.string(),
+  "guardianName": zod.string(),
+  "childName": zod.string(),
+  "childAge": zod.number().int(),
+  "status": zod.string(),
+  "paymentMethod": zod.string(),
+  "fee": zod.number(),
+  "paid": zod.number(),
+  "refunded": zod.number(),
+  "balanceDue": zod.number(),
+  "refundDue": zod.number(),
+  "isTest": zod.boolean(),
+  "holdUntil": zod.string().nullish(),
+  "cancellationReason": zod.string().optional(),
+  "createdAt": zod.string(),
+  "payments": zod.array(zod.object({
+  "type": zod.string(),
+  "amount": zod.number(),
+  "reference": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+export const ListMyEventRegistrationsResponse = zod.array(ListMyEventRegistrationsResponseItem)
+
+
+export const StartEventCheckoutParams = zod.object({
+  "registrationId": zod.coerce.string()
+})
+
+export const StartEventCheckoutResponse = zod.object({
+  "url": zod.string(),
+  "mode": zod.string()
+})
+
+
+export const ReconcileEventCheckoutParams = zod.object({
+  "registrationId": zod.coerce.string()
+})
+
+export const ReconcileEventCheckoutResponse = zod.object({
+  "id": zod.string(),
+  "eventId": zod.number().int(),
+  "eventName": zod.string(),
+  "guardianName": zod.string(),
+  "childName": zod.string(),
+  "childAge": zod.number().int(),
+  "status": zod.string(),
+  "paymentMethod": zod.string(),
+  "fee": zod.number(),
+  "paid": zod.number(),
+  "refunded": zod.number(),
+  "balanceDue": zod.number(),
+  "refundDue": zod.number(),
+  "isTest": zod.boolean(),
+  "holdUntil": zod.string().nullish(),
+  "cancellationReason": zod.string().optional(),
+  "createdAt": zod.string(),
+  "payments": zod.array(zod.object({
+  "type": zod.string(),
+  "amount": zod.number(),
+  "reference": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+export const CancelEventRegistrationParams = zod.object({
+  "registrationId": zod.coerce.string()
+})
+
+export const CancelEventRegistrationBody = zod.object({
+  "reason": zod.string()
+})
+
+export const CancelEventRegistrationResponse = zod.object({
+  "id": zod.string(),
+  "eventId": zod.number().int(),
+  "eventName": zod.string(),
+  "guardianName": zod.string(),
+  "childName": zod.string(),
+  "childAge": zod.number().int(),
+  "status": zod.string(),
+  "paymentMethod": zod.string(),
+  "fee": zod.number(),
+  "paid": zod.number(),
+  "refunded": zod.number(),
+  "balanceDue": zod.number(),
+  "refundDue": zod.number(),
+  "isTest": zod.boolean(),
+  "holdUntil": zod.string().nullish(),
+  "cancellationReason": zod.string().optional(),
+  "createdAt": zod.string(),
+  "payments": zod.array(zod.object({
+  "type": zod.string(),
+  "amount": zod.number(),
+  "reference": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+export const ListAdminEventsResponseItem = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "classType": zod.string(),
+  "ageMin": zod.number().int(),
+  "ageMax": zod.number().int(),
+  "instructorName": zod.string(),
+  "instructorDetails": zod.string(),
+  "mode": zod.enum(['online', 'offline']),
+  "location": zod.string(),
+  "meetingUrl": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "startTime": zod.string(),
+  "durationMinutes": zod.number().int(),
+  "frequency": zod.enum(['once', 'daily', 'weekly']),
+  "weekdays": zod.array(zod.number().int()),
+  "basePrice": zod.number(),
+  "discountedPrice": zod.number().nullable(),
+  "registrationDeadline": zod.string().describe('ISO timestamp with timezone'),
+  "capacity": zod.number().int(),
+  "paymentMode": zod.enum(['online', 'manual', 'both']),
+  "media": zod.array(zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+}))
+}).and(zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['draft', 'published', 'cancelled']),
+  "version": zod.number().int(),
+  "availableSeats": zod.number().int(),
+  "currentPrice": zod.number(),
+  "registrationOpen": zod.boolean(),
+  "checkoutAvailable": zod.boolean(),
+  "checkoutMode": zod.string(),
+  "cancellationReason": zod.string().optional(),
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "startAt": zod.string(),
+  "endAt": zod.string(),
+  "status": zod.string()
+}))
+}))
+export const ListAdminEventsResponse = zod.array(ListAdminEventsResponseItem)
+
+
+export const CreateEventBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "classType": zod.string(),
+  "ageMin": zod.number().int(),
+  "ageMax": zod.number().int(),
+  "instructorName": zod.string(),
+  "instructorDetails": zod.string(),
+  "mode": zod.enum(['online', 'offline']),
+  "location": zod.string(),
+  "meetingUrl": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "startTime": zod.string(),
+  "durationMinutes": zod.number().int(),
+  "frequency": zod.enum(['once', 'daily', 'weekly']),
+  "weekdays": zod.array(zod.number().int()),
+  "basePrice": zod.number(),
+  "discountedPrice": zod.number().nullable(),
+  "registrationDeadline": zod.string().describe('ISO timestamp with timezone'),
+  "capacity": zod.number().int(),
+  "paymentMode": zod.enum(['online', 'manual', 'both']),
+  "media": zod.array(zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+}))
+})
+
+export const CreateEventResponse = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "classType": zod.string(),
+  "ageMin": zod.number().int(),
+  "ageMax": zod.number().int(),
+  "instructorName": zod.string(),
+  "instructorDetails": zod.string(),
+  "mode": zod.enum(['online', 'offline']),
+  "location": zod.string(),
+  "meetingUrl": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "startTime": zod.string(),
+  "durationMinutes": zod.number().int(),
+  "frequency": zod.enum(['once', 'daily', 'weekly']),
+  "weekdays": zod.array(zod.number().int()),
+  "basePrice": zod.number(),
+  "discountedPrice": zod.number().nullable(),
+  "registrationDeadline": zod.string().describe('ISO timestamp with timezone'),
+  "capacity": zod.number().int(),
+  "paymentMode": zod.enum(['online', 'manual', 'both']),
+  "media": zod.array(zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+}))
+}).and(zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['draft', 'published', 'cancelled']),
+  "version": zod.number().int(),
+  "availableSeats": zod.number().int(),
+  "currentPrice": zod.number(),
+  "registrationOpen": zod.boolean(),
+  "checkoutAvailable": zod.boolean(),
+  "checkoutMode": zod.string(),
+  "cancellationReason": zod.string().optional(),
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "startAt": zod.string(),
+  "endAt": zod.string(),
+  "status": zod.string()
+}))
+}))
+
+
+export const UpdateEventParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const UpdateEventBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "classType": zod.string(),
+  "ageMin": zod.number().int(),
+  "ageMax": zod.number().int(),
+  "instructorName": zod.string(),
+  "instructorDetails": zod.string(),
+  "mode": zod.enum(['online', 'offline']),
+  "location": zod.string(),
+  "meetingUrl": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "startTime": zod.string(),
+  "durationMinutes": zod.number().int(),
+  "frequency": zod.enum(['once', 'daily', 'weekly']),
+  "weekdays": zod.array(zod.number().int()),
+  "basePrice": zod.number(),
+  "discountedPrice": zod.number().nullable(),
+  "registrationDeadline": zod.string().describe('ISO timestamp with timezone'),
+  "capacity": zod.number().int(),
+  "paymentMode": zod.enum(['online', 'manual', 'both']),
+  "media": zod.array(zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+}))
+})
+
+export const UpdateEventResponse = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "classType": zod.string(),
+  "ageMin": zod.number().int(),
+  "ageMax": zod.number().int(),
+  "instructorName": zod.string(),
+  "instructorDetails": zod.string(),
+  "mode": zod.enum(['online', 'offline']),
+  "location": zod.string(),
+  "meetingUrl": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "startTime": zod.string(),
+  "durationMinutes": zod.number().int(),
+  "frequency": zod.enum(['once', 'daily', 'weekly']),
+  "weekdays": zod.array(zod.number().int()),
+  "basePrice": zod.number(),
+  "discountedPrice": zod.number().nullable(),
+  "registrationDeadline": zod.string().describe('ISO timestamp with timezone'),
+  "capacity": zod.number().int(),
+  "paymentMode": zod.enum(['online', 'manual', 'both']),
+  "media": zod.array(zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+}))
+}).and(zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['draft', 'published', 'cancelled']),
+  "version": zod.number().int(),
+  "availableSeats": zod.number().int(),
+  "currentPrice": zod.number(),
+  "registrationOpen": zod.boolean(),
+  "checkoutAvailable": zod.boolean(),
+  "checkoutMode": zod.string(),
+  "cancellationReason": zod.string().optional(),
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "startAt": zod.string(),
+  "endAt": zod.string(),
+  "status": zod.string()
+}))
+}))
+
+
+export const ChangeEventStatusParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const ChangeEventStatusBody = zod.object({
+  "action": zod.enum(['publish', 'unpublish', 'cancel']),
+  "reason": zod.string()
+})
+
+export const ChangeEventStatusResponse = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "classType": zod.string(),
+  "ageMin": zod.number().int(),
+  "ageMax": zod.number().int(),
+  "instructorName": zod.string(),
+  "instructorDetails": zod.string(),
+  "mode": zod.enum(['online', 'offline']),
+  "location": zod.string(),
+  "meetingUrl": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "startTime": zod.string(),
+  "durationMinutes": zod.number().int(),
+  "frequency": zod.enum(['once', 'daily', 'weekly']),
+  "weekdays": zod.array(zod.number().int()),
+  "basePrice": zod.number(),
+  "discountedPrice": zod.number().nullable(),
+  "registrationDeadline": zod.string().describe('ISO timestamp with timezone'),
+  "capacity": zod.number().int(),
+  "paymentMode": zod.enum(['online', 'manual', 'both']),
+  "media": zod.array(zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+}))
+}).and(zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['draft', 'published', 'cancelled']),
+  "version": zod.number().int(),
+  "availableSeats": zod.number().int(),
+  "currentPrice": zod.number(),
+  "registrationOpen": zod.boolean(),
+  "checkoutAvailable": zod.boolean(),
+  "checkoutMode": zod.string(),
+  "cancellationReason": zod.string().optional(),
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "startAt": zod.string(),
+  "endAt": zod.string(),
+  "status": zod.string()
+}))
+}))
+
+
+export const ListEventParticipantsParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const ListEventParticipantsResponseItem = zod.object({
+  "id": zod.string(),
+  "eventId": zod.number().int(),
+  "eventName": zod.string(),
+  "guardianName": zod.string(),
+  "childName": zod.string(),
+  "childAge": zod.number().int(),
+  "status": zod.string(),
+  "paymentMethod": zod.string(),
+  "fee": zod.number(),
+  "paid": zod.number(),
+  "refunded": zod.number(),
+  "balanceDue": zod.number(),
+  "refundDue": zod.number(),
+  "isTest": zod.boolean(),
+  "holdUntil": zod.string().nullish(),
+  "cancellationReason": zod.string().optional(),
+  "createdAt": zod.string(),
+  "payments": zod.array(zod.object({
+  "type": zod.string(),
+  "amount": zod.number(),
+  "reference": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+export const ListEventParticipantsResponse = zod.array(ListEventParticipantsResponseItem)
+
+
+export const RecordEventPaymentParams = zod.object({
+  "registrationId": zod.coerce.string()
+})
+
+export const RecordEventPaymentBody = zod.object({
+  "type": zod.enum(['payment', 'refund']),
+  "amount": zod.number(),
+  "reference": zod.string(),
+  "note": zod.string()
+})
+
+export const RecordEventPaymentResponse = zod.object({
+  "id": zod.string(),
+  "eventId": zod.number().int(),
+  "eventName": zod.string(),
+  "guardianName": zod.string(),
+  "childName": zod.string(),
+  "childAge": zod.number().int(),
+  "status": zod.string(),
+  "paymentMethod": zod.string(),
+  "fee": zod.number(),
+  "paid": zod.number(),
+  "refunded": zod.number(),
+  "balanceDue": zod.number(),
+  "refundDue": zod.number(),
+  "isTest": zod.boolean(),
+  "holdUntil": zod.string().nullish(),
+  "cancellationReason": zod.string().optional(),
+  "createdAt": zod.string(),
+  "payments": zod.array(zod.object({
+  "type": zod.string(),
+  "amount": zod.number(),
+  "reference": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+export const GetEventAttendanceParams = zod.object({
+  "eventId": zod.coerce.number().int(),
+  "sessionId": zod.coerce.number().int()
+})
+
+export const GetEventAttendanceResponseItem = zod.object({
+  "sessionId": zod.number().int(),
+  "registrationId": zod.string(),
+  "status": zod.enum(['present', 'absent', 'excused'])
+}).and(zod.object({
+  "recordedAt": zod.string()
+}))
+export const GetEventAttendanceResponse = zod.array(GetEventAttendanceResponseItem)
+
+
+export const SaveEventAttendanceParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const SaveEventAttendanceBody = zod.object({
+  "sessionId": zod.number().int(),
+  "registrationId": zod.string(),
+  "status": zod.enum(['present', 'absent', 'excused'])
+})
+
+export const SaveEventAttendanceResponse = zod.object({
+  "sessionId": zod.number().int(),
+  "registrationId": zod.string(),
+  "status": zod.enum(['present', 'absent', 'excused'])
+}).and(zod.object({
+  "recordedAt": zod.string()
+}))
+
+
+export const NotifyEventParticipantsParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const NotifyEventParticipantsBody = zod.object({
+  "message": zod.string()
+})
+
+export const NotifyEventParticipantsResponse = zod.object({
+  "notified": zod.number().int()
+})
+
+
+export const RequestEventMediaUploadBody = zod.object({
+  "name": zod.string(),
+  "size": zod.number().int(),
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'application/pdf'])
+})
+
+export const RequestEventMediaUploadResponse = zod.object({
+  "uploadURL": zod.string(),
+  "url": zod.string()
+})
+
+
+export const CompleteEventMediaUploadBody = zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+})
+
+export const CompleteEventMediaUploadResponse = zod.object({
+  "url": zod.string(),
+  "kind": zod.enum(['banner', 'photo', 'video', 'document']),
+  "label": zod.string()
+})
+
+
 export const GetBookingSamagriParams = zod.object({
   "bookingId": zod.coerce.number().int()
 })

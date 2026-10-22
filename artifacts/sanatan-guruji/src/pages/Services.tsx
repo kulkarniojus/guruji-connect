@@ -11,7 +11,7 @@ import {
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, CalendarDays, ArrowRight } from "lucide-react";
 
 type Service = { id: number; slug: string; title: string; description: string; image: string; bookingHref: string; isActive: boolean; sortOrder: number };
 
@@ -31,6 +31,17 @@ export default function ServicesPage() {
           designed to meet your needs whether you're seeking online or in-person
           ceremonies.
         </p>
+
+        <Link href="/services/events" data-testid="link-events-entry" className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 p-6 hover:bg-primary/10">
+          <div className="flex items-start gap-4">
+            <CalendarDays className="mt-1 h-8 w-8 text-primary" />
+            <div>
+              <h2 className="text-xl font-semibold">Events for children</h2>
+              <p className="text-sm text-gray-600">Devotional and religious-learning classes. Register your child and track it in your account.</p>
+            </div>
+          </div>
+          <span className="flex items-center gap-1 font-medium text-primary">Browse events <ArrowRight className="h-4 w-4" /></span>
+        </Link>
 
         {isLoading ? (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" aria-label="Loading services">

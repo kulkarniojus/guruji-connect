@@ -3,7 +3,7 @@ export function bookingReturnPath(candidate: string | null | undefined): string 
   if (!candidate?.startsWith('/') || candidate.startsWith('//')) return undefined;
   try {
     const url = new URL(candidate, 'https://internal.invalid');
-    if (url.origin !== 'https://internal.invalid' || url.pathname !== '/booking') return undefined;
+    if (url.origin !== 'https://internal.invalid' || url.pathname !== '/booking' && !/^\/services\/events\/\d+$/.test(url.pathname)) return undefined;
     return url.pathname + url.search;
   } catch {
     return undefined;

@@ -11,6 +11,248 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /events:
+    get:
+      operationId: listEvents
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Published events
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/EventRecord" } }
+  /events/{eventId}:
+    get:
+      operationId: getEvent
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Event details; private online joining details require registration or admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRecord" }
+  /events/{eventId}/register:
+    post:
+      operationId: registerForEvent
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventRegistrationInput" }
+      responses:
+        "201":
+          description: Child registration or temporary checkout seat reservation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRegistration" }
+  /event-registrations:
+    get:
+      operationId: listMyEventRegistrations
+      responses:
+        "200":
+          description: Current guardian's registrations
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/EventRegistration" } }
+  /event-registrations/{registrationId}/checkout:
+    post:
+      operationId: startEventCheckout
+      parameters:
+        - { name: registrationId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Verified hosted checkout
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventCheckoutResult" }
+  /event-registrations/{registrationId}/reconcile:
+    post:
+      operationId: reconcileEventCheckout
+      parameters:
+        - { name: registrationId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Server-verified payment state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRegistration" }
+  /event-registrations/{registrationId}/cancel:
+    post:
+      operationId: cancelEventRegistration
+      parameters:
+        - { name: registrationId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventReasonInput" }
+      responses:
+        "200":
+          description: Cancelled registration and refund owed, without an automatic money transfer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRegistration" }
+  /admin/events:
+    get:
+      operationId: listAdminEvents
+      responses:
+        "200":
+          description: All event states
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/EventRecord" } }
+    post:
+      operationId: createEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventInput" }
+      responses:
+        "201":
+          description: Created draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRecord" }
+  /admin/events/{eventId}:
+    put:
+      operationId: updateEvent
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventInput" }
+      responses:
+        "200":
+          description: Edited or rescheduled; existing participants notified
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRecord" }
+  /admin/events/{eventId}/action:
+    post:
+      operationId: changeEventStatus
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventActionInput" }
+      responses:
+        "200":
+          description: Published, unpublished or cancelled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRecord" }
+  /admin/events/{eventId}/participants:
+    get:
+      operationId: listEventParticipants
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Private event bookings and payment history
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/EventRegistration" } }
+  /admin/event-registrations/{registrationId}/payments:
+    post:
+      operationId: recordEventPayment
+      parameters:
+        - { name: registrationId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventPaymentInput" }
+      responses:
+        "200":
+          description: Audited manual payment or refund
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRegistration" }
+  /admin/events/{eventId}/attendance/{sessionId}:
+    get:
+      operationId: getEventAttendance
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+        - { name: sessionId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Session attendance
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/EventAttendance" } }
+  /admin/events/{eventId}/attendance:
+    post:
+      operationId: saveEventAttendance
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventAttendanceInput" }
+      responses:
+        "200":
+          description: Attendance saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventAttendance" }
+  /admin/events/{eventId}/notify:
+    post:
+      operationId: notifyEventParticipants
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventMessageInput" }
+      responses:
+        "200":
+          description: Parents notified in-app
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notified]
+                properties:
+                  notified: { type: integer }
+  /admin/event-media:
+    post:
+      operationId: requestEventMediaUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventMediaUploadInput" }
+      responses:
+        "200":
+          description: Direct App Storage upload URL
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventMediaUploadResult" }
+  /admin/event-media/complete:
+    post:
+      operationId: completeEventMediaUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventMediaCompleteInput" }
+      responses:
+        "200":
+          description: Validated event media
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventMediaItem" }
   /bookings/{bookingId}/samagri:
     get:
       operationId: getBookingSamagri
@@ -254,6 +496,163 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    EventInput:
+      type: object
+      required: [name, description, classType, ageMin, ageMax, instructorName, instructorDetails, mode, location, meetingUrl, startDate, endDate, startTime, durationMinutes, frequency, weekdays, basePrice, discountedPrice, registrationDeadline, capacity, paymentMode, media]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        classType: { type: string }
+        ageMin: { type: integer }
+        ageMax: { type: integer }
+        instructorName: { type: string }
+        instructorDetails: { type: string }
+        mode: { type: string, enum: [online, offline] }
+        location: { type: string }
+        meetingUrl: { type: string }
+        startDate: { type: string }
+        endDate: { type: string }
+        startTime: { type: string }
+        durationMinutes: { type: integer }
+        frequency: { type: string, enum: [once, daily, weekly] }
+        weekdays: { type: array, items: { type: integer } }
+        basePrice: { type: number }
+        discountedPrice: { type: [number, "null"] }
+        registrationDeadline: { type: string, description: ISO timestamp with timezone }
+        capacity: { type: integer }
+        paymentMode: { type: string, enum: [online, manual, both] }
+        media: { type: array, items: { $ref: "#/components/schemas/EventMediaItem" } }
+    EventRecord:
+      allOf:
+        - { $ref: "#/components/schemas/EventInput" }
+        - type: object
+          required: [id, status, version, availableSeats, currentPrice, registrationOpen, checkoutAvailable, checkoutMode, sessions]
+          properties:
+            id: { type: integer }
+            status: { type: string, enum: [draft, published, cancelled] }
+            version: { type: integer }
+            availableSeats: { type: integer }
+            currentPrice: { type: number }
+            registrationOpen: { type: boolean }
+            checkoutAvailable: { type: boolean }
+            checkoutMode: { type: string }
+            cancellationReason: { type: string }
+            sessions: { type: array, items: { $ref: "#/components/schemas/EventSession" } }
+    EventMediaItem:
+      type: object
+      required: [url, kind, label]
+      properties:
+        url: { type: string }
+        kind: { type: string, enum: [banner, photo, video, document] }
+        label: { type: string }
+    EventSession:
+      type: object
+      required: [id, startAt, endAt, status]
+      properties:
+        id: { type: integer }
+        startAt: { type: string }
+        endAt: { type: string }
+        status: { type: string }
+    EventRegistrationInput:
+      type: object
+      required: [requestId, childName, childAge, guardianConsent, paymentMethod, eventVersion]
+      properties:
+        requestId: { type: string }
+        childName: { type: string }
+        childAge: { type: integer }
+        guardianConsent: { type: boolean }
+        paymentMethod: { type: string, enum: [online, manual] }
+        eventVersion: { type: integer }
+    EventRegistration:
+      type: object
+      required: [id, eventId, eventName, guardianName, childName, childAge, status, paymentMethod, fee, paid, refunded, balanceDue, refundDue, isTest, createdAt, payments]
+      properties:
+        id: { type: string }
+        eventId: { type: integer }
+        eventName: { type: string }
+        guardianName: { type: string }
+        childName: { type: string }
+        childAge: { type: integer }
+        status: { type: string }
+        paymentMethod: { type: string }
+        fee: { type: number }
+        paid: { type: number }
+        refunded: { type: number }
+        balanceDue: { type: number }
+        refundDue: { type: number }
+        isTest: { type: boolean }
+        holdUntil: { type: [string, "null"] }
+        cancellationReason: { type: string }
+        createdAt: { type: string }
+        payments: { type: array, items: { $ref: "#/components/schemas/EventPaymentRecord" } }
+    EventPaymentRecord:
+      type: object
+      required: [type, amount, reference, createdAt]
+      properties:
+        type: { type: string }
+        amount: { type: number }
+        reference: { type: string }
+        createdAt: { type: string }
+    EventReasonInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+    EventActionInput:
+      type: object
+      required: [action, reason]
+      properties:
+        action: { type: string, enum: [publish, unpublish, cancel] }
+        reason: { type: string }
+    EventPaymentInput:
+      type: object
+      required: [type, amount, reference, note]
+      properties:
+        type: { type: string, enum: [payment, refund] }
+        amount: { type: number }
+        reference: { type: string }
+        note: { type: string }
+    EventAttendanceInput:
+      type: object
+      required: [sessionId, registrationId, status]
+      properties:
+        sessionId: { type: integer }
+        registrationId: { type: string }
+        status: { type: string, enum: [present, absent, excused] }
+    EventAttendance:
+      allOf:
+        - { $ref: "#/components/schemas/EventAttendanceInput" }
+        - type: object
+          required: [recordedAt]
+          properties:
+            recordedAt: { type: string }
+    EventMessageInput:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    EventCheckoutResult:
+      type: object
+      required: [url, mode]
+      properties:
+        url: { type: string }
+        mode: { type: string }
+    EventMediaUploadInput:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name: { type: string }
+        size: { type: integer }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp, video/mp4, application/pdf] }
+    EventMediaUploadResult:
+      type: object
+      required: [uploadURL, url]
+      properties:
+        uploadURL: { type: string }
+        url: { type: string }
+    EventMediaCompleteInput:
+      allOf:
+        - { $ref: "#/components/schemas/EventMediaItem" }
     SamagriUploadInput:
       type: object
       required: [name, size, contentType]

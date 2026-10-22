@@ -3,6 +3,12 @@ name: Radix UI automation
 description: Reliable native pointer and keyboard interaction with Radix controls in headless browser tests
 ---
 
+CDP wait predicates must return booleans rather than DOM elements.
+
+**Why:** Returning a DOM node through `Runtime.evaluate` with `returnByValue` can fail with “Object reference chain is too long” even though the page and element work correctly.
+
+**How to apply:** Use `!!document.querySelector(...)` or a boolean property comparison for browser waits.
+
 Radix dropdown triggers should be activated with a browser-native pointer click, not a synthetic DOM `element.click()`.
 
 **Why:** A simulated account-switch test waited indefinitely for the menu after a synthetic click; the same menu opened immediately with a native pointer click. The installed Puppeteer version also lacks the newer locator API.

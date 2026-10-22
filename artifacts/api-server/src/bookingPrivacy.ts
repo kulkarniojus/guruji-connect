@@ -99,6 +99,10 @@ export async function privateResponse(body: any, actor: { id?: number; role?: st
 
 export function bookingPrivacyMiddleware(req: Request, res: Response, next: NextFunction) {
   if (!req.path.startsWith('/api/')) return next();
+  // Events expose explicit public/guardian/admin projections in their own
+  // handlers. Booking-specific recursive text redaction would corrupt their
+  // UUID references, signed uploads and Stripe URLs; never apply it there.
+  if (/^\/api\/(?:events|event-registrations|event-media|admin\/(?:events|event-registrations|event-media))(?:\/|$)/.test(req.path)) return next();
   const original = res.json;
   res.json = function(body: any) {
     if (req.session?.userId) res.set('Cache-Control', 'no-store, private');

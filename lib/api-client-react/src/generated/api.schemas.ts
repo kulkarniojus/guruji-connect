@@ -5,6 +5,235 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type EventInputMode = typeof EventInputMode[keyof typeof EventInputMode];
+
+
+export const EventInputMode = {
+  online: 'online',
+  offline: 'offline',
+} as const;
+
+export type EventInputFrequency = typeof EventInputFrequency[keyof typeof EventInputFrequency];
+
+
+export const EventInputFrequency = {
+  once: 'once',
+  daily: 'daily',
+  weekly: 'weekly',
+} as const;
+
+export type EventInputPaymentMode = typeof EventInputPaymentMode[keyof typeof EventInputPaymentMode];
+
+
+export const EventInputPaymentMode = {
+  online: 'online',
+  manual: 'manual',
+  both: 'both',
+} as const;
+
+export type EventMediaItemKind = typeof EventMediaItemKind[keyof typeof EventMediaItemKind];
+
+
+export const EventMediaItemKind = {
+  banner: 'banner',
+  photo: 'photo',
+  video: 'video',
+  document: 'document',
+} as const;
+
+export interface EventMediaItem {
+  url: string;
+  kind: EventMediaItemKind;
+  label: string;
+}
+
+export interface EventInput {
+  name: string;
+  description: string;
+  classType: string;
+  ageMin: number;
+  ageMax: number;
+  instructorName: string;
+  instructorDetails: string;
+  mode: EventInputMode;
+  location: string;
+  meetingUrl: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  durationMinutes: number;
+  frequency: EventInputFrequency;
+  weekdays: number[];
+  basePrice: number;
+  /** @nullable */
+  discountedPrice: number | null;
+  /** ISO timestamp with timezone */
+  registrationDeadline: string;
+  capacity: number;
+  paymentMode: EventInputPaymentMode;
+  media: EventMediaItem[];
+}
+
+export type EventRecordStatus = typeof EventRecordStatus[keyof typeof EventRecordStatus];
+
+
+export const EventRecordStatus = {
+  draft: 'draft',
+  published: 'published',
+  cancelled: 'cancelled',
+} as const;
+
+export interface EventSession {
+  id: number;
+  startAt: string;
+  endAt: string;
+  status: string;
+}
+
+export type EventRecord = EventInput & {
+  id: number;
+  status: EventRecordStatus;
+  version: number;
+  availableSeats: number;
+  currentPrice: number;
+  registrationOpen: boolean;
+  checkoutAvailable: boolean;
+  checkoutMode: string;
+  cancellationReason?: string;
+  sessions: EventSession[];
+};
+
+export type EventRegistrationInputPaymentMethod = typeof EventRegistrationInputPaymentMethod[keyof typeof EventRegistrationInputPaymentMethod];
+
+
+export const EventRegistrationInputPaymentMethod = {
+  online: 'online',
+  manual: 'manual',
+} as const;
+
+export interface EventRegistrationInput {
+  requestId: string;
+  childName: string;
+  childAge: number;
+  guardianConsent: boolean;
+  paymentMethod: EventRegistrationInputPaymentMethod;
+  eventVersion: number;
+}
+
+export interface EventPaymentRecord {
+  type: string;
+  amount: number;
+  reference: string;
+  createdAt: string;
+}
+
+export interface EventRegistration {
+  id: string;
+  eventId: number;
+  eventName: string;
+  guardianName: string;
+  childName: string;
+  childAge: number;
+  status: string;
+  paymentMethod: string;
+  fee: number;
+  paid: number;
+  refunded: number;
+  balanceDue: number;
+  refundDue: number;
+  isTest: boolean;
+  /** @nullable */
+  holdUntil?: string | null;
+  cancellationReason?: string;
+  createdAt: string;
+  payments: EventPaymentRecord[];
+}
+
+export interface EventReasonInput {
+  reason: string;
+}
+
+export type EventActionInputAction = typeof EventActionInputAction[keyof typeof EventActionInputAction];
+
+
+export const EventActionInputAction = {
+  publish: 'publish',
+  unpublish: 'unpublish',
+  cancel: 'cancel',
+} as const;
+
+export interface EventActionInput {
+  action: EventActionInputAction;
+  reason: string;
+}
+
+export type EventPaymentInputType = typeof EventPaymentInputType[keyof typeof EventPaymentInputType];
+
+
+export const EventPaymentInputType = {
+  payment: 'payment',
+  refund: 'refund',
+} as const;
+
+export interface EventPaymentInput {
+  type: EventPaymentInputType;
+  amount: number;
+  reference: string;
+  note: string;
+}
+
+export type EventAttendanceInputStatus = typeof EventAttendanceInputStatus[keyof typeof EventAttendanceInputStatus];
+
+
+export const EventAttendanceInputStatus = {
+  present: 'present',
+  absent: 'absent',
+  excused: 'excused',
+} as const;
+
+export interface EventAttendanceInput {
+  sessionId: number;
+  registrationId: string;
+  status: EventAttendanceInputStatus;
+}
+
+export type EventAttendance = EventAttendanceInput & {
+  recordedAt: string;
+};
+
+export interface EventMessageInput {
+  message: string;
+}
+
+export interface EventCheckoutResult {
+  url: string;
+  mode: string;
+}
+
+export type EventMediaUploadInputContentType = typeof EventMediaUploadInputContentType[keyof typeof EventMediaUploadInputContentType];
+
+
+export const EventMediaUploadInputContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+  'video/mp4': 'video/mp4',
+  'application/pdf': 'application/pdf',
+} as const;
+
+export interface EventMediaUploadInput {
+  name: string;
+  size: number;
+  contentType: EventMediaUploadInputContentType;
+}
+
+export interface EventMediaUploadResult {
+  uploadURL: string;
+  url: string;
+}
+
+export type EventMediaCompleteInput = EventMediaItem;
+
 export type SamagriUploadInputContentType = typeof SamagriUploadInputContentType[keyof typeof SamagriUploadInputContentType];
 
 
@@ -254,6 +483,14 @@ export interface CustomerFinanceEntryInput {
 export interface HealthStatus {
   status: string;
 }
+
+export type ListEventsParams = {
+q?: string;
+};
+
+export type NotifyEventParticipants200 = {
+  notified: number;
+};
 
 export type RequestSamagriUpload200 = {
   uploadURL: string;

@@ -25,10 +25,27 @@ import type {
   CheckoutStartResult,
   CompleteSamagriUpload200,
   CustomerFinanceEntryInput,
+  EventActionInput,
+  EventAttendance,
+  EventAttendanceInput,
+  EventCheckoutResult,
+  EventInput,
+  EventMediaCompleteInput,
+  EventMediaItem,
+  EventMediaUploadInput,
+  EventMediaUploadResult,
+  EventMessageInput,
+  EventPaymentInput,
+  EventReasonInput,
+  EventRecord,
+  EventRegistration,
+  EventRegistrationInput,
   GetCustomerActivity200,
   GurujiPushDeviceInput,
   GurujiPushDisableInput,
   HealthStatus,
+  ListEventsParams,
+  NotifyEventParticipants200,
   PaymentCheckoutInput,
   PaymentCheckoutResult,
   PaymentConfiguration,
@@ -67,6 +84,1407 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListEventsUrl = (params?: ListEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/events?${stringifiedParams}` : `/api/events`
+}
+
+export const listEvents = async (params?: ListEventsParams, options?: Parameters<typeof customFetch>[1]): Promise<EventRecord[]> => {
+
+  return customFetch<EventRecord[]>(getListEventsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEventsQueryKey = (params?: ListEventsParams,) => {
+    return [
+    `/api/events`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListEventsQueryOptions = <TData = Awaited<ReturnType<typeof listEvents>>, TError = ErrorType<unknown>>(params?: ListEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEventsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvents>>> = ({ signal }) => listEvents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listEvents>>>
+export type ListEventsQueryError = ErrorType<unknown>
+
+
+
+export function useListEvents<TData = Awaited<ReturnType<typeof listEvents>>, TError = ErrorType<unknown>>(
+ params?: ListEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEventsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetEventUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/events/${eventId}`
+}
+
+export const getEvent = async (eventId: number, options?: Parameters<typeof customFetch>[1]): Promise<EventRecord> => {
+
+  return customFetch<EventRecord>(getGetEventUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEventQueryKey = (eventId: number,) => {
+    return [
+    `/api/events/${eventId}`
+    ] as const;
+    }
+
+
+export const getGetEventQueryOptions = <TData = Awaited<ReturnType<typeof getEvent>>, TError = ErrorType<unknown>>(eventId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEvent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEventQueryKey(eventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEvent>>> = ({ signal }) => getEvent(eventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEvent>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEventQueryResult = NonNullable<Awaited<ReturnType<typeof getEvent>>>
+export type GetEventQueryError = ErrorType<unknown>
+
+
+
+export function useGetEvent<TData = Awaited<ReturnType<typeof getEvent>>, TError = ErrorType<unknown>>(
+ eventId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEvent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEventQueryOptions(eventId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRegisterForEventUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/events/${eventId}/register`
+}
+
+export const registerForEvent = async (eventId: number,
+    eventRegistrationInput: EventRegistrationInput, options?: Parameters<typeof customFetch>[1]): Promise<EventRegistration> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventRegistration>(getRegisterForEventUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventRegistrationInput)
+  }
+);}
+
+
+
+
+
+export const getRegisterForEventMutationKey = () => ['registerForEvent'] as const;
+
+export const getRegisterForEventMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerForEvent>>, TError,RegisterForEventMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerForEvent>>, TError,RegisterForEventMutationVariables, TContext> => {
+
+const mutationKey = getRegisterForEventMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerForEvent>>, RegisterForEventMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  registerForEvent(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterForEventMutationResult = NonNullable<Awaited<ReturnType<typeof registerForEvent>>>
+    export type RegisterForEventMutationBody = BodyType<EventRegistrationInput>
+    export type RegisterForEventMutationError = ErrorType<unknown>
+    export type RegisterForEventMutationVariables = {eventId: number;data: BodyType<EventRegistrationInput>}
+
+    export const useRegisterForEvent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerForEvent>>, TError,RegisterForEventMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerForEvent>>,
+        TError,
+        RegisterForEventMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRegisterForEventMutationOptions(options));
+    }
+
+export const getListMyEventRegistrationsUrl = () => {
+
+
+
+
+  return `/api/event-registrations`
+}
+
+export const listMyEventRegistrations = async ( options?: Parameters<typeof customFetch>[1]): Promise<EventRegistration[]> => {
+
+  return customFetch<EventRegistration[]>(getListMyEventRegistrationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyEventRegistrationsQueryKey = () => {
+    return [
+    `/api/event-registrations`
+    ] as const;
+    }
+
+
+export const getListMyEventRegistrationsQueryOptions = <TData = Awaited<ReturnType<typeof listMyEventRegistrations>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyEventRegistrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyEventRegistrationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyEventRegistrations>>> = ({ signal }) => listMyEventRegistrations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyEventRegistrations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyEventRegistrationsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyEventRegistrations>>>
+export type ListMyEventRegistrationsQueryError = ErrorType<unknown>
+
+
+
+export function useListMyEventRegistrations<TData = Awaited<ReturnType<typeof listMyEventRegistrations>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyEventRegistrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyEventRegistrationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartEventCheckoutUrl = (registrationId: string,) => {
+
+
+
+
+  return `/api/event-registrations/${registrationId}/checkout`
+}
+
+export const startEventCheckout = async (registrationId: string, options?: Parameters<typeof customFetch>[1]): Promise<EventCheckoutResult> => {
+
+  return customFetch<EventCheckoutResult>(getStartEventCheckoutUrl(registrationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartEventCheckoutMutationKey = () => ['startEventCheckout'] as const;
+
+export const getStartEventCheckoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startEventCheckout>>, TError,StartEventCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startEventCheckout>>, TError,StartEventCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getStartEventCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startEventCheckout>>, StartEventCheckoutMutationVariables> = (props) => {
+          const {registrationId} = props ?? {};
+
+          return  startEventCheckout(registrationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartEventCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof startEventCheckout>>>
+
+    export type StartEventCheckoutMutationError = ErrorType<unknown>
+    export type StartEventCheckoutMutationVariables = {registrationId: string}
+
+    export const useStartEventCheckout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startEventCheckout>>, TError,StartEventCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startEventCheckout>>,
+        TError,
+        StartEventCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartEventCheckoutMutationOptions(options));
+    }
+
+export const getReconcileEventCheckoutUrl = (registrationId: string,) => {
+
+
+
+
+  return `/api/event-registrations/${registrationId}/reconcile`
+}
+
+export const reconcileEventCheckout = async (registrationId: string, options?: Parameters<typeof customFetch>[1]): Promise<EventRegistration> => {
+
+  return customFetch<EventRegistration>(getReconcileEventCheckoutUrl(registrationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReconcileEventCheckoutMutationKey = () => ['reconcileEventCheckout'] as const;
+
+export const getReconcileEventCheckoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileEventCheckout>>, TError,ReconcileEventCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileEventCheckout>>, TError,ReconcileEventCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getReconcileEventCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileEventCheckout>>, ReconcileEventCheckoutMutationVariables> = (props) => {
+          const {registrationId} = props ?? {};
+
+          return  reconcileEventCheckout(registrationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileEventCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileEventCheckout>>>
+
+    export type ReconcileEventCheckoutMutationError = ErrorType<unknown>
+    export type ReconcileEventCheckoutMutationVariables = {registrationId: string}
+
+    export const useReconcileEventCheckout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileEventCheckout>>, TError,ReconcileEventCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileEventCheckout>>,
+        TError,
+        ReconcileEventCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReconcileEventCheckoutMutationOptions(options));
+    }
+
+export const getCancelEventRegistrationUrl = (registrationId: string,) => {
+
+
+
+
+  return `/api/event-registrations/${registrationId}/cancel`
+}
+
+export const cancelEventRegistration = async (registrationId: string,
+    eventReasonInput: EventReasonInput, options?: Parameters<typeof customFetch>[1]): Promise<EventRegistration> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventRegistration>(getCancelEventRegistrationUrl(registrationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventReasonInput)
+  }
+);}
+
+
+
+
+
+export const getCancelEventRegistrationMutationKey = () => ['cancelEventRegistration'] as const;
+
+export const getCancelEventRegistrationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelEventRegistration>>, TError,CancelEventRegistrationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelEventRegistration>>, TError,CancelEventRegistrationMutationVariables, TContext> => {
+
+const mutationKey = getCancelEventRegistrationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelEventRegistration>>, CancelEventRegistrationMutationVariables> = (props) => {
+          const {registrationId,data} = props ?? {};
+
+          return  cancelEventRegistration(registrationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelEventRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof cancelEventRegistration>>>
+    export type CancelEventRegistrationMutationBody = BodyType<EventReasonInput>
+    export type CancelEventRegistrationMutationError = ErrorType<unknown>
+    export type CancelEventRegistrationMutationVariables = {registrationId: string;data: BodyType<EventReasonInput>}
+
+    export const useCancelEventRegistration = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelEventRegistration>>, TError,CancelEventRegistrationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelEventRegistration>>,
+        TError,
+        CancelEventRegistrationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelEventRegistrationMutationOptions(options));
+    }
+
+export const getListAdminEventsUrl = () => {
+
+
+
+
+  return `/api/admin/events`
+}
+
+export const listAdminEvents = async ( options?: Parameters<typeof customFetch>[1]): Promise<EventRecord[]> => {
+
+  return customFetch<EventRecord[]>(getListAdminEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminEventsQueryKey = () => {
+    return [
+    `/api/admin/events`
+    ] as const;
+    }
+
+
+export const getListAdminEventsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminEvents>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminEvents>>> = ({ signal }) => listAdminEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminEvents>>>
+export type ListAdminEventsQueryError = ErrorType<unknown>
+
+
+
+export function useListAdminEvents<TData = Awaited<ReturnType<typeof listAdminEvents>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminEventsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEventUrl = () => {
+
+
+
+
+  return `/api/admin/events`
+}
+
+export const createEvent = async (eventInput: EventInput, options?: Parameters<typeof customFetch>[1]): Promise<EventRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventRecord>(getCreateEventUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventInput)
+  }
+);}
+
+
+
+
+
+export const getCreateEventMutationKey = () => ['createEvent'] as const;
+
+export const getCreateEventMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvent>>, TError,CreateEventMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEvent>>, TError,CreateEventMutationVariables, TContext> => {
+
+const mutationKey = getCreateEventMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEvent>>, CreateEventMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createEvent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEventMutationResult = NonNullable<Awaited<ReturnType<typeof createEvent>>>
+    export type CreateEventMutationBody = BodyType<EventInput>
+    export type CreateEventMutationError = ErrorType<unknown>
+    export type CreateEventMutationVariables = {data: BodyType<EventInput>}
+
+    export const useCreateEvent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvent>>, TError,CreateEventMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEvent>>,
+        TError,
+        CreateEventMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateEventMutationOptions(options));
+    }
+
+export const getUpdateEventUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/admin/events/${eventId}`
+}
+
+export const updateEvent = async (eventId: number,
+    eventInput: EventInput, options?: Parameters<typeof customFetch>[1]): Promise<EventRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventRecord>(getUpdateEventUrl(eventId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateEventMutationKey = () => ['updateEvent'] as const;
+
+export const getUpdateEventMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEvent>>, TError,UpdateEventMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEvent>>, TError,UpdateEventMutationVariables, TContext> => {
+
+const mutationKey = getUpdateEventMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEvent>>, UpdateEventMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  updateEvent(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEventMutationResult = NonNullable<Awaited<ReturnType<typeof updateEvent>>>
+    export type UpdateEventMutationBody = BodyType<EventInput>
+    export type UpdateEventMutationError = ErrorType<unknown>
+    export type UpdateEventMutationVariables = {eventId: number;data: BodyType<EventInput>}
+
+    export const useUpdateEvent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEvent>>, TError,UpdateEventMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEvent>>,
+        TError,
+        UpdateEventMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateEventMutationOptions(options));
+    }
+
+export const getChangeEventStatusUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/admin/events/${eventId}/action`
+}
+
+export const changeEventStatus = async (eventId: number,
+    eventActionInput: EventActionInput, options?: Parameters<typeof customFetch>[1]): Promise<EventRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventRecord>(getChangeEventStatusUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventActionInput)
+  }
+);}
+
+
+
+
+
+export const getChangeEventStatusMutationKey = () => ['changeEventStatus'] as const;
+
+export const getChangeEventStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeEventStatus>>, TError,ChangeEventStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeEventStatus>>, TError,ChangeEventStatusMutationVariables, TContext> => {
+
+const mutationKey = getChangeEventStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeEventStatus>>, ChangeEventStatusMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  changeEventStatus(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeEventStatusMutationResult = NonNullable<Awaited<ReturnType<typeof changeEventStatus>>>
+    export type ChangeEventStatusMutationBody = BodyType<EventActionInput>
+    export type ChangeEventStatusMutationError = ErrorType<unknown>
+    export type ChangeEventStatusMutationVariables = {eventId: number;data: BodyType<EventActionInput>}
+
+    export const useChangeEventStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeEventStatus>>, TError,ChangeEventStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeEventStatus>>,
+        TError,
+        ChangeEventStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeEventStatusMutationOptions(options));
+    }
+
+export const getListEventParticipantsUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/admin/events/${eventId}/participants`
+}
+
+export const listEventParticipants = async (eventId: number, options?: Parameters<typeof customFetch>[1]): Promise<EventRegistration[]> => {
+
+  return customFetch<EventRegistration[]>(getListEventParticipantsUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEventParticipantsQueryKey = (eventId: number,) => {
+    return [
+    `/api/admin/events/${eventId}/participants`
+    ] as const;
+    }
+
+
+export const getListEventParticipantsQueryOptions = <TData = Awaited<ReturnType<typeof listEventParticipants>>, TError = ErrorType<unknown>>(eventId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEventParticipants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEventParticipantsQueryKey(eventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEventParticipants>>> = ({ signal }) => listEventParticipants(eventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEventParticipants>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEventParticipantsQueryResult = NonNullable<Awaited<ReturnType<typeof listEventParticipants>>>
+export type ListEventParticipantsQueryError = ErrorType<unknown>
+
+
+
+export function useListEventParticipants<TData = Awaited<ReturnType<typeof listEventParticipants>>, TError = ErrorType<unknown>>(
+ eventId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEventParticipants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEventParticipantsQueryOptions(eventId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordEventPaymentUrl = (registrationId: string,) => {
+
+
+
+
+  return `/api/admin/event-registrations/${registrationId}/payments`
+}
+
+export const recordEventPayment = async (registrationId: string,
+    eventPaymentInput: EventPaymentInput, options?: Parameters<typeof customFetch>[1]): Promise<EventRegistration> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventRegistration>(getRecordEventPaymentUrl(registrationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventPaymentInput)
+  }
+);}
+
+
+
+
+
+export const getRecordEventPaymentMutationKey = () => ['recordEventPayment'] as const;
+
+export const getRecordEventPaymentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordEventPayment>>, TError,RecordEventPaymentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordEventPayment>>, TError,RecordEventPaymentMutationVariables, TContext> => {
+
+const mutationKey = getRecordEventPaymentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordEventPayment>>, RecordEventPaymentMutationVariables> = (props) => {
+          const {registrationId,data} = props ?? {};
+
+          return  recordEventPayment(registrationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordEventPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof recordEventPayment>>>
+    export type RecordEventPaymentMutationBody = BodyType<EventPaymentInput>
+    export type RecordEventPaymentMutationError = ErrorType<unknown>
+    export type RecordEventPaymentMutationVariables = {registrationId: string;data: BodyType<EventPaymentInput>}
+
+    export const useRecordEventPayment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordEventPayment>>, TError,RecordEventPaymentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordEventPayment>>,
+        TError,
+        RecordEventPaymentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordEventPaymentMutationOptions(options));
+    }
+
+export const getGetEventAttendanceUrl = (eventId: number,
+    sessionId: number,) => {
+
+
+
+
+  return `/api/admin/events/${eventId}/attendance/${sessionId}`
+}
+
+export const getEventAttendance = async (eventId: number,
+    sessionId: number, options?: Parameters<typeof customFetch>[1]): Promise<EventAttendance[]> => {
+
+  return customFetch<EventAttendance[]>(getGetEventAttendanceUrl(eventId,sessionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEventAttendanceQueryKey = (eventId: number,
+    sessionId: number,) => {
+    return [
+    `/api/admin/events/${eventId}/attendance/${sessionId}`
+    ] as const;
+    }
+
+
+export const getGetEventAttendanceQueryOptions = <TData = Awaited<ReturnType<typeof getEventAttendance>>, TError = ErrorType<unknown>>(eventId: number,
+    sessionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEventAttendance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEventAttendanceQueryKey(eventId,sessionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEventAttendance>>> = ({ signal }) => getEventAttendance(eventId,sessionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined && sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEventAttendance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEventAttendanceQueryResult = NonNullable<Awaited<ReturnType<typeof getEventAttendance>>>
+export type GetEventAttendanceQueryError = ErrorType<unknown>
+
+
+
+export function useGetEventAttendance<TData = Awaited<ReturnType<typeof getEventAttendance>>, TError = ErrorType<unknown>>(
+ eventId: number,
+    sessionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEventAttendance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEventAttendanceQueryOptions(eventId,sessionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveEventAttendanceUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/admin/events/${eventId}/attendance`
+}
+
+export const saveEventAttendance = async (eventId: number,
+    eventAttendanceInput: EventAttendanceInput, options?: Parameters<typeof customFetch>[1]): Promise<EventAttendance> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventAttendance>(getSaveEventAttendanceUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventAttendanceInput)
+  }
+);}
+
+
+
+
+
+export const getSaveEventAttendanceMutationKey = () => ['saveEventAttendance'] as const;
+
+export const getSaveEventAttendanceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEventAttendance>>, TError,SaveEventAttendanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveEventAttendance>>, TError,SaveEventAttendanceMutationVariables, TContext> => {
+
+const mutationKey = getSaveEventAttendanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveEventAttendance>>, SaveEventAttendanceMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  saveEventAttendance(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveEventAttendanceMutationResult = NonNullable<Awaited<ReturnType<typeof saveEventAttendance>>>
+    export type SaveEventAttendanceMutationBody = BodyType<EventAttendanceInput>
+    export type SaveEventAttendanceMutationError = ErrorType<unknown>
+    export type SaveEventAttendanceMutationVariables = {eventId: number;data: BodyType<EventAttendanceInput>}
+
+    export const useSaveEventAttendance = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEventAttendance>>, TError,SaveEventAttendanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveEventAttendance>>,
+        TError,
+        SaveEventAttendanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveEventAttendanceMutationOptions(options));
+    }
+
+export const getNotifyEventParticipantsUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/admin/events/${eventId}/notify`
+}
+
+export const notifyEventParticipants = async (eventId: number,
+    eventMessageInput: EventMessageInput, options?: Parameters<typeof customFetch>[1]): Promise<NotifyEventParticipants200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<NotifyEventParticipants200>(getNotifyEventParticipantsUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventMessageInput)
+  }
+);}
+
+
+
+
+
+export const getNotifyEventParticipantsMutationKey = () => ['notifyEventParticipants'] as const;
+
+export const getNotifyEventParticipantsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notifyEventParticipants>>, TError,NotifyEventParticipantsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof notifyEventParticipants>>, TError,NotifyEventParticipantsMutationVariables, TContext> => {
+
+const mutationKey = getNotifyEventParticipantsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notifyEventParticipants>>, NotifyEventParticipantsMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  notifyEventParticipants(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotifyEventParticipantsMutationResult = NonNullable<Awaited<ReturnType<typeof notifyEventParticipants>>>
+    export type NotifyEventParticipantsMutationBody = BodyType<EventMessageInput>
+    export type NotifyEventParticipantsMutationError = ErrorType<unknown>
+    export type NotifyEventParticipantsMutationVariables = {eventId: number;data: BodyType<EventMessageInput>}
+
+    export const useNotifyEventParticipants = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notifyEventParticipants>>, TError,NotifyEventParticipantsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof notifyEventParticipants>>,
+        TError,
+        NotifyEventParticipantsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getNotifyEventParticipantsMutationOptions(options));
+    }
+
+export const getRequestEventMediaUploadUrl = () => {
+
+
+
+
+  return `/api/admin/event-media`
+}
+
+export const requestEventMediaUpload = async (eventMediaUploadInput: EventMediaUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<EventMediaUploadResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventMediaUploadResult>(getRequestEventMediaUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventMediaUploadInput)
+  }
+);}
+
+
+
+
+
+export const getRequestEventMediaUploadMutationKey = () => ['requestEventMediaUpload'] as const;
+
+export const getRequestEventMediaUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestEventMediaUpload>>, TError,RequestEventMediaUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestEventMediaUpload>>, TError,RequestEventMediaUploadMutationVariables, TContext> => {
+
+const mutationKey = getRequestEventMediaUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestEventMediaUpload>>, RequestEventMediaUploadMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestEventMediaUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestEventMediaUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestEventMediaUpload>>>
+    export type RequestEventMediaUploadMutationBody = BodyType<EventMediaUploadInput>
+    export type RequestEventMediaUploadMutationError = ErrorType<unknown>
+    export type RequestEventMediaUploadMutationVariables = {data: BodyType<EventMediaUploadInput>}
+
+    export const useRequestEventMediaUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestEventMediaUpload>>, TError,RequestEventMediaUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestEventMediaUpload>>,
+        TError,
+        RequestEventMediaUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestEventMediaUploadMutationOptions(options));
+    }
+
+export const getCompleteEventMediaUploadUrl = () => {
+
+
+
+
+  return `/api/admin/event-media/complete`
+}
+
+export const completeEventMediaUpload = async (eventMediaCompleteInput: EventMediaCompleteInput, options?: Parameters<typeof customFetch>[1]): Promise<EventMediaItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventMediaItem>(getCompleteEventMediaUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventMediaCompleteInput)
+  }
+);}
+
+
+
+
+
+export const getCompleteEventMediaUploadMutationKey = () => ['completeEventMediaUpload'] as const;
+
+export const getCompleteEventMediaUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeEventMediaUpload>>, TError,CompleteEventMediaUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeEventMediaUpload>>, TError,CompleteEventMediaUploadMutationVariables, TContext> => {
+
+const mutationKey = getCompleteEventMediaUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeEventMediaUpload>>, CompleteEventMediaUploadMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  completeEventMediaUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteEventMediaUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeEventMediaUpload>>>
+    export type CompleteEventMediaUploadMutationBody = BodyType<EventMediaCompleteInput>
+    export type CompleteEventMediaUploadMutationError = ErrorType<unknown>
+    export type CompleteEventMediaUploadMutationVariables = {data: BodyType<EventMediaCompleteInput>}
+
+    export const useCompleteEventMediaUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeEventMediaUpload>>, TError,CompleteEventMediaUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeEventMediaUpload>>,
+        TError,
+        CompleteEventMediaUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteEventMediaUploadMutationOptions(options));
+    }
 
 export const getGetBookingSamagriUrl = (bookingId: number,) => {
 

@@ -342,9 +342,15 @@ export async function processPaymentWebhook(payload: Buffer, signature: string, 
   const event=JSON.parse(payload.toString()) as Stripe.Event; // Signature already verified above.
   if (['checkout.session.completed','checkout.session.async_payment_succeeded'].includes(event.type)) {
     const session=event.data.object as Stripe.Checkout.Session;
-    if (session.payment_status==='paid') await completeCheckout(session,eligible,broadcast);
+    if (session.metadata?.portal_kind==='event_registration') {
+      await (await import('./eventPayments')).completeEventPayment(session);
+    } else if (session.payment_status==='paid') await completeCheckout(session,eligible,broadcast);
   } else if (['checkout.session.expired','checkout.session.async_payment_failed'].includes(event.type)) {
     const session=event.data.object as Stripe.Checkout.Session;
+    if (session.metadata?.portal_kind==='event_registration') {
+      await (await import('./eventPayments')).expireEventPayment(session);
+      return;
+    }
     await pool.query(`UPDATE portal_checkout_orders SET state=$2 WHERE stripe_session_id=$1 AND booking_id IS NULL`,
       [session.id,event.type==='checkout.session.expired'?'expired':'failed']);
   }
