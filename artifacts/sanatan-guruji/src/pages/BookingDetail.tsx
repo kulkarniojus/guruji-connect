@@ -22,6 +22,7 @@ import { bookingStatusLabel } from '@shared/bookingLifecycle';
 import BookingCompletionControls from '@/components/booking/BookingCompletionControls';
 import CancellationHistory from '@/components/booking/CancellationHistory';
 import BookingAddressVisibility from '@/components/booking/BookingAddressVisibility';
+import BookingSamagri from '@/components/booking/BookingSamagri';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-100 text-green-800',
@@ -275,6 +276,7 @@ export default function BookingDetail() {
                 </div>
               </div>
 
+              {(isOwner || user?.role === 'admin') && <BookingSamagri bookingId={Number(id)} admin={user?.role === 'admin'} />}
               {booking.pricingSnapshot && (() => {
                 const snapshot = booking.pricingSnapshot.quote ?? booking.pricingSnapshot;
                 if (snapshot.pujaPrice == null && snapshot.regularPrice == null && snapshot.totalAmount == null) return null;

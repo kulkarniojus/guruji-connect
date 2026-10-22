@@ -72,6 +72,7 @@ export const pujas = pgTable("pujas", {
   price: integer("price"),
   imageUrl: text("imageUrl"),
   items: text("items").array(),
+  samagri: jsonb("samagri").$type<{name: string; quantity: number; optional: boolean; price: number; unit?: string; imageUrl?: string}[]>().notNull().default([]),
   isPopular: boolean("isPopular").notNull().default(false),
   isActive: boolean("isActive").notNull().default(true),
   type: pujaTypeEnum("type").notNull(),

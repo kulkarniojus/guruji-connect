@@ -21,7 +21,9 @@ import type {
 
 import type {
   AdminCheckoutRecord,
+  BookingSamagri,
   CheckoutStartResult,
+  CompleteSamagriUpload200,
   CustomerFinanceEntryInput,
   GetCustomerActivity200,
   GurujiPushDeviceInput,
@@ -33,7 +35,10 @@ import type {
   PaymentConfigurationInput,
   PaymentOrderSummary,
   PushDeviceResult,
-  RecordCustomerFinance201
+  RecordCustomerFinance201,
+  RequestSamagriUpload200,
+  SamagriPhotoInput,
+  SamagriUploadInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -62,6 +67,309 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetBookingSamagriUrl = (bookingId: number,) => {
+
+
+
+
+  return `/api/bookings/${bookingId}/samagri`
+}
+
+export const getBookingSamagri = async (bookingId: number, options?: Parameters<typeof customFetch>[1]): Promise<BookingSamagri> => {
+
+  return customFetch<BookingSamagri>(getGetBookingSamagriUrl(bookingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookingSamagriQueryKey = (bookingId: number,) => {
+    return [
+    `/api/bookings/${bookingId}/samagri`
+    ] as const;
+    }
+
+
+export const getGetBookingSamagriQueryOptions = <TData = Awaited<ReturnType<typeof getBookingSamagri>>, TError = ErrorType<unknown>>(bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookingSamagri>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookingSamagriQueryKey(bookingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookingSamagri>>> = ({ signal }) => getBookingSamagri(bookingId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookingId !== null && bookingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookingSamagri>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookingSamagriQueryResult = NonNullable<Awaited<ReturnType<typeof getBookingSamagri>>>
+export type GetBookingSamagriQueryError = ErrorType<unknown>
+
+
+
+export function useGetBookingSamagri<TData = Awaited<ReturnType<typeof getBookingSamagri>>, TError = ErrorType<unknown>>(
+ bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookingSamagri>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookingSamagriQueryOptions(bookingId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResendBookingSamagriUrl = (bookingId: number,) => {
+
+
+
+
+  return `/api/admin/bookings/${bookingId}/samagri/resend`
+}
+
+export const resendBookingSamagri = async (bookingId: number, options?: Parameters<typeof customFetch>[1]): Promise<BookingSamagri> => {
+
+  return customFetch<BookingSamagri>(getResendBookingSamagriUrl(bookingId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResendBookingSamagriMutationKey = () => ['resendBookingSamagri'] as const;
+
+export const getResendBookingSamagriMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendBookingSamagri>>, TError,ResendBookingSamagriMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendBookingSamagri>>, TError,ResendBookingSamagriMutationVariables, TContext> => {
+
+const mutationKey = getResendBookingSamagriMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendBookingSamagri>>, ResendBookingSamagriMutationVariables> = (props) => {
+          const {bookingId} = props ?? {};
+
+          return  resendBookingSamagri(bookingId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendBookingSamagriMutationResult = NonNullable<Awaited<ReturnType<typeof resendBookingSamagri>>>
+
+    export type ResendBookingSamagriMutationError = ErrorType<unknown>
+    export type ResendBookingSamagriMutationVariables = {bookingId: number}
+
+    export const useResendBookingSamagri = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendBookingSamagri>>, TError,ResendBookingSamagriMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendBookingSamagri>>,
+        TError,
+        ResendBookingSamagriMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResendBookingSamagriMutationOptions(options));
+    }
+
+export const getRequestSamagriUploadUrl = () => {
+
+
+
+
+  return `/api/samagri/uploads`
+}
+
+export const requestSamagriUpload = async (samagriUploadInput: SamagriUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<RequestSamagriUpload200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RequestSamagriUpload200>(getRequestSamagriUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(samagriUploadInput)
+  }
+);}
+
+
+
+
+
+export const getRequestSamagriUploadMutationKey = () => ['requestSamagriUpload'] as const;
+
+export const getRequestSamagriUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestSamagriUpload>>, TError,RequestSamagriUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestSamagriUpload>>, TError,RequestSamagriUploadMutationVariables, TContext> => {
+
+const mutationKey = getRequestSamagriUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestSamagriUpload>>, RequestSamagriUploadMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestSamagriUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestSamagriUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestSamagriUpload>>>
+    export type RequestSamagriUploadMutationBody = BodyType<SamagriUploadInput>
+    export type RequestSamagriUploadMutationError = ErrorType<unknown>
+    export type RequestSamagriUploadMutationVariables = {data: BodyType<SamagriUploadInput>}
+
+    export const useRequestSamagriUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestSamagriUpload>>, TError,RequestSamagriUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestSamagriUpload>>,
+        TError,
+        RequestSamagriUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestSamagriUploadMutationOptions(options));
+    }
+
+export const getCompleteSamagriUploadUrl = () => {
+
+
+
+
+  return `/api/samagri/uploads/complete`
+}
+
+export const completeSamagriUpload = async (samagriPhotoInput: SamagriPhotoInput, options?: Parameters<typeof customFetch>[1]): Promise<CompleteSamagriUpload200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CompleteSamagriUpload200>(getCompleteSamagriUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(samagriPhotoInput)
+  }
+);}
+
+
+
+
+
+export const getCompleteSamagriUploadMutationKey = () => ['completeSamagriUpload'] as const;
+
+export const getCompleteSamagriUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSamagriUpload>>, TError,CompleteSamagriUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeSamagriUpload>>, TError,CompleteSamagriUploadMutationVariables, TContext> => {
+
+const mutationKey = getCompleteSamagriUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeSamagriUpload>>, CompleteSamagriUploadMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  completeSamagriUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteSamagriUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeSamagriUpload>>>
+    export type CompleteSamagriUploadMutationBody = BodyType<SamagriPhotoInput>
+    export type CompleteSamagriUploadMutationError = ErrorType<unknown>
+    export type CompleteSamagriUploadMutationVariables = {data: BodyType<SamagriPhotoInput>}
+
+    export const useCompleteSamagriUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSamagriUpload>>, TError,CompleteSamagriUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeSamagriUpload>>,
+        TError,
+        CompleteSamagriUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteSamagriUploadMutationOptions(options));
+    }
 
 export const getRegisterGurujiPushDeviceUrl = () => {
 

@@ -344,8 +344,8 @@ export class DBStorage implements IStorage {
     const result = await pool.query(
       `INSERT INTO pujas (
         name, description, "basePrice", type, duration, items, 
-        "imageUrl", "isPopular", "isActive", price, "createdAt", "updatedAt"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        "imageUrl", "isPopular", "isActive", price, "createdAt", "updatedAt", samagri
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         pujaData.name,
@@ -359,7 +359,8 @@ export class DBStorage implements IStorage {
         pujaData.isActive ?? true,
         pujaData.price ?? pujaData.basePrice,
         new Date(),
-        new Date()
+        new Date(),
+        JSON.stringify((pujaData as any).samagri ?? [])
       ]
     );
     
@@ -403,6 +404,10 @@ export class DBStorage implements IStorage {
     if (pujaData.items !== undefined) {
       updateFields.push(`items = $${paramIndex++}`);
       values.push(pujaData.items);
+    }
+    if ((pujaData as any).samagri !== undefined) {
+      updateFields.push(`samagri = $${paramIndex++}::jsonb`);
+      values.push(JSON.stringify((pujaData as any).samagri));
     }
     
     if (pujaData.imageUrl !== undefined) {
@@ -1135,6 +1140,7 @@ export class DBStorage implements IStorage {
   
   private mapPujaFromDb(row: any): Puja {
     return {
+      samagri: row.samagri ?? [],
       id: row.id,
       name: row.name,
       description: row.description,

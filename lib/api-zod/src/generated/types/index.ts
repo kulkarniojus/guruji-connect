@@ -7,10 +7,13 @@
  */
 
 export * from './adminCheckoutRecord';
+export * from './bookingSamagri';
+export * from './bookingSamagriHistoryItem';
 export * from './checkoutBooking';
 export * from './checkoutBookingConsultationType';
 export * from './checkoutBookingType';
 export * from './checkoutStartResult';
+export * from './completeSamagriUpload200';
 export * from './customerFinanceEntryInput';
 export * from './customerFinanceEntryInputPaidBy';
 export * from './customerFinanceEntryInputType';
@@ -33,3 +36,8 @@ export * from './paymentConfigurationProviderMode';
 export * from './paymentOrderSummary';
 export * from './pushDeviceResult';
 export * from './recordCustomerFinance201';
+export * from './requestSamagriUpload200';
+export * from './samagriItem';
+export * from './samagriPhotoInput';
+export * from './samagriUploadInput';
+export * from './samagriUploadInputContentType';

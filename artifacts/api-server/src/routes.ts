@@ -10,6 +10,7 @@ import { createPujaPayload, updatePujaPayload } from './pujaValidation';
 import { changeBookingCompletion, initializeBookingCompletion } from './bookingCompletion';
 import { bookingCompletionRouter } from './routes/booking-completion';
 import { initializeBookingCommunications } from './bookingCommunications';
+import { initializeBookingSamagri, bookingSamagriRouter } from './bookingSamagri';
 import { bookingCommunicationsRouter } from './routes/booking-communications';
 import { initializePujaPricing, getPricingQuote, pricingQuotePayload, validatePujaPriceRules } from './pujaPricing';
 import { initializePujaCommissions } from './pujaCommission';
@@ -260,6 +261,7 @@ async function resolvePujaNames(pujas: any[]): Promise<string[]> {
 export async function registerRoutes(app: Express): Promise<Server> {
   await initializeBookingCompletion();
   await initializeBookingCommunications();
+  await initializeBookingSamagri();
   await initializeCancellations();
   await initializePujaPricing();
   await initializePujaCommissions();
@@ -346,6 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   const isAdmin = checkRole(['admin']);
+  app.use('/api', bookingSamagriRouter);
   app.use('/api/guruji/availability', isAuthenticated, gurujiAvailabilityRouter);
   app.get('/api/availability', isAuthenticated, checkRole(['guruji']), (_req, res) => {
     res.redirect(307, '/api/guruji/availability');
@@ -1289,7 +1292,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new puja
   app.post("/api/pujas", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
-      const pujaData = createPujaPayload.parse(req.body);
+      const parsedPuja = createPujaPayload.safeParse(req.body);
+      if (!parsedPuja.success) return res.status(400).json({ message: parsedPuja.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') });
+      const pujaData = parsedPuja.data;
       await validatePujaPriceRules(null, pujaData.price ?? pujaData.basePrice);
       console.log("Creating new puja:", pujaData);
       const newPuja = await storageInstance.createPuja(pujaData);
@@ -1308,7 +1313,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       if (!Number.isInteger(id) || id < 1) return res.status(400).json({ message: 'Invalid puja ID' });
-      const pujaData = updatePujaPayload.parse(req.body);
+      const parsedPuja = updatePujaPayload.safeParse(req.body);
+      if (!parsedPuja.success) return res.status(400).json({ message: parsedPuja.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') });
+      const pujaData = parsedPuja.data;
       if (pujaData.price !== undefined || pujaData.basePrice !== undefined) {
         const currentPuja = await storageInstance.getPuja(id);
         if (!currentPuja) return res.status(404).json({ message: 'Puja not found' });

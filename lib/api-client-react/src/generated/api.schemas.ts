@@ -5,6 +5,49 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type SamagriUploadInputContentType = typeof SamagriUploadInputContentType[keyof typeof SamagriUploadInputContentType];
+
+
+export const SamagriUploadInputContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface SamagriUploadInput {
+  name: string;
+  size: number;
+  contentType: SamagriUploadInputContentType;
+}
+
+export interface SamagriPhotoInput {
+  imageUrl: string;
+}
+
+export interface SamagriItem {
+  name: string;
+  quantity: number;
+  optional: boolean;
+  price: number;
+  unit?: string;
+  imageUrl?: string;
+}
+
+export type BookingSamagriHistoryItem = {
+  channel: string;
+  status: string;
+  createdAt: string;
+};
+
+export interface BookingSamagri {
+  bookingId: number;
+  pujaName: string;
+  items: SamagriItem[];
+  whatsappStatus: string;
+  whatsappReason: string;
+  history: BookingSamagriHistoryItem[];
+}
+
 export type GurujiPushDeviceInputPlatform = typeof GurujiPushDeviceInputPlatform[keyof typeof GurujiPushDeviceInputPlatform];
 
 
@@ -211,6 +254,15 @@ export interface CustomerFinanceEntryInput {
 export interface HealthStatus {
   status: string;
 }
+
+export type RequestSamagriUpload200 = {
+  uploadURL: string;
+  imageUrl: string;
+};
+
+export type CompleteSamagriUpload200 = {
+  imageUrl: string;
+};
 
 export type GetCustomerActivity200Customer = { [key: string]: unknown };
 

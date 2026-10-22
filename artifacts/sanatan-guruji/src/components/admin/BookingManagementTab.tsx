@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { bookingStatusLabel } from '@shared/bookingLifecycle';
 import BookingProgressActions from '@/components/booking/BookingProgressActions';
 import BookingCommunications from '@/components/admin/BookingCommunications';
+import BookingSamagri from '@/components/booking/BookingSamagri';
 import BookingRatings from '@/components/admin/BookingRatings';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, UserCheck, Send, Search, Calendar, MapPin, User, IndianRupee, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -272,6 +273,7 @@ export default function BookingManagementTab({
                       <BookingRatings bookingId={booking.id} />
                       <BookingProgressActions booking={booking} />
                       <BookingCommunications booking={booking} />
+                      <BookingSamagri bookingId={booking.id} admin />
                       <BookingCancellationAdmin booking={booking} />
                       {['pending', 'pending_approval'].includes(booking.status) && (
                       <Button

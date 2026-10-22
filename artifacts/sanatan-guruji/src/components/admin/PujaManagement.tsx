@@ -47,6 +47,7 @@ interface Puja {
   price?: number;
   imageUrl?: string;
   items?: string[];
+  samagri?: PujaSamagri[];
   isPopular: boolean;
   isActive: boolean;
   type: 'offline' | 'online';
@@ -91,6 +92,7 @@ export default function PujaManagement() {
   const [durationHoursInput, setDurationHoursInput] = useState('2');
   const [itemsInput, setItemsInput] = useState('');
   const [pujaSearch, setPujaSearch] = useState('');
+  const [samagriUploading, setSamagriUploading] = useState(false);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -185,6 +187,7 @@ export default function PujaManagement() {
       price: undefined,
       imageUrl: '',
       items: [],
+      samagri: [],
       isPopular: false,
       isActive: true,
       type: 'offline',
@@ -252,6 +255,7 @@ export default function PujaManagement() {
       price: puja.price ?? undefined,
       imageUrl: puja.imageUrl || '',
       items: puja.items || [],
+      samagri: puja.samagri || [],
       isPopular: puja.isPopular,
       isActive: puja.isActive,
       type: puja.type,
@@ -271,6 +275,9 @@ export default function PujaManagement() {
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (samagriUploading) {
+      toast({ title: 'Please wait for the samagri photo upload to finish' }); return;
+    }
     const imageUrl = formData.imageUrl?.trim() || '';
     if (imageUrl && !/^\/(?!\/)/.test(imageUrl)) {
       try {
@@ -524,6 +531,7 @@ export default function PujaManagement() {
                 <div className="col-span-2 max-h-[300px] overflow-y-auto">
                   <SamagriInput 
                     samagri={formData.samagri || []}
+                    onUploadingChange={setSamagriUploading}
                     onChange={(samagri) => {
                       const totalPrice = samagri.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                       setFormData(prev => ({ 
@@ -560,7 +568,7 @@ export default function PujaManagement() {
               }}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createPujaMutation.isPending}>
+              <Button type="submit" disabled={createPujaMutation.isPending || samagriUploading}>
                 {createPujaMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -699,6 +707,7 @@ export default function PujaManagement() {
                 <div className="col-span-2 max-h-[300px] overflow-y-auto">
                   <SamagriInput 
                     samagri={formData.samagri || []}
+                    onUploadingChange={setSamagriUploading}
                     onChange={(samagri) => {
                       const totalPrice = samagri.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                       setFormData(prev => ({ 
@@ -735,7 +744,7 @@ export default function PujaManagement() {
               }}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={updatePujaMutation.isPending}>
+              <Button type="submit" disabled={updatePujaMutation.isPending || samagriUploading}>
                 {updatePujaMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

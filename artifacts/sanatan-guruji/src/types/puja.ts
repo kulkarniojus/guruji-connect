@@ -4,13 +4,8 @@ export interface PujaSamagri {
   quantity: number;
   optional: boolean;
   price: number;
-}
-
-export interface PujaSamagri {
-  name: string;
-  quantity: number;
-  optional: boolean;
-  price: number;
+  unit?: string;
+  imageUrl?: string;
 }
 
 export interface Puja {

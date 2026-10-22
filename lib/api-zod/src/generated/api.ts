@@ -8,6 +8,77 @@
 import * as zod from 'zod';
 
 
+export const GetBookingSamagriParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const GetBookingSamagriResponse = zod.object({
+  "bookingId": zod.number().int(),
+  "pujaName": zod.string(),
+  "items": zod.array(zod.object({
+  "name": zod.string(),
+  "quantity": zod.number(),
+  "optional": zod.boolean(),
+  "price": zod.number(),
+  "unit": zod.string().optional(),
+  "imageUrl": zod.string().optional()
+})),
+  "whatsappStatus": zod.string(),
+  "whatsappReason": zod.string(),
+  "history": zod.array(zod.object({
+  "channel": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+export const ResendBookingSamagriParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const ResendBookingSamagriResponse = zod.object({
+  "bookingId": zod.number().int(),
+  "pujaName": zod.string(),
+  "items": zod.array(zod.object({
+  "name": zod.string(),
+  "quantity": zod.number(),
+  "optional": zod.boolean(),
+  "price": zod.number(),
+  "unit": zod.string().optional(),
+  "imageUrl": zod.string().optional()
+})),
+  "whatsappStatus": zod.string(),
+  "whatsappReason": zod.string(),
+  "history": zod.array(zod.object({
+  "channel": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+export const RequestSamagriUploadBody = zod.object({
+  "name": zod.string(),
+  "size": zod.number().int(),
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp'])
+})
+
+export const RequestSamagriUploadResponse = zod.object({
+  "uploadURL": zod.string(),
+  "imageUrl": zod.string()
+})
+
+
+export const CompleteSamagriUploadBody = zod.object({
+  "imageUrl": zod.string()
+})
+
+export const CompleteSamagriUploadResponse = zod.object({
+  "imageUrl": zod.string()
+})
+
+
 /**
  * Guruji session only. Called inside the first-party native WebView to retain HttpOnly session authentication.
  */

@@ -11,6 +11,66 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /bookings/{bookingId}/samagri:
+    get:
+      operationId: getBookingSamagri
+      parameters:
+        - { name: bookingId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Saved samagri list, visible only to its customer or admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingSamagri"
+  /admin/bookings/{bookingId}/samagri/resend:
+    post:
+      operationId: resendBookingSamagri
+      parameters:
+        - { name: bookingId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Customer notified in-app; WhatsApp remains unavailable until connected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingSamagri" }
+  /samagri/uploads:
+    post:
+      operationId: requestSamagriUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SamagriUploadInput" }
+      responses:
+        "200":
+          description: Admin-only direct image upload
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [uploadURL, imageUrl]
+                properties:
+                  uploadURL: { type: string }
+                  imageUrl: { type: string }
+  /samagri/uploads/complete:
+    post:
+      operationId: completeSamagriUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SamagriPhotoInput" }
+      responses:
+        "200":
+          description: Validated uploaded image
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageUrl]
+                properties:
+                  imageUrl: { type: string }
   /mobile/push:
     put:
       operationId: registerGurujiPushDevice
@@ -194,6 +254,48 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    SamagriUploadInput:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name: { type: string }
+        size: { type: integer }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+    SamagriPhotoInput:
+      type: object
+      required: [imageUrl]
+      properties:
+        imageUrl: { type: string }
+    SamagriItem:
+      type: object
+      required: [name, quantity, optional, price]
+      properties:
+        name: { type: string }
+        quantity: { type: number }
+        optional: { type: boolean }
+        price: { type: number }
+        unit: { type: string }
+        imageUrl: { type: string }
+    BookingSamagri:
+      type: object
+      required: [bookingId, pujaName, items, whatsappStatus, whatsappReason, history]
+      properties:
+        bookingId: { type: integer }
+        pujaName: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SamagriItem" }
+        whatsappStatus: { type: string }
+        whatsappReason: { type: string }
+        history:
+          type: array
+          items:
+            type: object
+            required: [channel, status, createdAt]
+            properties:
+              channel: { type: string }
+              status: { type: string }
+              createdAt: { type: string }
     GurujiPushDeviceInput:
       type: object
       required: [installationId, token, platform, projectId, accountId]

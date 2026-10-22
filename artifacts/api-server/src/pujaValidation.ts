@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { samagriListSchema } from './bookingSamagri';
 
 const imageUrl = z.string().trim().max(2048).nullable().optional().refine(value => {
   if (!value || /^\/(?!\/)/.test(value)) return true;
@@ -19,6 +20,7 @@ export const createPujaPayload = z.object({
   duration: z.number().int().min(0).max(1440),
   items: z.array(z.string()).nullable().optional(),
   imageUrl,
+  samagri: samagriListSchema.optional(),
   isPopular: z.boolean().optional(),
   isActive: z.boolean().optional(),
 }).passthrough();

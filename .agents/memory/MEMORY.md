@@ -24,3 +24,4 @@
 - [Mobile and web parity](mobile-web-parity.md) — separate Android/iOS apps must share the portal/database and reflect web updates without changing existing web behavior.
 - [Stripe connector compatibility](stripe-connector-compatibility.md) — healthy proxy access does not supply the raw key required by managed Stripe sync; do not reconnect a healthy account.
 - [Guruji mobile alerts](guruji-mobile-alerts.md) — one sound-and-vibration alert per new request, not repeating alarms; native credentials and real-device delivery checks are required.
+- [Booking samagri](booking-samagri-policy.md) — mandatory/optional checklists and photos stay separate from pricing; explicit resends refresh the booked list without claiming unconnected WhatsApp delivery.

@@ -801,6 +801,7 @@ export class MemStorage implements IStorage {
   async createPuja(pujaData: InsertPuja): Promise<Puja> {
     const puja: Puja = {
       ...pujaData,
+      samagri: pujaData.samagri ?? [],
       id: this.pujaIdCounter++,
       createdAt: new Date(),
       updatedAt: new Date(),
