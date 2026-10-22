@@ -9,6 +9,12 @@ Admin must be able to enable online payment, manual payment, or both separately 
 
 **How to apply:** Event fees and payment methods must not depend on the existing puja payment toggle or advance percentage. Do not change puja booking, commission, or refund flows when extending Events.
 
+Every website visitor should see all published events directly in the Events section under Our Services, and be able to open an event to book it.
+
+**Why:** The user explicitly asked to see actual events on the website rather than only a link to the Events page.
+
+**How to apply:** Do not hide published events from public browsing, including when their registration is closed. Creating an event is not publishing it; registration still requires a genuine signed-in guardian and must respect capacity and deadlines.
+
 Keep child registration details restricted to the owning guardian and admin. Online joining details belong only to admin and confirmed, fully paid or free registrations.
 
 **Why:** Children’s names and ages are not a public participant directory; publishing an event must not publish its enrolment data or paid joining link.

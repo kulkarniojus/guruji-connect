@@ -12,6 +12,8 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RefreshCw, CalendarDays, ArrowRight } from "lucide-react";
+import { getListEventsQueryKey, useListEvents } from "@workspace/api-client-react";
+import EventCards from "@/components/events/EventCards";
 
 type Service = { id: number; slug: string; title: string; description: string; image: string; bookingHref: string; isActive: boolean; sortOrder: number };
 
@@ -21,6 +23,9 @@ export default function ServicesPage() {
     queryFn: () => apiRequest("GET", "/api/services").then(response => response.json()),
   });
   const services = serviceRows.filter(service => service.isActive).slice().sort((a, b) => a.sortOrder - b.sortOrder);
+  const { data: events = [], isLoading: eventsLoading, isError: eventsError, refetch: refetchEvents } = useListEvents(undefined, {
+    query: { queryKey: getListEventsQueryKey(), refetchInterval: 60000 },
+  });
 
   return (
     <MainLayout>
@@ -32,16 +37,36 @@ export default function ServicesPage() {
           ceremonies.
         </p>
 
-        <Link href="/services/events" data-testid="link-events-entry" className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 p-6 hover:bg-primary/10">
-          <div className="flex items-start gap-4">
-            <CalendarDays className="mt-1 h-8 w-8 text-primary" />
-            <div>
-              <h2 className="text-xl font-semibold">Events for children</h2>
-              <p className="text-sm text-gray-600">Devotional and religious-learning classes. Register your child and track it in your account.</p>
+        <section aria-labelledby="services-events" className="mb-10" data-testid="services-events">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <CalendarDays className="mt-1 h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
+              <div>
+                <h2 id="services-events" className="text-2xl font-semibold">Events</h2>
+                <p className="text-sm text-muted-foreground">Religious and educational events for children. View details and register your child.</p>
+              </div>
             </div>
+            <Link href="/services/events" data-testid="link-events-entry" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+              Browse all events <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-          <span className="flex items-center gap-1 font-medium text-primary">Browse events <ArrowRight className="h-4 w-4" /></span>
-        </Link>
+          {eventsLoading ? (
+            <div aria-label="Loading events" className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2].map(item => <div key={item} className="h-72 animate-pulse rounded-lg bg-muted" />)}
+            </div>
+          ) : eventsError ? (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm">
+              <span>Events could not be loaded.</span>
+              <Button type="button" variant="outline" onClick={() => refetchEvents()}><RefreshCw className="mr-2 h-4 w-4" />Retry events</Button>
+            </div>
+          ) : events.length ? (
+            <EventCards events={events} />
+          ) : (
+            <p className="rounded-md border bg-card p-5 text-sm text-muted-foreground" data-testid="text-no-service-events">
+              No events have been published yet. Please check back soon.
+            </p>
+          )}
+        </section>
 
         {isLoading ? (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" aria-label="Loading services">

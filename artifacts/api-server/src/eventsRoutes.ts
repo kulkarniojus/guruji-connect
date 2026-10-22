@@ -38,7 +38,7 @@ eventsRouter.get('/events', safe(async (req,res) => {
   const q = String(req.query.q ?? '').trim().slice(0,150);
   const ids = (await pool.query(`SELECT id FROM religious_events WHERE status='published'
     AND ($1='' OR details->>'name' ILIKE '%'||$1||'%' OR details->>'classType' ILIKE '%'||$1||'%')
-    ORDER BY details->>'startDate',id DESC LIMIT 200`, [q])).rows;
+    ORDER BY details->>'startDate',id DESC`, [q])).rows;
   const result = [];
   for (let i=0;i<ids.length;i+=10) result.push(...await Promise.all(ids.slice(i,i+10).map(row => eventView(row.id))));
   res.json(result);
