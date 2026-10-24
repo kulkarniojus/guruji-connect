@@ -54,7 +54,7 @@ import { initializeGurujiAvailability, gurujiAvailabilityRouter } from './guruji
 import { isAuthenticated as requireAuthenticated } from './middlewares/auth';
 import { isSampleAccount, startUserSession, disableSampleAccounts } from './authAccess';
 import { reconcileDeclinedBookings } from './bookingDeclines';
-import { validateStaffRegistration } from './registrationValidation';
+import { ageFromDateOfBirth, validateStaffRegistration } from './registrationValidation';
 import { submitGurujiApplication } from './gurujiApplication';
 import { 
   sendBookingRequests, 
@@ -900,7 +900,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const profile = await storageInstance.getGurujiProfileByUserId(userId);
       if (!profile) return res.status(404).json({ message: 'Profile not found' });
-      res.json(profile);
+      const user = await storageInstance.getUser(userId);
+      const specializationValues = String(profile.specialization || '').split(',').map(value => value.trim()).filter(Boolean);
+      const specializationIds = specializationValues.filter(value => /^\d+$/.test(value)).map(Number);
+      const pujaRows = specializationIds.length
+        ? (await pool.query('SELECT id,name FROM pujas WHERE id=ANY($1::int[])', [specializationIds])).rows
+        : [];
+      const namesById = new Map<string, string>(pujaRows.map((puja: any) => [String(puja.id), puja.name]));
+      res.json({
+        ...profile,
+        city: user?.city || profile.city,
+        specialization: specializationValues.map(value => namesById.get(value) || value).join(','),
+      });
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch profile' });
     }
@@ -955,6 +966,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       values.push(profile.id);
       await pool.query(`UPDATE guruji_profiles SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+      if (city !== undefined) {
+        await pool.query('UPDATE users SET city=$1 WHERE id=$2', [city.trim(), userId]);
+      }
 
       const updated = await storageInstance.getGurujiProfile(profile.id);
       res.json(updated);
@@ -1026,7 +1040,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         city: z.string().trim().optional(),
         state: z.string().trim().optional(),
         pincode: z.string().regex(/^$|^\d{6}$/, 'Pincode must contain six digits').optional(),
-        dob: z.string().refine(value => !value || validBookingDate(value), 'Invalid date of birth').optional(),
+        dob: z.string().trim().min(1, 'Date of birth is required')
+          .refine(value => validBookingDate(value) &&
+            value <= new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Kolkata'}).format(new Date()), 'Invalid date of birth'),
         photoUrl: z.string().optional(),
         experience: z.number().optional(),
         specialization: z.string().optional(),
@@ -1034,6 +1050,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         languages: z.string().optional(),
         qualification: z.string().optional(),
       }).parse(req.body);
+      const calculatedAge = ageFromDateOfBirth(dob);
+      if (calculatedAge === null || calculatedAge < 18) {
+        return res.status(400).json({ message: 'Registration requires a valid date of birth and age of at least 18' });
+      }
 
       // Check if user already exists in database
       const existingUser = await storageInstance.getUserByMobile(mobile);
@@ -1065,7 +1085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName,
         email,
         mobile,
-        age,
+        age: calculatedAge,
         gender,
         password,
         role,
@@ -1112,8 +1132,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bio: qualification ? `Qualification: ${qualification}` : "",
           experience: experience ?? 0,
           specialization: specialization || "",
-          location: cityNames.join(', '),
-          city: cityNames[0] || "",
+          location: city || cityNames[0] || "",
+          city: city || cityNames[0] || "",
+          age: calculatedAge,
           cities: cityNames,
           address,
           state,
@@ -3291,7 +3312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         certificates: Array.isArray(certificates) ? certificates : [],
         // Keep service-city choices separate from the user's residential address.
         cities: Array.isArray(cities) ? cities.map(String) : [],
-        city: location || city || null,
+        city: city || location || null,
         state: state || null,
         pincode: pincode || null,
         address: address || null,

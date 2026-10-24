@@ -15,8 +15,8 @@ export const staffRegistrationPayload = z.object({
   city: z.string().trim().optional(),
   state: z.string().trim().optional(),
   pincode: z.string().trim().regex(/^$|^\d{6}$/, 'Pincode must have six digits').optional(),
-  dob: z.string().refine(value => !value || (validBookingDate(value) &&
-    value <= new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Kolkata'}).format(new Date())), 'Enter a valid date of birth').optional(),
+  dob: z.string().trim().min(1, 'Date of birth is required').refine(value => validBookingDate(value) &&
+    value <= new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Kolkata'}).format(new Date()), 'Enter a valid date of birth'),
   aadhar: z.string().trim().regex(/^$|^\d{12}$/, 'Aadhaar must have twelve digits').optional(),
   caste: z.string().trim().optional(),
   photoUrl: z.string().optional(),
@@ -31,10 +31,31 @@ export const staffRegistrationPayload = z.object({
   certificates: z.array(z.string()).optional(),
 }).passthrough();
 
+export function ageFromDateOfBirth(value: string, now = new Date()): number | null {
+  if (!validBookingDate(value)) return null;
+  const [birthYear, birthMonth, birthDay] = value.split('-').map(Number);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const today = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  const year = Number(today.year);
+  const month = Number(today.month);
+  const day = Number(today.day);
+  if (birthYear > year || (birthYear === year && (birthMonth > month || (birthMonth === month && birthDay > day)))) return null;
+  return year - birthYear - (month < birthMonth || (month === birthMonth && day < birthDay) ? 1 : 0);
+}
+
 export async function validateStaffRegistration(req: Request, res: Response, next: NextFunction) {
   const parsed = staffRegistrationPayload.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({message: parsed.error.issues[0].message, errors: parsed.error.issues});
-  req.body = parsed.data;
+  const calculatedAge = ageFromDateOfBirth(parsed.data.dob);
+  if (calculatedAge === null || calculatedAge < 18) {
+    return res.status(400).json({ message: 'Registration requires a valid date of birth and age of at least 18' });
+  }
+  req.body = { ...parsed.data, age: calculatedAge };
   if (req.path.endsWith('register-guruji')) {
     const cityChoices = parsed.data.cities || [];
     const pujaChoices = parsed.data.pujas || [];

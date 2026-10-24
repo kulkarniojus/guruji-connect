@@ -81,6 +81,7 @@ export function MobileBookingPage() {
   const [address, setAddress] = useState<string>('');
   const [pincode, setPincode] = useState<string>('');
   const [selectedGurujiId, setSelectedGurujiId] = useState<string>('');
+  const [gurujiSearch, setGurujiSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
@@ -120,6 +121,21 @@ export function MobileBookingPage() {
     queryKey: [gurujiQueryUrl],
     enabled: currentStep === 'guruji' && !!selectedPujaId && !!selectedCity &&
       (bookingType === 'offline' || (bookingType === 'consultation' && consultationType === 'own_guruji')),
+  });
+  const normalizedGurujiSearch = gurujiSearch.trim().toLocaleLowerCase();
+  const filteredGurujis = (gurujis as any[]).filter((guruji: any) => {
+    if (!normalizedGurujiSearch) return true;
+    const searchable = [
+      guruji.firstName,
+      guruji.lastName,
+      guruji.user?.firstName,
+      guruji.user?.lastName,
+      guruji.location,
+      guruji.city,
+      guruji.specialization,
+      ...(Array.isArray(guruji.languages) ? guruji.languages : []),
+    ].filter(Boolean).join(' ').toLocaleLowerCase();
+    return searchable.includes(normalizedGurujiSearch);
   });
 
   const selectedGuruji = (gurujis as any[]).find((g: any) => g.id?.toString() === selectedGurujiId) || null;
@@ -542,19 +558,36 @@ export function MobileBookingPage() {
                 </p>
                 <p className="text-sm text-muted-foreground">You can proceed to review your booking</p>
               </div>
-            ) : gurujisLoading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
-              </div>
-            ) : (gurujis as any[]).length === 0 ? (
-              <div className="text-center py-10 space-y-2">
-                <UserIcon className="h-12 w-12 text-muted-foreground mx-auto" />
-                <p className="font-medium">No Gurujis available</p>
-                <p className="text-sm text-muted-foreground">No verified Gurujis found for {selectedCity}. Try a different city or puja.</p>
-              </div>
             ) : (
               <div className="space-y-3">
-                {(gurujis as any[]).map((g: any) => (
+                <div className="space-y-1.5">
+                  <Label htmlFor="mobile-guruji-search">Search Gurujis</Label>
+                  <Input
+                    id="mobile-guruji-search"
+                    type="search"
+                    value={gurujiSearch}
+                    onChange={(event) => setGurujiSearch(event.target.value)}
+                    placeholder="Search by name, city, puja, or language"
+                  />
+                </div>
+                {gurujisLoading && (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
+                  </div>
+                )}
+                {!gurujisLoading && (gurujis as any[]).length === 0 && (
+                  <div className="text-center py-10 space-y-2">
+                    <UserIcon className="h-12 w-12 text-muted-foreground mx-auto" />
+                    <p className="font-medium">No Gurujis available</p>
+                    <p className="text-sm text-muted-foreground">No verified Gurujis found for {selectedCity}. Try a different city or puja.</p>
+                  </div>
+                )}
+                {!gurujisLoading && (gurujis as any[]).length > 0 && filteredGurujis.length === 0 && (
+                  <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+                    No available Guruji matches “{gurujiSearch}”.
+                  </p>
+                )}
+                {!gurujisLoading && filteredGurujis.map((g: any) => (
                   <button
                     key={g.id}
                     onClick={() => setSelectedGurujiId(g.id.toString())}

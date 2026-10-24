@@ -1,4 +1,5 @@
 import { pool } from './db';
+import { hoursBeforeBooking } from './cancellationPolicy';
 
 type Client = {query: (sql: string, values?: any[]) => Promise<{rows: any[]}>};
 const closed = (message: string) => Object.assign(new Error(message), {status: 409});
@@ -62,8 +63,12 @@ export async function declineBookingRequest(bookingId: number, requestId: number
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(8158,$1)',[bookingId]);
-    const booking=(await client.query('SELECT status FROM bookings WHERE id=$1 FOR UPDATE',[bookingId])).rows[0];
+    const booking=(await client.query(`SELECT status,date::text AS calendar_date,time
+      FROM bookings WHERE id=$1 FOR UPDATE`,[bookingId])).rows[0];
     if (booking?.status!=='pending_approval') throw closed('This booking is no longer awaiting acceptance');
+    if (hoursBeforeBooking(booking) <= 0) {
+      throw closed('The scheduled puja time has passed. Accepting or declining this request is no longer available.');
+    }
     const updated=await client.query(`UPDATE booking_requests SET status='declined',message=$4,"updatedAt"=NOW()
       WHERE id=$1 AND "bookingId"=$2 AND "gurujiId"=$3 AND status='pending' RETURNING id`,
       [requestId,bookingId,gurujiId,message || null]);

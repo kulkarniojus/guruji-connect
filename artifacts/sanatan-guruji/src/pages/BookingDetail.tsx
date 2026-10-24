@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { hasBookingStarted } from '@/lib/bookingTime';
 import { RatingDialog } from '@/components/rating/RatingSystem';
 import { bookingStatusLabel } from '@shared/bookingLifecycle';
 import BookingCompletionControls from '@/components/booking/BookingCompletionControls';
@@ -188,7 +189,8 @@ export default function BookingDetail() {
 
   const isOwner = user && booking.customerId === user.id;
   const isCustomer = user?.role === 'customer';
-  const canCancel = isOwner && ['pending', 'pending_approval', 'confirmed'].includes(booking.status);
+  const canCancel = isOwner && ['pending', 'pending_approval', 'confirmed'].includes(booking.status) &&
+    !hasBookingStarted(booking.date, booking.time);
   const canRate = isOwner && booking.status === 'completed' && !isReviewLoading && !isReviewError && !existingReview;
   const isPending = ['pending', 'pending_approval'].includes(booking.status);
 
@@ -483,7 +485,7 @@ export default function BookingDetail() {
             <Button
               variant="destructive"
               onClick={() => cancelMutation.mutate()}
-              disabled={cancelMutation.isPending || cancelPreviewLoading || cancelPreviewError || !cancelPreview?.canCancel || cancelReason.trim().length<5}
+              disabled={cancelMutation.isPending || cancelPreviewLoading || cancelPreviewError || !cancelPreview?.canCancel || cancelReason.trim().length<5 || hasBookingStarted(booking.date, booking.time)}
             >
               {cancelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirm Cancellation

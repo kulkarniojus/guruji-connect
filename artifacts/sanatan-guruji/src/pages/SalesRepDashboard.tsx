@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { parseBirthDate, isPastBirthDate } from '@/lib/birthDate';
+import { ageFromBirthDate, parseBirthDate, isPastBirthDate } from '@/lib/birthDate';
 import { Loader2, UserPlus, Users, LogOut, User, Phone, Mail, MapPin, CreditCard, Calendar, Star, TrendingUp, CheckCircle, BarChart2, Building2 } from 'lucide-react';
 
 const birthDateSchema = z.string().min(1, 'Date of birth required')
@@ -220,7 +220,10 @@ export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-custome
   });
 
   const mutation = useMutation({
-    mutationFn: (data: CustomerForm) => apiRequest('POST', endpoint, data),
+    mutationFn: (data: CustomerForm) => apiRequest('POST', endpoint, {
+      ...data,
+      age: ageFromBirthDate(data.dob) ?? data.age,
+    }),
     onSuccess: async (res) => {
       const user = await res.json();
       toast({ title: 'Customer Registered!', description: `${user.firstName} ${user.lastName} has been registered.` });
@@ -261,7 +264,7 @@ export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-custome
               <FormItem><FormLabel>Password *</FormLabel><FormControl><Input type="password" placeholder="Min 6 characters" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="age" render={({ field }) => (
-              <FormItem><FormLabel>Age *</FormLabel><FormControl><Input type="number" placeholder="25" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Age (calculated from date of birth) *</FormLabel><FormControl><Input type="number" {...field} value={ageFromBirthDate(form.watch('dob') || '') ?? ''} readOnly aria-readonly="true" /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="gender" render={({ field }) => (
               <FormItem><FormLabel>Gender *</FormLabel>
@@ -276,7 +279,10 @@ export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-custome
               <FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="dob" render={({ field }) => (
-              <FormItem><FormLabel>Date of Birth *</FormLabel><FormControl><DateOfBirthInput {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Date of Birth *</FormLabel><FormControl><DateOfBirthInput {...field} onChange={(value) => {
+                field.onChange(value);
+                form.setValue('age', ageFromBirthDate(value) ?? 0, { shouldValidate: true });
+              }} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <FieldSection title="KYC / Identity" />
@@ -342,8 +348,9 @@ export function RegisterGurujiTab({endpoint = '/api/sales-rep/register-guruji'}:
 
   const mutation = useMutation({
     mutationFn: async (data: GurujiForm) => {
-      const payload = {
+        const payload = {
         ...data,
+          age: ageFromBirthDate(data.dob) ?? data.age,
         cities: data.servesCity,
         pujas: data.pujaSpecialization,
         languages: data.languages,
@@ -388,7 +395,7 @@ export function RegisterGurujiTab({endpoint = '/api/sales-rep/register-guruji'}:
               <FormItem><FormLabel>Password *</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="age" render={({ field }) => (
-              <FormItem><FormLabel>Age *</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Age (calculated from date of birth) *</FormLabel><FormControl><Input type="number" {...field} value={ageFromBirthDate(form.watch('dob') || '') ?? ''} readOnly aria-readonly="true" /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="gender" render={({ field }) => (
               <FormItem><FormLabel>Gender *</FormLabel>
@@ -403,7 +410,10 @@ export function RegisterGurujiTab({endpoint = '/api/sales-rep/register-guruji'}:
               <FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="dob" render={({ field }) => (
-              <FormItem><FormLabel>Date of Birth *</FormLabel><FormControl><DateOfBirthInput {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Date of Birth *</FormLabel><FormControl><DateOfBirthInput {...field} onChange={(value) => {
+                field.onChange(value);
+                form.setValue('age', ageFromBirthDate(value) ?? 0, { shouldValidate: true });
+              }} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <FieldSection title="KYC / Identity" />

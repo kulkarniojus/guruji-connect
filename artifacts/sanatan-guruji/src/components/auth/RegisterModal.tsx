@@ -27,6 +27,7 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { postAuthPath, currentBookingReturnPath } from '@/lib/authRedirect';
+import { ageFromBirthDate, isPastBirthDate, parseBirthDate } from '@/lib/birthDate';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -216,7 +217,9 @@ const registerSchema = z.object({
   gender: z.enum(['male', 'female', 'other'], {
     required_error: 'Please select a gender',
   }),
-  dob: z.string().optional(),
+  dob: z.string().min(1, 'Date of birth is required')
+    .refine(value => !!parseBirthDate(value), 'Enter a valid date of birth')
+    .refine(value => isPastBirthDate(value), 'Date of birth cannot be in the future'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   registrationType: z.enum(['customer', 'guruji'], {
     required_error: 'Please select a registration type',
@@ -289,9 +292,14 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
 
   const onSubmit = async (data: RegisterFormValues) => {
     const returnTo = currentBookingReturnPath();
+    const calculatedAge = ageFromBirthDate(data.dob);
+    if (calculatedAge === null || calculatedAge < 18) {
+      form.setError('dob', { type: 'validate', message: 'Registration requires a valid date of birth and age of at least 18' });
+      return;
+    }
     setIsLoading(true);
     try {
-      const result = await register(data);
+      const result = await register({ ...data, age: calculatedAge });
       
       if (result.success && result.user) {
         toast({
@@ -412,9 +420,15 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
                 name="age"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Age *</FormLabel>
+                    <FormLabel>Age (calculated from date of birth) *</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input
+                        type="number"
+                        {...field}
+                        value={ageFromBirthDate(form.watch('dob') || '') ?? ''}
+                        readOnly
+                        aria-readonly="true"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -519,9 +533,17 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
                 name="dob"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date of Birth</FormLabel>
+                    <FormLabel>Date of Birth *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input
+                        type="date"
+                        {...field}
+                        onChange={(event) => {
+                          field.onChange(event);
+                          const age = ageFromBirthDate(event.target.value);
+                          form.setValue('age', age ?? 0, { shouldValidate: true });
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

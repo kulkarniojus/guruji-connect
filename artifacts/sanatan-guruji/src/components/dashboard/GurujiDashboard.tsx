@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import CancellationHistory from '@/components/booking/CancellationHistory';
 import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { hasBookingStarted } from '@/lib/bookingTime';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from '@/components/ui/dialog';
@@ -39,6 +40,17 @@ function statusBadge(status: string) {
     pending_approval: 'bg-orange-100 text-orange-800',
   };
   return map[status] ?? 'bg-gray-100 text-gray-700';
+}
+
+function resolveProfilePujaNames(specialization: unknown, pujaCatalog: any[]) {
+  const values = Array.isArray(specialization)
+    ? specialization.map(String)
+    : String(specialization || '').split(',');
+  return values.map(value => value.trim()).filter(Boolean).map(value => {
+    const matchingPuja = pujaCatalog.find((puja: any) =>
+      String(puja.id) === value || String(puja.name).toLocaleLowerCase() === value.toLocaleLowerCase());
+    return matchingPuja?.name || value;
+  });
 }
 
 function formatDate(dateStr: string) {
@@ -94,6 +106,7 @@ export default function GurujiDashboard() {
     },
     staleTime: 30000,
   });
+  const { data: pujaCatalog = [] } = useQuery<any[]>({ queryKey: ['/api/pujas'] });
 
   // Fetch guruji's own profile to get approval status
   const { data: myProfile, refetch: refetchProfile } = useQuery<any>({
@@ -133,7 +146,7 @@ export default function GurujiDashboard() {
   useEffect(() => {
     if (myProfile) {
       setProfileForm({
-        city: myProfile.city || '',
+        city: user?.city || myProfile.city || '',
         state: myProfile.state || '',
         address: myProfile.address || '',
         pincode: myProfile.pincode || '',
@@ -141,16 +154,15 @@ export default function GurujiDashboard() {
         pricePerHour: String(myProfile.pricePerHour || ''),
         bio: myProfile.bio || '',
       });
-      const specStr = myProfile.specialization || '';
-      setProfilePujas(specStr ? specStr.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+      setProfilePujas(resolveProfilePujaNames(myProfile.specialization, pujaCatalog));
       setProfileServiceCities(Array.isArray(myProfile.cities) ? myProfile.cities : []);
     }
-  }, [myProfile]);
+  }, [myProfile, user, pujaCatalog]);
 
   const handleOpenProfileEdit = () => {
     if (!myProfile) return;
     setProfileForm({
-      city: myProfile.city || '',
+      city: user?.city || myProfile.city || '',
       state: myProfile.state || '',
       address: myProfile.address || '',
       pincode: myProfile.pincode || '',
@@ -158,8 +170,7 @@ export default function GurujiDashboard() {
       pricePerHour: String(myProfile.pricePerHour || ''),
       bio: myProfile.bio || '',
     });
-    const specStr = myProfile.specialization || '';
-    setProfilePujas(specStr ? specStr.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+    setProfilePujas(resolveProfilePujaNames(myProfile.specialization, pujaCatalog));
     setProfileServiceCities(Array.isArray(myProfile.cities) ? myProfile.cities : []);
     setShowEditProfile(true);
   };
@@ -718,11 +729,16 @@ export default function GurujiDashboard() {
                       </div>
 
                       {/* Accept / Decline buttons */}
+                      {hasBookingStarted(req.booking?.date, req.booking?.time) ? (
+                        <p className="max-w-[220px] text-sm text-muted-foreground">
+                          The scheduled puja time has passed. Accepting or declining is unavailable.
+                        </p>
+                      ) : (
                       <div className="flex flex-col gap-2 min-w-[160px]">
                         <Button
                           className="bg-green-600 hover:bg-green-700 text-white"
                           onClick={() => openAcceptConfirmation(req)}
-                          disabled={acceptMutation.isPending}
+                          disabled={acceptMutation.isPending || hasBookingStarted(req.booking?.date, req.booking?.time)}
                         >
                           {acceptMutation.isPending ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -740,10 +756,11 @@ export default function GurujiDashboard() {
                           Decline
                         </Button>
                       </div>
+                      )}
                     </div>
 
                     {/* Decline reason box */}
-                    {showDeclineFor === req.id && (
+                    {!hasBookingStarted(req.booking?.date, req.booking?.time) && showDeclineFor === req.id && (
                       <div className="mt-4 space-y-2 border-t pt-4">
                         <p className="text-sm font-medium text-neutral-700">Reason for declining (optional):</p>
                         <Textarea
@@ -762,7 +779,7 @@ export default function GurujiDashboard() {
                             onClick={() =>
                               declineMutation.mutate({ requestId: req.id, message: declineReason[req.id] || '' })
                             }
-                            disabled={declineMutation.isPending}
+                            disabled={declineMutation.isPending || hasBookingStarted(req.booking?.date, req.booking?.time)}
                           >
                             {declineMutation.isPending ? (
                               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -1000,6 +1017,11 @@ export default function GurujiDashboard() {
                   I have reviewed and acknowledge the commission and Guruji share information above, including if this booking has no saved record.
                 </Label>
               </div>
+              {hasBookingStarted(acceptingRequest.booking?.date, acceptingRequest.booking?.time) && (
+                <p role="alert" className="text-sm text-red-700">
+                  The scheduled puja time has passed. This request can no longer be accepted.
+                </p>
+              )}
               {acceptMutation.isError && (
                 <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
                   {acceptMutation.error instanceof Error ? acceptMutation.error.message : 'The request could not be accepted. Please try again.'}
@@ -1014,7 +1036,8 @@ export default function GurujiDashboard() {
             <Button
               className="bg-green-700 text-white hover:bg-green-800"
               onClick={() => acceptingRequest && commissionAcknowledged && acceptMutation.mutate(acceptingRequest.id)}
-              disabled={!acceptingRequest || !commissionAcknowledged || acceptMutation.isPending}
+              disabled={!acceptingRequest || !commissionAcknowledged || acceptMutation.isPending ||
+                hasBookingStarted(acceptingRequest?.booking?.date, acceptingRequest?.booking?.time)}
             >
               {acceptMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
               Confirm acceptance
@@ -1296,7 +1319,8 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
     onError: (e: any) => {refetchPreview();toast({ title: 'Please review withdrawal details', description: e.message, variant: 'destructive' });},
   });
 
-  const canCancel = booking.status === 'confirmed' || booking.status === 'in_progress';
+  const canCancel = (booking.status === 'confirmed' || booking.status === 'in_progress') &&
+    !hasBookingStarted(booking.date, booking.time);
   const canRate = booking.status === 'completed' && onRate && existingRating === null;
   const hasRated = booking.status === 'completed' && existingRating;
 
@@ -1400,7 +1424,7 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
             <Button variant="outline" onClick={() => setShowCancel(false)}>Keep Booking</Button>
             <Button
               variant="destructive"
-              disabled={cancelReason.trim().length < 5 || cancelMutation.isPending || previewLoading || previewError || !preview?.canCancel}
+              disabled={cancelReason.trim().length < 5 || cancelMutation.isPending || previewLoading || previewError || !preview?.canCancel || hasBookingStarted(booking.date, booking.time)}
               onClick={() => cancelMutation.mutate()}
             >
               {cancelMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Ban className="h-4 w-4 mr-2" />}

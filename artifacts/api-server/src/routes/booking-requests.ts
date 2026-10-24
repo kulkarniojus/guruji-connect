@@ -6,6 +6,7 @@ import { DBStorage } from '../dbStorage';
 import { pool } from '../db';
 import { getBusyGurujiIds, parseBookingTime } from '../bookingSchedule';
 import { declineBookingRequest } from '../bookingDeclines';
+import { hoursBeforeBooking } from '../cancellationPolicy';
 import { cancellationEndpoint } from './cancellations';
 import { resolveUnassignedBookingAlerts } from '../unassignedBookingAlerts';
 
@@ -125,6 +126,9 @@ export async function respondToBookingRequest(req: Request, res: Response) {
     if (booking.status !== 'pending_approval') {
       return res.status(400).json({ message: `Booking is already ${booking.status}` });
     }
+    if (hoursBeforeBooking(booking) <= 0) {
+      return res.status(409).json({ message: 'The scheduled puja time has passed. Accepting or declining this request is no longer available.' });
+    }
     
     if (response === 'accept') {
       const client = await pool.connect();
@@ -143,6 +147,10 @@ export async function respondToBookingRequest(req: Request, res: Response) {
         if (latestBooking?.status !== 'pending_approval' || latestRequest?.status !== 'pending') {
           await client.query('ROLLBACK');
           return res.status(409).json({ message: 'This booking request is no longer open' });
+        }
+        if (hoursBeforeBooking(latestBooking) <= 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'The scheduled puja time has passed. Accepting or declining this request is no longer available.' });
         }
         const commission=latestBooking.commissionSnapshot;
         if(commission && commission.percentage>0 && commissionAcknowledged!==true) {

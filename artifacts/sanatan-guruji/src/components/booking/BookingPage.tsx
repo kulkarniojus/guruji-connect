@@ -48,6 +48,7 @@ export default function BookingPage() {
   const searchParams = new URLSearchParams(window.location.search);
   const bookingUrl = window.location.pathname + window.location.search;
   const [pujaSearch, setPujaSearch] = useState('');
+  const [gurujiSearch, setGurujiSearch] = useState('');
   const [savedDraft] = useState(() => readBookingDraft(bookingUrl));
   const initialType = normalizeBookingType(searchParams.get('type'));
   const [changingSelection, setChangingSelection] = useState(false);
@@ -120,6 +121,19 @@ export default function BookingPage() {
   const { data: matchingGurujis, isLoading: isMatchingLoading, isError: isMatchingError } = useQuery<any[]>({
     queryKey: [gurujiBaseUrl],
     enabled: shouldFetchGurujis && !isGurujiLoading && !isGurujiError && gurujis.length === 0,
+  });
+  const normalizedGurujiSearch = gurujiSearch.trim().toLocaleLowerCase();
+  const filteredGurujis = gurujis.filter((guruji: any) => {
+    if (!normalizedGurujiSearch) return true;
+    const searchable = [
+      guruji.firstName,
+      guruji.lastName,
+      guruji.location,
+      guruji.city,
+      guruji.specialization,
+      ...(Array.isArray(guruji.languages) ? guruji.languages : []),
+    ].filter(Boolean).join(' ').toLocaleLowerCase();
+    return searchable.includes(normalizedGurujiSearch);
   });
 
   const selectionKey = [selectedCity, selectedPujaId, selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', selectedTime].join('|');
@@ -765,9 +779,19 @@ export default function BookingPage() {
                        <div className="text-center py-8 text-red-700" role="alert">
                          Unable to check Guruji availability. Please try again.
                        </div>
-                    ) : gurujis && gurujis.length > 0 ? (
+                     ) : gurujis && gurujis.length > 0 ? (
                       <div className="space-y-4">
-                        {gurujis.map((guruji) => (
+                         <div className="space-y-1.5">
+                           <Label htmlFor="guruji-search">Search Gurujis</Label>
+                           <Input
+                             id="guruji-search"
+                             type="search"
+                             value={gurujiSearch}
+                             onChange={(event) => setGurujiSearch(event.target.value)}
+                             placeholder="Search by name, city, puja, or language"
+                           />
+                         </div>
+                         {filteredGurujis.length ? filteredGurujis.map((guruji) => (
                       <div
                         key={guruji.id}
                         role="button"
@@ -812,7 +836,11 @@ export default function BookingPage() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="rounded-lg border border-dashed p-5 text-center text-sm text-neutral-600">
+                        No available Guruji matches “{gurujiSearch}”.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-8">

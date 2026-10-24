@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { MapPin, Upload, FileText, UserCheck, AlertCircle, Loader2, Video } from 'lucide-react';
 import { LanguagesField, PujaSpecializationsField, ServiceAreasField } from '@/components/GurujiSelectionFields';
+import { ageFromBirthDate, isPastBirthDate, parseBirthDate } from '@/lib/birthDate';
 
 const gurujiRegistrationSchema = z.object({
   firstName: z.string().min(2, 'First name required'),
@@ -24,7 +25,9 @@ const gurujiRegistrationSchema = z.object({
   mobile: z.string().regex(/^\d{10}$/, 'Phone number must be 10 digits'),
   age: z.coerce.number().min(18, 'Must be at least 18').max(100, 'Invalid age'),
   gender: z.enum(['male', 'female', 'other']).optional(),
-  dob: z.string().optional(),
+  dob: z.string().min(1, 'Date of birth is required')
+    .refine(value => !!parseBirthDate(value), 'Enter a valid date of birth')
+    .refine(value => isPastBirthDate(value), 'Date of birth cannot be in the future'),
   caste: z.string().optional(),
   religion: z.string().min(2, 'Religion required'),
   bio: z.string().min(50, 'Bio must be at least 50 characters').max(500, 'Bio must be less than 500 characters'),
@@ -118,6 +121,7 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
     mutationFn: (data: GurujiRegistrationFormData) =>
       apiRequest('POST', '/api/guruji/register', {
         ...data,
+        age: ageFromBirthDate(data.dob) ?? data.age,
         pujas: selectedPujas,
         cities: selectedServiceAreas,
         languages: selectedLanguages,
@@ -174,6 +178,7 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
     }
     submitMutation.mutate({
       ...data,
+      age: ageFromBirthDate(data.dob) ?? data.age,
       pujas: selectedPujas,
       serviceAreas: selectedServiceAreas,
       languages: selectedLanguages,
@@ -286,9 +291,17 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                   name="dob"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date of Birth</FormLabel>
+                      <FormLabel>Date of Birth *</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input
+                          type="date"
+                          {...field}
+                          onChange={(event) => {
+                            field.onChange(event);
+                            const age = ageFromBirthDate(event.target.value);
+                            form.setValue('age', age ?? 0, { shouldValidate: true });
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -351,9 +364,18 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
                   name="age"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Age</FormLabel>
+                      <FormLabel>Age (calculated from date of birth) *</FormLabel>
                       <FormControl>
-                        <Input type="number" min="18" max="100" placeholder="Enter your age" {...field} />
+                        <Input
+                          type="number"
+                          min="18"
+                          max="100"
+                          placeholder="Enter date of birth above"
+                          {...field}
+                          value={ageFromBirthDate(form.watch('dob') || '') ?? ''}
+                          readOnly
+                          aria-readonly="true"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

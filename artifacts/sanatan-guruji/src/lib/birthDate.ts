@@ -22,6 +22,17 @@ export function birthDateDisplay(value: string): string {
     : value;
 }
 
+export function ageFromBirthDate(value: string, asOf = new Date()): number | null {
+  const birthDate = parseBirthDate(value);
+  if (!birthDate) return null;
+
+  let age = asOf.getFullYear() - birthDate.getFullYear();
+  const beforeBirthday = asOf.getMonth() < birthDate.getMonth() ||
+    (asOf.getMonth() === birthDate.getMonth() && asOf.getDate() < birthDate.getDate());
+  if (beforeBirthday) age -= 1;
+  return age >= 0 ? age : null;
+}
+
 export function isPastBirthDate(value: string): boolean {
   const date = parseBirthDate(value);
   if (!date) return false;

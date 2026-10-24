@@ -98,7 +98,7 @@ export async function cancellationQuote(client: { query: any }, booking: any, us
   const customerFunds = userType === 'customer' ? await bookingCustomerFunds(client, {
     ...booking, status: 'cancelled', cancelled_by: 'customer', cancellation_charge: charge,
   }) : null;
-  const canCancel = userType === 'guruji' ? ['confirmed','in_progress'].includes(booking.status)
+  const canCancel = userType === 'guruji' ? ['confirmed','in_progress'].includes(booking.status) && hoursUntil > 0
     : userType === 'admin' ? ['pending','pending_approval','confirmed','in_progress'].includes(booking.status)
     : ['pending','pending_approval','confirmed'].includes(booking.status) && hoursUntil > 0;
   const chargeDescription = rule?.charge_type === 'percentage' ? `${rule.charge_value}% of the saved booking amount: ₹${charge}`

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { pool } from './db';
 import { DBStorage } from './dbStorage';
-import { staffRegistrationPayload } from './registrationValidation';
+import { ageFromDateOfBirth, staffRegistrationPayload } from './registrationValidation';
 
 export async function submitGurujiApplication(req: Request, res: Response) {
   if (!['customer', 'guruji'].includes(req.session.userRole || '')) {
@@ -19,7 +19,11 @@ export async function submitGurujiApplication(req: Request, res: Response) {
     cities: req.body.cities || req.body.serviceAreas,
   });
   if (!parsed.success) return res.status(400).json({message: parsed.error.issues[0].message});
-  const data = parsed.data;
+  const calculatedAge = ageFromDateOfBirth(parsed.data.dob);
+  if (calculatedAge === null || calculatedAge < 18) {
+    return res.status(400).json({message: 'Registration requires a valid date of birth and age of at least 18'});
+  }
+  const data = {...parsed.data, age: calculatedAge};
   if (!data.cities?.length || !data.pujas?.length || !data.languages?.length) {
     return res.status(400).json({message: 'Select service cities, pujas and languages'});
   }
@@ -57,7 +61,7 @@ export async function submitGurujiApplication(req: Request, res: Response) {
     const profileData = {
       userId: user.id, bio: String(data.bio || ''), experience: data.experience || 0,
       pricePerHour: data.pricePerHour ?? 500, specialization: pujas.rows.map(p => p.name).join(','),
-      city: cities[0], cities, address: data.address, state: data.state, pincode: data.pincode,
+      city: data.city || cities[0], cities, address: data.address, state: data.state, pincode: data.pincode,
       languages: data.languages, certificates: data.certificates || [],
       profilePictureUrl: data.photoUrl || null, religion: data.religion, age: data.age,
       isOnline: data.isOnline ?? false, isOffline: data.isOffline ?? true,
@@ -75,7 +79,7 @@ export async function submitGurujiApplication(req: Request, res: Response) {
           status='pending',"isAvailable"=false,"isVerified"=false,
           aadhar_verified=false,documents_verified=false,"updatedAt"=NOW() WHERE id=$16`,
         [profileData.bio,profileData.experience,profileData.pricePerHour,pujas.rows.map(p => p.name),
-          cities[0],cities,data.address || null,data.state || null,data.pincode || null,data.languages,
+          profileData.city,cities,data.address || null,data.state || null,data.pincode || null,data.languages,
           profileData.certificates,profileData.profilePictureUrl,data.religion || null,data.age,
           profileData.videoUrl,id],
       );
