@@ -81,7 +81,7 @@ export async function completeEventPayment(session: Stripe.Checkout.Session) {
     if (session.currency!=='inr' || session.amount_total!==row.fee_paise || session.livemode===row.is_test ||
         session.client_reference_id!==row.id) throw eventFail(409,'Event payment verification failed');
     const occupied = (await client.query(`SELECT count(*)::int AS count FROM event_registrations WHERE event_id=$1 AND id<>$2
-      AND (status='registered' OR (status='pending_payment' AND hold_until>now()))`, [row.event_id,id])).rows[0].count;
+      AND (status IN ('registered','pending_confirmation') OR (status='pending_payment' AND hold_until>now()))`, [row.event_id,id])).rows[0].count;
     const cancelled = row.status==='cancelled' || event.status==='cancelled' || occupied>=event.details.capacity;
     await client.query(`UPDATE event_registrations SET paid_paise=fee_paise,status=$2,hold_until=null,
       cancellation_reason=CASE WHEN $2='cancelled' AND cancellation_reason='' THEN 'Paid after availability ended; refund owed' ELSE cancellation_reason END

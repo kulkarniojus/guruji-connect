@@ -69,6 +69,7 @@ try {
   assert.equal((await api(`/api/events/${id}/register`,customer.cookie,'POST',{...regBody,eventVersion:1})).status,409);
   const reg=await api(`/api/events/${id}/register`,customer.cookie,'POST',regBody);
   assert.equal(reg.status,201,JSON.stringify(reg.data)); const rid=reg.data.id;
+  assert.equal(reg.data.status,'pending_confirmation','Manual registrations are not confirmed on customer submission');
   assert.equal(reg.data.fee,80); assert.equal(reg.data.paid,0); assert.equal(reg.data.balanceDue,80);
   assert.equal((await api(`/api/events/${id}/register`,customer.cookie,'POST',regBody)).data.id,rid,'Registration retries are idempotent');
   assert.equal((await api(`/api/events/${id}/register`,customer.cookie,'POST',{...regBody,requestId:randomUUID()})).status,409,'Duplicate child prevented');
@@ -79,9 +80,18 @@ try {
   assert.equal((await api(payPath,customer.cookie,'POST',firstPayment)).status,403);
   const p1=await api(payPath,admin.cookie,'POST',firstPayment);
   assert.equal(p1.status,200,JSON.stringify(p1.data)); assert.equal(p1.data.balanceDue,50);
+  assert.equal(p1.data.status,'pending_confirmation','Recording offline payment does not silently confirm the registration');
   assert.equal((await api(payPath,admin.cookie,'POST',firstPayment)).data.paid,30,'Payment reference retry is idempotent');
   assert.equal((await api(payPath,admin.cookie,'POST',{...firstPayment,reference:'overpayment',amount:51})).status,400);
-  assert.equal((await api(payPath,admin.cookie,'POST',{...firstPayment,reference:'verification-final',amount:50})).data.paid,80);
+  const fullPayment=await api(payPath,admin.cookie,'POST',{...firstPayment,reference:'verification-final',amount:50});
+  assert.equal(fullPayment.data.paid,80);
+  assert.equal(fullPayment.data.status,'pending_confirmation','Admin must explicitly confirm an offline registration');
+  assert.equal((await api(`/api/admin/event-registrations/${rid}/confirm`)).status,401);
+  assert.equal((await api(`/api/admin/event-registrations/${rid}/confirm`,customer.cookie,'POST')).status,403);
+  const confirmed=await api(`/api/admin/event-registrations/${rid}/confirm`,admin.cookie,'POST');
+  assert.equal(confirmed.status,200,JSON.stringify(confirmed.data));
+  assert.equal(confirmed.data.status,'registered');
+  assert.equal((await api(`/api/admin/event-registrations/${rid}/confirm`,admin.cookie,'POST')).data.status,'registered','Manual confirmation retries are idempotent');
   assert.equal((await api(`/api/events/${id}`,customer.cookie)).data.meetingUrl,config.meetingUrl);
   assert.equal((await api(`/api/events/${id}`)).data.meetingUrl,'');
   const attendance={sessionId:detail.data.sessions[0].id,registrationId:rid,status:'present'};
@@ -103,8 +113,9 @@ try {
   await browser.click('[data-testid="checkbox-consent"]');
   await browser.click('[data-testid="button-register"]');
   await browser.wait(`document.body?.innerText?.includes('Registration received')`,'browser registration success');
+  assert.equal(await browser.evaluate(`document.body?.innerText?.includes('awaiting confirmation by the Sanatan Guruji support team')`),true,'Manual payment stays unconfirmed for customer');
   const browserReg=(await api('/api/event-registrations',customer.cookie)).data.find((r:any)=>r.childName==='Browser verified child');
-  assert.ok(browserReg,'Actual customer browser registration saved');
+  assert.ok(browserReg,'Actual customer browser registration saved'); assert.equal(browserReg.status,'pending_confirmation');
   assert.equal((await api(`/api/events/${id}`)).data.availableSeats,0);
   await browser.command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await browser.command('Page.navigate',{url:`${base}/events/registrations`});
@@ -118,7 +129,11 @@ try {
   await browser.wait(`document.body?.innerText?.includes(${JSON.stringify(config.name)})`,'admin event management');
   await browser.click(`[data-testid="button-participants-${id}"]`);
   await browser.wait(`!!document.querySelector('[data-testid="row-participant-${rid}"]')`,'admin private participants');
-  console.log('PASS: public/admin desktop and phone UI, real banner upload, guardian registration and privacy, manual payment accounting, attendance.');
+  await browser.wait(`!!document.querySelector('[data-testid="button-confirm-offline-${browserReg.id}"]')`,'admin can confirm offline registration');
+  await browser.click(`[data-testid="button-confirm-offline-${browserReg.id}"]`);
+  await browser.wait(`document.querySelector('[data-testid="row-participant-${browserReg.id}"]')?.innerText?.includes('registered')`,'manual registration confirmed by admin');
+  assert.equal((await api('/api/event-registrations',customer.cookie)).data.find((r:any)=>r.id===browserReg.id).status,'registered');
+  console.log('PASS: public/admin desktop and phone UI, real banner upload, guardian registration and privacy, manual confirmation/payment accounting, attendance.');
 
   const changed={...config,startDate:day(9),endDate:day(9),startTime:'11:00',basePrice:150,discountedPrice:null};
   const edited=await api(`/api/admin/events/${id}`,admin.cookie,'PUT',changed);
@@ -152,6 +167,8 @@ try {
   const onlineReg=await api(`/api/events/${onlineEvent.id}/register`,customer.cookie,'POST',
     {...regBody,requestId:randomUUID(),eventVersion:onlineEvent.version,paymentMethod:'online'});
   assert.equal(onlineReg.status,201); const onlineId=onlineReg.data.id;
+  assert.equal(onlineReg.data.status,'pending_payment','Online registration remains pending until Stripe verifies payment');
+  assert.equal((await api(`/api/admin/event-registrations/${onlineId}/confirm`,admin.cookie,'POST')).status,409,'Admin offline confirmation cannot confirm an online registration');
   assert.equal((await api(`/api/event-registrations/${onlineId}/checkout`,outsider.cookie,'POST')).status,404);
   const checkout=await api(`/api/event-registrations/${onlineId}/checkout`,customer.cookie,'POST');
   assert.equal(checkout.status,200,JSON.stringify({message:checkout.data?.message}));
@@ -173,6 +190,7 @@ try {
   await completeEventPayment({...session,payment_status:'paid'});
   const verified=(await api('/api/event-registrations',customer.cookie)).data.find((r:any)=>r.id===onlineId);
   assert.equal(verified.paid,80); assert.equal(verified.isTest,true); assert.equal(verified.payments.length,1);
+  assert.equal(verified.status,'registered','Verified online payment automatically confirms registration');
   assert.deepEqual((await pool.query('SELECT stripe_payments_enabled,advance_percentage FROM app_settings LIMIT 1')).rows[0],originalPujaPayments);
   console.log('PASS: rescheduling/history, frozen fees, cancellations/refund tracking, notifications/rate limits, concurrent capacity, free registration, real TEST hosted checkout, unpaid reconciliation/signature rejection, idempotent payment-handler fixture. No real charge made; puja payment settings unchanged.');
 } finally {

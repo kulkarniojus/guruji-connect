@@ -5,10 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EventSessionStatus } from './eventSessionStatus';
 
 export interface EventSession {
   id: number;
   startAt: string;
   endAt: string;
-  status: string;
+  status: EventSessionStatus;
 }

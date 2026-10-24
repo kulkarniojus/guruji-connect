@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, RefreshCw } from "lucide-react";
 import {
-  useListEventParticipants, getListEventParticipantsQueryKey, useRecordEventPayment, useGetEventAttendance, getGetEventAttendanceQueryKey,
+  useListEventParticipants, getListEventParticipantsQueryKey, useRecordEventPayment, useConfirmManualEventRegistration,
+  useGetEventAttendance, getGetEventAttendanceQueryKey,
   useSaveEventAttendance, useNotifyEventParticipants, useCancelEventRegistration, getListAdminEventsQueryKey, getGetEventQueryKey,
   type EventRecord, type EventRegistration,
 } from "@workspace/api-client-react";
@@ -45,12 +46,14 @@ function AdminCancel({ r, eventId }: { r: EventRegistration; eventId: number }) 
 function PaymentRow({ r, eventId }: { r: EventRegistration; eventId: number }) {
   const qc = useQueryClient();
   const rec = useRecordEventPayment();
+  const confirm = useConfirmManualEventRegistration();
   const [type, setType] = useState<"payment" | "refund">("payment");
   const [amount, setAmount] = useState("");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [err, setErr] = useState("");
   const online = r.paymentMethod === "online";
+  const pendingManualConfirmation = r.paymentMethod === "manual" && r.status === "pending_confirmation";
   const cancelled = r.status.includes("cancel");
   const save = () => {
     const a = Number(amount);
@@ -62,22 +65,43 @@ function PaymentRow({ r, eventId }: { r: EventRegistration; eventId: number }) {
       onError: e => setErr(errMsg(e)),
     });
   };
+  const confirmOffline = () => {
+    setErr("");
+    confirm.mutate({ registrationId: r.id }, {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListEventParticipantsQueryKey(eventId) });
+        qc.invalidateQueries({ queryKey: getListAdminEventsQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetEventQueryKey(eventId) });
+      },
+      onError: e => setErr(errMsg(e)),
+    });
+  };
   return (
     <li className="rounded-lg border p-3 text-sm" data-testid={`row-participant-${r.id}`}>
       <div className="flex flex-wrap items-center justify-between gap-2"><strong>{r.childName} (age {r.childAge})</strong><StatusBadge status={r.status} /></div>
       <p className="text-muted-foreground">Guardian: {r.guardianName} - {r.paymentMethod}{r.isTest ? " - TEST registration (test money, not real)" : ""}</p>
       <p>{r.isTest ? "Test amounts: " : ""}Fee {rupees(r.fee)} - Paid {rupees(r.paid)} - Refunded {rupees(r.refunded)} - Balance {rupees(r.balanceDue)} - Refund due {rupees(r.refundDue)}</p>
-      {r.payments.length > 0 && <ul className="text-xs text-muted-foreground">{r.payments.map((p, i) => <li key={i}>{p.type} {rupees(p.amount)} ref {p.reference} - {fmtDateTime(p.createdAt)}</li>)}</ul>}
+      <div className="mt-2"><p className="font-medium">Payment records</p>{r.payments.length > 0
+        ? <ul className="text-xs text-muted-foreground">{r.payments.map((p, i) => <li key={i}>{p.type === "refund" ? "Refund recorded manually" : online ? "Online payment (verified by Stripe)" : "Offline payment (recorded by support team)"} — {rupees(p.amount)} — ref {p.reference} — {fmtDateTime(p.createdAt)}</li>)}</ul>
+        : <p className="text-xs text-muted-foreground">{r.paymentMethod === "free" ? "No payment required." : online ? "No online payment has been verified yet." : "No offline payment has been recorded yet."}</p>}
+      </div>
+      {pendingManualConfirmation && <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3">
+        <p className="font-medium text-amber-950">Offline registration awaiting confirmation</p>
+        <p className="mt-1 text-xs text-amber-950">Confirm only after verifying the offline payment. Any balance not covered by recorded payments will remain visible.</p>
+        <Button size="sm" className="mt-2" onClick={confirmOffline} disabled={confirm.isPending} data-testid={`button-confirm-offline-${r.id}`}>
+          {confirm.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm offline payment &amp; registration
+        </Button>
+      </div>}
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <select aria-label="Entry type" className="h-9 rounded-md border border-input bg-background px-2" value={type} onChange={e => setType(e.target.value as "payment" | "refund")}>
-          <option value="payment" disabled={online}>Payment</option><option value="refund">Refund</option>
+          <option value="payment" disabled={!["manual"].includes(r.paymentMethod)}>Payment</option><option value="refund">Refund</option>
         </select>
         <Input className="w-28" type="number" placeholder="Rs." value={amount} onChange={e => setAmount(e.target.value)} aria-label="Amount" />
         <Input className="w-40" placeholder="Reference" value={reference} onChange={e => setReference(e.target.value)} aria-label="Reference" />
         <Input className="w-48" placeholder="Note" value={note} onChange={e => setNote(e.target.value)} aria-label="Note" />
-        <Button size="sm" onClick={save} disabled={rec.isPending || (online && type === "payment") || (cancelled && type === "payment")} data-testid={`button-record-${r.id}`}>Record</Button>
+        <Button size="sm" onClick={save} disabled={rec.isPending || r.paymentMethod !== "manual" && type === "payment" || (cancelled && type === "payment")} data-testid={`button-record-${r.id}`}>Record</Button>
       </div>
-      {online && <p className="mt-1 text-xs text-muted-foreground">Online payments are recorded only after server verification; manual payment is disabled. Refunds can be recorded.</p>}
+      {online && <p className="mt-1 text-xs text-muted-foreground">Online payments appear here only after server verification; manual payment recording is disabled. Refunds can be recorded.</p>}
       {err && <p role="alert" className="text-xs text-destructive">{err}</p>}
       <AdminCancel r={r} eventId={eventId} />
     </li>
@@ -143,11 +167,21 @@ function Notify({ eventId }: { eventId: number }) {
 export default function EventParticipants({ event }: { event: EventRecord }) {
   const { data, isLoading, isError, refetch } = useListEventParticipants(event.id, { query: { queryKey: getListEventParticipantsQueryKey(event.id), refetchInterval: 20000 } });
   const regs = data ?? [];
+  const confirmedCount = regs.filter(r => r.status === "registered").length;
+  const pendingManualCount = regs.filter(r => r.status === "pending_confirmation").length;
+  const pendingOnlineCount = regs.filter(r => r.status === "pending_payment").length;
   return (
     <Tabs defaultValue="participants">
-      <TabsList><TabsTrigger value="participants">Participants</TabsTrigger><TabsTrigger value="attendance">Attendance</TabsTrigger><TabsTrigger value="notify">Notice</TabsTrigger></TabsList>
+      <TabsList><TabsTrigger value="participants">Registrations &amp; payments</TabsTrigger><TabsTrigger value="attendance">Attendance</TabsTrigger><TabsTrigger value="notify">Notice</TabsTrigger></TabsList>
       <TabsContent value="participants">
-        {isLoading ? <div className="h-24 animate-pulse rounded bg-muted" /> : isError ? <Button variant="outline" onClick={() => refetch()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button> : regs.length === 0 ? <p className="text-sm text-muted-foreground" data-testid="text-no-participants">No registrations yet.</p> : <ul className="space-y-3">{regs.map(r => <PaymentRow key={r.id} r={r} eventId={event.id} />)}</ul>}
+        {isLoading ? <div className="h-24 animate-pulse rounded bg-muted" /> : isError ? <Button variant="outline" onClick={() => refetch()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button> : regs.length === 0 ? <p className="text-sm text-muted-foreground" data-testid="text-no-participants">No registrations yet.</p> : (
+          <div className="space-y-3">
+            <div className="rounded-md bg-muted p-3 text-sm" data-testid="text-registration-summary">
+              {regs.length} child registration(s) · {confirmedCount} confirmed · {pendingManualCount} awaiting offline confirmation · {pendingOnlineCount} awaiting online payment
+            </div>
+            <ul className="space-y-3" data-testid="list-event-registrations">{regs.map(r => <PaymentRow key={r.id} r={r} eventId={event.id} />)}</ul>
+          </div>
+        )}
       </TabsContent>
       <TabsContent value="attendance"><Attendance event={event} regs={regs} /></TabsContent>
       <TabsContent value="notify"><Notify eventId={event.id} /></TabsContent>

@@ -67,7 +67,7 @@ export function eventSchedule(event: EventInput) {
   return result;
 }
 export const reservedSeatsSql = `(SELECT count(*)::int FROM event_registrations r WHERE r.event_id=e.id
-  AND (r.status='registered' OR (r.status='pending_payment' AND r.hold_until>now())))`;
+  AND (r.status IN ('registered','pending_confirmation') OR (r.status='pending_payment' AND r.hold_until>now())))`;
 
 export async function initializeEvents() {
   await pool.query(`
@@ -139,7 +139,7 @@ export async function syncEventSessions(id: number, input: EventInput, version: 
 export async function notifyEventGuardians(client: EventDb, eventId: number, title: string, message: string) {
   const result = await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
     SELECT DISTINCT guardian_id,$2,$3,'event',false,now() FROM event_registrations
-    WHERE event_id=$1 AND (status='registered' OR (status='pending_payment' AND hold_until>now())) RETURNING id`,
+    WHERE event_id=$1 AND (status IN ('registered','pending_confirmation') OR (status='pending_payment' AND hold_until>now())) RETURNING id`,
     [eventId,title,message]);
   return result.rowCount ?? 0;
 }

@@ -83,11 +83,22 @@ export const EventRecordStatus = {
   cancelled: 'cancelled',
 } as const;
 
+export type EventSessionStatus = typeof EventSessionStatus[keyof typeof EventSessionStatus];
+
+
+export const EventSessionStatus = {
+  pending_payment: 'pending_payment',
+  pending_confirmation: 'pending_confirmation',
+  registered: 'registered',
+  expired: 'expired',
+  cancelled: 'cancelled',
+} as const;
+
 export interface EventSession {
   id: number;
   startAt: string;
   endAt: string;
-  status: string;
+  status: EventSessionStatus;
 }
 
 export type EventRecord = EventInput & {

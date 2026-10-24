@@ -1080,6 +1080,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRecordEventPaymentMutationOptions(options));
     }
 
+export const getConfirmManualEventRegistrationUrl = (registrationId: string,) => {
+
+
+
+
+  return `/api/admin/event-registrations/${registrationId}/confirm`
+}
+
+export const confirmManualEventRegistration = async (registrationId: string, options?: Parameters<typeof customFetch>[1]): Promise<EventRegistration> => {
+
+  return customFetch<EventRegistration>(getConfirmManualEventRegistrationUrl(registrationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmManualEventRegistrationMutationKey = () => ['confirmManualEventRegistration'] as const;
+
+export const getConfirmManualEventRegistrationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmManualEventRegistration>>, TError,ConfirmManualEventRegistrationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmManualEventRegistration>>, TError,ConfirmManualEventRegistrationMutationVariables, TContext> => {
+
+const mutationKey = getConfirmManualEventRegistrationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmManualEventRegistration>>, ConfirmManualEventRegistrationMutationVariables> = (props) => {
+          const {registrationId} = props ?? {};
+
+          return  confirmManualEventRegistration(registrationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmManualEventRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof confirmManualEventRegistration>>>
+
+    export type ConfirmManualEventRegistrationMutationError = ErrorType<unknown>
+    export type ConfirmManualEventRegistrationMutationVariables = {registrationId: string}
+
+    export const useConfirmManualEventRegistration = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmManualEventRegistration>>, TError,ConfirmManualEventRegistrationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmManualEventRegistration>>,
+        TError,
+        ConfirmManualEventRegistrationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmManualEventRegistrationMutationOptions(options));
+    }
+
 export const getGetEventAttendanceUrl = (eventId: number,
     sessionId: number,) => {
 

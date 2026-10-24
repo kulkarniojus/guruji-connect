@@ -53,7 +53,7 @@ export const ListEventsResponseItem = zod.object({
   "id": zod.number().int(),
   "startAt": zod.string(),
   "endAt": zod.string(),
-  "status": zod.string()
+  "status": zod.enum(['pending_payment', 'pending_confirmation', 'registered', 'expired', 'cancelled'])
 }))
 }))
 export const ListEventsResponse = zod.array(ListEventsResponseItem)
@@ -104,7 +104,7 @@ export const GetEventResponse = zod.object({
   "id": zod.number().int(),
   "startAt": zod.string(),
   "endAt": zod.string(),
-  "status": zod.string()
+  "status": zod.enum(['pending_payment', 'pending_confirmation', 'registered', 'expired', 'cancelled'])
 }))
 }))
 
@@ -294,7 +294,7 @@ export const ListAdminEventsResponseItem = zod.object({
   "id": zod.number().int(),
   "startAt": zod.string(),
   "endAt": zod.string(),
-  "status": zod.string()
+  "status": zod.enum(['pending_payment', 'pending_confirmation', 'registered', 'expired', 'cancelled'])
 }))
 }))
 export const ListAdminEventsResponse = zod.array(ListAdminEventsResponseItem)
@@ -370,7 +370,7 @@ export const CreateEventResponse = zod.object({
   "id": zod.number().int(),
   "startAt": zod.string(),
   "endAt": zod.string(),
-  "status": zod.string()
+  "status": zod.enum(['pending_payment', 'pending_confirmation', 'registered', 'expired', 'cancelled'])
 }))
 }))
 
@@ -449,7 +449,7 @@ export const UpdateEventResponse = zod.object({
   "id": zod.number().int(),
   "startAt": zod.string(),
   "endAt": zod.string(),
-  "status": zod.string()
+  "status": zod.enum(['pending_payment', 'pending_confirmation', 'registered', 'expired', 'cancelled'])
 }))
 }))
 
@@ -504,7 +504,7 @@ export const ChangeEventStatusResponse = zod.object({
   "id": zod.number().int(),
   "startAt": zod.string(),
   "endAt": zod.string(),
-  "status": zod.string()
+  "status": zod.enum(['pending_payment', 'pending_confirmation', 'registered', 'expired', 'cancelled'])
 }))
 }))
 
@@ -553,6 +553,37 @@ export const RecordEventPaymentBody = zod.object({
 })
 
 export const RecordEventPaymentResponse = zod.object({
+  "id": zod.string(),
+  "eventId": zod.number().int(),
+  "eventName": zod.string(),
+  "guardianName": zod.string(),
+  "childName": zod.string(),
+  "childAge": zod.number().int(),
+  "status": zod.string(),
+  "paymentMethod": zod.string(),
+  "fee": zod.number(),
+  "paid": zod.number(),
+  "refunded": zod.number(),
+  "balanceDue": zod.number(),
+  "refundDue": zod.number(),
+  "isTest": zod.boolean(),
+  "holdUntil": zod.string().nullish(),
+  "cancellationReason": zod.string().optional(),
+  "createdAt": zod.string(),
+  "payments": zod.array(zod.object({
+  "type": zod.string(),
+  "amount": zod.number(),
+  "reference": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+export const ConfirmManualEventRegistrationParams = zod.object({
+  "registrationId": zod.coerce.string()
+})
+
+export const ConfirmManualEventRegistrationResponse = zod.object({
   "id": zod.string(),
   "eventId": zod.number().int(),
   "eventName": zod.string(),

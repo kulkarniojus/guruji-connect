@@ -126,7 +126,7 @@ eventsRouter.post('/admin/events/:eventId/action', safe(async (req,res) => {
       await notifyEventGuardians(client,id,'Event cancelled',
         `${row.details.name} has been cancelled: ${input.reason}. Any recorded payment refund is tracked for the Sanatan Guruji support team to settle. View your event registrations.`);
       await client.query(`UPDATE event_registrations SET status='cancelled',cancellation_reason=$2,hold_until=null
-        WHERE event_id=$1 AND status IN ('registered','pending_payment')`,[id,input.reason]);
+        WHERE event_id=$1 AND status IN ('registered','pending_payment','pending_confirmation')`,[id,input.reason]);
       await client.query(`UPDATE event_sessions SET status='cancelled' WHERE event_id=$1 AND start_at>now()`,[id]);
     } else if (input.action==='unpublish') {
       await notifyEventGuardians(client,id,'Event temporarily unpublished',
@@ -160,7 +160,7 @@ eventsRouter.post('/events/:eventId/register', safe(async (req,res) => {
     if (input.childAge<details.ageMin || input.childAge>details.ageMax) throw eventFail(400,'The child’s age is outside this event’s age group');
     const duplicate = (await client.query(`SELECT id FROM event_registrations WHERE event_id=$1 AND guardian_id=$2
       AND lower(child_name)=lower($3) AND child_age=$4 AND
-      (status='registered' OR (status='pending_payment' AND hold_until>now())) LIMIT 1`,
+      (status IN ('registered','pending_confirmation') OR (status='pending_payment' AND hold_until>now())) LIMIT 1`,
       [id,req.session.userId,input.childName,input.childAge])).rowCount;
     if (duplicate) throw eventFail(409,'This child already has an active registration. Check My event registrations.');
     const occupied = (await client.query(`SELECT ${reservedSeatsSql} AS count FROM religious_events e WHERE id=$1`,[id])).rows[0].count;
@@ -176,13 +176,14 @@ eventsRouter.post('/events/:eventId/register', safe(async (req,res) => {
       payment_method,fee_paise,hold_until,event_name)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [registrationId,id,req.session.userId,input.requestId,input.childName,input.childAge,
-        method==='online'?'pending_payment':'registered',method,fee,method==='online'?new Date(Date.now()+35*60000):null,details.name]);
+        method==='online'?'pending_payment':method==='manual'?'pending_confirmation':'registered',
+        method,fee,method==='online'?new Date(Date.now()+35*60000):null,details.name]);
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt") VALUES($1,$2,$3,'event',false,now())`,
       [req.session.userId,method==='online'?'Event seat reserved':'Event registration recorded',
-        `${details.name}: ${method==='online'?'Complete online payment within the reservation window to confirm the seat.':method==='manual'?'Your seat is registered. Manual payment remains due until the support team records receipt.':'Your free registration is confirmed.'} View your event registrations.`]);
+        `${details.name}: ${method==='online'?'Complete online payment within the reservation window to confirm the seat.':method==='manual'?'Your manual-payment registration is awaiting confirmation by the Sanatan Guruji support team. It is not confirmed yet.':'Your free registration is confirmed.'} View your event registrations.`]);
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
       SELECT id,'New event registration',$1,'event',false,now() FROM users WHERE role='admin' AND NOT "isBlocked"`,
-      [`${details.name}: a new ${method==='online'?'payment reservation':'registration'} was recorded. Open Services → Events → Participants to review.`]);
+      [`${details.name}: ${method==='online'?'a new online payment reservation':method==='manual'?'a manual registration is awaiting confirmation':'a free registration'} was recorded. Open Services → Events → Registrations & payments to review.`]);
     await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
   res.status(201).json(await registrationView(registrationId!));
@@ -194,6 +195,33 @@ eventsRouter.get('/event-registrations', safe(async (req,res) => {
 eventsRouter.get('/admin/events/:eventId/participants', safe(async (req,res) => {
   const rows = (await pool.query('SELECT id FROM event_registrations WHERE event_id=$1 ORDER BY created_at DESC',[idOf(req.params.eventId)])).rows;
   res.json(await Promise.all(rows.map(row => registrationView(row.id))));
+}));
+eventsRouter.post('/admin/event-registrations/:registrationId/confirm', safe(async (req,res) => {
+  const id = uuidOf(req.params.registrationId);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const lookup = (await client.query('SELECT event_id FROM event_registrations WHERE id=$1',[id])).rows[0];
+    if (!lookup) throw eventFail(404,'Registration not found');
+    const event = (await client.query('SELECT * FROM religious_events WHERE id=$1 FOR UPDATE',[lookup.event_id])).rows[0];
+    const row = (await client.query('SELECT * FROM event_registrations WHERE id=$1 FOR UPDATE',[id])).rows[0];
+    if (row.payment_method!=='manual') throw eventFail(409,'Only manual-payment registrations can be confirmed here');
+    if (row.status==='registered') {
+      await client.query('COMMIT');
+      res.json(await registrationView(id));
+      return;
+    }
+    if (row.status!=='pending_confirmation') throw eventFail(409,'This registration is not awaiting manual confirmation');
+    if (event.status==='cancelled') throw eventFail(409,'A cancelled event cannot accept confirmed registrations');
+    await client.query(`UPDATE event_registrations SET status='registered',hold_until=null WHERE id=$1`,[id]);
+    const remaining = Math.max(0,row.fee_paise-row.paid_paise)/100;
+    await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
+      VALUES($1,'Event registration confirmed',$2,'event',false,now())`,
+      [row.guardian_id,`${event.details.name}: the Sanatan Guruji support team confirmed your manual-payment registration. ${remaining>0?`Recorded balance remaining: ₹${remaining}. `:''}View My event registrations for payment records and schedule.`]);
+    await client.query('COMMIT');
+  } catch (error) { await client.query('ROLLBACK'); throw error; }
+  finally { client.release(); }
+  res.json(await registrationView(id));
 }));
 eventsRouter.post('/event-registrations/:registrationId/checkout', safe(async (req,res) => {
   res.json(await startEventPayment(uuidOf(req.params.registrationId),req.session.userId!,req.headers.origin));
@@ -236,7 +264,7 @@ eventsRouter.post('/admin/event-registrations/:registrationId/payments', safe(as
       if (prior.amount_paise!==amount) throw eventFail(409,'This payment reference was already recorded with another amount');
       await client.query('COMMIT'); res.json(await registrationView(id)); return;
     }
-    if (input.type==='payment' && (row.payment_method!=='manual' || row.status!=='registered'))
+    if (input.type==='payment' && (row.payment_method!=='manual' || !['registered','pending_confirmation'].includes(row.status)))
       throw eventFail(409,'Only active manual registrations accept manually recorded payments');
     if (input.type==='payment' && amount>row.fee_paise-row.paid_paise) throw eventFail(400,'Amount exceeds the remaining event fee');
     if (input.type==='refund' && (row.status!=='cancelled' || amount>row.paid_paise-row.refunded_paise))

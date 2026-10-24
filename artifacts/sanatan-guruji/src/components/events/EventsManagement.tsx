@@ -69,7 +69,7 @@ export default function EventsManagement() {
             {ev.cancellationReason && <p className="text-sm">Cancelled: {ev.cancellationReason}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => { setFormErr(""); setEditing(ev); }} data-testid={`button-edit-event-${ev.id}`}>{ev.status === "draft" ? "Edit" : "Edit / reschedule"}</Button>
-              <Button size="sm" variant="outline" onClick={() => setManaging(ev)} data-testid={`button-participants-${ev.id}`}>Participants</Button>
+              <Button size="sm" variant="outline" onClick={() => setManaging(ev)} data-testid={`button-participants-${ev.id}`}>Registrations &amp; payments</Button>
               {ev.status === "draft" && <Button size="sm" onClick={() => { setAct({ ev, action: "publish" }); setReason(""); setActErr(""); }} data-testid={`button-publish-${ev.id}`}>Publish</Button>}
               {ev.status === "published" && <Button size="sm" variant="outline" onClick={() => { setAct({ ev, action: "unpublish" }); setReason(""); setActErr(""); }}>Unpublish</Button>}
               {ev.status !== "cancelled" && <Button size="sm" variant="destructive" onClick={() => { setAct({ ev, action: "cancel" }); setReason(""); setActErr(""); }}>Cancel event</Button>}

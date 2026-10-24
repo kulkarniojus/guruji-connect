@@ -44,6 +44,7 @@ export * from './eventRegistration';
 export * from './eventRegistrationInput';
 export * from './eventRegistrationInputPaymentMethod';
 export * from './eventSession';
+export * from './eventSessionStatus';
 export * from './getCustomerActivity200';
 export * from './getCustomerActivity200BookingsItem';
 export * from './getCustomerActivity200CancellationEventsItem';

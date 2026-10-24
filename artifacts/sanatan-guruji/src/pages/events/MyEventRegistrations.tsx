@@ -113,6 +113,7 @@ export default function MyEventRegistrations() {
             <ul className="space-y-4">
               {regs.map(r => {
                 const awaiting = r.paymentMethod === "online" && r.balanceDue > 0 && !r.status.includes("cancel") && !r.status.includes("expired");
+                const awaitingManualConfirmation = r.status === "pending_confirmation";
                 const cancelled = r.status.includes("cancel");
                 return (
                   <li key={r.id} className="rounded-lg border bg-card p-4" data-testid={`card-registration-${r.id}`}>
@@ -122,6 +123,7 @@ export default function MyEventRegistrations() {
                     </div>
                     <p className="text-sm text-muted-foreground">Child: {r.childName}, age {r.childAge} - registered {fmtDateTime(r.createdAt)}</p>
                     {r.isTest && <p className="mt-2 flex items-center gap-2 text-sm text-amber-900"><AlertTriangle className="h-4 w-4" />Test registration. Any payment here is test money, not real.</p>}
+                    {awaitingManualConfirmation && <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Your manual-payment registration is awaiting confirmation by the Sanatan Guruji support team. It is not confirmed yet.</p>}
                     <dl className="my-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
                       {([[r.isTest ? "Fee (test)" : "Fee", r.fee], [r.isTest ? "Paid (test)" : "Paid", r.paid], [r.isTest ? "Refunded (test)" : "Refunded", r.refunded], ["Balance due", r.balanceDue], ["Refund due", r.refundDue]] as const).map(([k, v]) => (
                         <div key={k}><dt className="text-muted-foreground">{k}</dt><dd className="font-medium">{rupees(v)}</dd></div>

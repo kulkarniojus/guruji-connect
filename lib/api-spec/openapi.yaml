@@ -177,6 +177,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EventRegistration" }
+  /admin/event-registrations/{registrationId}/confirm:
+    post:
+      operationId: confirmManualEventRegistration
+      parameters:
+        - { name: registrationId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Manually confirmed event registration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventRegistration" }
   /admin/events/{eventId}/attendance/{sessionId}:
     get:
       operationId: getEventAttendance
@@ -552,7 +563,7 @@ components:
         id: { type: integer }
         startAt: { type: string }
         endAt: { type: string }
-        status: { type: string }
+        status: { type: string, enum: [pending_payment, pending_confirmation, registered, expired, cancelled] }
     EventRegistrationInput:
       type: object
       required: [requestId, childName, childAge, guardianConsent, paymentMethod, eventVersion]
