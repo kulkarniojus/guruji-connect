@@ -31,7 +31,7 @@ async function admins(client: Client) {
   return (await client.query(`SELECT id FROM users WHERE role='admin' AND "isBlocked"=false`)).rows.map((u: any) => u.id);
 }
 
-async function closeBooking(client: Client, booking: any, reason: string, party: string, charge: number, origin = 'admin', funds?: any) {
+async function closeBooking(client: Client, booking: any, reason: string, party: string, charge: number, origin = 'admin') {
   const requestedGurujis=(await client.query(`SELECT DISTINCT g."userId" AS user_id FROM booking_requests r
     JOIN guruji_profiles g ON g.id=r."gurujiId" WHERE r."bookingId"=$1 AND r.status IN ('pending','accepted')`,
     [booking.id])).rows;
@@ -173,7 +173,7 @@ export async function performCancellation(bookingId: number, userId: number, inp
           JSON.stringify(quote),booking.gurujiId,actor === 'admin' ? userId : null,actor === 'admin' ? new Date() : null])).rows[0];
       eventId = event.id;
       if (actor === 'customer') {
-        await closeBooking(client, booking, input.reason, party, charge, 'customer', quote.customerFunds);
+        await closeBooking(client, booking, input.reason, party, charge, 'customer');
         await client.query(`UPDATE booking_cancellation_events SET status='superseded',reviewed_by=$2,
           review_reason='Customer cancelled directly',reviewed_at=NOW()
           WHERE booking_id=$1 AND kind='customer_request' AND status='pending'`, [bookingId,userId]);

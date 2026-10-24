@@ -12,10 +12,10 @@ export async function initializeCustomerRefunds() {
       booking_id integer UNIQUE REFERENCES bookings(id) ON DELETE CASCADE,
       event_registration_id uuid UNIQUE REFERENCES event_registrations(id) ON DELETE CASCADE,
       customer_id integer NOT NULL REFERENCES users(id),
-      amount_paise integer NOT NULL CHECK(amount_paise > 0),
+      amount_paise bigint NOT NULL CHECK(amount_paise > 0),
       source_kind text NOT NULL CHECK(source_kind IN ('stripe','manual','mixed')),
-      stripe_amount_paise integer NOT NULL DEFAULT 0 CHECK(stripe_amount_paise >= 0),
-      manual_amount_paise integer NOT NULL DEFAULT 0 CHECK(manual_amount_paise >= 0),
+      stripe_amount_paise bigint NOT NULL DEFAULT 0 CHECK(stripe_amount_paise >= 0),
+      manual_amount_paise bigint NOT NULL DEFAULT 0 CHECK(manual_amount_paise >= 0),
       stripe_payment_intent_id text,
       stripe_session_id text,
       status text NOT NULL DEFAULT 'pending'
@@ -129,10 +129,10 @@ async function recordSuccessfulRefund(requestId: number, refund: any) {
     const request = (await client.query('SELECT * FROM customer_refund_requests WHERE id=$1 FOR UPDATE',[requestId])).rows[0];
     if (!request) throw fail(404,'Refund request not found');
     const alreadyRecorded = request.booking_id
-      ? (await client.query(`SELECT id FROM customer_finance_entries WHERE booking_id=$1 AND type='refund' AND reference=$2`,
-          [request.booking_id,refund.id])).rowCount > 0
-      : (await client.query(`SELECT id FROM event_payment_records WHERE registration_id=$1 AND type='refund' AND reference=$2`,
-          [request.event_registration_id,refund.id])).rowCount > 0;
+      ? ((await client.query(`SELECT id FROM customer_finance_entries WHERE booking_id=$1 AND type='refund' AND reference=$2`,
+          [request.booking_id,refund.id])).rowCount ?? 0) > 0
+      : ((await client.query(`SELECT id FROM event_payment_records WHERE registration_id=$1 AND type='refund' AND reference=$2`,
+          [request.event_registration_id,refund.id])).rowCount ?? 0) > 0;
     if (refund.status === 'succeeded' && !alreadyRecorded) {
       const amount = Number(refund.amount);
       if (request.booking_id) {
@@ -159,7 +159,7 @@ async function recordSuccessfulRefund(requestId: number, refund: any) {
     await client.query(`UPDATE customer_refund_requests SET status=$2,stripe_refund_id=$3,stripe_failure=$4,
       updated_at=now(),settled_at=CASE WHEN $2='paid' THEN now() ELSE settled_at END
       WHERE id=$1`, [requestId,status,refund.id,refund.failure_reason || null]);
-    if (refund.status === 'succeeded') {
+    if (refund.status === 'succeeded' && !alreadyRecorded) {
       const amount = Number(refund.amount);
       await notifyCustomer(client,request.customer_id,'Online refund issued',
         `₹${(amount/100).toFixed(2)} was refunded through Stripe to the original payment method. ` +
@@ -189,7 +189,7 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
     request = (await client.query('SELECT * FROM customer_refund_requests WHERE id=$1 FOR UPDATE',[requestId])).rows[0];
     if (!request) throw fail(404,'Refund request not found');
     if (!['pending','failed'].includes(request.status)) throw fail(409,'This refund request is not awaiting approval or retry');
-    if (!request.stripe_amount_paise) {
+    if (Number(request.stripe_amount_paise) <= 0) {
       if (request.status!=='pending') throw fail(409,'This manual refund request has already been processed');
       await client.query(`UPDATE customer_refund_requests SET status='manual_pending',approved_by=$2,
         approved_at=now(),updated_at=now() WHERE id=$1`,[requestId,adminId]);
@@ -235,13 +235,18 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
     if (paymentIntent.status !== 'succeeded' || !paymentIntent.livemode || paymentIntent.currency !== 'inr')
       throw fail(409,'The original Stripe payment is not a verified live INR payment. No refund was sent.');
     const priorRefunds=await stripe.refunds.list({payment_intent:paymentIntentId,limit:100});
-    const existing=priorRefunds.data.find(refund=>refund.metadata?.customer_refund_request_id===String(requestId));
-    const refund = existing || await stripe.refunds.create({
+    const attempts=priorRefunds.data
+      .filter(item=>item.metadata?.customer_refund_request_id===String(requestId))
+      .sort((a,b)=>b.created-a.created);
+    const activeAttempt=attempts.find(item=>['pending','succeeded'].includes(item.status));
+    if (activeAttempt && activeAttempt.amount!==Number(request.stripe_amount_paise))
+      throw fail(409,'A prior Stripe refund for this request has a different amount. Review it in Stripe before continuing.');
+    const refund = activeAttempt || await stripe.refunds.create({
         payment_intent:paymentIntentId,
         amount:Number(request.stripe_amount_paise),
         reason:'requested_by_customer',
         metadata:{customer_refund_request_id:String(requestId)},
-      }, { idempotencyKey:`sg-customer-refund-${requestId}` });
+      }, { idempotencyKey:`sg-customer-refund-${requestId}-attempt-${attempts.length+1}` });
     const status = await recordSuccessfulRefund(requestId,refund);
     return { status,message: status==='paid'?'Stripe refund issued to the original payment method.':
       status==='manual_pending'?'Stripe refund issued. The manual remainder still needs payout.':

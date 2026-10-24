@@ -35,7 +35,7 @@ customerFinanceRouter.post('/api/admin/customers/:customerId/finance', async (re
   try {
     const customerId = idInput.parse(req.params.customerId);
     const input = entryInput.parse(req.body);
-    if (input.type==='refund')
+    if (String(input.type)==='refund')
       throw Object.assign(new Error('Customer refunds must be approved in Payment → Refund approvals. Record a manual payout there after it has been sent.'), {status:409});
     client = await pool.connect();
     await client.query('BEGIN');

@@ -259,7 +259,7 @@ eventsRouter.post('/admin/event-registrations/:registrationId/payments', safe(as
   const id = uuidOf(req.params.registrationId);
   const input = z.object({ type:z.enum(['payment','refund']), amount:z.number().positive().max(1000000).multipleOf(0.01),
     reference:z.string().trim().min(2).max(200), note:z.string().trim().max(1500) }).parse(req.body);
-  if (input.type==='refund')
+  if (String(input.type)==='refund')
     throw eventFail(409,'Refunds must be approved in Payment → Refund approvals. Record manual payouts there after they have been sent.');
   const amount = Math.round(input.amount*100), client = await pool.connect();
   try {

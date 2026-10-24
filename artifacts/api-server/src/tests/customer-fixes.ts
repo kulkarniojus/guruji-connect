@@ -75,8 +75,16 @@ try {
     WHERE booking_id=$1 AND kind='customer_cancel' AND status='recorded'`,[booked])).rows[0].n,1);
   let report=await activity();assert.equal(report.status,200,JSON.stringify(report.data));
   assert.equal(report.data.summary.cancelledCount,1);assert.equal(report.data.summary.refundOwed,500);
-  const refundResults=await Promise.all(['refund-one','refund-two'].map(ref=>finance(booked,'refund',500,ref)));
-  assert.deepEqual(refundResults.map(r=>r.status).sort(),[201,409]);
+  const refundQueue=await api('/api/admin/refunds',admin.cookie);
+  const refundRequest=refundQueue.data.find((r:any)=>r.bookingId===booked);
+  assert.equal(Number(refundRequest.amount),500);assert.equal(refundRequest.sourceKind,'manual');
+  const refundApproval=await api(`/api/admin/refunds/${refundRequest.id}/approve`,admin.cookie,'POST',{});
+  assert.equal(refundApproval.status,200,JSON.stringify(refundApproval.data));
+  assert.equal(refundApproval.data.status,'manual_pending');
+  assert.equal((await api(`/api/admin/refunds/${refundRequest.id}/settle`,admin.cookie,'POST',
+    {reference:'refund-one',note:'Verified manual refund'})).status,200);
+  assert.equal((await api(`/api/admin/refunds/${refundRequest.id}/settle`,admin.cookie,'POST',
+    {reference:'refund-two',note:'Duplicate payout must be rejected'})).status,409);
   report=await activity();assert.equal(report.data.summary.refundOwed,0);assert.equal(report.data.summary.refunded,500);
   assert.equal((await finance(booked,'refund',1,'over-refund')).status,409);
   assert.equal((await finance(booked,'payment',1,'closed-payment')).status,409);
@@ -93,7 +101,7 @@ try {
   assert.equal(unpaidQuote.data.customerFunds.refundOwed,0);
   assert.equal((await api(`/api/bookings/${unpaid}/cancel`,customer.cookie,'POST',
     {reason:'Unpaid verification cancellation',quoteToken:unpaidQuote.data.quoteToken})).status,200);
-  console.log('PASS API: direct cancellation, concurrent duplicate cancellation/refund safety, changed-payment quote rejection, manual refunds, extra charges/credits and admin-only reports');
+  console.log('PASS API: direct cancellation, queued admin refund approval, duplicate payout protection, changed-payment quote rejection, extra charges/credits and admin-only reports');
 
   const ownNotif=(await pool.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
     VALUES($1,$3,$3,'message',false,NOW()),($2,$3,$3,'message',false,NOW()) RETURNING id,"userId"`,
@@ -111,7 +119,7 @@ try {
   assert((await api('/api/pujas?includeInactive=true',admin.cookie)).data.some((p:any)=>p.id===pujaId&&!p.isActive));
   assert.equal((await api(`/api/pujas/${pujaId}`)).status,404);
   assert.equal((await api('/api/pujas?includeInactive=true',customer.cookie)).status,403);
-  assert.equal((await api('/api/bookings',customer.cookie,'POST',{pujaId,type:'online',amount:3000,time:'10:00 AM',date:future})).status,409);
+  assert.equal((await api('/api/bookings',customer.cookie,'POST',{pujaId,type:'online',amount:3000,time:'10:00 AM',date:future})).status,402);
   await pool.query('UPDATE pujas SET "isActive"=true WHERE id=$1',[pujaId]);
   const adminBookings=await api('/api/admin/bookings',admin.cookie);
   const detailed=adminBookings.data.find((b:any)=>b.id===active);
@@ -136,6 +144,10 @@ try {
 
   const uiCancellationBookingId=await booking(customer.id);
   assert.equal((await finance(uiCancellationBookingId,'payment',1000,'ui-original-payment')).status,201);
+  const uiCancellationQuote=await api(`/api/bookings/${uiCancellationBookingId}/cancellation-preview`,customer.cookie);
+  assert.equal(uiCancellationQuote.status,200);
+  assert.equal((await api(`/api/bookings/${uiCancellationBookingId}/cancel`,customer.cookie,'POST',
+    {reason:'Admin refund queue browser verification',quoteToken:uiCancellationQuote.data.quoteToken})).status,200);
   // Leave one active fixture for reminder and admin activity browser verification.
   await pool.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt") VALUES($1,$2,$2,'message',false,NOW())`,
     [customer.id,tag]);

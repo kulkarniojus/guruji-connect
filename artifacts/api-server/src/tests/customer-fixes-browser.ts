@@ -49,18 +49,6 @@ export async function verifyCustomerFixesBrowser(input:{
     await b.wait(`document.body.innerText.includes(${JSON.stringify(input.tag)})`,'matching booking puja');
     await b.fill('input[aria-label="Search pujas for booking"]','no-matching-service-000');
     await b.wait('document.body.innerText.includes("No pujas match your search")','booking empty search');
-    await navigate(`/booking/${input.uiCancellationBookingId}`);
-    await b.wait('!![...document.querySelectorAll("button")].find(e=>e.textContent.trim()==="Cancel Booking")','customer cancel action');
-    if(await b.evaluate('!!document.querySelector("button[aria-label=\\"Minimize puja reminders\\"]")'))
-      await b.click('button[aria-label="Minimize puja reminders"]');
-    await b.click('button','Cancel Booking');
-    await b.wait('!!document.querySelector("textarea[aria-label=\\"Cancellation reason\\"]")','immediate cancellation dialog');
-    await b.fill('textarea[aria-label="Cancellation reason"]','Browser cancellation verification');
-    await b.wait('[...document.querySelectorAll("button")].some(e=>e.textContent.trim()==="Confirm Cancellation"&&!e.disabled)',
-      'cancellation policy preview ready');
-    await b.click('button','Confirm Cancellation');
-    await b.wait('!document.querySelector("textarea[aria-label=\\"Cancellation reason\\"]")','customer cancellation saved');
-    assert.equal(await b.evaluate(`(await (await fetch('/api/bookings/${input.uiCancellationBookingId}')).json()).status`),'cancelled');
     await identity(input.gurujiCookie);
     await navigate(`/booking?puja=${input.pujaId}`);
     await b.wait('location.pathname==="/dashboard"','Guruji blocked from booking UI');
@@ -74,16 +62,12 @@ export async function verifyCustomerFixesBrowser(input:{
     await b.click('button','Activity');
     await b.wait('!!document.querySelector("[role=dialog]") && document.body.innerText.includes("Refund owed")','customer activity dialog');
     assert(await b.evaluate('document.body.innerText.includes("Cancellation") || document.body.innerText.includes("cancelled")'));
-    await b.evaluate(`(()=>{const e=document.querySelector('#cad-booking');e.value='${input.uiCancellationBookingId}';e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-    await b.evaluate(`(()=>{const e=document.querySelector('#cad-type');e.value='refund';e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-    await b.fill('#cad-amount','400');
-    await b.fill('#cad-ref','ui-refund-reference');
-    await b.fill('#cad-reason','Actual manual refund verification fixture');
-    await b.click('[role=dialog] button[type=submit]');
-    await b.wait('document.querySelector("#cad-amount")?.value===""','manual refund form saved and reset');
-    const report=await b.evaluate(`(await (await fetch('/api/admin/customers/${input.customerId}/activity')).json())`);
-    assert.equal(report.bookings.find((r:any)=>r.id===input.uiCancellationBookingId).refundOwed,0);
-    assert(report.entries.some((e:any)=>e.reference==='ui-refund-reference' && e.type==='refund' && Number(e.amount)===400));
-    console.log('PASS browser: desktop minimize/reload, mobile drag/reload, bell read state, past-month block, change-selection search, Guruji redirect, customer cancellation and admin manual refund form with refreshed activity');
+    await b.command('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await b.wait('!document.querySelector("[role=dialog]")','customer activity dialog closed');
+    await b.click('[role=tab]','Payment');
+    await b.wait('document.body.innerText.includes("Refund approvals")','admin refund approval queue');
+    await b.wait(`[...document.querySelectorAll('[data-testid^="refund-request-"]')].some(e=>e.innerText.includes("Booking #${input.uiCancellationBookingId}"))`,
+      'cancelled puja appears in admin refund queue');
+    console.log('PASS browser: desktop minimize/reload, mobile drag/reload, bell read state, past-month block, change-selection search, Guruji redirect and admin refund queue visibility for a cancelled puja');
   } finally {await b.close();}
 }

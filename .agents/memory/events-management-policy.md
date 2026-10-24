@@ -32,3 +32,9 @@ Paid manual registrations remain pending until an admin explicitly confirms the 
 **Why:** The user specified that manual payment registrations must not be confirmed until an admin confirms the member, while online confirmation follows completed payment.
 
 **How to apply:** Do not auto-confirm manual registrations when they are submitted or when a ledger entry is recorded. Preserve existing registrations and their historical status when applying this rule to new bookings.
+
+Cancellation does not wait for a refund decision. Paid event registrations create an admin refund request; Stripe-backed payments return to the original source after approval, while staff pay and record manual/offline refunds.
+
+**Why:** The user explicitly requested admin approval for cancellation refunds and chose Stripe source refunds with manual refunds tracked for staff.
+
+**How to apply:** Do not treat an unpaid or test-mode checkout as refundable money. Keep the event cancellation and refund approval as separate decisions, and retain the staff payout reference for manual refunds.

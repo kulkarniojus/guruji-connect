@@ -35,7 +35,7 @@ function AdminCancel({ r, eventId }: { r: EventRegistration; eventId: number }) 
   if (!open) return <Button size="sm" variant="destructive" className="mt-2" onClick={() => setOpen(true)} data-testid={`button-admin-cancel-${r.id}`}>Cancel registration</Button>;
   return (
     <div className="mt-2 space-y-2 rounded border border-destructive/30 p-2">
-      <p className="text-xs text-muted-foreground">Cancelling frees the seat and records paid less refunded as refund due. No money is transferred automatically; record the refund with a reference once paid out.</p>
+      <p className="text-xs text-muted-foreground">Cancelling frees the seat. Any refund due will appear in Payment → Refund approvals. Online refunds require admin approval; manual payouts are recorded after they are sent.</p>
       <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (required)" aria-label="Cancellation reason" />
       {err && <p role="alert" className="text-xs text-destructive">{err}</p>}
       <div className="flex gap-2"><Button size="sm" variant="destructive" onClick={go} disabled={cancel.isPending} data-testid={`button-admin-confirm-cancel-${r.id}`}>Confirm cancel</Button><Button size="sm" variant="outline" onClick={() => setOpen(false)}>Back</Button></div>
@@ -47,7 +47,6 @@ function PaymentRow({ r, eventId }: { r: EventRegistration; eventId: number }) {
   const qc = useQueryClient();
   const rec = useRecordEventPayment();
   const confirm = useConfirmManualEventRegistration();
-  const [type, setType] = useState<"payment" | "refund">("payment");
   const [amount, setAmount] = useState("");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
@@ -60,7 +59,7 @@ function PaymentRow({ r, eventId }: { r: EventRegistration; eventId: number }) {
     if (!(a > 0)) return setErr("Enter an amount above zero.");
     if (!reference.trim()) return setErr("A reference is required.");
     setErr("");
-    rec.mutate({ registrationId: r.id, data: { type, amount: a, reference: reference.trim(), note: note.trim() } }, {
+    rec.mutate({ registrationId: r.id, data: { type: "payment", amount: a, reference: reference.trim(), note: note.trim() } }, {
       onSuccess: () => { setAmount(""); setReference(""); setNote(""); qc.invalidateQueries({ queryKey: getListEventParticipantsQueryKey(eventId) }); qc.invalidateQueries({ queryKey: getListAdminEventsQueryKey() }); qc.invalidateQueries({ queryKey: getGetEventQueryKey(eventId) }); },
       onError: e => setErr(errMsg(e)),
     });
@@ -92,16 +91,14 @@ function PaymentRow({ r, eventId }: { r: EventRegistration; eventId: number }) {
           {confirm.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm offline payment &amp; registration
         </Button>
       </div>}
-      <div className="mt-2 flex flex-wrap items-end gap-2">
-        <select aria-label="Entry type" className="h-9 rounded-md border border-input bg-background px-2" value={type} onChange={e => setType(e.target.value as "payment" | "refund")}>
-          <option value="payment" disabled={!["manual"].includes(r.paymentMethod)}>Payment</option><option value="refund">Refund</option>
-        </select>
+      {!cancelled && r.paymentMethod === "manual" && <div className="mt-2 flex flex-wrap items-end gap-2">
         <Input className="w-28" type="number" placeholder="Rs." value={amount} onChange={e => setAmount(e.target.value)} aria-label="Amount" />
-        <Input className="w-40" placeholder="Reference" value={reference} onChange={e => setReference(e.target.value)} aria-label="Reference" />
+        <Input className="w-40" placeholder="Payment reference" value={reference} onChange={e => setReference(e.target.value)} aria-label="Payment reference" />
         <Input className="w-48" placeholder="Note" value={note} onChange={e => setNote(e.target.value)} aria-label="Note" />
-        <Button size="sm" onClick={save} disabled={rec.isPending || r.paymentMethod !== "manual" && type === "payment" || (cancelled && type === "payment")} data-testid={`button-record-${r.id}`}>Record</Button>
-      </div>
-      {online && <p className="mt-1 text-xs text-muted-foreground">Online payments appear here only after server verification; manual payment recording is disabled. Refunds can be recorded.</p>}
+        <Button size="sm" onClick={save} disabled={rec.isPending} data-testid={`button-record-${r.id}`}>Record payment</Button>
+      </div>}
+      {online && <p className="mt-1 text-xs text-muted-foreground">Online payments are recorded after Stripe verification. Refunds are reviewed in Payment → Refund approvals.</p>}
+      {cancelled && r.refundDue > 0 && <p className="mt-2 text-xs text-amber-800">Refund due: ₹{r.refundDue}. Review and approve it in Payment → Refund approvals.</p>}
       {err && <p role="alert" className="text-xs text-destructive">{err}</p>}
       <AdminCancel r={r} eventId={eventId} />
     </li>

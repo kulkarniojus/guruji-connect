@@ -21,8 +21,8 @@ A legacy pending customer cancellation keeps its originally quoted charge when r
 
 **How to apply:** Retain historical quotes even when rules change or are deleted. Keep Guruji withdrawal reviews separate from customer cancellation.
 
-Customer refunds are manual: track the refund owed, then admin pays it and records the refund with a reference. Never infer payment from the booking price or a skipped checkout.
+Cancellation remains immediate under the existing policy, but refund payout requires admin approval. Refund only recorded customer funds after policy retention; send Stripe-backed amounts to the original payment method, and have staff pay and record offline/manual amounts with a reference.
 
-**Why:** The user explicitly chose “Track the refund owed; admin pays it and records the refund.”
+**Why:** The user chose admin-approved refunds, Stripe refunds to source, and staff-tracked manual payouts.
 
-**How to apply:** Apply the existing cancellation policy to the agreed booking amount, but retain no more than actual recorded customer payments. Show the remaining refundable balance separately from refunds already paid. Preserve booked prices; documented extra charges/credits belong to the customer account rather than silently repricing a booking. No recorded payment means no invented refund or collected cancellation money.
+**How to apply:** Apply the existing cancellation policy to the agreed booking amount, but retain no more than actual recorded customer payments. Keep cancellation separate from refund approval. Show remaining refundable balance separately from refunds already paid. Preserve booked prices; documented extra charges/credits belong to the customer account rather than silently repricing a booking. No recorded payment means no refund request.

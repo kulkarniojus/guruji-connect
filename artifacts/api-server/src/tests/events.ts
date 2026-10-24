@@ -144,8 +144,14 @@ try {
   const cancelled=await api(`/api/event-registrations/${rid}/cancel`,admin.cookie,'POST',{reason:'Verification admin cancellation'});
   assert.equal(cancelled.status,200); assert.equal(cancelled.data.refundDue,80);
   const refund={type:'refund',amount:30,reference:'refund-partial',note:'Recorded external refund'};
-  assert.equal((await api(payPath,admin.cookie,'POST',refund)).data.refundDue,50);
-  assert.equal((await api(payPath,admin.cookie,'POST',{...refund,reference:'refund-final',amount:50})).data.refundDue,0);
+  assert.equal((await api(payPath,admin.cookie,'POST',refund)).status,409,'Direct event refunds must not bypass admin approval');
+  const refundQueue=(await api('/api/admin/refunds',admin.cookie)).data;
+  const refundRequest=refundQueue.find((r:any)=>r.eventRegistrationId===rid);
+  assert.equal(Number(refundRequest.amount),80);
+  assert.equal((await api(`/api/admin/refunds/${refundRequest.id}/approve`,admin.cookie,'POST',{})).data.status,'manual_pending');
+  assert.equal((await api(`/api/admin/refunds/${refundRequest.id}/settle`,admin.cookie,'POST',
+    {reference:'event-refund-transfer',note:'Verified manual event refund'})).status,200);
+  assert.equal((await api('/api/event-registrations',customer.cookie)).data.find((r:any)=>r.id===rid).refundDue,0);
   const notice=await api(`/api/admin/events/${id}/notify`,admin.cookie,'POST',{message:'Verification schedule reminder'});
   assert.equal(notice.status,200); assert.equal(notice.data.notified,1);
   assert.equal((await api(`/api/admin/events/${id}/notify`,admin.cookie,'POST',{message:'Repeated reminder'})).status,429);
