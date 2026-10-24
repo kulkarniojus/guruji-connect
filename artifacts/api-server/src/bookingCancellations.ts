@@ -2,6 +2,8 @@ import { pool } from './db';
 import { DBStorage } from './dbStorage';
 import { getBusyGurujiIds } from './bookingSchedule';
 import { cancellationQuote } from './cancellationPolicy';
+import { bookingCustomerFunds } from './customerFinance';
+import { createBookingRefundRequest } from './customerRefunds';
 
 const storage = new DBStorage();
 const fail = (status: number, message: string) => Object.assign(new Error(message), { status });
@@ -35,6 +37,9 @@ async function closeBooking(client: Client, booking: any, reason: string, party:
     [booking.id])).rows;
   await client.query(`UPDATE bookings SET status='cancelled',cancellation_reason=$2,
     cancelled_by=$3,cancellation_charge=$4,"updatedAt"=NOW() WHERE id=$1`, [booking.id,reason,party,charge]);
+  const cancelledBooking = { ...booking, status:'cancelled', cancelled_by:party, cancellation_charge:charge };
+  const customerFunds = await bookingCustomerFunds(client,cancelledBooking);
+  const refundRequest = await createBookingRefundRequest(client,cancelledBooking,reason,customerFunds);
   await client.query(`UPDATE booking_requests SET status='cancelled',"updatedAt"=NOW()
     WHERE "bookingId"=$1 AND status IN ('pending','accepted')`, [booking.id]);
   await client.query(`UPDATE booking_completion_challenges SET code_cipher=NULL,otp_digest=NULL
@@ -47,7 +52,9 @@ async function closeBooking(client: Client, booking: any, reason: string, party:
   )).rows[0] : null;
   await notify(client, [booking.customerId,...await admins(client)], 'Booking Cancelled',
     `Booking #${booking.id}: cancelled by ${origin === 'customer' ? 'the customer' : 'the Sanatan Guruji support team'}. Reason: ${reason}. ` +
-    (funds ? `Recorded payment ₹${funds.recordedPaid}; policy retention ₹${funds.retainedCharge}; manual refund owed ₹${funds.refundOwed}. No automatic money transfer.`
+    (customerFunds.refundOwed > 0
+      ? `Recorded payments ₹${customerFunds.recordedPaid}; policy retention ₹${customerFunds.retainedCharge}; refund owed ₹${customerFunds.refundOwed}. ` +
+        (refundRequest ? `Refund request #${refundRequest.id} is awaiting admin approval.` : 'The refund request is already recorded.')
       : charge ? `Recorded ${party} cancellation charge: ₹${charge}. No money has been deducted.` : 'No cancellation charge.'), 'booking_cancelled');
   await notify(client,[guruji?.userId,...requestedGurujis.map((g:any)=>g.user_id)],'Booking Cancelled',
     `Booking #${booking.id}: the booking is cancelled. Contact the Sanatan Guruji support team for details. `+
@@ -200,7 +207,7 @@ export async function performCancellation(bookingId: number, userId: number, inp
     }
     await client.query('COMMIT');
     return { eventId, charge, action, customerFunds: quote.customerFunds, message: actor === 'customer'
-      ? `Booking cancelled. Manual refund owed: ₹${quote.customerFunds?.refundOwed ?? 0}. No automatic money transfer.`
+      ? `Booking cancelled. Refund owed: ₹${quote.customerFunds?.refundOwed ?? 0}. Any refund requires admin approval.`
       : action === 'withdraw' || action === 'reassign' ? 'Booking reopened for reassignment; not cancelled'
       : action === 'reject' ? 'Cancellation request rejected; booking remains open'
       : action === 'review_withdrawal' ? 'Withdrawal charge reviewed; booking unchanged' : 'Booking cancelled by the support team' };

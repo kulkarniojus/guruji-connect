@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 
-type EntryType = 'payment' | 'refund' | 'additional_charge' | 'credit';
+type EntryType = 'payment' | 'additional_charge' | 'credit';
 type PaidBy = 'portal' | 'guruji';
 
 interface Booking {
@@ -39,7 +39,7 @@ const stamp = (v?: string | null) => {
 };
 const label = (v?: string | null) => (v || '').replaceAll('_', ' ') || 'None';
 const typeLabels: Record<EntryType, string> = {
-  payment: 'Payment received', refund: 'Refund paid manually', additional_charge: 'Additional charge', credit: 'Credit',
+  payment: 'Payment received', additional_charge: 'Additional charge', credit: 'Credit',
 };
 const blank = { bookingId: '', type: 'payment' as EntryType, amount: '', reference: '', reason: '', paidBy: 'portal' as PaidBy };
 
@@ -65,7 +65,7 @@ function Body({ customerId, customerName }: { customerId: number; customerName: 
     staleTime: 0,
   });
 
-  const isActual = form.type === 'payment' || form.type === 'refund';
+  const isActual = form.type === 'payment';
   const amountNum = Number(form.amount);
   const amountOk = form.amount !== '' && amountNum > 0 && Math.round(amountNum * 100) / 100 === amountNum;
   const valid = Number(form.bookingId) > 0 && amountOk && form.reason.trim().length >= 5 &&
@@ -158,7 +158,7 @@ function Body({ customerId, customerName }: { customerId: number; customerName: 
       <section className="space-y-3 rounded-lg border bg-muted/20 p-4">
         <h3 className="font-semibold">Record finance entry</h3>
         <p className="text-xs leading-5 text-muted-foreground">
-          Records only. This does not transfer, charge or refund any money automatically. Record a payment or refund only after it has really happened. Closed bookings and refunds above what was paid are rejected.
+          Record payments, charges, and credits here. Refunds must first be approved in Payment → Refund approvals; manual payouts are recorded there after they have been sent.
         </p>
         {data.bookings.length === 0 ? <p className="text-sm text-muted-foreground">A booking is required before a record can be added.</p> : (
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={e => { e.preventDefault(); if (valid) mutation.mutate(); }}>
@@ -184,7 +184,7 @@ function Body({ customerId, customerName }: { customerId: number; customerName: 
             </div>
             {isActual && (
               <div className="space-y-1.5">
-                <Label htmlFor="cad-paidby">{form.type === 'payment' ? 'Received by' : 'Refund paid by'}</Label>
+                <Label htmlFor="cad-paidby">Received by</Label>
                 <select id="cad-paidby" value={form.paidBy} onChange={e => set({ paidBy: e.target.value as PaidBy })}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                   <option value="portal">Portal</option>

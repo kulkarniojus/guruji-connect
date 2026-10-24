@@ -26,6 +26,8 @@ import { participantNotification } from './supportTeamNotifications';
 import { initializeCancellations } from './cancellationPolicy';
 import { initializeCustomerFinance } from './customerFinance';
 import { customerFinanceRouter } from './routes/customerFinance';
+import { initializeCustomerRefunds } from './customerRefunds';
+import { refundsRouter } from './routes/refunds';
 import { initializeGurujiFinance } from './gurujiFinanceStore';
 import { startGurujiFinanceScheduler } from './gurujiFinanceScheduler';
 import { gurujiFinanceRouter } from './routes/guruji-finance';
@@ -271,6 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializePujaCommissions();
   await initializeGurujiFinance();
   await initializeCustomerFinance();
+  await initializeCustomerRefunds();
   await initializeOurServices();
   await disableSampleAccounts();
   await initializeGurujiAvailability();
@@ -2430,6 +2433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Shared policy for customer requests, Guruji withdrawal, and admin decisions.
   app.use(cancellationsRouter);
+  app.use(refundsRouter);
   app.use(customerFinanceRouter);
   app.use(commissionsRouter);
   app.use(gurujiFinanceRouter);

@@ -7,6 +7,7 @@ import { logger } from './lib/logger';
 import { eventFail, eventInputSchema, eventSchedule, eventView, registrationView, notifyEventGuardians,
   syncEventSessions, reservedSeatsSql } from './eventsModel';
 import { startEventPayment, reconcileEventPayment } from './eventPayments';
+import { createEventRefundRequest } from './customerRefunds';
 
 const safe = (handler: RequestHandler): RequestHandler => (req,res,next) => { Promise.resolve(handler(req,res,next)).catch(next); };
 const idOf = (value: unknown) => z.coerce.number().int().positive().parse(value);
@@ -123,8 +124,12 @@ eventsRouter.post('/admin/events/:eventId/action', safe(async (req,res) => {
     }
     const state = input.action==='publish'?'published':input.action==='unpublish'?'draft':'cancelled';
     if (input.action==='cancel') {
+      const registrations = (await client.query(`SELECT * FROM event_registrations WHERE event_id=$1
+        AND status IN ('registered','pending_payment','pending_confirmation') FOR UPDATE`,[id])).rows;
+      for (const registration of registrations)
+        await createEventRefundRequest(client,registration,input.reason);
       await notifyEventGuardians(client,id,'Event cancelled',
-        `${row.details.name} has been cancelled: ${input.reason}. Any recorded payment refund is tracked for the Sanatan Guruji support team to settle. View your event registrations.`);
+        `${row.details.name} has been cancelled: ${input.reason}. Any refundable payment is awaiting admin review. Online refunds are returned through the original payment method; manual payments are paid and recorded by the support team. View your event registrations.`);
       await client.query(`UPDATE event_registrations SET status='cancelled',cancellation_reason=$2,hold_until=null
         WHERE event_id=$1 AND status IN ('registered','pending_payment','pending_confirmation')`,[id,input.reason]);
       await client.query(`UPDATE event_sessions SET status='cancelled' WHERE event_id=$1 AND start_at>now()`,[id]);
@@ -241,9 +246,10 @@ eventsRouter.post('/event-registrations/:registrationId/cancel', safe(async (req
     if (row.guardian_id!==req.session.userId && req.session.userRole!=='admin') throw eventFail(404,'Registration not found');
     if (row.status!=='cancelled') {
       await client.query(`UPDATE event_registrations SET status='cancelled',cancellation_reason=$2,hold_until=null WHERE id=$1`,[id,input.reason]);
+      await createEventRefundRequest(client,row,input.reason);
       await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
         VALUES($1,'Event registration cancelled',$2,'event',false,now())`,
-        [row.guardian_id,`Your event registration was cancelled: ${input.reason}. Any refund owed is shown in My event registrations and will be settled by the Sanatan Guruji support team.`]);
+        [row.guardian_id,`Your event registration was cancelled: ${input.reason}. Any refundable payment is awaiting admin review. Online refunds are returned through the original payment method; manual payments are paid and recorded by the support team.`]);
     }
     await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
@@ -253,6 +259,8 @@ eventsRouter.post('/admin/event-registrations/:registrationId/payments', safe(as
   const id = uuidOf(req.params.registrationId);
   const input = z.object({ type:z.enum(['payment','refund']), amount:z.number().positive().max(1000000).multipleOf(0.01),
     reference:z.string().trim().min(2).max(200), note:z.string().trim().max(1500) }).parse(req.body);
+  if (input.type==='refund')
+    throw eventFail(409,'Refunds must be approved in Payment → Refund approvals. Record manual payouts there after they have been sent.');
   const amount = Math.round(input.amount*100), client = await pool.connect();
   try {
     await client.query('BEGIN');

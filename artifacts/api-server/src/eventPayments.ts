@@ -3,6 +3,7 @@ import { pool } from './db';
 import { getUncachableStripeClient } from './stripeClient';
 import { paymentSettings, checkoutReturnOrigin } from './stripePayments';
 import { eventFail, registrationView } from './eventsModel';
+import { createEventRefundRequest } from './customerRefunds';
 
 export async function startEventPayment(id: string, guardianId: number, requestOrigin?: string) {
   const settings = await paymentSettings();
@@ -89,6 +90,10 @@ export async function completeEventPayment(session: Stripe.Checkout.Session) {
     await client.query(`INSERT INTO event_payment_records(registration_id,type,amount_paise,reference,note)
       VALUES($1,'payment',$2,$3,$4) ON CONFLICT DO NOTHING`,
       [id,row.fee_paise,session.id,session.livemode?'Server-verified Stripe payment':'TEST payment — no real money collected']);
+    if (cancelled) await createEventRefundRequest(client,{
+      ...row,status:'cancelled',paid_paise:row.fee_paise,
+      cancellation_reason:row.cancellation_reason || 'Payment completed after event availability ended',
+    },row.cancellation_reason || 'Payment completed after event availability ended');
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
       VALUES($1,$2,$3,'event',false,now())`, [row.guardian_id,
       cancelled?'Event payment needs support':'Event registration confirmed',
