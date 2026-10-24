@@ -117,6 +117,21 @@ export async function getAdminRefundRequests() {
       r.created_at DESC,r.id DESC LIMIT 500`)).rows;
 }
 
+export async function getCustomerRefundRequests(customerId: number) {
+  const rows = (await pool.query(`SELECT booking_id AS "bookingId",
+      event_registration_id AS "eventRegistrationId",status,source_kind AS "sourceKind",
+      stripe_amount_paise/100.0 AS "stripeAmount",manual_amount_paise/100.0 AS "manualAmount",
+      manual_reference AS "manualReference"
+    FROM customer_refund_requests
+    WHERE customer_id=$1
+    ORDER BY created_at DESC,id DESC`, [customerId])).rows;
+  return rows.map(row => ({
+    ...row,
+    stripeAmount: Number(row.stripeAmount),
+    manualAmount: Number(row.manualAmount),
+  }));
+}
+
 async function notifyCustomer(client: DbClient, customerId: number, title: string, message: string) {
   await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
     VALUES($1,$2,$3,'payment',false,now())`, [customerId,title,message]);

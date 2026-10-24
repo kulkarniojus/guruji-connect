@@ -25,6 +25,7 @@ import type {
   CheckoutStartResult,
   CompleteSamagriUpload200,
   CustomerFinanceEntryInput,
+  CustomerRefundProgress,
   EventActionInput,
   EventAttendance,
   EventAttendanceInput,
@@ -376,6 +377,77 @@ export function useListMyEventRegistrations<TData = Awaited<ReturnType<typeof li
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListMyEventRegistrationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCustomerRefundsUrl = () => {
+
+
+
+
+  return `/api/customer/refunds`
+}
+
+export const listCustomerRefunds = async ( options?: Parameters<typeof customFetch>[1]): Promise<CustomerRefundProgress[]> => {
+
+  return customFetch<CustomerRefundProgress[]>(getListCustomerRefundsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCustomerRefundsQueryKey = () => {
+    return [
+    `/api/customer/refunds`
+    ] as const;
+    }
+
+
+export const getListCustomerRefundsQueryOptions = <TData = Awaited<ReturnType<typeof listCustomerRefunds>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCustomerRefundsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustomerRefunds>>> = ({ signal }) => listCustomerRefunds({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCustomerRefundsQueryResult = NonNullable<Awaited<ReturnType<typeof listCustomerRefunds>>>
+export type ListCustomerRefundsQueryError = ErrorType<unknown>
+
+
+
+export function useListCustomerRefunds<TData = Awaited<ReturnType<typeof listCustomerRefunds>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCustomerRefundsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

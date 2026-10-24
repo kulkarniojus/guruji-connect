@@ -9,10 +9,11 @@ import { Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import {
   useListMyEventRegistrations, getListMyEventRegistrationsQueryKey, useStartEventCheckout,
   useReconcileEventCheckout, useCancelEventRegistration, getGetEventQueryKey, getListEventsQueryKey,
-  useGetEvent,
+  useGetEvent, getListCustomerRefundsQueryKey, useListCustomerRefunds,
   type EventRegistration,
 } from "@workspace/api-client-react";
 import { EventsNav, StatusBadge, errMsg, fmtDateTime, rupees } from "@/components/events/eventUtils";
+import RefundProgress from "@/components/payments/RefundProgress";
 
 function EventLinks({ eventId }: { eventId: number }) {
   const { data } = useGetEvent(eventId, { query: { queryKey: getGetEventQueryKey(eventId) } });
@@ -29,6 +30,13 @@ export default function MyEventRegistrations() {
   const { data, isLoading, isError, refetch } = useListMyEventRegistrations({
     query: { queryKey: getListMyEventRegistrationsQueryKey(), refetchInterval: 20000 },
   });
+  const refunds = useListCustomerRefunds({
+    query: {
+      queryKey: getListCustomerRefundsQueryKey(),
+      refetchInterval: 20000,
+      refetchOnWindowFocus: true,
+    },
+  });
   const checkout = useStartEventCheckout();
   const reconcile = useReconcileEventCheckout();
   const cancel = useCancelEventRegistration();
@@ -41,6 +49,7 @@ export default function MyEventRegistrations() {
 
   const refresh = (eventId?: number) => {
     qc.invalidateQueries({ queryKey: getListMyEventRegistrationsQueryKey() });
+    qc.invalidateQueries({ queryKey: getListCustomerRefundsQueryKey() });
     if (eventId) qc.invalidateQueries({ queryKey: getGetEventQueryKey(eventId) });
     qc.invalidateQueries({ queryKey: getListEventsQueryKey() });
   };
@@ -97,6 +106,11 @@ export default function MyEventRegistrations() {
         <h1 className="mb-2 text-3xl font-bold">My event registrations</h1>
         <p className="mb-6 text-gray-600">Visible only to you.</p>
         <EventsNav active="mine" />
+        {refunds.isError && (
+          <p role="alert" className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            Refund progress is temporarily unavailable. Refresh this page to try again.
+          </p>
+        )}
         {notice && <p role="status" className="mb-4 rounded-md border bg-muted p-3 text-sm" data-testid="text-payment-notice">{notice}</p>}
         {isLoading ? <div className="space-y-4">{[0, 1].map(i => <div key={i} className="h-40 animate-pulse rounded-lg bg-muted" />)}</div>
           : isError ? (
@@ -131,6 +145,12 @@ export default function MyEventRegistrations() {
                     </dl>
                     {awaiting && r.holdUntil && <p className="text-sm">Seat held until {fmtDateTime(r.holdUntil)}.</p>}
                     {cancelled && r.cancellationReason && <p className="text-sm">Reason: {r.cancellationReason}</p>}
+                    {refunds.data?.find(refund => refund.eventRegistrationId === r.id) && (
+                      <RefundProgress
+                        refund={refunds.data.find(refund => refund.eventRegistrationId === r.id)!}
+                        testId={`status-refund-registration-${r.id}`}
+                      />
+                    )}
                     {r.payments.length > 0 && (
                       <ul className="my-2 text-sm text-muted-foreground">{r.payments.map((p, i) => <li key={i}>{p.type} {rupees(p.amount)} - ref {p.reference || "n/a"} - {fmtDateTime(p.createdAt)}</li>)}</ul>
                     )}

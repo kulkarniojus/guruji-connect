@@ -160,6 +160,39 @@ export interface EventRegistration {
   payments: EventPaymentRecord[];
 }
 
+export type CustomerRefundProgressStatus = typeof CustomerRefundProgressStatus[keyof typeof CustomerRefundProgressStatus];
+
+
+export const CustomerRefundProgressStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  manual_pending: 'manual_pending',
+  paid: 'paid',
+  failed: 'failed',
+} as const;
+
+export type CustomerRefundProgressSourceKind = typeof CustomerRefundProgressSourceKind[keyof typeof CustomerRefundProgressSourceKind];
+
+
+export const CustomerRefundProgressSourceKind = {
+  stripe: 'stripe',
+  manual: 'manual',
+  mixed: 'mixed',
+} as const;
+
+export interface CustomerRefundProgress {
+  /** @nullable */
+  bookingId: number | null;
+  /** @nullable */
+  eventRegistrationId: string | null;
+  status: CustomerRefundProgressStatus;
+  sourceKind: CustomerRefundProgressSourceKind;
+  stripeAmount: number;
+  manualAmount: number;
+  /** @nullable */
+  manualReference: string | null;
+}
+
 export interface EventReasonInput {
   reason: string;
 }

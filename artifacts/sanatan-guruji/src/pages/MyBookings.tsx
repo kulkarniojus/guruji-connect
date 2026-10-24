@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BOOKING_STATUS_LABELS as STATUS_LABELS } from '@shared/bookingLifecycle';
 import BookingCompletionControls from '@/components/booking/BookingCompletionControls';
+import RefundProgress from '@/components/payments/RefundProgress';
+import { getListCustomerRefundsQueryKey, useListCustomerRefunds } from '@workspace/api-client-react';
 import {
   Loader2, Calendar, MapPin, IndianRupee, ChevronRight, Star,
   Clock, CheckCircle2, XCircle, MessageSquare, BookOpen,
@@ -83,6 +85,13 @@ function BookingCard({ booking }: { booking: any }) {
 
 export default function MyBookings() {
   const [, setLocation] = useLocation();
+  const refunds = useListCustomerRefunds({
+    query: {
+      queryKey: getListCustomerRefundsQueryKey(),
+      refetchInterval: 20000,
+      refetchOnWindowFocus: true,
+    },
+  });
 
   const { data: user, isLoading: userLoading } = useQuery<any>({
     queryKey: ['/api/auth/me'],
@@ -144,6 +153,12 @@ export default function MyBookings() {
             <StatCard icon={IndianRupee} label="Total Spent" value={`₹${totalSpent.toLocaleString('en-IN')}`} color="bg-violet-500" />
           </div>
 
+          {refunds.isError && (
+            <p role="alert" className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              Refund progress is temporarily unavailable. Refresh this page to try again.
+            </p>
+          )}
+
           <Tabs defaultValue="upcoming">
             <TabsList className="mb-4">
               <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
@@ -174,6 +189,12 @@ export default function MyBookings() {
                       {list.map(b => (
                         <div key={b.id} className="space-y-3">
                           <BookingCard booking={b} />
+                          {refunds.data?.find(refund => refund.bookingId === Number(b.id)) && (
+                            <RefundProgress
+                              refund={refunds.data.find(refund => refund.bookingId === Number(b.id))!}
+                              testId={`status-refund-booking-${b.id}`}
+                            />
+                          )}
                           {b.status === 'in_progress' && <BookingCompletionControls booking={b} />}
                         </div>
                       ))}

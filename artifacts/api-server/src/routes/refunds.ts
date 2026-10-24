@@ -1,7 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import { ZodError, z } from 'zod';
 import { pool } from '../db';
-import { approveRefundRequest, getAdminRefundRequests, reconcileStripeRefund, settleManualRefund } from '../customerRefunds';
+import { isAuthenticated, checkRole } from '../middlewares/auth';
+import { approveRefundRequest, getAdminRefundRequests, getCustomerRefundRequests, reconcileStripeRefund, settleManualRefund } from '../customerRefunds';
 import { logger } from '../lib/logger';
 
 export const refundsRouter = Router();
@@ -31,6 +32,16 @@ const endpoint = (fn: (req: Request, res: Response, adminId: number) => Promise<
       res.status(error.status||500).json({ message:error.status?error.message:'Unable to process the refund request. Please retry.' });
     }
   };
+
+refundsRouter.get('/api/customer/refunds', isAuthenticated, checkRole(['customer']), async(req,res) => {
+  try {
+    res.setHeader('Cache-Control','no-store');
+    res.json(await getCustomerRefundRequests(req.session.userId!));
+  } catch (error) {
+    logger.error({ error },'Unable to load customer refund progress');
+    res.status(500).json({ message:'Unable to load refund progress. Please retry.' });
+  }
+});
 
 refundsRouter.get('/api/admin/refunds',endpoint(async(_req,res)=>{
   res.setHeader('Cache-Control','no-store');

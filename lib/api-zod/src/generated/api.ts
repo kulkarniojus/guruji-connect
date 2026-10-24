@@ -177,6 +177,18 @@ export const ListMyEventRegistrationsResponseItem = zod.object({
 export const ListMyEventRegistrationsResponse = zod.array(ListMyEventRegistrationsResponseItem)
 
 
+export const ListCustomerRefundsResponseItem = zod.object({
+  "bookingId": zod.number().int().nullable(),
+  "eventRegistrationId": zod.string().nullable(),
+  "status": zod.enum(['pending', 'processing', 'manual_pending', 'paid', 'failed']),
+  "sourceKind": zod.enum(['stripe', 'manual', 'mixed']),
+  "stripeAmount": zod.number(),
+  "manualAmount": zod.number(),
+  "manualReference": zod.string().nullable()
+})
+export const ListCustomerRefundsResponse = zod.array(ListCustomerRefundsResponseItem)
+
+
 export const StartEventCheckoutParams = zod.object({
   "registrationId": zod.coerce.string()
 })

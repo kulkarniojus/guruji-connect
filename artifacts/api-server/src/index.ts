@@ -52,7 +52,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       // Completion responses can contain a customer's private OTP or audit details.
-      if (capturedJsonResponse && !/\/(?:completion|communications|notifications|bookings|booking-requests|addresses|payments|stripe|mobile|samagri|events|event-registrations|event-media)(?:\/|$)/.test(path)) {
+      if (capturedJsonResponse && !/\/(?:completion|communications|notifications|bookings|booking-requests|addresses|payments|stripe|mobile|samagri|events|event-registrations|event-media|customer\/refunds)(?:\/|$)/.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
       if (logLine.length > 80) {

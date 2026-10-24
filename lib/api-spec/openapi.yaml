@@ -58,6 +58,15 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: "#/components/schemas/EventRegistration" } }
+  /customer/refunds:
+    get:
+      operationId: listCustomerRefunds
+      responses:
+        "200":
+          description: Refund progress for the signed-in customer
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/CustomerRefundProgress" } }
   /event-registrations/{registrationId}/checkout:
     post:
       operationId: startEventCheckout
@@ -596,6 +605,17 @@ components:
         cancellationReason: { type: string }
         createdAt: { type: string }
         payments: { type: array, items: { $ref: "#/components/schemas/EventPaymentRecord" } }
+    CustomerRefundProgress:
+      type: object
+      required: [bookingId, eventRegistrationId, status, sourceKind, stripeAmount, manualAmount, manualReference]
+      properties:
+        bookingId: { type: [integer, "null"] }
+        eventRegistrationId: { type: [string, "null"] }
+        status: { type: string, enum: [pending, processing, manual_pending, paid, failed] }
+        sourceKind: { type: string, enum: [stripe, manual, mixed] }
+        stripeAmount: { type: number }
+        manualAmount: { type: number }
+        manualReference: { type: [string, "null"] }
     EventPaymentRecord:
       type: object
       required: [type, amount, reference, createdAt]
