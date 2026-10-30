@@ -71,8 +71,8 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-100">
       <Helmet>
-        <title>Admin Login | Sanatan Guruji</title>
-        <meta name="description" content="Login to Sanatan Guruji admin portal" />
+        <title>Admin Login | Vaidik Dhara</title>
+        <meta name="description" content="Login to the Vaidik Dhara admin portal" />
       </Helmet>
       
       <div className="w-full max-w-md px-4">
@@ -82,7 +82,7 @@ export default function AdminLogin() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-neutral-900 font-poppins">Sanatan Guruji Admin</h1>
+          <h1 className="text-2xl font-bold text-neutral-900 font-poppins">Vaidik Dhara Admin</h1>
           <p className="text-neutral-600 mt-2">Sign in to access the admin dashboard</p>
         </div>
         

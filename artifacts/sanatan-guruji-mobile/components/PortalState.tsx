@@ -57,7 +57,7 @@ export function PortalState({ title, detail, buttonLabel, onPress, busy }: Porta
     <SafeAreaView style={styles.root} testID="portal-state">
       <View style={styles.body}>
         <BrandMark />
-        <Text style={styles.brand}>Sanatan Guruji</Text>
+        <Text style={styles.brand}>Vaidik Dhara</Text>
         <View style={styles.card} accessibilityRole="summary" accessibilityLiveRegion="polite">
           {busy ? <ActivityIndicator color={c.primary} style={styles.spinner} /> : null}
           <Text accessibilityRole="header" style={styles.title}>{title}</Text>

@@ -35,7 +35,7 @@ export async function sendBookingRequests(req: Request, res: Response) {
     const review=await pool.query(`SELECT id FROM booking_cancellation_events WHERE booking_id=$1
       AND (kind='admin_reassignment' OR (kind='customer_request' AND status='pending')) LIMIT 1`,[booking.id]);
     if(review.rows.length) {
-      return res.status(409).json({message:'The Sanatan Guruji support team is managing this request. Contact the support team before restarting the search.'});
+      return res.status(409).json({message:'The Vaidik Dhara support team is managing this request. Contact the support team before restarting the search.'});
     }
 
     const nearbyGurujis = await db.getNearbyGurujis(
@@ -142,7 +142,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
           WHERE booking_id=$1 AND kind='customer_request' AND status='pending'`, [booking.id])).rows.length > 0;
         if (cancellationPending) {
           await client.query('ROLLBACK');
-          return res.status(409).json({message:'The Sanatan Guruji support team is reviewing a cancellation request for this booking.'});
+          return res.status(409).json({message:'The Vaidik Dhara support team is reviewing a cancellation request for this booking.'});
         }
         if (latestBooking?.status !== 'pending_approval' || latestRequest?.status !== 'pending') {
           await client.query('ROLLBACK');
@@ -155,7 +155,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
         const commission=latestBooking.commissionSnapshot;
         if(commission && commission.percentage>0 && commissionAcknowledged!==true) {
           await client.query('ROLLBACK');
-          return res.status(400).json({message:'Please acknowledge the commission payable to Sanatan Guruji and your remaining share before accepting this booking.'});
+          return res.status(400).json({message:'Please acknowledge the commission payable to Vaidik Dhara and your remaining share before accepting this booking.'});
         }
         const puja = booking.pujaId ? await db.getPuja(booking.pujaId) : undefined;
         const date = new Date(booking.date).toISOString().slice(0, 10);
@@ -178,8 +178,8 @@ export async function respondToBookingRequest(req: Request, res: Response) {
           commission_acknowledgement=$4 WHERE id=$1`,
           [requestId,message||null,commissionAcknowledged===true,commissionAcknowledged===true?{
             snapshot:commission??null,acknowledgedByUserId:req.session.userId,
-            disclosure:commission?'Recorded commission payable to Sanatan Guruji and remaining Guruji share acknowledged':
-              'Commission not recorded; advised to confirm with Sanatan Guruji support team',
+            disclosure:commission?'Recorded commission payable to Vaidik Dhara and remaining Guruji share acknowledged':
+              'Commission not recorded; advised to confirm with Vaidik Dhara support team',
           }:null]);
         await client.query(`UPDATE bookings SET "gurujiId"=$2,status='confirmed',"updatedAt"=NOW() WHERE id=$1`,
           [booking.id,bookingRequest.gurujiId]);
@@ -214,8 +214,8 @@ export async function respondToBookingRequest(req: Request, res: Response) {
           userId: guruji.userId,
           title: 'Booking Accepted',
           message: `You have accepted booking #${booking.id} for ${booking.type === 'offline' ? 'in-person' : 'online'} puja in ${booking.city || 'your area'}. Please be ready on the scheduled date.` +
-            (booking.commissionSnapshot ? ` Sanatan Guruji commission: ${booking.commissionSnapshot.percentage}% (₹${booking.commissionSnapshot.portalAmount.toLocaleString('en-IN')})${booking.commissionSnapshot.portalAmount>0?' payable to Sanatan Guruji':''}. Your remaining share: ₹${booking.commissionSnapshot.gurujiAmount.toLocaleString('en-IN')}. This records the allocation, not a payment.` :
-              ' Commission is not recorded for this booking. Please confirm your share with the Sanatan Guruji support team.'),
+            (booking.commissionSnapshot ? ` Vaidik Dhara commission: ${booking.commissionSnapshot.percentage}% (₹${booking.commissionSnapshot.portalAmount.toLocaleString('en-IN')})${booking.commissionSnapshot.portalAmount>0?' payable to Vaidik Dhara':''}. Your remaining share: ₹${booking.commissionSnapshot.gurujiAmount.toLocaleString('en-IN')}. This records the allocation, not a payment.` :
+              ' Commission is not recorded for this booking. Please confirm your share with the Vaidik Dhara support team.'),
           type: 'booking_confirmed',
         });
       }
@@ -248,7 +248,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
           await db.createNotification({
             userId: customer.id,
             title: 'Booking Update',
-            message: 'The requested Gurujis could not accept your puja. Your booking remains open and the Sanatan Guruji support team has been alerted to help arrange another Guruji.',
+            message: 'The requested Gurujis could not accept your puja. Your booking remains open and the Vaidik Dhara support team has been alerted to help arrange another Guruji.',
             type: 'booking_update',
           });
         }

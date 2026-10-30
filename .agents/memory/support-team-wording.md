@@ -3,7 +3,7 @@ name: Participant-facing support team wording
 description: Customer and Guruji labels for queries, messages, approvals and support communications.
 ---
 
-For customers and Gurujis, refer to the admin as the “Sanatan Guruji support team”, including queries and messages.
+For customers and Gurujis, refer to the admin as the “Vaidik Dhara support team”, including queries and messages.
 
 **Why:** The user said, “where ever for customer or guruji it is mentioned as amdin - there it should be support team”.
 

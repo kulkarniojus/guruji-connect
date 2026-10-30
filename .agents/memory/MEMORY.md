@@ -16,7 +16,7 @@
 - [Customer booking controls](customer-booking-controls.md) — customer-only temporary samagri lock, Google address selection, mandatory pincode and first-name Guruji display with ratings.
 - [Real accounts and availability](real-account-availability-policy.md) — all registration channels retain profile details; genuine logins and own availability apply without changing booking selections.
 - [Auth query observers](auth-query-observers.md) — preserve the active auth query when switching identity; clearing the cache can leave protected screens stuck at login.
-- [Support-team wording](support-team-wording.md) — customer/Guruji references to admin must say Sanatan Guruji support team; internal roles and permissions stay unchanged.
+- [Support-team wording](support-team-wording.md) — customer/Guruji references should use Vaidik Dhara support team; internal roles and permissions stay unchanged.
 - [Cancellation controls](cancellation-controls.md) — customers cancel directly with manual refund records; Guruji withdrawal stays open for reassignment; hourly policies and frozen legacy quotes.
 - [Browser test isolation](browser-test-isolation.md) — separate debugging endpoints prevent concurrent signed-in suites from sharing pages and cookies.
 - [Puja commission policy](puja-commission-policy.md) — split the final booking total; individual overrides win, uniform resets are explicit, and existing allocations remain unchanged.
@@ -26,4 +26,4 @@
 - [Guruji mobile alerts](guruji-mobile-alerts.md) — one sound-and-vibration alert per new request, not repeating alarms; native credentials and real-device delivery checks are required.
 - [Booking samagri](booking-samagri-policy.md) — mandatory/optional checklists and photos stay separate from pricing; explicit resends refresh the booked list without claiming unconnected WhatsApp delivery.
 - [Events management](events-management-policy.md) — per-event online/manual/both payment choice stays independent of puja finances; children’s registration data remains private.
-- [Brand tagline](brand-tagline.md) — use the user-provided tagline exactly.
+- [Brand identity](brand-tagline.md) — the user renamed the company to Vaidik Dhara; use the updated public-facing brand consistently.

@@ -169,7 +169,7 @@ export default function PortalView({ url }: { url: string }) {
       {(loading || failure) && (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]}>
           <PortalState
-            title={failure?.title ?? 'Opening Sanatan Guruji'}
+            title={failure?.title ?? 'Opening Vaidik Dhara'}
             detail={failure?.detail ?? 'Connecting to your live portal'}
             busy={!failure}
             buttonLabel={failure ? (failure.rendererLost ? 'Reopen portal' : 'Try again') : undefined}

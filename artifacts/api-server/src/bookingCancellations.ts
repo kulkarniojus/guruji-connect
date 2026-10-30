@@ -51,13 +51,13 @@ async function closeBooking(client: Client, booking: any, reason: string, party:
     'SELECT "userId" FROM guruji_profiles WHERE id=$1', [booking.gurujiId],
   )).rows[0] : null;
   await notify(client, [booking.customerId,...await admins(client)], 'Booking Cancelled',
-    `Booking #${booking.id}: cancelled by ${origin === 'customer' ? 'the customer' : 'the Sanatan Guruji support team'}. Reason: ${reason}. ` +
+    `Booking #${booking.id}: cancelled by ${origin === 'customer' ? 'the customer' : 'the Vaidik Dhara support team'}. Reason: ${reason}. ` +
     (customerFunds.refundOwed > 0
       ? `Recorded payments ₹${customerFunds.recordedPaid}; policy retention ₹${customerFunds.retainedCharge}; refund owed ₹${customerFunds.refundOwed}. ` +
         (refundRequest ? `Refund request #${refundRequest.id} is awaiting admin approval.` : 'The refund request is already recorded.')
       : charge ? `Recorded ${party} cancellation charge: ₹${charge}. No money has been deducted.` : 'No cancellation charge.'), 'booking_cancelled');
   await notify(client,[guruji?.userId,...requestedGurujis.map((g:any)=>g.user_id)],'Booking Cancelled',
-    `Booking #${booking.id}: the booking is cancelled. Contact the Sanatan Guruji support team for details. `+
+    `Booking #${booking.id}: the booking is cancelled. Contact the Vaidik Dhara support team for details. `+
     (party==='guruji' && charge ? `Recorded Guruji charge: ₹${charge}. No money has been deducted.` : 'No Guruji cancellation charge.'),'booking_cancelled');
 }
 
@@ -109,8 +109,8 @@ export async function performCancellation(bookingId: number, userId: number, inp
     let quote = await cancellationQuote(client, booking, actor);
     if (actor !== 'admin') {
       if (!quote.canCancel) throw fail(409, quote.pendingRequestId
-        ? 'A cancellation request is already awaiting the Sanatan Guruji support team.'
-        : 'This booking cannot be cancelled at this stage. Contact the Sanatan Guruji support team.');
+        ? 'A cancellation request is already awaiting the Vaidik Dhara support team.'
+        : 'This booking cannot be cancelled at this stage. Contact the Vaidik Dhara support team.');
       if (input.quoteToken !== quote.quoteToken) throw Object.assign(
         fail(409, 'The cancellation quote changed. Review the updated charge before confirming.'), { quote });
     }
@@ -129,7 +129,7 @@ export async function performCancellation(bookingId: number, userId: number, inp
         review_reason=$3,reviewed_at=NOW(),charge=$4 WHERE id=$1`,[event.id,userId,input.reason,charge]);
       const oldGuruji=(await client.query('SELECT "userId" FROM guruji_profiles WHERE id=$1',[event.previous_guruji_id])).rows[0];
       if(oldGuruji) await notify(client,[oldGuruji.userId],'Withdrawal Charge Reviewed',
-        `Booking #${bookingId}: the Sanatan Guruji support team reviewed your withdrawal. Recorded charge ₹${charge}. ${input.reason}. No money has been deducted.`,'cancellation_charge');
+        `Booking #${bookingId}: the Vaidik Dhara support team reviewed your withdrawal. Recorded charge ₹${charge}. ${input.reason}. No money has been deducted.`,'cancellation_charge');
     } else if (actor === 'admin' && ['approve','reject'].includes(action)) {
       const event = (await client.query(`SELECT * FROM booking_cancellation_events
         WHERE id=$1 AND booking_id=$2 AND kind='customer_request' AND status='pending' FOR UPDATE`,
@@ -145,7 +145,7 @@ export async function performCancellation(bookingId: number, userId: number, inp
       if (action === 'approve') await closeBooking(client, booking, event.reason, party, charge);
       else {
         await notify(client, [booking.customerId], 'Cancellation Request Reviewed',
-          `Booking #${booking.id}: the Sanatan Guruji support team did not approve your cancellation request. ${input.reason}. Your booking remains open. No cancellation charge has been applied.`, 'booking_update');
+          `Booking #${booking.id}: the Vaidik Dhara support team did not approve your cancellation request. ${input.reason}. Your booking remains open. No cancellation charge has been applied.`, 'booking_update');
         if (!booking.gurujiId) {
           const excluded = (await client.query(`SELECT "gurujiId" FROM booking_requests WHERE "bookingId"=$1 AND status='declined'`,[bookingId])).rows;
           await dispatchReplacement(client,booking,excluded.map((r:any)=>r.gurujiId));
@@ -192,7 +192,7 @@ export async function performCancellation(bookingId: number, userId: number, inp
         if (searchPaused) await notify(client, await admins(client), 'Unassigned Puja Request',
           `Booking #${bookingId}: reassignment required. Automatic search is paused${quote.pendingRequestId ? ' while a customer cancellation request is under review' : quote.hoursUntil<=0 ? ' because the scheduled start has passed; review the schedule' : ' by admin'}. Review Unassigned bookings.`, 'unassigned_booking');
         await notify(client, [booking.customerId,...await admins(client)], 'Guruji Reassignment Required',
-          `Booking #${bookingId}: the assigned Guruji was released. Reason: ${input.reason}. The booking is NOT cancelled. ${replacementCount} replacement request(s) sent; the Sanatan Guruji support team can manage reassignment.`, 'guruji_withdrawal');
+        `Booking #${bookingId}: the assigned Guruji was released. Reason: ${input.reason}. The booking is NOT cancelled. ${replacementCount} replacement request(s) sent; the Vaidik Dhara support team can manage reassignment.`, 'guruji_withdrawal');
       } else {
         await closeBooking(client, booking, input.reason, party, charge);
         await client.query(`UPDATE booking_cancellation_events SET status='superseded',reviewed_by=$2,

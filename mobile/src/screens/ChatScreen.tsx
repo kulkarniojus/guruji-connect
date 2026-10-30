@@ -45,7 +45,7 @@ const mockChats: ChatUser[] = [
   },
   {
     id: '3',
-    name: 'Sanatan Guruji Support',
+    name: 'Vaidik Dhara Support',
     lastMessage: 'How can we help you today?',
     timestamp: 'Yesterday',
     unreadCount: 1,

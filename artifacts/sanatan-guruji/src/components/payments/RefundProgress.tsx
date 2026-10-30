@@ -10,7 +10,7 @@ function refundStatusView(refund: CustomerRefundProgress): RefundStatusView {
   if (refund.status === "pending") {
     return {
       title: "Awaiting admin review",
-      detail: "The Sanatan Guruji support team is reviewing your refund.",
+      detail: "The Vaidik Dhara support team is reviewing your refund.",
       color: "border-amber-300 bg-amber-50 text-amber-950",
     };
   }
@@ -48,7 +48,7 @@ function refundStatusView(refund: CustomerRefundProgress): RefundStatusView {
 
   return {
     title: "Refund failed",
-    detail: "The support team has been notified. Contact the Sanatan Guruji support team if you need help.",
+    detail: "The support team has been notified. Contact the Vaidik Dhara support team if you need help.",
     color: "border-red-300 bg-red-50 text-red-950",
   };
 }

@@ -1,10 +1,10 @@
 ---
-name: Brand tagline
-description: User-approved Sanatan Guruji tagline
+name: Vaidik Dhara brand
+description: Current company name and adapted public tagline
 ---
 
-The Sanatan Guruji tagline is “Connecting Hearts with Sanatan Wisdom”.
+The company name is “Vaidik Dhara”. The adapted public tagline is “Connecting Hearts with Vaidik Wisdom”.
 
-**Why:** The user provided this exact tagline.
+**Why:** The user directed that the company's branding be changed to Vaidik Dhara.
 
-**How to apply:** Preserve this wording when displaying the brand tagline on web and mobile.
+**How to apply:** Use Vaidik Dhara for user-facing company references and the adapted tagline on web and mobile. Keep existing technical slugs and the current portal domain until the user supplies/configures replacements.

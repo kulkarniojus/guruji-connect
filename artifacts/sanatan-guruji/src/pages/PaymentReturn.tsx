@@ -38,12 +38,12 @@ export default function PaymentReturn() {
   });
   const paid=result.data?.state==='paid';
   return <main className="mx-auto max-w-xl px-4 py-16">
-    <Helmet><title>Payment verification | Sanatan Guruji</title><meta name="description" content="Verify your puja booking advance securely." /></Helmet>
+    <Helmet><title>Payment verification | Vaidik Dhara</title><meta name="description" content="Verify your puja booking advance securely." /></Helmet>
     <Card>
       <CardHeader><CardTitle>{paid?result.data?.testMode?'Test checkout completed':'Advance payment received':'Verify your booking payment'}</CardTitle></CardHeader>
       <CardContent className="space-y-5">
         {result.isFetching && <p className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Checking directly with Stripe…</p>}
-        {result.error && <p role="alert" className="text-sm text-red-700">{result.error.message} If money was debited, do not pay again; contact the Sanatan Guruji support team.</p>}
+        {result.error && <p role="alert" className="text-sm text-red-700">{result.error.message} If money was debited, do not pay again; contact the Vaidik Dhara support team.</p>}
         {paid && <div className="space-y-2 text-sm">
           <p>{result.data?.testMode?'This was a Stripe test transaction. No real money was collected or recorded as a finance receipt.':
             `Your ₹${result.data?.advanceAmount?.toLocaleString('en-IN')} advance has been verified and recorded.`}</p>

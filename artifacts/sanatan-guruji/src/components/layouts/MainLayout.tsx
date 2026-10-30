@@ -11,7 +11,7 @@ interface MainLayoutProps {
 
 export default function MainLayout({ 
   children, 
-  title = 'Sanatan Guruji - Your Spiritual Connection',
+  title = 'Vaidik Dhara - Your Spiritual Connection',
   description = 'Connect with verified Gurujis for traditional pujas and spiritual guidance'
 }: MainLayoutProps) {
   return (

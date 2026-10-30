@@ -30,7 +30,7 @@ export default function BookingSamagri({ bookingId, admin = false }: { bookingId
       {query.isError && <div><p className="text-sm text-red-700">Unable to load samagri.</p><Button variant="outline" onClick={() => void query.refetch()}>Retry</Button></div>}
       {query.data && <>
         <p className="text-sm text-muted-foreground">For {query.data.pujaName} · booking #{bookingId}. Please prepare the mandatory items; optional items are not required.</p>
-        {!query.data.items.length ? <p className="text-sm">The samagri list has not been configured for this puja yet. Please contact the Sanatan Guruji support team.</p>
+        {!query.data.items.length ? <p className="text-sm">The samagri list has not been configured for this puja yet. Please contact the Vaidik Dhara support team.</p>
           : [false, true].map(optional => {
             const items = query.data.items.filter(item => item.optional === optional);
             return items.length > 0 && <div key={String(optional)}>

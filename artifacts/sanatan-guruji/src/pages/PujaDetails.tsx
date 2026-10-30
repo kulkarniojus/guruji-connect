@@ -101,8 +101,8 @@ export default function PujaDetails() {
   return (
     <div className="min-h-screen bg-white">
       <Helmet>
-        <title>{pujaData.name ? `${pujaData.name} | Sanatan Guruji` : 'Loading... | Sanatan Guruji'}</title>
-        <meta name="description" content={pujaData.name && pujaData.description ? `Book ${pujaData.name} - ${pujaData.description}` : 'Book spiritual services at Sanatan Guruji'} />
+        <title>{pujaData.name ? `${pujaData.name} | Vaidik Dhara` : 'Loading... | Vaidik Dhara'}</title>
+        <meta name="description" content={pujaData.name && pujaData.description ? `Book ${pujaData.name} - ${pujaData.description}` : 'Book spiritual services at Vaidik Dhara'} />
       </Helmet>
       
       {!isMobile && <Header />}

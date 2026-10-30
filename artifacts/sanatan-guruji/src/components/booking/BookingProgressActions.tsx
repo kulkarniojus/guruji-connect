@@ -39,7 +39,7 @@ export default function BookingProgressActions({ booking }: { booking: { id: num
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Start puja — booking #{booking.id}?</DialogTitle>
-              <DialogDescription>Confirm that the accepted puja has started. The customer, Guruji, and Sanatan Guruji support team will see the updated status.</DialogDescription>
+              <DialogDescription>Confirm that the accepted puja has started. The customer, Guruji, and Vaidik Dhara support team will see the updated status.</DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)} disabled={mutation.isPending}>Cancel</Button>

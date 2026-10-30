@@ -47,8 +47,8 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <Helmet>
-        <title>Dashboard | Sanatan Guruji</title>
-        <meta name="description" content="Manage your bookings and profile on Sanatan Guruji" />
+        <title>Dashboard | Vaidik Dhara</title>
+        <meta name="description" content="Manage your bookings and profile on Vaidik Dhara" />
       </Helmet>
 
       <Header />

@@ -65,7 +65,7 @@ customerFinanceRouter.post('/api/admin/customers/:customerId/finance', async (re
       [booking.id,input.type,input.amount,input.reference,input.reason,input.paidBy,req.session.userId]);
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
       VALUES($1,'Customer payment record',$2,'payment',false,NOW())`, [customerId,
-      `Booking #${booking.id}: the Sanatan Guruji support team recorded ${input.type.replace(/_/g,' ')} of ₹${input.amount}. ` +
+      `Booking #${booking.id}: the Vaidik Dhara support team recorded ${input.type.replace(/_/g,' ')} of ₹${input.amount}. ` +
       (input.type==='refund' ? `Manual refund paid; reference ${input.reference}.` : 'Contact the support team for details.')]);
     await client.query('COMMIT');
     res.status(201).json({message: input.type==='refund' ? 'Manual refund recorded as paid. No money was transferred by this portal.'

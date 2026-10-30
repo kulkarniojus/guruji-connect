@@ -113,7 +113,7 @@ try {
   await browser.click('[data-testid="checkbox-consent"]');
   await browser.click('[data-testid="button-register"]');
   await browser.wait(`document.body?.innerText?.includes('Registration received')`,'browser registration success');
-  assert.equal(await browser.evaluate(`document.body?.innerText?.includes('awaiting confirmation by the Sanatan Guruji support team')`),true,'Manual payment stays unconfirmed for customer');
+  assert.equal(await browser.evaluate(`document.body?.innerText?.includes('awaiting confirmation by the Vaidik Dhara support team')`),true,'Manual payment stays unconfirmed for customer');
   const browserReg=(await api('/api/event-registrations',customer.cookie)).data.find((r:any)=>r.childName==='Browser verified child');
   assert.ok(browserReg,'Actual customer browser registration saved'); assert.equal(browserReg.status,'pending_confirmation');
   assert.equal((await api(`/api/events/${id}`)).data.availableSeats,0);

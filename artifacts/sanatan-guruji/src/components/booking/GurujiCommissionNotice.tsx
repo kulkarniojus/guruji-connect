@@ -34,7 +34,7 @@ export default function GurujiCommissionNotice({ snapshot, className = '' }: Gur
             <h4 className="font-semibold text-amber-950">Commission split not recorded</h4>
             <p className="mt-1 text-sm leading-5 text-amber-900">
               This booking has no saved commission breakdown. No Guruji share can be confirmed from this record.
-              Please contact the Sanatan Guruji support team. Current settings are not applied retroactively.
+              Please contact the Vaidik Dhara support team. Current settings are not applied retroactively.
             </p>
           </div>
         </div>
@@ -68,8 +68,8 @@ export default function GurujiCommissionNotice({ snapshot, className = '' }: Gur
           </p>
           <p className="text-xs leading-4 text-amber-900">
             {isZeroRate
-              ? 'Zero commission payable to Sanatan Guruji'
-              : 'Payable to Sanatan Guruji'}
+              ? 'Zero commission payable to Vaidik Dhara'
+              : 'Payable to Vaidik Dhara'}
           </p>
         </div>
         <div className="rounded-lg border border-teal-300 bg-teal-100/80 p-3">
@@ -83,7 +83,7 @@ export default function GurujiCommissionNotice({ snapshot, className = '' }: Gur
       </div>
       {!isZeroRate && (
         <p className="mt-3 text-sm font-medium text-teal-950">
-          {snapshot.percentage}% commission ({money(snapshot.portalAmount)}) must be paid to Sanatan Guruji
+          {snapshot.percentage}% commission ({money(snapshot.portalAmount)}) must be paid to Vaidik Dhara
           from this booking amount. Your remaining share is {money(snapshot.gurujiAmount)}.
         </p>
       )}

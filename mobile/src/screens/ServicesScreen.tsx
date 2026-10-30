@@ -109,7 +109,7 @@ const ServicesScreen: React.FC = () => {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.introSection}>
-          <Text style={styles.introTitle}>Why Choose Sanatan Guruji?</Text>
+          <Text style={styles.introTitle}>Why Choose Vaidik Dhara?</Text>
           <Text style={styles.introText}>
             We provide a complete platform connecting devotees with verified spiritual guides, 
             offering authentic puja services both online and at your doorstep.

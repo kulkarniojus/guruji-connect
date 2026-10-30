@@ -132,7 +132,7 @@ export default function GurujiDashboard() {
     onSuccess: () => {
       toast({
         title: 'Profile Updated',
-        description: 'Your profile has been updated and resubmitted for review by the Sanatan Guruji support team.',
+        description: 'Your profile has been updated and resubmitted for review by the Vaidik Dhara support team.',
       });
       setShowEditProfile(false);
       refetchProfile();
@@ -467,7 +467,7 @@ export default function GurujiDashboard() {
               <div className="flex-1">
                 <p className="font-semibold text-amber-800">Application under review</p>
                 <p className="text-sm text-amber-700 mt-1">
-                  Your Guruji application is awaiting approval from the Sanatan Guruji support team. You can update your profile details while you wait.
+                  Your Guruji application is awaiting approval from the Vaidik Dhara support team. You can update your profile details while you wait.
                 </p>
                 {!showEditProfile && (
                   <Button variant="outline" className="mt-3 border-amber-400 text-amber-800 hover:bg-amber-100" size="sm" onClick={handleOpenProfileEdit}>
@@ -1386,7 +1386,7 @@ function BookingCard({ booking, onRate, onRefresh }: { booking: any; onRate?: (b
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" /> Withdraw from Booking #{booking.id}
             </DialogTitle>
-            <DialogDescription>You cannot close this booking. Withdrawal starts a replacement search and alerts the Sanatan Guruji support team.</DialogDescription>
+            <DialogDescription>You cannot close this booking. Withdrawal starts a replacement search and alerts the Vaidik Dhara support team.</DialogDescription>
           </DialogHeader>
 
           {/* Charge Preview */}

@@ -651,7 +651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storageInstance.createNotification({
           userId: updatedProfile.userId,
           title: 'Application Approved! 🎉',
-          message: 'Congratulations! Your Guruji registration has been approved. You are now a verified Guruji on Sanatan Guruji.',
+          message: 'Congratulations! Your Guruji registration has been approved. You are now a verified Guruji on Vaidik Dhara.',
           type: 'guruji_approved',
           isRead: false,
         } as any);
@@ -762,7 +762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storageInstance.updateBookingStatus(bookingId, 'pending_approval');
       await storageInstance.createNotification({
         userId: guruji.userId,
-        title: 'Booking Request from Sanatan Guruji Support Team',
+        title: 'Booking Request from Vaidik Dhara Support Team',
         message: `Please accept or decline booking #${bookingId}.`,
         type: 'booking_request',
       });
@@ -1705,7 +1705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (status === 'completed') {
-        return res.status(409).json({ message: 'Completion requires the customer OTP. The Sanatan Guruji support team can manually complete a booking with a recorded reason.' });
+        return res.status(409).json({ message: 'Completion requires the customer OTP. The Vaidik Dhara support team can manually complete a booking with a recorded reason.' });
       }
       const result = await changeBookingCompletion(parseInt(id), { id: userId, role: userRole }, 'start');
       if (result.status !== 200) return res.status(result.status).json(result.body);
@@ -2401,7 +2401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch(error:any) {
       return res.status(error instanceof ZodError?400:error.status||503).json({message:
         error instanceof ZodError?'Complete the booking details before paying.':error.status?error.message:
-          'Stripe could not open checkout. No booking request was sent. Please retry or contact the Sanatan Guruji support team.'});
+          'Stripe could not open checkout. No booking request was sent. Please retry or contact the Vaidik Dhara support team.'});
     }
   });
   app.get('/api/payments/checkout/:sessionId',isAuthenticated,checkRole(['customer']),async(req,res)=>{
@@ -2602,7 +2602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         await storageInstance.createNotification({
           userId: q.customer_id,
-          title: 'Sanatan Guruji support team replied to your query',
+          title: 'Vaidik Dhara support team replied to your query',
           message: `Reply on booking #${q.booking_id}: ${String(reply).slice(0, 80)}`,
           type: 'query_reply',
         });
@@ -2869,7 +2869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storageInstance.createNotification({
           userId: booking.customerId,
           title: 'Searching for a Guruji',
-          message: `No eligible Guruji is currently available for your puja in ${city}. The Sanatan Guruji support team has been alerted to help with your unassigned request.`,
+          message: `No eligible Guruji is currently available for your puja in ${city}. The Vaidik Dhara support team has been alerted to help with your unassigned request.`,
           type: 'booking_update',
         });
       }

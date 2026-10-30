@@ -121,7 +121,7 @@ const BecomeGurujiScreen: React.FC = () => {
           </View>
 
           <View style={styles.benefitsSection}>
-            <Text style={styles.sectionTitle}>Why Join Sanatan Guruji?</Text>
+            <Text style={styles.sectionTitle}>Why Join Vaidik Dhara?</Text>
             {benefits.map(renderBenefit)}
           </View>
 
@@ -215,7 +215,7 @@ const BecomeGurujiScreen: React.FC = () => {
             <View style={styles.helpContent}>
               <Text style={styles.helpTitle}>Need Help?</Text>
               <Text style={styles.helpText}>
-                Contact Sanatan Guruji by calling +91 8087138429
+                Contact Vaidik Dhara by calling +91 8087138429
               </Text>
             </View>
           </View>

@@ -5,13 +5,13 @@ type InformationContent = { title: string; intro: string; sections: Section[] };
 
 export const siteInformation: Record<InformationKind, InformationContent> = {
   about: {
-    title: 'About Sanatan Guruji',
+    title: 'About Vaidik Dhara',
     intro: 'Traditional rituals, thoughtful guidance, and a simpler way to connect with a Guruji.',
     sections: [
       {
         title: 'Who we are',
         paragraphs: [
-          'Sanatan Guruji connects people and families with Gurujis for pujas, religious ceremonies, and spiritual guidance. We bring service discovery, scheduling, and booking updates together so you can focus on the occasion that matters to you.',
+          'Vaidik Dhara connects people and families with Gurujis for pujas, religious ceremonies, and spiritual guidance. We bring service discovery, scheduling, and booking updates together so you can focus on the occasion that matters to you.',
           'Our purpose is to make it easier to find a spiritual guide who serves your location, understands your language, and offers the puja you need.',
         ],
       },
@@ -39,7 +39,7 @@ export const siteInformation: Record<InformationKind, InformationContent> = {
   },
   privacy: {
     title: 'Privacy Policy',
-    intro: 'How information is used when you use Sanatan Guruji.',
+    intro: 'How information is used when you use Vaidik Dhara.',
     sections: [
       {
         title: 'Information you provide',
@@ -76,9 +76,9 @@ export const siteInformation: Record<InformationKind, InformationContent> = {
     intro: 'Important information about accounts, bookings, and using our services.',
     sections: [
       {
-        title: 'Using Sanatan Guruji',
+        title: 'Using Vaidik Dhara',
         paragraphs: [
-          'Sanatan Guruji helps customers discover spiritual services and send booking requests to Gurujis. Provide accurate contact details, location, and service requirements so your request can be handled correctly.',
+          'Vaidik Dhara helps customers discover spiritual services and send booking requests to Gurujis. Provide accurate contact details, location, and service requirements so your request can be handled correctly.',
           'Keep your login details private. Do not use another person’s account, impersonate a Guruji, or submit false or abusive requests.',
         ],
       },
@@ -179,7 +179,7 @@ export const faqs = [
     answer: 'Open Become a Guruji and submit your experience, puja specializations, service cities, languages, and requested application details. The administration team reviews applications before approval.',
   },
   {
-    question: 'How do I contact Sanatan Guruji?',
+    question: 'How do I contact Vaidik Dhara?',
     answer: 'Call 8087138429 or use the WhatsApp link on the Contact Us page. Include your booking reference when asking about an existing booking, but never send passwords, OTPs, or payment credentials.',
   },
 ];

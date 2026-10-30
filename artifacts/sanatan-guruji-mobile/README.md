@@ -1,4 +1,4 @@
-# Sanatan Guruji Mobile
+# Vaidik Dhara Mobile
 
 Separate Expo/React Native app for Android and iOS. The portal is loaded inside a native WebView, not copied into independently maintained mobile screens. The original web and API artifacts are unchanged by this mobile implementation; the legacy `mobile/` folder is retained.
 
@@ -10,7 +10,7 @@ Published portal changes appear on the next page load/reload; unsaved or unpubli
 
 ## Development
 
-- Select **Sanatan Guruji Mobile** and use its managed Expo workflow / **Preview on your phone**.
+- Select **Vaidik Dhara** and use its managed Expo workflow / **Preview on your phone**.
 - The scaffold supplies `EXPO_PUBLIC_DOMAIN` from the workspace's development host. This is used only in development and is clearly labelled in the app. Web and API workflows must also be running.
 - The browser preview uses an iframe and labels itself as a browser preview. Browser restrictions can block third-party sessions; use **Open portal** for direct browser testing.
 - An iframe or successful native bundle export is **not** evidence of a working Android/iOS WebView. Verify the native app in Expo Go / a device build.
@@ -18,7 +18,7 @@ Published portal changes appear on the next page load/reload; unsaved or unpubli
 
 ## Release configuration — deliberately not invented
 
-The user confirmed **https://sanatanguruji.com** as the intended live portal address. `EXPO_PUBLIC_PORTAL_URL` is configured to this address in the **production** environment only; development previews continue to use the workspace portal. The website must be republished and checked before a usable mobile release can connect to it. This setting is public configuration, not a secret. Never put database URLs, session secrets, access tokens or passwords in any `EXPO_PUBLIC_` setting.
+The current production portal address is **https://sanatanguruji.com**. `EXPO_PUBLIC_PORTAL_URL` is configured to this address in the **production** environment only; development previews continue to use the workspace portal. Update this URL only after the new Vaidik Dhara domain is configured and the website has been republished. This setting is public configuration, not a secret. Never put database URLs, session secrets, access tokens or passwords in any `EXPO_PUBLIC_` setting.
 
 Production builds do not fall back to development. With an absent or development portal address they show **Live portal setup required**, instead of connecting to the wrong database/environment. Public Expo variables are embedded at bundle/build time: restart the mobile workflow after configuring them and rebuild a release after changing its origin.
 

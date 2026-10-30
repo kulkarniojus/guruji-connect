@@ -113,7 +113,7 @@ function OverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
           <BarChart2 className="h-7 w-7" />
           <h2 className="text-2xl font-bold">Platform Overview</h2>
         </div>
-        <p className="text-orange-100 text-sm">Live metrics to help you pitch Sanatan Guruji to new gurujis and customers.</p>
+        <p className="text-orange-100 text-sm">Live metrics to help you introduce Vaidik Dhara to new Gurujis and customers.</p>
       </div>
 
       {/* Stats grid */}
@@ -145,7 +145,7 @@ function OverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
         <Card className="border-orange-100">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2 text-orange-700">
-              <Star className="h-4 w-4" /> Why Gurujis Join Sanatan Guruji
+              <Star className="h-4 w-4" /> Why Gurujis Join Vaidik Dhara
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-gray-600">
@@ -168,7 +168,7 @@ function OverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
         <Card className="border-purple-100">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2 text-purple-700">
-              <Users className="h-4 w-4" /> Why Customers Book on Sanatan Guruji
+              <Users className="h-4 w-4" /> Why Customers Book on Vaidik Dhara
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-gray-600">
@@ -645,7 +645,7 @@ export default function SalesRepDashboard() {
               <Star className="h-5 w-5 text-orange-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Sanatan Guruji — Sales Portal</h1>
+              <h1 className="text-xl font-bold text-gray-900">Vaidik Dhara — Sales Portal</h1>
               <p className="text-sm text-gray-500">
                 Welcome, {salesRepUser.firstName || 'Rep'} {salesRepUser.lastName || ''}
                 <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">Sales Rep</span>

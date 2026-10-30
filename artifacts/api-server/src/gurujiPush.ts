@@ -118,7 +118,7 @@ export function gurujiPushMessage(d: Delivery) {
   return {
     to:d.token, sound:'default', priority:'high', channelId:'guruji-puja-requests',
     title:'New puja request',
-    body:'A puja request is waiting for you. Open Sanatan Guruji to accept or decline.',
+    body:'A puja request is waiting for you. Open Vaidik Dhara to accept or decline.',
     ttl:300,
     data:{type:'guruji_puja_request',requestId:d.request_id,bookingId:d.booking_id,userId:d.user_id},
   };

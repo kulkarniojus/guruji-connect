@@ -1,4 +1,4 @@
-const supportTeam = 'Sanatan Guruji support team';
+const supportTeam = 'Vaidik Dhara support team';
 
 /**
  * Present historical system notifications using the participant-facing team name.
@@ -10,7 +10,7 @@ export function participantNotification<T extends { title: string; message: stri
   if (role !== 'customer' && role !== 'guruji') return notification;
   let title = notification.title;
   if (title === 'Admin replied to your query') title = `${supportTeam} replied to your query`;
-  if (title === 'Booking Request from Admin') title = 'Booking Request from Sanatan Guruji Support Team';
+  if (title === 'Booking Request from Admin') title = 'Booking Request from Vaidik Dhara Support Team';
 
   let message = notification.message;
   if (notification.type !== 'query_reply') {

@@ -214,7 +214,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Helmet>
-        <title>My Profile | Sanatan Guruji</title>
+        <title>My Profile | Vaidik Dhara</title>
       </Helmet>
       <Header />
 
@@ -351,7 +351,7 @@ export default function Profile() {
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <h3 className="font-semibold text-neutral-900">Registration details</h3>
-                      <p className="text-xs text-neutral-500">Information associated with your Sanatan Guruji account.</p>
+                      <p className="text-xs text-neutral-500">Information associated with your Vaidik Dhara account.</p>
                     </div>
                     <Badge variant="outline" className={isVerified ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800'}>
                       {isVerified ? 'Verified' : 'Verification pending'}

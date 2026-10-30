@@ -110,7 +110,7 @@ export default function BookingDetail() {
       return r.json();
     },
     onSuccess: (result: any) => {
-      toast({ title: 'Booking cancelled', description: result.message || 'Your booking is cancelled. Any refund owed will be paid manually by the Sanatan Guruji support team.' });
+      toast({ title: 'Booking cancelled', description: result.message || 'Your booking is cancelled. Any refund owed will be paid manually by the Vaidik Dhara support team.' });
       setShowCancel(false);
       setCancelReason('');
       queryClient.invalidateQueries({ queryKey: [`/api/bookings/${id}`] });
@@ -157,7 +157,7 @@ export default function BookingDetail() {
       return r.json();
     },
     onSuccess: () => {
-      toast({ title: 'Query sent', description: 'The Sanatan Guruji support team will respond soon.' });
+      toast({ title: 'Query sent', description: 'The Vaidik Dhara support team will respond soon.' });
       setQueryMsg('');
       queryClient.invalidateQueries({ queryKey: [`/api/bookings/${id}/queries`] });
     },
@@ -196,7 +196,7 @@ export default function BookingDetail() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
-      <Helmet><title>{`Booking #${booking.id} | Sanatan Guruji`}</title></Helmet>
+      <Helmet><title>{`Booking #${booking.id} | Vaidik Dhara`}</title></Helmet>
       <Header />
 
       <main className="flex-1 py-8">
@@ -374,10 +374,10 @@ export default function BookingDetail() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <MessageSquare className="h-5 w-5 text-violet-500" />
-                  Queries to Sanatan Guruji Support Team
+                  Queries to Vaidik Dhara Support Team
                 </CardTitle>
                 <CardDescription>
-                  Have a question about this booking? Send a message to the Sanatan Guruji support team.
+                  Have a question about this booking? Send a message to the Vaidik Dhara support team.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -385,14 +385,14 @@ export default function BookingDetail() {
                   <Textarea
                     value={queryMsg}
                     onChange={e => setQueryMsg(e.target.value)}
-                    placeholder="Type your question for the Sanatan Guruji support team..."
-                    aria-label="Message to the Sanatan Guruji support team"
+                    placeholder="Type your question for the Vaidik Dhara support team..."
+                    aria-label="Message to the Vaidik Dhara support team"
                     rows={3}
                     className="flex-1"
                   />
                   <Button
                     onClick={() => queryMutation.mutate()}
-                    aria-label="Send message to the Sanatan Guruji support team"
+                    aria-label="Send message to the Vaidik Dhara support team"
                     disabled={!queryMsg.trim() || queryMutation.isPending}
                     className="self-end"
                   >
@@ -415,7 +415,7 @@ export default function BookingDetail() {
                         <p className="text-sm text-neutral-700 bg-neutral-50 p-2 rounded">{q.message}</p>
                         {q.admin_reply ? (
                           <div className="border-l-2 border-violet-400 pl-3 mt-2">
-                            <p className="text-xs font-medium text-violet-600 mb-1">Sanatan Guruji support team reply:</p>
+                            <p className="text-xs font-medium text-violet-600 mb-1">Vaidik Dhara support team reply:</p>
                             <p className="text-sm text-neutral-700">{q.admin_reply}</p>
                             {q.replied_at && (
                               <p className="text-xs text-neutral-400 mt-1">
@@ -470,7 +470,7 @@ export default function BookingDetail() {
               <p>Already refunded: ₹{cancelPreview.customerFunds.refunded}</p>
             </div>}
             {cancelPreview.pendingRequestId && <p role="status">Your older pending request will be replaced by immediate cancellation at its saved policy charge.</p>}
-            {!cancelPreview.canCancel && !cancelPreview.pendingRequestId && <p>Contact the Sanatan Guruji support team to discuss this booking.</p>}
+            {!cancelPreview.canCancel && !cancelPreview.pendingRequestId && <p>Contact the Vaidik Dhara support team to discuss this booking.</p>}
           </div>}
           {cancelPreviewError && <Button variant="outline" onClick={()=>refetchCancelPreview()}>Retry policy</Button>}
           <Textarea

@@ -85,7 +85,7 @@ export default function EventDetail() {
       onSuccess: reg => {
         invalidate();
         if (pm === "online" && paid) { setPendingReg({ id: reg.id, fp }); startCheckout(reg.id); }
-        else { setDone(pm === "manual" && paid ? "Registration received. It is awaiting confirmation by the Sanatan Guruji support team and is not confirmed yet. Check My event registrations for updates and payment records." : "Registration received."); requestId.current = newRequestId(); fingerprint.current = ""; }
+        else { setDone(pm === "manual" && paid ? "Registration received. It is awaiting confirmation by the Vaidik Dhara support team and is not confirmed yet. Check My event registrations for updates and payment records." : "Registration received."); requestId.current = newRequestId(); fingerprint.current = ""; }
       },
       onError: err => { setError(errMsg(err)); refetch(); },
     });
@@ -164,7 +164,7 @@ export default function EventDetail() {
                     </RadioGroup>
                   )}
                   {ev.currentPrice > 0 && ev.paymentMode === "online" && <p className="text-sm">Payment is online. Your seat is held for 35 minutes; checkout expires about 30 minutes after it starts.</p>}
-                  {ev.currentPrice > 0 && ev.paymentMode === "manual" && <p className="text-sm">Pay the Sanatan Guruji support team directly. Your registration will remain unconfirmed until the team confirms it.</p>}
+                  {ev.currentPrice > 0 && ev.paymentMode === "manual" && <p className="text-sm">Pay the Vaidik Dhara support team directly. Your registration will remain unconfirmed until the team confirms it.</p>}
                   <div className="flex items-start gap-2"><Checkbox id="gc" checked={consent} onCheckedChange={v => setConsent(v === true)} data-testid="checkbox-consent" /><Label htmlFor="gc" className="leading-snug">I am the parent or legal guardian and consent to my child attending this event.</Label></div>
                   {stale && <p role="status" className="text-sm text-amber-900">Details changed since your earlier held registration. Submitting creates a new registration; the earlier one stays under My event registrations and can be paid or cancelled there.</p>}
                   {error && <p role="alert" className="text-sm text-destructive" data-testid="text-register-error">{error}</p>}

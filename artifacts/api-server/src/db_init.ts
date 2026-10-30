@@ -241,7 +241,7 @@ async function initializeChatbotTables() {
         {
           name: 'Welcome Message',
           description: 'Initial greeting to users',
-          content: 'Hello {{name}}! Welcome to Sanatan Guruji. How can I assist you today? You can ask about pujas, bookings, or finding a guruji.',
+          content: 'Hello {{name}}! Welcome to Vaidik Dhara. How can I assist you today? You can ask about pujas, bookings, or finding a guruji.',
           intent: 'greeting',
           variables: ['name'],
           isActive: true

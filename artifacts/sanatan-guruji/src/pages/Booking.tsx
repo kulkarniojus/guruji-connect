@@ -49,7 +49,7 @@ export default function Booking() {
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Helmet>
-        <title>Book a Puja | Sanatan Guruji</title>
+        <title>Book a Puja | Vaidik Dhara</title>
         <meta name="description" content="Book a puja or consultation with verified Gurujis" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Helmet>

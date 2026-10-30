@@ -15,7 +15,7 @@ Individual puja percentages override the default. Ordinary default changes prese
 
 **How to apply:** New bookings retain a commission snapshot that later configuration changes must not rewrite. Do not invent a starting percentage from the user's 20%/30% examples, or backfill historical bookings using today's policy. Allocations are records, not proof of payment or payout.
 
-Guruji must see the saved commission payable to Sanatan Guruji and their remaining share before accepting, and explicitly acknowledge positive commission.
+Guruji must see the saved commission payable to Vaidik Dhara and their remaining share before accepting, and explicitly acknowledge positive commission.
 
 **Why:** The user said Guruji was unaware of commission and asked for the commission obligation and expected share to be explained when accepting a puja.
 

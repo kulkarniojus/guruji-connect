@@ -21,12 +21,12 @@ function SupportLinks() {
 export default function SiteInformation({ kind }: { kind: InformationKind }) {
   const content = siteInformation[kind];
   return (
-    <MainLayout title={`${content.title} | Sanatan Guruji`} description={content.intro}>
+    <MainLayout title={`${content.title} | Vaidik Dhara`} description={content.intro}>
       <div className="container mx-auto max-w-4xl px-4 py-12 md:py-16" data-testid="site-information">
         <Link href="/" className="text-sm text-orange-700 hover:underline">Home</Link>
         <div className="mt-6 border-b border-orange-100 pb-8">
           <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-sm font-medium text-orange-700">
-            <Sparkles className="h-4 w-4" aria-hidden="true" />Sanatan Guruji
+            <Sparkles className="h-4 w-4" aria-hidden="true" />Vaidik Dhara
           </span>
           <h1 className="font-poppins text-3xl font-bold text-neutral-900 md:text-4xl">{content.title}</h1>
           <p className="mt-4 text-lg leading-relaxed text-neutral-600">{content.intro}</p>
@@ -64,11 +64,11 @@ export default function SiteInformation({ kind }: { kind: InformationKind }) {
 
 export function ContactPage() {
   return (
-    <MainLayout title="Contact Us | Sanatan Guruji" description="Contact Sanatan Guruji on 8087138429 for booking assistance and Guruji application support.">
+    <MainLayout title="Contact Us | Vaidik Dhara" description="Contact Vaidik Dhara on 8087138429 for booking assistance and Guruji application support.">
       <div className="container mx-auto max-w-4xl px-4 py-12 md:py-16" data-testid="contact-page">
         <Link href="/" className="text-sm text-orange-700 hover:underline">Home</Link>
         <h1 className="mt-6 font-poppins text-3xl font-bold md:text-4xl">Contact Us</h1>
-        <p className="mt-4 max-w-2xl text-lg leading-relaxed text-neutral-600">Need help choosing a puja, following up on a booking, or joining as a Guruji? Get in touch with Sanatan Guruji.</p>
+        <p className="mt-4 max-w-2xl text-lg leading-relaxed text-neutral-600">Need help choosing a puja, following up on a booking, or joining as a Guruji? Get in touch with Vaidik Dhara.</p>
         <section className="my-8 rounded-2xl border border-orange-100 bg-white p-6 md:p-8">
           <div className="mb-5 flex items-center gap-4">
             <div className="rounded-full bg-orange-50 p-4 text-orange-700"><Phone className="h-6 w-6" aria-hidden="true" /></div>
@@ -103,7 +103,7 @@ export function ContactPage() {
 
 export function FaqPage() {
   return (
-    <MainLayout title="Frequently Asked Questions | Sanatan Guruji" description="Answers about puja bookings, Guruji acceptance, service areas, cancellations and joining Sanatan Guruji.">
+    <MainLayout title="Frequently Asked Questions | Vaidik Dhara" description="Answers about puja bookings, Guruji acceptance, service areas, cancellations and joining Vaidik Dhara.">
       <div className="container mx-auto max-w-3xl px-4 py-12 md:py-16" data-testid="faq-page">
         <Link href="/" className="text-sm text-orange-700 hover:underline">Home</Link>
         <h1 className="mt-6 font-poppins text-3xl font-bold md:text-4xl">Frequently Asked Questions</h1>

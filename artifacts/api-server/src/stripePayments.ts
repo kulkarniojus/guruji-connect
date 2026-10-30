@@ -298,7 +298,7 @@ export async function completeCheckout(session: Stripe.Checkout.Session, eligibl
         [order.customer_id,session.livemode?'Booking advance received':'Test checkout completed',
           `${session.livemode?`₹${Number(order.advance_paise)/100} received`:'TEST ONLY — no money collected'} for booking #${saved.id}. ${recipients.length
           ? 'Your request has been sent. Guruji acceptance is still required.'
-          : 'The Sanatan Guruji support team has been alerted to help with your unassigned request.'}`]);
+          : 'The Vaidik Dhara support team has been alerted to help with your unassigned request.'}`]);
       await db.query(`UPDATE portal_checkout_orders SET booking_id=$2,stripe_payment_intent_id=$3,state=$4,needs_support=$5 WHERE id=$1`,
         [order.id,saved.id,paymentIntent,support?'review':'fulfilled',support]);
       await db.query('COMMIT');

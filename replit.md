@@ -1,4 +1,4 @@
-# Sanatan Guruji
+# Vaidik Dhara
 
 Existing web portal for puja bookings, Guruji availability, customer and staff accounts, notifications, pricing, cancellation, commissions and Guruji Finance.
 

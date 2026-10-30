@@ -209,7 +209,7 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
       await client.query(`UPDATE customer_refund_requests SET status='manual_pending',approved_by=$2,
         approved_at=now(),updated_at=now() WHERE id=$1`,[requestId,adminId]);
       await notifyCustomer(client,request.customer_id,'Refund approved',
-        `The Sanatan Guruji support team approved your ₹${(request.amount_paise/100).toFixed(2)} manual refund. The amount will be paid outside this app and recorded after settlement.`);
+        `The Vaidik Dhara support team approved your ₹${(request.amount_paise/100).toFixed(2)} manual refund. The amount will be paid outside this app and recorded after settlement.`);
       await client.query('COMMIT');
       return { status:'manual_pending',message:'Approved. Pay outside the app, then record the payout reference.' };
     }
@@ -306,7 +306,7 @@ export async function settleManualRefund(requestId: number, adminId: number, ref
       settled_by=$3,settled_at=now(),updated_at=now() WHERE id=$1`,
       [requestId,reference,adminId]);
     await notifyCustomer(client,request.customer_id,'Refund paid',
-      `The Sanatan Guruji support team recorded your manual refund of ₹${(Number(request.manual_amount_paise)/100).toFixed(2)}. Reference: ${reference}.`);
+      `The Vaidik Dhara support team recorded your manual refund of ₹${(Number(request.manual_amount_paise)/100).toFixed(2)}. Reference: ${reference}.`);
     await client.query('COMMIT');
     return { status:'paid',message:'Manual refund payout recorded. The portal did not transfer the money.' };
   } catch (error) { await client.query('ROLLBACK'); throw error; }

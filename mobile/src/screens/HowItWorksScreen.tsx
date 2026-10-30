@@ -147,7 +147,7 @@ const HowItWorksScreen: React.FC = () => {
         <View style={styles.introSection}>
           <Text style={styles.introTitle}>Book in 6 Easy Steps</Text>
           <Text style={styles.introText}>
-            Connect with verified spiritual guides on Sanatan Guruji
+            Connect with verified spiritual guides on Vaidik Dhara
             for authentic puja services.
           </Text>
         </View>

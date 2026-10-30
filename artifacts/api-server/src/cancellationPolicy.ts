@@ -52,7 +52,7 @@ export function hoursBeforeBooking(booking: any, now = Date.now()) {
     ? booking.date.toISOString().slice(0, 10) : String(booking.date).slice(0, 10));
   const minutes = parseBookingTime(booking.time || '');
   if (minutes === null || !/^\d{4}-\d{2}-\d{2}$/.test(date))
-    throw Object.assign(new Error('Booking schedule is incomplete. Please contact the Sanatan Guruji support team.'), { status: 409 });
+    throw Object.assign(new Error('Booking schedule is incomplete. Please contact the Vaidik Dhara support team.'), { status: 409 });
   // Live dates and twelve-hour times are Indian local wall-clock values.
   return (Date.parse(`${date}T00:00:00+05:30`) + minutes * 60000 - now) / 3600000;
 }
@@ -71,7 +71,7 @@ export function calculateCancellationCharge(amount: number, rule: any) {
   if (!rule || rule.charge_type === 'free') return 0;
   const value = Number(rule.charge_value);
   if (!Number.isFinite(value) || value < 0 || (rule.charge_type === 'percentage' && value > 100))
-    throw Object.assign(new Error('The cancellation rule needs correction by the Sanatan Guruji support team.'), { status: 409 });
+    throw Object.assign(new Error('The cancellation rule needs correction by the Vaidik Dhara support team.'), { status: 409 });
   if (rule.charge_type === 'full') return amount;
   if (rule.charge_type === 'percentage') return Math.round(amount * value) / 100;
   if (rule.charge_type === 'fixed') return Math.round(value * 100) / 100;
@@ -113,7 +113,7 @@ export async function cancellationQuote(client: { query: any }, booking: any, us
     charge, chargeDescription, quoteToken, canCancel, customerFunds,
     pendingRequestId: pending?.id ?? null,
     paymentNotice: userType === 'customer'
-      ? 'Deductions are limited to actual recorded payments. Any refund owed is paid manually by the Sanatan Guruji support team and recorded afterward; this portal does not transfer money.'
+      ? 'Deductions are limited to actual recorded payments. Any refund owed is paid manually by the Vaidik Dhara support team and recorded afterward; this portal does not transfer money.'
       : 'Payments are currently disabled. Charges are recorded only; no money is deducted or refunded.',
     outcome: userType === 'guruji' ? 'Reopen the booking and search for another eligible Guruji; the booking will not be closed.'
       : userType === 'customer' ? 'Confirm to cancel your booking immediately. Support-team approval is not required.'

@@ -7,8 +7,8 @@ export default function BecomeGuruji() {
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Helmet>
-        <title>Become a Guruji | Sanatan Guruji</title>
-        <meta name="description" content="Join Sanatan Guruji as a verified spiritual guide and help people with their spiritual journey" />
+        <title>Become a Guruji | Vaidik Dhara</title>
+        <meta name="description" content="Join Vaidik Dhara as a verified spiritual guide and help people with their spiritual journey" />
       </Helmet>
 
       <Header />
@@ -21,7 +21,7 @@ export default function BecomeGuruji() {
             </h1>
             <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
               Share your spiritual knowledge and help others on their journey. 
-              Become a verified Guruji on Sanatan Guruji and reach thousands of seekers.
+              Become a verified Guruji on Vaidik Dhara and reach thousands of seekers.
             </p>
           </div>
           

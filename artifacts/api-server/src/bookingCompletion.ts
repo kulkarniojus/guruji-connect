@@ -149,7 +149,7 @@ export async function changeBookingCompletion(id: number, actor: CompletionActor
       const cancellationPending = (await client.query(`SELECT id FROM booking_cancellation_events
         WHERE booking_id=$1 AND kind='customer_request' AND status='pending'`,[id])).rows.length>0;
       if (cancellationPending && actor.role!=='admin') return await finish(409,{
-        message:'The Sanatan Guruji support team must review the pending cancellation request before this puja starts.',
+        message:'The Vaidik Dhara support team must review the pending cancellation request before this puja starts.',
       });
       const accepted = await client.query(
         `SELECT id FROM booking_requests WHERE "bookingId"=$1 AND "gurujiId"=$2 AND status='accepted' LIMIT 1`,
@@ -214,7 +214,7 @@ export async function changeBookingCompletion(id: number, actor: CompletionActor
         await client.query(`UPDATE bookings SET status='completed',"updatedAt"=NOW() WHERE id=$1`, [id]);
         booking.status = 'completed';
         await notify(client, [booking.customerId, booking.gurujiUserId], 'Puja completed',
-          `Booking #${id} was completed ${action === 'verify' ? challenge.admin_shared_with_guruji_at ? 'using an OTP shared by the Sanatan Guruji support team (independent customer confirmation bypassed)' : 'using the customer’s completion OTP' : 'manually by the Sanatan Guruji support team (not OTP verified)'}.`);
+          `Booking #${id} was completed ${action === 'verify' ? challenge.admin_shared_with_guruji_at ? 'using an OTP shared by the Vaidik Dhara support team (independent customer confirmation bypassed)' : 'using the customer’s completion OTP' : 'manually by the Vaidik Dhara support team (not OTP verified)'}.`);
       }
     }
     const finalChallenge = (await client.query(`SELECT * FROM booking_completion_challenges WHERE booking_id=$1`, [id])).rows[0];

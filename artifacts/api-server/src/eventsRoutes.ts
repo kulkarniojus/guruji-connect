@@ -135,7 +135,7 @@ eventsRouter.post('/admin/events/:eventId/action', safe(async (req,res) => {
       await client.query(`UPDATE event_sessions SET status='cancelled' WHERE event_id=$1 AND start_at>now()`,[id]);
     } else if (input.action==='unpublish') {
       await notifyEventGuardians(client,id,'Event temporarily unpublished',
-        `${row.details.name} is temporarily unavailable to new registrations. Your existing registration remains recorded; contact the Sanatan Guruji support team for details.`);
+        `${row.details.name} is temporarily unavailable to new registrations. Your existing registration remains recorded; contact the Vaidik Dhara support team for details.`);
     }
     await client.query('UPDATE religious_events SET status=$2,version=version+1,cancellation_reason=$3,updated_at=now(),actor_id=$4 WHERE id=$1',
       [id,state,input.action==='cancel'?input.reason:'',req.session.userId]);
@@ -185,7 +185,7 @@ eventsRouter.post('/events/:eventId/register', safe(async (req,res) => {
         method,fee,method==='online'?new Date(Date.now()+35*60000):null,details.name]);
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt") VALUES($1,$2,$3,'event',false,now())`,
       [req.session.userId,method==='online'?'Event seat reserved':'Event registration recorded',
-        `${details.name}: ${method==='online'?'Complete online payment within the reservation window to confirm the seat.':method==='manual'?'Your manual-payment registration is awaiting confirmation by the Sanatan Guruji support team. It is not confirmed yet.':'Your free registration is confirmed.'} View your event registrations.`]);
+        `${details.name}: ${method==='online'?'Complete online payment within the reservation window to confirm the seat.':method==='manual'?'Your manual-payment registration is awaiting confirmation by the Vaidik Dhara support team. It is not confirmed yet.':'Your free registration is confirmed.'} View your event registrations.`]);
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
       SELECT id,'New event registration',$1,'event',false,now() FROM users WHERE role='admin' AND NOT "isBlocked"`,
       [`${details.name}: ${method==='online'?'a new online payment reservation':method==='manual'?'a manual registration is awaiting confirmation':'a free registration'} was recorded. Open Services → Events → Registrations & payments to review.`]);
@@ -222,7 +222,7 @@ eventsRouter.post('/admin/event-registrations/:registrationId/confirm', safe(asy
     const remaining = Math.max(0,row.fee_paise-row.paid_paise)/100;
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
       VALUES($1,'Event registration confirmed',$2,'event',false,now())`,
-      [row.guardian_id,`${event.details.name}: the Sanatan Guruji support team confirmed your manual-payment registration. ${remaining>0?`Recorded balance remaining: ₹${remaining}. `:''}View My event registrations for payment records and schedule.`]);
+      [row.guardian_id,`${event.details.name}: the Vaidik Dhara support team confirmed your manual-payment registration. ${remaining>0?`Recorded balance remaining: ₹${remaining}. `:''}View My event registrations for payment records and schedule.`]);
     await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
@@ -282,7 +282,7 @@ eventsRouter.post('/admin/event-registrations/:registrationId/payments', safe(as
     await client.query(`UPDATE event_registrations SET ${input.type==='payment'?'paid_paise=paid_paise':'refunded_paise=refunded_paise'}+$2 WHERE id=$1`,[id,amount]);
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
       VALUES($1,$2,$3,'event',false,now())`,[row.guardian_id,'Event payment record updated',
-      `The Sanatan Guruji support team recorded a ${input.type} of ₹${input.amount}. View My event registrations for your balance and payment history.`]);
+      `The Vaidik Dhara support team recorded a ${input.type} of ₹${input.amount}. View My event registrations for your balance and payment history.`]);
     await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
   res.json(await registrationView(id));

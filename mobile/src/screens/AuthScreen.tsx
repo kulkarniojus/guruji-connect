@@ -80,7 +80,7 @@ const AuthScreen: React.FC = () => {
               <View style={styles.logo}>
                 <Ionicons name="leaf" size={40} color="#FFFFFF" />
               </View>
-              <Text style={styles.appName}>Sanatan Guruji</Text>
+              <Text style={styles.appName}>Vaidik Dhara</Text>
               <Text style={styles.appSubtitle}>Connect with Spiritual Wisdom</Text>
             </View>
           </LinearGradient>
@@ -172,7 +172,7 @@ const AuthScreen: React.FC = () => {
 
             {/* Features Section */}
             <View style={styles.featuresContainer}>
-              <Text style={styles.featuresTitle}>Why Choose Sanatan Guruji?</Text>
+              <Text style={styles.featuresTitle}>Why Choose Vaidik Dhara?</Text>
               <View style={styles.featuresList}>
                 <View style={styles.featureItem}>
                   <Ionicons name="videocam" size={20} color="#3B82F6" />

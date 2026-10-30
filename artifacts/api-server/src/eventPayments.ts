@@ -7,7 +7,7 @@ import { createEventRefundRequest } from './customerRefunds';
 
 export async function startEventPayment(id: string, guardianId: number, requestOrigin?: string) {
   const settings = await paymentSettings();
-  if (!settings.checkoutAvailable) throw eventFail(503,'Online checkout is unavailable. Please contact the Sanatan Guruji support team.');
+  if (!settings.checkoutAvailable) throw eventFail(503,'Online checkout is unavailable. Please contact the Vaidik Dhara support team.');
   const origin = checkoutReturnOrigin(requestOrigin);
   const stripe = await getUncachableStripeClient();
   const client = await pool.connect();
@@ -98,7 +98,7 @@ export async function completeEventPayment(session: Stripe.Checkout.Session) {
       VALUES($1,$2,$3,'event',false,now())`, [row.guardian_id,
       cancelled?'Event payment needs support':'Event registration confirmed',
       `${session.livemode?'':'TEST MODE: '}${event.details.name}: ${cancelled
-        ? 'Payment was verified after availability ended. The recorded refund must be settled by the Sanatan Guruji support team.'
+        ? 'Payment was verified after availability ended. The recorded refund must be settled by the Vaidik Dhara support team.'
         : 'Your registration is confirmed. View your event registrations for the schedule.'}`]);
     await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; }

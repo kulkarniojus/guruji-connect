@@ -138,14 +138,14 @@ cancellationsRouter.get('/api/bookings/:id/cancellation-history', endpoint(async
     FROM booking_cancellation_events WHERE booking_id=$1 ORDER BY created_at DESC`,[id])).rows;
   res.json(history.map(({requested_by,...entry}:any)=>
     user.role!=='admin' && requested_by!==user.id && ['customer','guruji'].includes(entry.user_type)
-      ? {...entry,reason:'The Sanatan Guruji support team is handling this request. Contact the support team for details.',review_reason:null}
+      ? {...entry,reason:'The Vaidik Dhara support team is handling this request. Contact the support team for details.',review_reason:null}
       : entry));
 }));
 cancellationsRouter.get('/api/guruji/cancellation-history',endpoint(async(req,res)=>{
   const user=await authenticated(req);
   if(user.role!=='guruji') throw fail(403,'Guruji access required');
   res.json((await pool.query(`SELECT e.id,e.booking_id,e.user_type,e.kind,e.status,
-    CASE WHEN e.requested_by=$1 THEN e.reason ELSE 'Managed by the Sanatan Guruji support team.' END AS reason,e.charge,
+    CASE WHEN e.requested_by=$1 THEN e.reason ELSE 'Managed by the Vaidik Dhara support team.' END AS reason,e.charge,
     e.review_reason,e.created_at,e.reviewed_at FROM booking_cancellation_events e
     LEFT JOIN guruji_profiles g ON g.id=e.previous_guruji_id
     WHERE e.requested_by=$1 OR (g."userId"=$1 AND e.user_type IN ('guruji','none'))

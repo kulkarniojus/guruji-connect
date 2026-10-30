@@ -114,7 +114,7 @@ bookingSamagriRouter.post('/admin/bookings/:bookingId/samagri/resend', safe(asyn
     if (recent.rowCount) { await client.query('ROLLBACK'); res.status(429).json({ message: 'Wait a minute before resending' }); return; }
     await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
       VALUES($1,'Your puja samagri list', $2,'booking',false,now())`,
-      [booking.customerId, `The Sanatan Guruji support team resent your samagri list for ${list.pujaName}. View booking #${id} for mandatory and optional items.`]);
+      [booking.customerId, `The Vaidik Dhara support team resent your samagri list for ${list.pujaName}. View booking #${id} for mandatory and optional items.`]);
     await client.query(`INSERT INTO samagri_deliveries(booking_id,actor_id,channel,status)
       VALUES($1,$2,'in_app','resent'),($1,$2,'whatsapp','not_connected')`, [id, req.session.userId]);
     await client.query('COMMIT');

@@ -17,18 +17,18 @@ export default function Footer() {
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-300 text-neutral-900 transition-transform group-hover:rotate-6">
                 <Flower2 className="h-6 w-6" strokeWidth={1.7} aria-hidden="true" />
               </span>
-              <span id="footer-brand" className="font-poppins text-xl font-semibold tracking-tight sm:text-2xl">Sanatan Guruji</span>
+              <span id="footer-brand" className="font-poppins text-xl font-semibold tracking-tight sm:text-2xl">Vaidik Dhara</span>
             </Link>
             <p className="mt-5 max-w-sm text-sm leading-7 text-neutral-300 sm:text-base">
               A welcoming place for families to find authentic pujas and personal spiritual guidance from approved Gurujis.
             </p>
             <Link href="/about" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-amber-300 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300">
-              Discover Sanatan Guruji <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+              Discover Vaidik Dhara <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </section>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 sm:gap-x-8">
-            <nav aria-label="Explore Sanatan Guruji">
+            <nav aria-label="Explore Vaidik Dhara">
               <h2 className="font-poppins text-sm font-semibold tracking-wide text-white">Explore</h2>
               <ul className="mt-5 space-y-3.5">
                 <li><Link href="/pujas" className="footer-link">Browse pujas</Link></li>
@@ -69,7 +69,7 @@ export default function Footer() {
             <a
               href="tel:+918087138429"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/25 px-5 text-sm font-medium text-white transition-colors hover:border-amber-300 hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-              aria-label="Call Sanatan Guruji at 8087138429"
+              aria-label="Call Vaidik Dhara at 8087138429"
             >
               <Phone className="h-4 w-4" aria-hidden="true" />
               8087138429
@@ -79,7 +79,7 @@ export default function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-amber-300 px-5 text-sm font-semibold text-neutral-900 transition-colors hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-              aria-label="Chat with Sanatan Guruji on WhatsApp"
+              aria-label="Chat with Vaidik Dhara on WhatsApp"
             >
               <MessageCircle className="h-4 w-4" aria-hidden="true" />
               WhatsApp
@@ -89,8 +89,8 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col gap-2 border-t border-white/15 pt-5 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>&copy; {year} Sanatan Guruji. All rights reserved.</p>
-          <p>Connecting Hearts with Sanatan Wisdom</p>
+          <p>&copy; {year} Vaidik Dhara. All rights reserved.</p>
+          <p>Connecting Hearts with Vaidik Wisdom</p>
         </div>
       </div>
       <style>{`

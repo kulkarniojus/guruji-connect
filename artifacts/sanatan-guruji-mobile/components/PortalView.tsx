@@ -19,7 +19,7 @@ export default function PortalView({ url }: { url: string }) {
       </View>
       {failed ? <PortalState title="Portal preview unavailable" detail="Open the portal directly or try again. Browser privacy settings may restrict embedded sessions."
         buttonLabel="Try again" onPress={() => { setFailed(false); setGeneration(n => n + 1); }} /> :
-        <iframe key={generation} title="Live Sanatan Guruji portal" src={url}
+        <iframe key={generation} title="Live Vaidik Dhara portal" src={url}
           style={{ flex: 1, width: '100%', height: Math.max(320, height - 190), minHeight: 320, display: 'block', border: 0, background: colors.background }}
           allow="geolocation; camera; microphone" onError={() => setFailed(true)} />}
     </View>

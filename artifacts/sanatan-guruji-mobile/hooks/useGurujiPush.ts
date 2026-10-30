@@ -61,7 +61,7 @@ export function useGurujiPush(webview:RefObject<WebView|null>,portal:string,navi
     working.current=true;setBusy(true);
     try {
       if(Constants.appOwnership==='expo' || !Device.isDevice) {
-        if(manual)showError('Background puja alerts need the installed Sanatan Guruji app on a real phone. They are not available in Expo Go or the browser preview.');
+        if(manual)showError('Background puja alerts need the installed Vaidik Dhara app on a real phone. They are not available in Expo Go or the browser preview.');
         return;
       }
       const projectId=Constants.expoConfig?.extra?.eas?.projectId??Constants.easConfig?.projectId;
