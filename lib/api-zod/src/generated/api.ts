@@ -8,6 +8,23 @@
 import * as zod from 'zod';
 
 
+/**
+ * @summary List recent written customer reviews from completed bookings
+ */
+export const listFeaturedCustomerReviewsResponseRatingMax = 5;
+
+
+
+export const ListFeaturedCustomerReviewsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "rating": zod.number().int().min(1).max(listFeaturedCustomerReviewsResponseRatingMax),
+  "review": zod.string(),
+  "pujaName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListFeaturedCustomerReviewsResponse = zod.array(ListFeaturedCustomerReviewsResponseItem)
+
+
 export const ListEventsQueryParams = zod.object({
   "q": zod.coerce.string().optional()
 })

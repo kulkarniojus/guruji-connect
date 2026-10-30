@@ -11,6 +11,18 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /reviews/featured:
+    get:
+      operationId: listFeaturedCustomerReviews
+      summary: List recent written customer reviews from completed bookings
+      responses:
+        "200":
+          description: Recent public customer reviews; customer identity is not included
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FeaturedCustomerReview" }
   /events:
     get:
       operationId: listEvents
@@ -516,6 +528,15 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    FeaturedCustomerReview:
+      type: object
+      required: [id, rating, review, createdAt]
+      properties:
+        id: { type: integer }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        review: { type: string }
+        pujaName: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
     EventInput:
       type: object
       required: [name, description, classType, ageMin, ageMax, instructorName, instructorDetails, mode, location, meetingUrl, startDate, endDate, startTime, durationMinutes, frequency, weekdays, basePrice, discountedPrice, registrationDeadline, capacity, paymentMode, media]

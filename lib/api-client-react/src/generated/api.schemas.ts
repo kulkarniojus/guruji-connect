@@ -5,6 +5,19 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface FeaturedCustomerReview {
+  id: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  review: string;
+  /** @nullable */
+  pujaName?: string | null;
+  createdAt: string;
+}
+
 export type EventInputMode = typeof EventInputMode[keyof typeof EventInputMode];
 
 

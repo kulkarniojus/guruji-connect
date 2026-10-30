@@ -22,6 +22,7 @@
 - [Puja commission policy](puja-commission-policy.md) — split the final booking total; individual overrides win, uniform resets are explicit, and existing allocations remain unchanged.
 - [Guruji finance policy](guruji-finance-policy.md) — portal collects an advance, Guruji collects the balance; monthly records post automatically without moving money or changing booking flows.
 - [Mobile and web parity](mobile-web-parity.md) — separate Android/iOS apps must share the portal/database and reflect web updates without changing existing web behavior.
+- [Workspace API schema runtime](workspace-api-schema-runtime.md) — generate client contracts from OpenAPI, but validate server responses locally; the API server cannot currently load the source Zod workspace barrel at runtime.
 - [Stripe connector compatibility](stripe-connector-compatibility.md) — healthy proxy access does not supply the raw key required by managed Stripe sync; do not reconnect a healthy account.
 - [Guruji mobile alerts](guruji-mobile-alerts.md) — one sound-and-vibration alert per new request, not repeating alarms; native credentials and real-device delivery checks are required.
 - [Booking samagri](booking-samagri-policy.md) — mandatory/optional checklists and photos stay separate from pricing; explicit resends refresh the booked list without claiming unconnected WhatsApp delivery.

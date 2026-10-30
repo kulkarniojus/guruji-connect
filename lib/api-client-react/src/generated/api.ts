@@ -41,6 +41,7 @@ import type {
   EventRecord,
   EventRegistration,
   EventRegistrationInput,
+  FeaturedCustomerReview,
   GetCustomerActivity200,
   GurujiPushDeviceInput,
   GurujiPushDisableInput,
@@ -85,6 +86,83 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListFeaturedCustomerReviewsUrl = () => {
+
+
+
+
+  return `/api/reviews/featured`
+}
+
+/**
+ * @summary List recent written customer reviews from completed bookings
+ */
+export const listFeaturedCustomerReviews = async ( options?: Parameters<typeof customFetch>[1]): Promise<FeaturedCustomerReview[]> => {
+
+  return customFetch<FeaturedCustomerReview[]>(getListFeaturedCustomerReviewsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFeaturedCustomerReviewsQueryKey = () => {
+    return [
+    `/api/reviews/featured`
+    ] as const;
+    }
+
+
+export const getListFeaturedCustomerReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listFeaturedCustomerReviews>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFeaturedCustomerReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFeaturedCustomerReviewsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFeaturedCustomerReviews>>> = ({ signal }) => listFeaturedCustomerReviews({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFeaturedCustomerReviews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFeaturedCustomerReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listFeaturedCustomerReviews>>>
+export type ListFeaturedCustomerReviewsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List recent written customer reviews from completed bookings
+ */
+
+export function useListFeaturedCustomerReviews<TData = Awaited<ReturnType<typeof listFeaturedCustomerReviews>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFeaturedCustomerReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFeaturedCustomerReviewsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListEventsUrl = (params?: ListEventsParams,) => {
   const normalizedParams = new URLSearchParams();

@@ -3013,6 +3013,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public homepage reviews contain only written feedback from verified,
+  // completed customer bookings. Customer identity and Guruji ratings are omitted.
+  app.get('/api/reviews/featured', async (req: Request, res: Response) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      const result = await pool.query(`
+        SELECT r.id, r.rating, BTRIM(r.comment) AS review,
+               p.name AS "pujaName", r."createdAt"
+        FROM reviews r
+        JOIN bookings b ON b.id = r."bookingId"
+        LEFT JOIN pujas p ON p.id = b."pujaId"
+        WHERE r.from_role = 'customer'
+          AND b.status = 'completed'
+          AND NULLIF(BTRIM(r.comment), '') IS NOT NULL
+        ORDER BY r."createdAt" DESC
+        LIMIT 6
+      `);
+      const reviews = z.array(z.object({
+        id: z.number().int(),
+        rating: z.number().int().min(1).max(5),
+        review: z.string().min(1),
+        pujaName: z.string().nullable(),
+        createdAt: z.coerce.date(),
+      })).parse(result.rows);
+      res.json(reviews.map((review) => ({
+        ...review,
+        createdAt: review.createdAt.toISOString(),
+      })));
+    } catch (error) {
+      req.log.error({ err: error }, 'Failed to fetch featured customer reviews');
+      res.status(500).json({ message: 'Customer reviews are temporarily unavailable.' });
+    }
+  });
+
   // GET /api/reviews/my-customer-ratings – customer sees ratings given to them by gurujis
   app.get('/api/reviews/my-customer-ratings', isAuthenticated, async (req: Request, res: Response) => {
     try {
