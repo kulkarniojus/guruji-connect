@@ -99,13 +99,10 @@ export default function PopularPujas() {
                   </span>
                 </div>
                 <CardContent className="p-5 sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
+                  <div>
                     <h3 className="font-poppins text-xl font-semibold leading-snug text-[#30291f]">
                       {puja.name}
                     </h3>
-                    <span className="shrink-0 pt-1 text-lg font-semibold text-[#9a5b2c]">
-                      ₹{puja.price ?? puja.basePrice}
-                    </span>
                   </div>
                   <p className="mt-2 min-h-[3rem] text-sm leading-6 text-[#746a5d] line-clamp-2">
                     {puja.description}
