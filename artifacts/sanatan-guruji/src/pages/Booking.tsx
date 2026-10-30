@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import BookingPage from '@/components/booking/BookingPage';
+import EventAnnouncementBanner from '@/components/events/EventAnnouncementBanner';
 import { useToast } from '@/hooks/use-toast';
 import LoginModal from '@/components/auth/LoginModal';
 import { useState } from 'react';
@@ -57,6 +58,7 @@ export default function Booking() {
       <Header />
 
       <main className="flex-grow">
+        <EventAnnouncementBanner />
         <BookingPage />
       </main>
 

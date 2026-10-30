@@ -11,6 +11,7 @@ import FAQ from '@/components/landing/FAQ';
 import CTA from '@/components/landing/CTA';
 import Footer from '@/components/landing/Footer';
 import Chatbot from '@/components/common/Chatbot';
+import EventAnnouncementBanner from '@/components/events/EventAnnouncementBanner';
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -30,6 +31,7 @@ export default function Home() {
 
       <main>
         <Hero />
+        <EventAnnouncementBanner />
         <CTA />
         <Services />
         <HowItWorks />
