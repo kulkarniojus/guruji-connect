@@ -15,8 +15,8 @@ The mobile release must not infer its production portal from the workspace's dev
 
 **How to apply:** Require an explicitly confirmed HTTPS live origin for release; allow a clearly labelled development fallback only in development. Preserve first-party portal sessions rather than inventing native account storage or copying database credentials into the app. Browser iframe previews and native bundle exports do not prove native-device login, permission or restart behavior.
 
-The intended public portal origin is **https://sanatanguruji.com**.
+The intended public portal origin is **https://vaidikdhara.com**.
 
-**Why:** The user explicitly named this domain as the site where they intend to republish the portal.
+**Why:** The user confirmed this as the new company domain for the portal.
 
-**How to apply:** Keep the production mobile origin pointed at this confirmed domain, with development pointed at the workspace. Check live availability and canonical redirects before release rather than assuming a configured URL is a working deployment.
+**How to apply:** Keep the production mobile origin pointed at this confirmed domain, with development pointed at the workspace. Keep the previous domain accepted for payment returns during transition. Check that the custom domain is attached, live and using HTTPS before release; configuration alone does not make DNS or deployment active.

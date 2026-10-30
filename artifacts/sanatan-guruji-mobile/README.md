@@ -18,7 +18,7 @@ Published portal changes appear on the next page load/reload; unsaved or unpubli
 
 ## Release configuration — deliberately not invented
 
-The current production portal address is **https://sanatanguruji.com**. `EXPO_PUBLIC_PORTAL_URL` is configured to this address in the **production** environment only; development previews continue to use the workspace portal. Update this URL only after the new Vaidik Dhara domain is configured and the website has been republished. This setting is public configuration, not a secret. Never put database URLs, session secrets, access tokens or passwords in any `EXPO_PUBLIC_` setting.
+The confirmed target production portal address is **https://vaidikdhara.com**. Before release, attach this domain to the published web artifact and confirm DNS and HTTPS are working. `EXPO_PUBLIC_PORTAL_URL` is configured to this address in the **production** environment only; development previews continue to use the workspace portal. The former domain remains accepted for Stripe return URLs during the transition. This setting is public configuration, not a secret. Never put database URLs, session secrets, access tokens or passwords in any `EXPO_PUBLIC_` setting.
 
 Production builds do not fall back to development. With an absent or development portal address they show **Live portal setup required**, instead of connecting to the wrong database/environment. Public Expo variables are embedded at bundle/build time: restart the mobile workflow after configuring them and rebuild a release after changing its origin.
 

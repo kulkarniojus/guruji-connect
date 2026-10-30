@@ -33,9 +33,9 @@ test('development portal is labelled, and configured production is authoritative
 test('the confirmed live portal origin takes precedence over any workspace host in release', () => {
   assert.deepEqual(resolvePortalConfig({
     development: false,
-    productionUrl: 'https://sanatanguruji.com',
+    productionUrl: 'https://vaidikdhara.com',
     developmentDomain: 'fixture.replit.dev',
-  }), { ok: true, url: 'https://sanatanguruji.com/', development: false });
+  }), { ok: true, url: 'https://vaidikdhara.com/', development: false });
 });
 
 test('role pages, auth, files and booking return URLs stay on their real portal origin', () => {

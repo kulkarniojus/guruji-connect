@@ -26,7 +26,12 @@ export function checkoutReturnOrigin(requestOrigin?: string) {
   const allowed=(process.env.REPLIT_DOMAINS||'').split(',').map(v=>v.trim()).filter(Boolean);
   // Keep the customer on their portal origin, including its confirmed custom
   // domain, so the return does not lose their existing signed-in session.
-  allowed.push('sanatanguruji.com','www.sanatanguruji.com');
+  allowed.push(
+    'vaidikdhara.com',
+    'www.vaidikdhara.com',
+    'sanatanguruji.com',
+    'www.sanatanguruji.com',
+  );
   const candidate=new URL(requestOrigin||`https://${allowed[0]}`);
   if (candidate.protocol!=='https:' || candidate.port || candidate.username || candidate.password ||
       !allowed.includes(candidate.hostname)) throw fail(400,'The checkout return origin is not configured.');
