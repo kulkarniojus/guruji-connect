@@ -209,6 +209,9 @@ function OverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
 export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-customer'}: {endpoint?: string} = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: cities = [], isLoading: citiesLoading } = useQuery<{ id: number; name: string; state: string }[]>({
+    queryKey: ['/api/cities'],
+  });
 
   const form = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
@@ -301,10 +304,23 @@ export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-custome
               <FormItem className="col-span-2"><FormLabel>Full Address *</FormLabel><FormControl><Textarea placeholder="House No, Street, Area" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="city" render={({ field }) => (
-              <FormItem><FormLabel>City *</FormLabel><FormControl><Input placeholder="Mumbai" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>City *</FormLabel>
+                <Select
+                  value={String(cities.find(city => city.name === field.value && city.state === form.getValues('state'))?.id ?? '')}
+                  onValueChange={id => {
+                    const city = cities.find(item => String(item.id) === id);
+                    field.onChange(city?.name ?? '');
+                    form.setValue('state', city?.state ?? '', { shouldValidate: true, shouldDirty: true });
+                  }}
+                >
+                  <FormControl><SelectTrigger disabled={citiesLoading || cities.length === 0}><SelectValue placeholder={citiesLoading ? "Loading cities…" : "Select city"} /></SelectTrigger></FormControl>
+                  <SelectContent>{cities.map(city => <SelectItem key={city.id} value={String(city.id)}>{city.name}, {city.state}</SelectItem>)}</SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
             )} />
             <FormField control={form.control} name="state" render={({ field }) => (
-              <FormItem><FormLabel>State *</FormLabel><FormControl><Input placeholder="Maharashtra" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>State *</FormLabel><FormControl><Input placeholder="Select a city first" readOnly {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="pincode" render={({ field }) => (
               <FormItem><FormLabel>Pincode *</FormLabel><FormControl><Input placeholder="400001" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem>

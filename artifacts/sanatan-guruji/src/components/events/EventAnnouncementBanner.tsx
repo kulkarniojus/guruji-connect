@@ -3,12 +3,14 @@ import { getListEventsQueryKey, useListEvents } from "@workspace/api-client-reac
 import { ArrowLeft, ArrowRight, CalendarDays } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 
 export default function EventAnnouncementBanner() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const { user } = useAuth();
   const { data: events = [] } = useListEvents(undefined, {
     query: {
-      queryKey: getListEventsQueryKey(),
+      queryKey: [...getListEventsQueryKey(), user?.id ?? "visitor", user?.role ?? "", user?.city ?? "", user?.state ?? ""],
       refetchInterval: 60000,
       refetchOnWindowFocus: true,
     },

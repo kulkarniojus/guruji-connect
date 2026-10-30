@@ -10,6 +10,7 @@ const tag = `verify-event-discovery-${randomBytes(5).toString('hex')}`;
 const password = randomBytes(18).toString('hex');
 const store = new DBStorage();
 const userIds: number[] = [];
+let fixtureCity = { name: '', state: '' };
 let eventId: number | undefined;
 let browser: Awaited<ReturnType<typeof browserClient>> | undefined;
 const day = (offset: number) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
@@ -27,11 +28,11 @@ async function api(path: string, cookie = '', method = 'GET', body?: unknown) {
   };
 }
 
-async function account(role: 'admin' | 'customer') {
+async function account(role: 'admin' | 'customer', city = fixtureCity) {
   const user = await store.createUser({
     firstName: 'Verification', lastName: 'Parent',
     email: `${tag}-${role}@example.invalid`, mobile: `9${randomInt(100000000, 999999999)}`,
-    password, role, age: 30, gender: 'other',
+    password, role, age: 30, gender: 'other', city: city.name, state: city.state,
   } as any);
   userIds.push(user.id);
   const login = await api(role === 'admin' ? '/api/admin/login' : '/api/auth/login', '', 'POST', {
@@ -43,12 +44,16 @@ async function account(role: 'admin' | 'customer') {
 }
 
 try {
+  const activeCities = (await store.getAllCities()).filter(city => city.isActive);
+  assert.ok(activeCities.length, 'At least one active city is required for event tests');
+  fixtureCity = { name: activeCities[0].name, state: activeCities[0].state };
   const admin = await account('admin');
   const parent = await account('customer');
+  const otherCityCustomer = await account('customer', { name: 'Nonmatching test city', state: 'Nonmatching test state' });
   const event = await api('/api/admin/events', admin.cookie, 'POST', {
     name: `${tag} Ramraksha class`,
     description: 'A temporary devotional learning class used to verify public event discovery and registration.',
-    classType: 'Ramraksha class', ageMin: 5, ageMax: 15,
+    classType: 'Ramraksha class', ageMin: 5, ageMax: 15, city: fixtureCity.name, state: fixtureCity.state,
     instructorName: 'Verification instructor', instructorDetails: 'Religious education instructor',
     mode: 'offline', location: 'Verification classroom', meetingUrl: '',
     startDate: day(5), endDate: day(5), startTime: '10:00', durationMinutes: 60,
@@ -62,17 +67,18 @@ try {
   assert.equal((await api(`/api/admin/events/${eventId}/action`, admin.cookie, 'POST', {
     action: 'publish', reason: '',
   })).status, 200);
+  assert.equal((await api('/api/events')).data.some((row: any) => row.id === eventId), false, 'Anonymous visitors cannot see city-limited events');
+  assert.equal((await api(`/api/events/${eventId}`)).status, 404, 'Anonymous direct event links are hidden');
+  assert.equal((await api('/api/events', otherCityCustomer.cookie)).data.some((row: any) => row.id === eventId), false, 'Other-city customer cannot discover event');
+  assert.equal((await api(`/api/events/${eventId}`, otherCityCustomer.cookie)).status, 404, 'Other-city customer cannot open event detail');
+  assert.equal((await api('/api/events', parent.cookie)).data.some((row: any) => row.id === eventId), true, 'Matching customer can discover event');
 
   browser = await browserClient();
   await browser.command('Network.enable');
   await browser.command('Page.navigate', { url: `${base}/services` });
-  await browser.wait(`!!document.querySelector('[data-testid="card-event-${eventId}"]')`, 'anonymous event card under Our Services');
-  assert.equal(await browser.evaluate(`document.querySelector('[data-testid="card-event-${eventId}"]')?.textContent.includes('View details & register')`), true);
+  await browser.wait(`document.body.innerText.includes('Our Services')`, 'Our Services section');
+  assert.equal(await browser.evaluate(`!!document.querySelector('[data-testid="card-event-${eventId}"]')`), false, 'Anonymous visitor does not see a city-scoped event');
   assert.equal(await browser.evaluate(`document.body.innerText.includes('Our Services') && document.body.innerText.includes('Events')`), true);
-  await browser.click(`[data-testid="card-event-${eventId}"]`);
-  await browser.wait(`!!document.querySelector('[data-testid="button-login-to-register"]')`, 'anonymous event details with sign-in prompt');
-  assert.equal((await api(`/api/events/${eventId}`)).data.registrationOpen, true);
-  assert.equal((await api('/api/events')).data.some((row: any) => row.id === eventId), true, 'All published events available publicly');
 
   const equals = parent.cookie.indexOf('=');
   await browser.command('Network.setCookie', {
@@ -81,7 +87,7 @@ try {
     url: base, secure: true, httpOnly: true,
   });
   await browser.command('Page.navigate', { url: `${base}/services/events` });
-  await browser.wait(`!!document.querySelector('[data-testid="card-event-${eventId}"]')`, 'same event on dedicated public Events page');
+  await browser.wait(`!!document.querySelector('[data-testid="card-event-${eventId}"]')`, 'matching customer sees the event on Events page');
   await browser.click(`[data-testid="card-event-${eventId}"]`);
   await browser.wait(`!!document.querySelector('[data-testid="input-child-name"]')`, 'authenticated registration form');
   await browser.fill('[data-testid="input-child-name"]', 'Verification child');
@@ -99,9 +105,9 @@ try {
   await browser.command('Page.navigate', { url: `${base}/services` });
   await browser.wait(`!!document.querySelector('[data-testid="card-event-${eventId}"]')`, 'phone-sized Services listing');
   assert.equal(await browser.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true);
-  assert.equal((await api('/api/events')).data.find((row: any) => row.id === eventId).registrationOpen, false, 'Full event remains visible');
-  assert.equal((await api(`/api/events/${eventId}`)).status, 200, 'Closed published event still has public details');
-  console.log('PASS: published event appears under Our Services and on Events page for anonymous visitors, links to book, requires genuine guardian login, registers a child, and remains visible when full on a phone.');
+  assert.equal((await api('/api/events', parent.cookie)).data.find((row: any) => row.id === eventId).registrationOpen, false, 'Full event remains visible to matching customer');
+  assert.equal((await api(`/api/events/${eventId}`, parent.cookie)).status, 200, 'Closed published event remains visible to matching customer');
+  console.log('PASS: events are limited to registered customers in the configured city, direct detail/registration access is scoped, matching customers can register, and layout remains usable on mobile.');
 } finally {
   if (browser) await browser.close();
   if (eventId) await pool.query('DELETE FROM religious_events WHERE id=$1', [eventId]);

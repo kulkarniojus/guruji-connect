@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ const istLocal = (iso: string) => {
 };
 
 export const emptyEvent: EventInput = {
-  name: "", description: "", classType: "", ageMin: 5, ageMax: 12, instructorName: "", instructorDetails: "", mode: "offline", location: "", meetingUrl: "",
+  name: "", description: "", classType: "", ageMin: 5, ageMax: 12, instructorName: "", instructorDetails: "", mode: "offline", city: "", state: "", location: "", meetingUrl: "",
   startDate: "", endDate: "", startTime: "10:00", durationMinutes: 60, frequency: "once", weekdays: [], basePrice: 0, discountedPrice: null,
   registrationDeadline: "", capacity: 20, paymentMode: "manual", media: [],
 };
@@ -22,7 +23,7 @@ export const emptyEvent: EventInput = {
 export function toInput(e: EventRecord): EventInput {
   return {
     name: e.name, description: e.description, classType: e.classType, ageMin: e.ageMin, ageMax: e.ageMax, instructorName: e.instructorName,
-    instructorDetails: e.instructorDetails, mode: e.mode, location: e.location, meetingUrl: e.meetingUrl, startDate: e.startDate, endDate: e.endDate,
+    instructorDetails: e.instructorDetails, mode: e.mode, city: e.city, state: e.state, location: e.location, meetingUrl: e.meetingUrl, startDate: e.startDate, endDate: e.endDate,
     startTime: e.startTime, durationMinutes: e.durationMinutes, frequency: e.frequency, weekdays: e.weekdays, basePrice: e.basePrice,
     discountedPrice: e.discountedPrice, registrationDeadline: e.registrationDeadline, capacity: e.capacity, paymentMode: e.paymentMode, media: e.media,
   };
@@ -36,6 +37,9 @@ function F({ id, label, children }: { id: string; label: string; children: React
 
 export default function EventForm({ initial, saving, error, onSubmit, onCancel }: { initial: EventInput; saving: boolean; error: string; onSubmit: (v: EventInput) => void; onCancel: () => void }) {
   const [v, setV] = useState<EventInput>(initial);
+  const { data: cities = [], isLoading: citiesLoading } = useQuery<{ id: number; name: string; state: string }[]>({
+    queryKey: ["/api/cities"],
+  });
   const [deadline, setDeadline] = useState(initial.registrationDeadline ? istLocal(initial.registrationDeadline) : "");
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState("");
@@ -51,6 +55,7 @@ export default function EventForm({ initial, saving, error, onSubmit, onCancel }
     if (!(Number.isInteger(v.capacity) && v.capacity >= 1 && v.capacity <= 10000)) return m("Capacity must be 1 to 10000.");
     if (!(v.durationMinutes >= 5 && v.durationMinutes <= 720)) return m("Duration must be 5 to 720 minutes.");
     if (!v.startDate || !v.endDate || v.endDate < v.startDate) return m("Choose valid start and end dates.");
+    if (!v.city.trim() || !v.state.trim()) return m("Choose an active city for this event.");
     if (v.frequency === "once" && v.startDate !== v.endDate) return m("A one-time event must start and end on the same day.");
     const days = (Date.parse(v.endDate) - Date.parse(v.startDate)) / 86400000;
     if (v.frequency !== "once" && days > 365) return m("A recurring range can be at most 366 days.");
@@ -77,11 +82,15 @@ export default function EventForm({ initial, saving, error, onSubmit, onCancel }
         <F id="ev-inst" label="Instructor"><Input id="ev-inst" value={v.instructorName} onChange={e => set("instructorName", e.target.value)} /></F>
         <F id="ev-instd" label="Instructor details"><Input id="ev-instd" value={v.instructorDetails} onChange={e => set("instructorDetails", e.target.value)} /></F>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <F id="ev-mode" label="Mode"><select id="ev-mode" className={sel} value={v.mode} onChange={e => set("mode", e.target.value as EventInput["mode"])}><option value="offline">Offline</option><option value="online">Online</option></select></F>
+        <F id="ev-city" label="Event city"><select id="ev-city" className={sel} value={String(cities.find(city => city.name === v.city && city.state === v.state)?.id ?? "")} disabled={citiesLoading || cities.length === 0} onChange={e => {
+          const city = cities.find(item => String(item.id) === e.target.value);
+          setV(current => ({ ...current, city: city?.name ?? "", state: city?.state ?? "" }));
+        }}><option value="">{citiesLoading ? "Loading cities…" : cities.length ? "Select active city" : "No active cities"}</option>{cities.map(city => <option key={city.id} value={city.id}>{city.name}, {city.state}</option>)}</select>{!citiesLoading && cities.length === 0 && <p className="text-xs text-amber-700">Activate a city in Admin → Cities before creating an event.</p>}</F>
         <F id="ev-cap" label="Capacity (1-10000)"><Input id="ev-cap" type="number" value={v.capacity} onChange={num("capacity")} /></F>
       </div>
-      <F id="ev-loc" label="Location"><Input id="ev-loc" value={v.location} onChange={e => set("location", e.target.value)} /></F>
+      <F id="ev-loc" label={v.mode === "offline" ? "Detailed address / venue" : "Detailed location (optional)"}><Input id="ev-loc" value={v.location} onChange={e => set("location", e.target.value)} placeholder={v.mode === "offline" ? "Building, street, area" : "Optional local venue details"} /></F>
       <F id="ev-url" label="Meeting URL (private: shown only to admins and guardians whose fee is fully paid, or free)"><Input id="ev-url" type="url" value={v.meetingUrl} onChange={e => set("meetingUrl", e.target.value)} /></F>
       <div className="grid gap-4 sm:grid-cols-4">
         <F id="ev-sd" label="Start date"><Input id="ev-sd" type="date" value={v.startDate} onChange={e => set("startDate", e.target.value)} /></F>

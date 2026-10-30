@@ -239,6 +239,13 @@ const registerSchema = z.object({
   terms: z.boolean().refine(val => val === true, {
     message: 'You must accept the terms and conditions',
   }),
+}).superRefine((value, ctx) => {
+  if (value.registrationType === 'customer' && !value.city?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['city'], message: 'Select your registered city' });
+  }
+  if (value.registrationType === 'customer' && !value.state?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['state'], message: 'Select your city to fill its state' });
+  }
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -569,9 +576,23 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel>City{form.watch('registrationType') === 'customer' ? ' *' : ''}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Mumbai" {...field} />
+                      {form.watch('registrationType') === 'customer' ? (
+                        <select
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          disabled={!cities.length}
+                          value={String(cities.find((city: any) => city.name === field.value && city.state === form.getValues('state'))?.id ?? '')}
+                          onChange={event => {
+                            const city = cities.find((item: any) => String(item.id) === event.target.value);
+                            field.onChange(city?.name ?? '');
+                            form.setValue('state', city?.state ?? '', { shouldValidate: true, shouldDirty: true });
+                          }}
+                        >
+                          <option value="">{cities.length ? "Select your city" : "No active cities available"}</option>
+                          {cities.map((city: any) => <option key={city.id} value={city.id}>{city.name}, {city.state}</option>)}
+                        </select>
+                      ) : <Input placeholder="Mumbai" {...field} />}
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -583,9 +604,9 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>State</FormLabel>
+                    <FormLabel>State{form.watch('registrationType') === 'customer' ? ' *' : ''}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Maharashtra" {...field} />
+                      <Input placeholder="Maharashtra" readOnly={form.watch('registrationType') === 'customer'} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

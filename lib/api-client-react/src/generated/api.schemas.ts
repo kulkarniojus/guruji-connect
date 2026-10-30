@@ -69,6 +69,8 @@ export interface EventInput {
   instructorName: string;
   instructorDetails: string;
   mode: EventInputMode;
+  city: string;
+  state: string;
   location: string;
   meetingUrl: string;
   startDate: string;

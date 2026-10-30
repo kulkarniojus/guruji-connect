@@ -9,11 +9,11 @@ Admin must be able to enable online payment, manual payment, or both separately 
 
 **How to apply:** Event fees and payment methods must not depend on the existing puja payment toggle or advance percentage. Do not change puja booking, commission, or refund flows when extending Events.
 
-Every website visitor should see all published events directly in the Events section under Our Services, and be able to open an event to book it.
+Published events are visible only to signed-in customer accounts whose registered city and state match the event's configured city and state. Admins can manage all events; guests and customers from other cities cannot list, open, or register.
 
-**Why:** The user explicitly asked to see actual events on the website rather than only a link to the Events page.
+**Why:** The user's latest city-targeting requirement supersedes the earlier request for public event browsing.
 
-**How to apply:** Do not hide published events from public browsing, including when their registration is closed. Creating an event is not publishing it; registration still requires a genuine signed-in guardian and must respect capacity and deadlines.
+**How to apply:** Collect customer city from the active city directory, require admin to select an active city for each event, and enforce city matching on list, detail, and registration endpoints. Keep registration capacity and deadline checks unchanged.
 
 Keep child registration details restricted to the owning guardian and admin. Online joining details belong only to admin and confirmed, fully paid or free registrations.
 

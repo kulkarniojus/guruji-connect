@@ -13,6 +13,7 @@ if (!base.endsWith('.replit.dev')) throw new Error('Development fixtures only');
 const tag = `verify-events-${randomBytes(5).toString('hex')}`, password = randomBytes(20).toString('hex');
 const store = new DBStorage(), users:number[] = [], eventIds:number[] = [], mediaIds:string[] = [], stripeSessions:string[] = [], stripeProducts:string[] = [], stripePrices:string[] = [];
 let browser:Awaited<ReturnType<typeof browserClient>>|undefined;
+let fixtureCity = { name: '', state: '' };
 const day = (offset:number) => new Date(Date.now()+offset*86400000).toISOString().slice(0,10);
 async function api(path:string,cookie='',method='GET',body?:unknown,extra:Record<string,string>={}) {
   const r = await fetch(base+path,{ method, headers:{ ...(cookie?{cookie}:{}),...(body?{'content-type':'application/json'}:{}),...extra },
@@ -20,9 +21,9 @@ async function api(path:string,cookie='',method='GET',body?:unknown,extra:Record
   const data:any = await r.json().catch(()=>null);
   return { status:r.status, data,cookie:r.headers.get('set-cookie')?.split(';')[0]??'' };
 }
-async function account(role:'admin'|'customer'|'guruji') {
+async function account(role:'admin'|'customer'|'guruji', city = fixtureCity) {
   const u = await store.createUser({ firstName:tag,lastName:'Verification',email:`${tag}-${users.length}@example.invalid`,
-    mobile:`9${randomInt(100000000,999999999)}`,password,role,age:32,gender:'other' } as any);
+    mobile:`9${randomInt(100000000,999999999)}`,password,role,age:32,gender:'other',city:city.name,state:city.state } as any);
   users.push(u.id);
   const login = await api(role==='admin'?'/api/admin/login':'/api/auth/login','','POST',{email:u.email,password});
   assert.equal(login.status,200); assert.ok(login.cookie); return {...u,cookie:login.cookie};
@@ -30,12 +31,16 @@ async function account(role:'admin'|'customer'|'guruji') {
 const input = () => ({
   name:`${tag} devotional class`,description:'Isolated verification event. This fixture is removed automatically.',
   classType:'Ramraksha classes',ageMin:5,ageMax:14,instructorName:'Verification instructor',instructorDetails:'Religious education instructor',
-  mode:'online',location:'Online',meetingUrl:'https://meet.google.com/verification-room',
+  mode:'online',city:fixtureCity.name,state:fixtureCity.state,location:'Online',meetingUrl:'https://meet.google.com/verification-room',
   startDate:day(8),endDate:day(8),startTime:'10:00',durationMinutes:60,frequency:'once',weekdays:[],
   basePrice:100,discountedPrice:80,registrationDeadline:`${day(7)}T18:00:00+05:30`,capacity:2,paymentMode:'both',media:[],
 });
 try {
-  const admin=await account('admin'),customer=await account('customer'),outsider=await account('customer'),guruji=await account('guruji');
+  const activeCities = (await store.getAllCities()).filter(city => city.isActive);
+  assert.ok(activeCities.length, 'At least one active city is required for event tests');
+  fixtureCity = { name: activeCities[0].name, state: activeCities[0].state };
+  const admin=await account('admin'),customer=await account('customer'),matchingCustomer2=await account('customer'),
+    outsider=await account('customer',{name:'Nonmatching test city',state:'Nonmatching test state'}),guruji=await account('guruji');
   const originalPujaPayments=(await pool.query('SELECT stripe_payments_enabled,advance_percentage FROM app_settings LIMIT 1')).rows[0];
   const scheduled=eventSchedule(eventInputSchema.parse({...input(),frequency:'daily',endDate:day(10)}));
   assert.equal(scheduled.length,3); assert.equal(scheduled[0].start.toISOString().slice(11,16),'04:30');
@@ -61,10 +66,14 @@ try {
   const detail=await api(`/api/events/${id}`);
   assert.equal(detail.data.meetingUrl,'','Joining URL is private');
   assert.equal(detail.data.currentPrice,80);
-  assert.ok((await api('/api/events')).data.some((e:any)=>e.id===id));
+  assert.equal((await api('/api/events')).data.length,0,'Anonymous visitors do not see city-limited events');
+  assert.ok((await api('/api/events',customer.cookie)).data.some((e:any)=>e.id===id),'Customer in the configured city sees the event');
+  assert.equal((await api('/api/events',outsider.cookie)).data.some((e:any)=>e.id===id),false,'Customer in another city does not see the event');
+  assert.equal((await api(`/api/events/${id}`,outsider.cookie)).status,404,'Direct detail links are city-scoped');
   const regBody={requestId:randomUUID(),childName:'Verification child',childAge:8,guardianConsent:true,paymentMethod:'manual',eventVersion:detail.data.version};
   assert.equal((await api(`/api/events/${id}/register`,'','POST',regBody)).status,401);
   assert.equal((await api(`/api/events/${id}/register`,guruji.cookie,'POST',regBody)).status,403);
+  assert.equal((await api(`/api/events/${id}/register`,outsider.cookie,'POST',regBody)).status,404,'Registration cannot bypass city visibility');
   assert.equal((await api(`/api/events/${id}/register`,customer.cookie,'POST',{...regBody,childAge:4})).status,400);
   assert.equal((await api(`/api/events/${id}/register`,customer.cookie,'POST',{...regBody,eventVersion:1})).status,409);
   const reg=await api(`/api/events/${id}/register`,customer.cookie,'POST',regBody);
@@ -161,7 +170,7 @@ try {
   const race=await api('/api/admin/events',admin.cookie,'POST',{...input(),name:`${tag} capacity`,capacity:1,basePrice:0,discountedPrice:null,paymentMode:'manual'});
   assert.equal(race.status,201); eventIds.push(race.data.id);
   const raceEvent=(await api(`/api/admin/events/${race.data.id}/action`,admin.cookie,'POST',{action:'publish',reason:''})).data;
-  const attempts=await Promise.all([customer,outsider].map((owner,i)=>api(`/api/events/${raceEvent.id}/register`,owner.cookie,'POST',
+  const attempts=await Promise.all([customer,matchingCustomer2].map((owner,i)=>api(`/api/events/${raceEvent.id}/register`,owner.cookie,'POST',
     {...regBody,requestId:randomUUID(),eventVersion:raceEvent.version,childName:`Capacity child ${i}`})));
   assert.deepEqual(attempts.map(r=>r.status).sort(),[201,409],'Concurrent last-seat registration does not oversell');
   const free=attempts.find(r=>r.status===201)!; assert.equal(free.data.fee,0); assert.equal(free.data.paymentMethod,'free');

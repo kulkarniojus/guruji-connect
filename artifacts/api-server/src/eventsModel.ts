@@ -23,6 +23,8 @@ export const eventInputSchema = z.object({
   instructorName: z.string().trim().min(2).max(180),
   instructorDetails: z.string().trim().min(1).max(4000),
   mode: z.enum(['online','offline']),
+  city: z.string().trim().min(1).max(150),
+  state: z.string().trim().min(1).max(150),
   location: z.string().trim().max(2000),
   meetingUrl: z.string().trim().max(2000).refine(value => {
     if (!value) return true;
@@ -146,7 +148,11 @@ export async function notifyEventGuardians(client: EventDb, eventId: number, tit
 export async function eventView(id: number, viewerId?: number, admin = false, client: EventDb = pool) {
   const row = (await client.query(`SELECT e.*,${reservedSeatsSql} AS reserved FROM religious_events e WHERE e.id=$1`, [id])).rows[0];
   if (!row || (!admin && row.status === 'draft')) throw eventFail(404,'Event not found');
-  const details = { ...row.details } as EventInput;
+  const details = {
+    ...row.details,
+    city: String(row.details?.city ?? ''),
+    state: String(row.details?.state ?? ''),
+  } as EventInput;
   const own = viewerId ? (await client.query(`SELECT id FROM event_registrations WHERE event_id=$1 AND guardian_id=$2 AND status='registered'
     AND (fee_paise=0 OR paid_paise>=fee_paise) LIMIT 1`, [id,viewerId])).rowCount : 0;
   if (!admin && !own) details.meetingUrl = '';

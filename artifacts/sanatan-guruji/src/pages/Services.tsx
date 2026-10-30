@@ -14,17 +14,19 @@ import { apiRequest } from "@/lib/queryClient";
 import { RefreshCw, CalendarDays, ArrowRight } from "lucide-react";
 import { getListEventsQueryKey, useListEvents } from "@workspace/api-client-react";
 import EventCards from "@/components/events/EventCards";
+import { useAuth } from "@/context/AuthContext";
 
 type Service = { id: number; slug: string; title: string; description: string; image: string; bookingHref: string; isActive: boolean; sortOrder: number };
 
 export default function ServicesPage() {
+  const { user } = useAuth();
   const { data: serviceRows = [], isLoading, isError, refetch } = useQuery<Service[]>({
     queryKey: ["/api/services"],
     queryFn: () => apiRequest("GET", "/api/services").then(response => response.json()),
   });
   const services = serviceRows.filter(service => service.isActive).slice().sort((a, b) => a.sortOrder - b.sortOrder);
   const { data: events = [], isLoading: eventsLoading, isError: eventsError, refetch: refetchEvents } = useListEvents(undefined, {
-    query: { queryKey: getListEventsQueryKey(), refetchInterval: 60000 },
+    query: { queryKey: [...getListEventsQueryKey(), user?.id ?? "visitor", user?.role ?? "", user?.city ?? "", user?.state ?? ""], refetchInterval: 60000 },
   });
 
   return (
@@ -63,7 +65,7 @@ export default function ServicesPage() {
             <EventCards events={events} />
           ) : (
             <p className="rounded-md border bg-card p-5 text-sm text-muted-foreground" data-testid="text-no-service-events">
-              No events have been published yet. Please check back soon.
+              {!user ? "Sign in or create a customer account with your registered city to see events available near you." : user.role !== "customer" ? "Event listings are available to customer accounts." : user.city ? `No published events are currently available in ${user.city}${user.state ? `, ${user.state}` : ""}.` : "Add your city to your customer profile to see local events."}
             </p>
           )}
         </section>

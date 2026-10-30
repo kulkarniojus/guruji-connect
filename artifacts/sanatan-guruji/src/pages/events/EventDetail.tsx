@@ -31,7 +31,7 @@ export default function EventDetail() {
   const qc = useQueryClient();
   const { user, isLoading: authLoading } = useAuth();
   const { data: ev, isLoading, isError, refetch } = useGetEvent(eventId, {
-    query: { queryKey: getGetEventQueryKey(eventId), enabled: Number.isInteger(eventId) && eventId > 0, refetchInterval: 30000 },
+    query: { queryKey: [...getGetEventQueryKey(eventId), user?.id ?? "visitor"], enabled: Number.isInteger(eventId) && eventId > 0, refetchInterval: 30000 },
   });
   const register = useRegisterForEvent();
   const checkout = useStartEventCheckout();
@@ -107,7 +107,7 @@ export default function EventDetail() {
               <h1 className="text-3xl font-bold" data-testid="text-event-name">{ev.name}</h1>
               <StatusBadge status={ev.status} />
             </div>
-            <p className="mb-4 text-muted-foreground">{ev.classType} - ages {ev.ageMin} to {ev.ageMax} - {ev.mode === "online" ? "Online" : ev.location}</p>
+            <p className="mb-4 text-muted-foreground">{ev.classType} - ages {ev.ageMin} to {ev.ageMax} - {ev.mode === "online" ? "Online" : `${ev.location} · ${ev.city}, ${ev.state}`}</p>
             {ev.status === "cancelled" && <div role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">This event was cancelled.{ev.cancellationReason ? ` Reason: ${ev.cancellationReason}` : ""}</div>}
             <p className="mb-6 whitespace-pre-line">{ev.description}</p>
             <div className="mb-8 grid gap-4 rounded-lg border bg-card p-4 text-sm sm:grid-cols-2">

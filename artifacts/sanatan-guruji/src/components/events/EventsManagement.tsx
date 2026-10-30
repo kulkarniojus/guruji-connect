@@ -62,7 +62,9 @@ export default function EventsManagement() {
         <ul className="space-y-3">{events.map(ev => (
           <li key={ev.id} className="rounded-lg border bg-card p-4" data-testid={`row-event-${ev.id}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div><span className="font-semibold">{ev.name}</span> <StatusBadge status={ev.status} /></div>
+              <div><span className="font-semibold">{ev.name}</span> <StatusBadge status={ev.status} />
+                {ev.city ? <span className="ml-2 text-sm text-muted-foreground">{ev.city}, {ev.state}</span> : <p className="mt-1 text-xs text-amber-700">City not set. Customers cannot see this event until you edit it and select a city.</p>}
+              </div>
               <Price event={ev} />
             </div>
             <p className="text-sm text-muted-foreground">{fmtDate(ev.startDate)} to {fmtDate(ev.endDate)} - {ev.frequency} - {ev.capacity - ev.availableSeats}/{ev.capacity} seats taken - payment: {ev.paymentMode} - v{ev.version}</p>

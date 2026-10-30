@@ -32,6 +32,7 @@ export default function EventCards({ events }: { events: EventRecord[] }) {
               <p className="flex items-center gap-1 break-words text-sm text-muted-foreground">
                 {event.mode === "online" ? <Video className="h-4 w-4 shrink-0" /> : <MapPin className="h-4 w-4 shrink-0" />}
                 {event.mode === "online" ? "Online" : event.location}
+                {" · "}{event.city}, {event.state}
               </p>
               <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2">
                 <Price event={event} />

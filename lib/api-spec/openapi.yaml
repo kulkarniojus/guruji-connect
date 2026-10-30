@@ -539,7 +539,7 @@ components:
         createdAt: { type: string, format: date-time }
     EventInput:
       type: object
-      required: [name, description, classType, ageMin, ageMax, instructorName, instructorDetails, mode, location, meetingUrl, startDate, endDate, startTime, durationMinutes, frequency, weekdays, basePrice, discountedPrice, registrationDeadline, capacity, paymentMode, media]
+      required: [name, description, classType, ageMin, ageMax, instructorName, instructorDetails, mode, city, state, location, meetingUrl, startDate, endDate, startTime, durationMinutes, frequency, weekdays, basePrice, discountedPrice, registrationDeadline, capacity, paymentMode, media]
       properties:
         name: { type: string }
         description: { type: string }
@@ -549,6 +549,8 @@ components:
         instructorName: { type: string }
         instructorDetails: { type: string }
         mode: { type: string, enum: [online, offline] }
+        city: { type: string }
+        state: { type: string }
         location: { type: string }
         meetingUrl: { type: string }
         startDate: { type: string }

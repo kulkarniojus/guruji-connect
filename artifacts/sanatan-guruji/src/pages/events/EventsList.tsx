@@ -6,13 +6,15 @@ import { Search, RefreshCw } from "lucide-react";
 import { useListEvents, getListEventsQueryKey } from "@workspace/api-client-react";
 import { EventsNav } from "@/components/events/eventUtils";
 import EventCards from "@/components/events/EventCards";
+import { useAuth } from "@/context/AuthContext";
 
 export default function EventsList() {
   const [q, setQ] = useState("");
   const [term, setTerm] = useState("");
+  const { user } = useAuth();
   const params = term ? { q: term } : undefined;
   const { data, isLoading, isError, refetch } = useListEvents(params, {
-    query: { queryKey: getListEventsQueryKey(params), refetchInterval: 60000 },
+    query: { queryKey: [...getListEventsQueryKey(params), user?.id ?? "visitor", user?.role ?? "", user?.city ?? "", user?.state ?? ""], refetchInterval: 60000 },
   });
   const events = data ?? [];
   return (
@@ -33,7 +35,7 @@ export default function EventsList() {
             <Button variant="outline" onClick={() => refetch()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button>
           </div>
         ) : events.length === 0 ? (
-          <p className="rounded-md border bg-card p-10 text-center text-muted-foreground" data-testid="text-no-events">{term ? `No events match "${term}".` : "No published events yet. Please check back soon."}</p>
+          <p className="rounded-md border bg-card p-10 text-center text-muted-foreground" data-testid="text-no-events">{term ? `No events match "${term}".` : !user ? "Sign in or create a customer account with your registered city to see events available near you." : user.role !== "customer" ? "Event listings are available to customer accounts." : user.city ? `No published events are currently available in ${user.city}${user.state ? `, ${user.state}` : ""}.` : "Add your city to your customer profile to see local events."}</p>
         ) : (
           <EventCards events={events} />
         )}

@@ -1066,6 +1066,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "User already exists with this email" });
       }
 
+      let customerCity = city;
+      let customerState = state;
+      if (role === 'customer') {
+        const cityOptions = await storageInstance.getAllCities();
+        const normalize = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase('en-IN');
+        const selectedCity = cityOptions.find(item => item.isActive &&
+          normalize(item.name) === normalize(city) && normalize(item.state) === normalize(state));
+        if (!selectedCity) {
+          return res.status(400).json({ message: 'Select your city from the active city list' });
+        }
+        customerCity = selectedCity.name;
+        customerState = selectedCity.state;
+      }
+
       if (role === 'guruji') {
         const serviceCities = (location || '').split(',').map(s=>s.trim()).filter(Boolean);
         const servicePujas = (specialization || '').split(',').map(s=>Number(s.trim()));
@@ -1092,8 +1106,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aadhar,
         caste,
         address,
-        city,
-        state,
+        city: role === 'customer' ? customerCity : city,
+        state: role === 'customer' ? customerState : state,
         pincode,
         dob,
         photoUrl,
@@ -3253,6 +3267,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'First name, last name, email, mobile and password are required' });
       }
 
+      const cityOptions = await storageInstance.getAllCities();
+      const normalize = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase('en-IN');
+      const selectedCity = cityOptions.find(item => item.isActive &&
+        normalize(item.name) === normalize(city) && normalize(item.state) === normalize(state));
+      if (!selectedCity) return res.status(400).json({ message: 'Select an active city and state from the city list' });
+
       // Check for duplicates
       const existingEmail = await storageInstance.getUserByEmail(email);
       if (existingEmail) return res.status(409).json({ message: 'Email already registered' });
@@ -3268,8 +3288,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aadhar: aadhar || null,
         caste: caste || null,
         address: address || null,
-        city: city || null,
-        state: state || null,
+        city: selectedCity.name,
+        state: selectedCity.state,
         pincode: pincode || null,
         photoUrl: photoUrl || null,
         registeredBy: salesRepId,

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { pool } from './db';
 import { isAuthenticated } from './middlewares/auth';
 import { logger } from './lib/logger';
+import { DBStorage } from './dbStorage';
 import { eventFail, eventInputSchema, eventSchedule, eventView, registrationView, notifyEventGuardians,
   syncEventSessions, reservedSeatsSql } from './eventsModel';
 import { startEventPayment, reconcileEventPayment } from './eventPayments';
@@ -16,9 +17,25 @@ const adminOnly: RequestHandler = (req,res,next) => {
   if (req.session.userRole!=='admin') { res.status(403).json({ message: 'Admin access required' }); return; } next();
 };
 async function optionalViewer(userId?: number) {
-  if (!userId) return { id: undefined, admin: false };
-  const user = (await pool.query('SELECT role,"isBlocked" FROM users WHERE id=$1', [userId])).rows[0];
-  return user && !user.isBlocked ? { id: userId, admin: user.role==='admin' } : { id: undefined, admin: false };
+  if (!userId) return { id: undefined, admin: false, role: undefined as string | undefined, city: '', state: '' };
+  const user = (await pool.query('SELECT role,"isBlocked",city,state FROM users WHERE id=$1', [userId])).rows[0];
+  return user && !user.isBlocked
+    ? { id: userId, admin: user.role==='admin', role: user.role, city: user.city || '', state: user.state || '' }
+    : { id: undefined, admin: false, role: undefined, city: '', state: '' };
+}
+const normalizeCityPart = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase('en-IN');
+function viewerMatchesEventCity(viewer: Awaited<ReturnType<typeof optionalViewer>>, event: any) {
+  return viewer.role === 'customer' && !!viewer.city && !!viewer.state &&
+    normalizeCityPart(viewer.city) === normalizeCityPart(event.city) &&
+    normalizeCityPart(viewer.state) === normalizeCityPart(event.state);
+}
+async function validateEventCity(input: z.infer<typeof eventInputSchema>) {
+  const cities = await new DBStorage().getAllCities();
+  const city = cities.find(item => item.isActive !== false &&
+    normalizeCityPart(item.name) === normalizeCityPart(input.city) &&
+    normalizeCityPart(item.state) === normalizeCityPart(input.state));
+  if (!city) throw eventFail(400, 'Select an active city from the city list');
+  return { city: city.name, state: city.state };
 }
 const registrationInput = z.object({
   requestId: z.string().uuid(), childName: z.string().trim().min(2).max(150),
@@ -36,18 +53,30 @@ eventsRouter.use(['/admin/events','/admin/event-registrations','/event-registrat
 eventsRouter.use(['/admin/events','/admin/event-registrations'],adminOnly);
 
 eventsRouter.get('/events', safe(async (req,res) => {
+  const viewer = await optionalViewer(req.session.userId);
+  if (!viewer.admin && (viewer.role !== 'customer' || !viewer.city || !viewer.state)) {
+    res.json([]);
+    return;
+  }
   const q = String(req.query.q ?? '').trim().slice(0,150);
   const ids = (await pool.query(`SELECT id FROM religious_events WHERE status='published'
     AND ($1='' OR details->>'name' ILIKE '%'||$1||'%' OR details->>'classType' ILIKE '%'||$1||'%')
-    ORDER BY details->>'startDate',id DESC`, [q])).rows;
+    AND ($2::boolean OR (lower(trim(details->>'city'))=lower(trim($3))
+      AND lower(trim(details->>'state'))=lower(trim($4))))
+    ORDER BY details->>'startDate',id DESC`, [q,viewer.admin,viewer.city,viewer.state])).rows;
   const result = [];
   for (let i=0;i<ids.length;i+=10) result.push(...await Promise.all(ids.slice(i,i+10).map(row => eventView(row.id))));
   res.json(result);
 }));
 eventsRouter.get('/events/:eventId', safe(async (req,res) => {
   const viewer = await optionalViewer(req.session?.userId);
+  const id = idOf(req.params.eventId);
+  const event = (await pool.query('SELECT status,details FROM religious_events WHERE id=$1',[id])).rows[0];
+  if (!event || (!viewer.admin && (event.status !== 'published' || !viewerMatchesEventCity(viewer,event.details)))) {
+    throw eventFail(404,'Event not found');
+  }
   res.setHeader('Cache-Control','no-store');
-  res.json(await eventView(idOf(req.params.eventId),viewer.id,viewer.admin));
+  res.json(await eventView(id,viewer.id,viewer.admin));
 }));
 eventsRouter.get('/admin/events', safe(async (_req,res) => {
   const ids = (await pool.query(`SELECT id FROM religious_events ORDER BY created_at DESC LIMIT 200`)).rows;
@@ -67,6 +96,7 @@ async function validateMedia(items: z.infer<typeof eventInputSchema>['media']) {
 }
 eventsRouter.post('/admin/events', safe(async (req,res) => {
   const input = eventInputSchema.parse(req.body);
+  await validateEventCity(input);
   eventSchedule(input);
   await validateMedia(input.media);
   const client = await pool.connect();
@@ -82,6 +112,7 @@ eventsRouter.post('/admin/events', safe(async (req,res) => {
 }));
 eventsRouter.put('/admin/events/:eventId', safe(async (req,res) => {
   const id = idOf(req.params.eventId), input = eventInputSchema.parse(req.body);
+  await validateEventCity(input);
   eventSchedule(input);
   await validateMedia(input.media);
   const client = await pool.connect();
@@ -144,7 +175,8 @@ eventsRouter.post('/admin/events/:eventId/action', safe(async (req,res) => {
   res.json(await eventView(id,undefined,true));
 }));
 eventsRouter.post('/events/:eventId/register', safe(async (req,res) => {
-  if (req.session.userRole!=='customer') throw eventFail(403,'Only a signed-in parent/customer can register a child');
+  const viewer = await optionalViewer(req.session.userId);
+  if (viewer.role!=='customer') throw eventFail(403,'Only a signed-in parent/customer can register a child');
   const id = idOf(req.params.eventId), input = registrationInput.parse(req.body);
   const client = await pool.connect();
   let registrationId: string;
@@ -152,6 +184,7 @@ eventsRouter.post('/events/:eventId/register', safe(async (req,res) => {
     await client.query('BEGIN');
     const event = (await client.query('SELECT * FROM religious_events WHERE id=$1 FOR UPDATE',[id])).rows[0];
     if (!event) throw eventFail(404,'Event not found');
+    if (event.status!=='published' || !viewerMatchesEventCity(viewer,event.details)) throw eventFail(404,'Event not found');
     const prior = (await client.query('SELECT id,event_id FROM event_registrations WHERE guardian_id=$1 AND request_id=$2',
       [req.session.userId,input.requestId])).rows[0];
     if (prior) {
