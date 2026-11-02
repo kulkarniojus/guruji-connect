@@ -28,10 +28,6 @@ export async function submitBooking(booking: CheckoutBooking): Promise<{id:numbe
   const response=await apiRequest('POST','/api/payments/checkout',{booking,requestId:attempt.requestId});
   const result=await response.json() as CheckoutStartResult;
   if (result.bookingId) { clearCheckoutAttempt(); return {id:result.bookingId}; }
-  if (result.sessionId) {
-    window.location.assign(`/payment-return?session_id=${encodeURIComponent(result.sessionId)}`);
-    return null;
-  }
   if (result.paymentSessionId) {
     await openCashfreeCheckout(result.paymentSessionId,result.providerMode||config.providerMode);
     return null;
@@ -40,10 +36,5 @@ export async function submitBooking(booking: CheckoutBooking): Promise<{id:numbe
     window.location.assign(`/payment-return?order_id=${encodeURIComponent(result.orderId)}`);
     return null;
   }
-  if (!result.checkoutUrl) throw new Error('The payment provider did not return a checkout session.');
-  const target=new URL(result.checkoutUrl);
-  if (target.protocol!=='https:' || target.hostname!=='checkout.stripe.com')
-    throw new Error('The checkout address could not be verified.');
-  window.location.assign(target.href);
-  return null;
+  throw new Error('Cashfree did not return a payment session. Please retry or contact the Vaidik Dhara support team.');
 }

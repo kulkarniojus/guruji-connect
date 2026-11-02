@@ -459,7 +459,7 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         "200":
-          description: Rechecked with Stripe; never initiates a charge
+          description: Checks a Cashfree attempt; never initiates a charge
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PaymentCheckoutResult" }
@@ -690,7 +690,6 @@ components:
       type: object
       required: [mode]
       properties:
-        url: { type: string }
         paymentSessionId: { type: string }
         orderId: { type: string }
         mode: { type: string, enum: [test, live, unavailable] }
@@ -819,11 +818,9 @@ components:
     CheckoutStartResult:
       type: object
       properties:
-        checkoutUrl: { type: string }
         paymentSessionId: { type: string }
         providerMode: { type: string, enum: [test, live, unavailable] }
         orderId: { type: string }
-        sessionId: { type: string }
         bookingId: { type: integer }
         advanceAmount: { type: number }
     PaymentCheckoutResult:

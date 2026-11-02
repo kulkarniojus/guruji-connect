@@ -62,8 +62,7 @@ export function classifyNavigation(target: string, portal: string): NavigationDe
     if (url.protocol === 'https:') {
       // Keep hosted checkout in the same WebView so the return retains the
       // customer's existing portal session. Other external sites stay outside.
-      if (['payments.cashfree.com','payments-test.cashfree.com',
-        'checkout.stripe.com','hooks.stripe.com','payments.stripe.com'].includes(url.hostname)) return 'payment';
+      if (['payments.cashfree.com','payments-test.cashfree.com'].includes(url.hostname)) return 'payment';
       return url.origin === new URL(portal).origin ? 'internal' : 'external';
     }
     if (paymentAppTarget(target)) return 'payment-app';

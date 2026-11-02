@@ -1,13 +1,13 @@
 ---
-name: Cashfree gateway migration
-description: Preserve original payment sources and separate sandbox from real customer collections
+name: Cashfree-only payments
+description: Cashfree is the only active online payment provider; old Stripe records remain archived
 ---
 
-New checkout uses Cashfree, but retain Stripe references and its refund path for historical Stripe payments. Never migrate an original transaction's provider merely because the default checkout gateway changes.
+Cashfree is the only supported online payment provider in this project. Do not reintroduce Stripe checkout, webhook, SDK, sync, or automatic refund code without an explicit new request. Keep historical Stripe transaction rows for read-only records; route outstanding legacy refunds to the audited manual-refund process.
 
-**Why:** Refunds must go through the gateway that collected the payment. The user requested replacement of new checkout, not deletion of old payment history.
+**Why:** The user explicitly chose to remove all Stripe support after Cashfree was integrated, while retaining existing financial history rather than deleting it.
 
-**How to apply:** Add provider-aware fields and preserve historical references when extending payments, reports, refunds or reconciliation.
+**How to apply:** New puja/event checkout and automated refunds use Cashfree only. Never retry or reconcile archived Stripe attempts through a provider API. The Replit-level Stripe connector and old secrets must be disconnected/deleted manually in project settings; application source no longer uses them.
 
 Cashfree sandbox must stay development-only; published payments require separately configured production credentials and merchant/domain approval. Connecting credentials must not change the admin's payment-required toggle.
 

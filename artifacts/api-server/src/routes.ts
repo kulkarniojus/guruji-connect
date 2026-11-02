@@ -32,8 +32,8 @@ import { initializeGurujiFinance } from './gurujiFinanceStore';
 import { startGurujiFinanceScheduler } from './gurujiFinanceScheduler';
 import { gurujiFinanceRouter } from './routes/guruji-finance';
 import { cancellationsRouter } from './routes/cancellations';
-import { initializePaymentStorage, initializeStripeGateway, initializeCashfreeGateway, paymentSettings, savePaymentSettings,
-  startCheckout, checkoutResult, processPaymentWebhook, processCashfreeWebhook, checkoutReturnOrigin } from './stripePayments';
+import { initializePaymentStorage, initializeCashfreeGateway, paymentSettings, savePaymentSettings,
+  startCheckout, checkoutResult, processCashfreeWebhook, checkoutReturnOrigin } from './stripePayments';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -289,7 +289,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize admin user and app settings
   await initializeAppSettings();
   await initializePaymentStorage();
-  await initializeStripeGateway();
   await initializeCashfreeGateway();
   // No sample accounts are created or re-enabled on application startup.
 
@@ -2448,21 +2447,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/payments/checkouts/:id/reconcile',isAuthenticated,isAdmin,async(req,res)=>{
     try {
       if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({message:'Invalid payment attempt'});
-       const order=(await pool.query(`SELECT customer_id,COALESCE(cashfree_order_id,stripe_session_id) AS ref
+       const order=(await pool.query(`SELECT customer_id,cashfree_order_id,payment_provider
          FROM portal_checkout_orders WHERE id=$1`,[req.params.id])).rows[0];
-       if (!order?.ref) return res.status(404).json({message:'Checkout session not found'});
-       return res.json(await checkoutResult(order.customer_id,order.ref,paidBookingEligible,paidBookingBroadcast));
+       if (!order) return res.status(404).json({message:'Checkout session not found'});
+       if (order.payment_provider!=='cashfree'||!order.cashfree_order_id)
+         return res.status(410).json({message:'This legacy payment cannot be reconciled in the portal. Contact the Vaidik Dhara support team.'});
+       return res.json(await checkoutResult(order.customer_id,req.params.id,paidBookingEligible,paidBookingBroadcast));
      } catch(error:any) { return res.status(error.status||503).json({message:error.status?error.message:'Payment verification is unavailable. No new charge was made.'}); }
-  });
-  app.post('/api/stripe/webhook',async(req,res)=>{
-    const signature=req.headers['stripe-signature'];
-    if (!signature || Array.isArray(signature)) return res.status(400).json({message:'A Stripe signature is required'});
-    try {
-      await processPaymentWebhook(req.body,signature,paidBookingEligible,paidBookingBroadcast);
-      return res.json({received:true});
-    } catch(error:any) {
-      return res.status(error.type==='StripeSignatureVerificationError'?400:500).json({message:'Payment webhook verification or processing failed'});
-    }
   });
   app.post('/api/cashfree/webhook',async(req,res)=>{
     const signature=req.headers['x-webhook-signature'];

@@ -276,7 +276,6 @@ export const EventCheckoutResultMode = {
 } as const;
 
 export interface EventCheckoutResult {
-  url?: string;
   paymentSessionId?: string;
   orderId?: string;
   mode: EventCheckoutResultMode;
@@ -471,11 +470,9 @@ export const CheckoutStartResultProviderMode = {
 } as const;
 
 export interface CheckoutStartResult {
-  checkoutUrl?: string;
   paymentSessionId?: string;
   providerMode?: CheckoutStartResultProviderMode;
   orderId?: string;
-  sessionId?: string;
   bookingId?: number;
   advanceAmount?: number;
 }

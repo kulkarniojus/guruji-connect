@@ -216,7 +216,6 @@ export const StartEventCheckoutParams = zod.object({
 })
 
 export const StartEventCheckoutResponse = zod.object({
-  "url": zod.string().optional(),
   "paymentSessionId": zod.string().optional(),
   "orderId": zod.string().optional(),
   "mode": zod.enum(['test', 'live', 'unavailable'])
@@ -919,11 +918,9 @@ export const StartBookingCheckoutBody = zod.object({
 })
 
 export const StartBookingCheckoutResponse = zod.object({
-  "checkoutUrl": zod.string().optional(),
   "paymentSessionId": zod.string().optional(),
   "providerMode": zod.enum(['test', 'live', 'unavailable']).optional(),
   "orderId": zod.string().optional(),
-  "sessionId": zod.string().optional(),
   "bookingId": zod.number().int().optional(),
   "advanceAmount": zod.number().optional()
 })

@@ -17,14 +17,6 @@ test('Cashfree checkout hosts and UPI intents are narrowly allowlisted',()=>{
   assert.equal(paymentAppTarget('upi://evil?pa=fixture%40upi'),null);
 });
 
-test('hosted Stripe checkout stays in the portal WebView without trusting lookalikes',()=>{
-  for(const host of ['checkout.stripe.com','hooks.stripe.com','payments.stripe.com'])
-    assert.equal(classifyNavigation(`https://${host}/pay/test`,origin),'payment');
-  assert.equal(classifyNavigation('https://checkout.stripe.com.evil.test/pay',origin),'external');
-  assert.equal(classifyNavigation('http://checkout.stripe.com/pay',origin),'blocked');
-  assert.equal(classifyNavigation('https://evil.test@checkout.stripe.com/pay',origin),'blocked');
-});
-
 test('release never falls back to the development portal', () => {
   assert.equal(resolvePortalConfig({ development: false, developmentDomain: 'fixture.replit.dev' }).ok, false);
   for (const value of ['https://fixture.replit.dev', 'http://portal.example.test', 'https://localhost',

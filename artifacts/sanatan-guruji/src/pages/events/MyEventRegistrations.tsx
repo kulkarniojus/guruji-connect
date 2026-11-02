@@ -83,10 +83,6 @@ export default function MyEventRegistrations() {
       onSuccess: async res => {
         try {
           if (res.paymentSessionId) { await openCashfreeCheckout(res.paymentSessionId,res.mode); return; }
-          if (res.url) {
-            const u = new URL(res.url);
-            if (u.protocol === "https:" && u.hostname === "checkout.stripe.com") { window.location.assign(u.toString()); return; }
-          }
           if (res.orderId) { doReconcile(id,true); return; }
           throw new Error("The payment provider did not return a checkout session.");
         } catch(e) { setMsg(m => ({ ...m, [id]: errMsg(e) })); }

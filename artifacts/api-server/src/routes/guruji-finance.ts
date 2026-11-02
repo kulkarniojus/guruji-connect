@@ -88,7 +88,7 @@ gurujiFinanceRouter.post(`${root}/receipts/:id/void`,endpoint(async(req,res,acto
     await client.query('SELECT pg_advisory_xact_lock(8158,$1)',[old.booking_id]);
     if ((await client.query(`SELECT id FROM portal_checkout_orders WHERE booking_id=$1 AND stripe_payment_intent_id=$2`,
       [old.booking_id,old.reference])).rows.length)
-      throw financeError(409,'This is a verified Stripe collection and cannot be voided. Record an actual refund separately in Customer Activity.');
+      throw financeError(409,'This verified online collection cannot be voided. Record an actual refund separately in Customer Activity.');
     if ((await client.query(`SELECT id FROM customer_finance_entries WHERE booking_id=$1 AND type='refund' LIMIT 1`,
       [old.booking_id])).rows.length)
       throw financeError(409,'This booking has a recorded paid refund. Its source receipt cannot be voided without an audited refund correction.');

@@ -231,7 +231,7 @@ export async function reconcileRefundRequest(requestId: number) {
     return {status,cashfreeRefundId:request.cashfree_refund_id};
   }
   if (Number(request.stripe_amount_paise)>0)
-    throw fail(410,'This legacy refund was not reconciled after Stripe support was removed. Verify it manually and record the payout with the Vaidik Dhara support team.');
+    throw fail(410,'This legacy refund is archived and cannot be checked by the portal. Contact the Vaidik Dhara support team for manual review.');
   return { status: request.status };
 }
 
@@ -243,7 +243,22 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
     request = (await client.query('SELECT * FROM customer_refund_requests WHERE id=$1 FOR UPDATE',[requestId])).rows[0];
     if (!request) throw fail(404,'Refund request not found');
     if (!['pending','failed'].includes(request.status)) throw fail(409,'This refund request is not awaiting approval or retry');
-    if (Number(request.stripe_amount_paise) <= 0 && Number(request.cashfree_amount_paise)<=0) {
+    // Legacy gateway refunds are no longer sent through a provider. If an
+    // outstanding request is approved now, route it into the existing audited
+    // manual-payout workflow instead.
+    const retiredGatewayAmount=Number(request.stripe_amount_paise)||0;
+    if (retiredGatewayAmount>0) {
+      const manualAmount=Number(request.manual_amount_paise)+retiredGatewayAmount;
+      const sourceKind=Number(request.cashfree_amount_paise)>0?'mixed':'manual';
+      await client.query(`UPDATE customer_refund_requests SET stripe_amount_paise=0,
+        stripe_payment_intent_id=NULL,stripe_session_id=NULL,stripe_refund_id=NULL,
+        manual_amount_paise=$2,source_kind=$3,status='pending',updated_at=now() WHERE id=$1`,
+        [requestId,manualAmount,sourceKind]);
+      request.stripe_amount_paise=0;
+      request.manual_amount_paise=manualAmount;
+      request.status='pending';
+    }
+    if (Number(request.cashfree_amount_paise)<=0) {
       if (request.status!=='pending') throw fail(409,'This manual refund request has already been processed');
       await client.query(`UPDATE customer_refund_requests SET status='manual_pending',approved_by=$2,
         approved_at=now(),updated_at=now() WHERE id=$1`,[requestId,adminId]);
@@ -256,12 +271,12 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
       await client.query('SELECT pg_advisory_xact_lock(8158,$1)',[request.booking_id]);
       const booking=(await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE',[request.booking_id])).rows[0];
       const funds=await bookingCustomerFunds(client,booking);
-      if (asPaise(funds.refundOwed)<Number(request.stripe_amount_paise)+Number(request.cashfree_amount_paise))
+      if (asPaise(funds.refundOwed)<Number(request.amount_paise))
         throw fail(409,'The outstanding booking refund changed. Reconcile the customer finance record before issuing this refund.');
     } else {
       const registration=(await client.query('SELECT * FROM event_registrations WHERE id=$1 FOR UPDATE',[request.event_registration_id])).rows[0];
       if (!registration || registration.paid_paise-registration.refunded_paise<
-          Number(request.stripe_amount_paise)+Number(request.cashfree_amount_paise))
+          Number(request.amount_paise))
         throw fail(409,'The outstanding event refund changed. Review event payment records before issuing this refund.');
     }
     const cashfreeRefundId=Number(request.cashfree_amount_paise)>0
@@ -308,48 +323,13 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
         status==='manual_pending'?'Cashfree refund issued. The manual remainder still needs payout.':
         'Refund submitted to Cashfree and is still processing.',cashfreeRefundId:refundId};
     }
-    const stripe = await getUncachableStripeClient();
-    let paymentIntentId = request.stripe_payment_intent_id;
-    if (request.event_registration_id) {
-      if (!request.stripe_session_id) throw fail(409,'The original Stripe checkout session is missing. Do not issue a refund until the payment source is verified.');
-      const session = await stripe.checkout.sessions.retrieve(request.stripe_session_id);
-      const registration=(await pool.query('SELECT * FROM event_registrations WHERE id=$1',[request.event_registration_id])).rows[0];
-      if (!registration || registration.is_test || session.metadata?.portal_kind!=='event_registration' ||
-          session.metadata?.event_registration_id!==request.event_registration_id ||
-          session.client_reference_id!==request.event_registration_id ||
-          session.payment_status !== 'paid' || session.livemode !== true || session.currency!=='inr' ||
-          session.amount_total!==registration.fee_paise || !session.payment_intent)
-        throw fail(409,'The original event payment could not be verified as a live Stripe payment. No refund was sent.');
-      paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id;
-    }
-    if (!paymentIntentId) throw fail(409,'The original Stripe payment reference is missing. No refund was sent.');
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    if (paymentIntent.status !== 'succeeded' || !paymentIntent.livemode || paymentIntent.currency !== 'inr')
-      throw fail(409,'The original Stripe payment is not a verified live INR payment. No refund was sent.');
-    const priorRefunds=await stripe.refunds.list({payment_intent:paymentIntentId,limit:100});
-    const attempts=priorRefunds.data
-      .filter(item=>item.metadata?.customer_refund_request_id===String(requestId))
-      .sort((a,b)=>b.created-a.created);
-    const activeAttempt=attempts.find(item=>item.status!==null&&['pending','succeeded'].includes(item.status));
-    if (activeAttempt && activeAttempt.amount!==Number(request.stripe_amount_paise))
-      throw fail(409,'A prior Stripe refund for this request has a different amount. Review it in Stripe before continuing.');
-    const refund = activeAttempt || await stripe.refunds.create({
-        payment_intent:paymentIntentId,
-        amount:Number(request.stripe_amount_paise),
-        reason:'requested_by_customer',
-        metadata:{customer_refund_request_id:String(requestId)},
-      }, { idempotencyKey:`sg-customer-refund-${requestId}-attempt-${attempts.length+1}` });
-    const status = await recordSuccessfulRefund(requestId,refund);
-    return { status,message: status==='paid'?'Stripe refund issued to the original payment method.':
-      status==='manual_pending'?'Stripe refund issued. The manual remainder still needs payout.':
-      'Refund submitted to Stripe and is still processing.',stripeRefundId:refund.id };
+    throw fail(410,'This legacy payment cannot be refunded through an online provider. Contact the Vaidik Dhara support team to arrange and record a manual refund.');
   } catch (error: any) {
     const isCashfree=Number(request.cashfree_amount_paise)>0;
     const safeFailure=typeof error?.status==='number' && error.status>=400 && error.status<500;
     await pool.query(`UPDATE customer_refund_requests SET status=CASE WHEN $3 AND NOT $4 THEN 'processing' ELSE 'failed' END,
-      stripe_failure=CASE WHEN $3 THEN stripe_failure ELSE $2 END,
       cashfree_failure=CASE WHEN $3 THEN $2 ELSE cashfree_failure END,updated_at=now()
-      WHERE id=$1 AND status='processing'`,[requestId,String(error?.message || 'Payment provider refund failed').slice(0,1000),isCashfree,safeFailure]);
+      WHERE id=$1 AND status='processing'`,[requestId,String(error?.message || 'Cashfree refund failed').slice(0,1000),isCashfree,safeFailure]);
     throw error;
   }
 }

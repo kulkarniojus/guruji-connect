@@ -3,15 +3,13 @@ import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { DBStorage } from '../dbStorage';
 import { pool } from '../db';
 import { ObjectStorageService } from '../lib/objectStorage';
-import { getUncachableStripeClient } from '../stripeClient';
-import { completeEventPayment } from '../eventPayments';
 import { browserClient } from './browser-client';
 import { eventSchedule, eventInputSchema } from '../eventsModel';
 
 const base = `https://${process.env.REPLIT_DEV_DOMAIN}`;
 if (!base.endsWith('.replit.dev')) throw new Error('Development fixtures only');
 const tag = `verify-events-${randomBytes(5).toString('hex')}`, password = randomBytes(20).toString('hex');
-const store = new DBStorage(), users:number[] = [], eventIds:number[] = [], mediaIds:string[] = [], stripeSessions:string[] = [], stripeProducts:string[] = [], stripePrices:string[] = [];
+const store = new DBStorage(), users:number[] = [], eventIds:number[] = [], mediaIds:string[] = [];
 let browser:Awaited<ReturnType<typeof browserClient>>|undefined;
 let fixtureCity = { name: '', state: '' };
 const day = (offset:number) => new Date(Date.now()+offset*86400000).toISOString().slice(0,10);
@@ -41,7 +39,7 @@ try {
   fixtureCity = { name: activeCities[0].name, state: activeCities[0].state };
   const admin=await account('admin'),customer=await account('customer'),matchingCustomer2=await account('customer'),
     outsider=await account('customer',{name:'Nonmatching test city',state:'Nonmatching test state'}),guruji=await account('guruji');
-  const originalPujaPayments=(await pool.query('SELECT stripe_payments_enabled,advance_percentage FROM app_settings LIMIT 1')).rows[0];
+  const originalPujaPayments=(await pool.query('SELECT payments_enabled,advance_percentage FROM app_settings LIMIT 1')).rows[0];
   const scheduled=eventSchedule(eventInputSchema.parse({...input(),frequency:'daily',endDate:day(10)}));
   assert.equal(scheduled.length,3); assert.equal(scheduled[0].start.toISOString().slice(11,16),'04:30');
   assert.equal((await api('/api/pujas')).status,200,'Existing public puja catalogue remains accessible');
@@ -182,40 +180,28 @@ try {
   const onlineReg=await api(`/api/events/${onlineEvent.id}/register`,customer.cookie,'POST',
     {...regBody,requestId:randomUUID(),eventVersion:onlineEvent.version,paymentMethod:'online'});
   assert.equal(onlineReg.status,201); const onlineId=onlineReg.data.id;
-  assert.equal(onlineReg.data.status,'pending_payment','Online registration remains pending until Stripe verifies payment');
+  assert.equal(onlineReg.data.status,'pending_payment','Online registration remains pending until Cashfree verifies payment');
   assert.equal((await api(`/api/admin/event-registrations/${onlineId}/confirm`,admin.cookie,'POST')).status,409,'Admin offline confirmation cannot confirm an online registration');
   assert.equal((await api(`/api/event-registrations/${onlineId}/checkout`,outsider.cookie,'POST')).status,404);
   const checkout=await api(`/api/event-registrations/${onlineId}/checkout`,customer.cookie,'POST');
   assert.equal(checkout.status,200,JSON.stringify({message:checkout.data?.message}));
-  assert.equal(checkout.data.mode,'test'); assert.equal(new URL(checkout.data.url).hostname,'checkout.stripe.com');
-  assert.equal((await api(`/api/event-registrations/${onlineId}/checkout`,customer.cookie,'POST')).data.url,checkout.data.url);
-  const linked=(await pool.query('SELECT stripe_session_id,stripe_price_id FROM event_registrations WHERE id=$1',[onlineId])).rows[0];
-  stripeSessions.push(linked.stripe_session_id); stripePrices.push(linked.stripe_price_id);
-  const stripe=await getUncachableStripeClient(),session=await stripe.checkout.sessions.retrieve(linked.stripe_session_id);
-  assert.equal(session.livemode,false); assert.equal(session.amount_total,8000);
-  const price=await stripe.prices.retrieve(linked.stripe_price_id); stripeProducts.push(String(price.product));
-  assert.equal(price.currency,'inr');
+  assert.equal(checkout.data.mode,'test'); assert.ok(checkout.data.orderId); assert.ok(checkout.data.paymentSessionId);
+  const repeatedCheckout=await api(`/api/event-registrations/${onlineId}/checkout`,customer.cookie,'POST');
+  assert.equal(repeatedCheckout.data.orderId,checkout.data.orderId,'Retry reuses the same Cashfree order');
+  assert.ok(repeatedCheckout.data.paymentSessionId,'Cashfree may refresh the checkout session token');
+  const linked=(await pool.query('SELECT cashfree_order_id FROM event_registrations WHERE id=$1',[onlineId])).rows[0];
+  assert.ok(linked.cashfree_order_id);
   assert.equal((await api(`/api/event-registrations/${onlineId}/reconcile`,customer.cookie,'POST',{paid:true})).data.paid,0,'Client paid flags never confirm money');
   assert.equal((await api(`/api/admin/event-registrations/${onlineId}/payments`,admin.cookie,'POST',firstPayment)).status,409,'Online payment cannot be manually marked paid');
-  assert.equal((await api('/api/stripe/webhook','','POST',{type:'checkout.session.completed',data:{object:{...session,payment_status:'paid'}}},
-    {'stripe-signature':'invalid-signature'})).status,400,'Forged webhook is rejected');
-  // Unit-level handler fixture, not a real card payment: exercise idempotent
-  // accounting after the trusted verification boundary without charging money.
-  await completeEventPayment({...session,payment_status:'paid'});
-  await completeEventPayment({...session,payment_status:'paid'});
+  assert.equal((await api('/api/cashfree/webhook','','POST',{data:{order:{order_id:linked.cashfree_order_id},payment:{payment_status:'SUCCESS'}}},
+    {'x-webhook-signature':'invalid-signature','x-webhook-timestamp':'1700000000000'})).status,400,'Forged webhook is rejected');
   const verified=(await api('/api/event-registrations',customer.cookie)).data.find((r:any)=>r.id===onlineId);
-  assert.equal(verified.paid,80); assert.equal(verified.isTest,true); assert.equal(verified.payments.length,1);
-  assert.equal(verified.status,'registered','Verified online payment automatically confirms registration');
-  assert.deepEqual((await pool.query('SELECT stripe_payments_enabled,advance_percentage FROM app_settings LIMIT 1')).rows[0],originalPujaPayments);
-  console.log('PASS: rescheduling/history, frozen fees, cancellations/refund tracking, notifications/rate limits, concurrent capacity, free registration, real TEST hosted checkout, unpaid reconciliation/signature rejection, idempotent payment-handler fixture. No real charge made; puja payment settings unchanged.');
+  assert.equal(verified.paid,0); assert.equal(verified.payments.length,0);
+  assert.equal(verified.status,'pending_payment','Unpaid Cashfree order cannot confirm registration');
+  assert.deepEqual((await pool.query('SELECT payments_enabled,advance_percentage FROM app_settings LIMIT 1')).rows[0],originalPujaPayments);
+  console.log('PASS: rescheduling/history, frozen fees, cancellations/refund tracking, notifications/rate limits, concurrent capacity, free registration, Cashfree sandbox checkout, unpaid reconciliation/signature rejection. No real charge made; puja payment settings unchanged.');
 } finally {
   if(browser) await browser.close();
-  if(stripeSessions.length) {
-    const stripe=await getUncachableStripeClient();
-    for(const id of stripeSessions) try { await stripe.checkout.sessions.expire(id); } catch {}
-    for(const id of stripePrices) try { await stripe.prices.update(id,{active:false}); } catch {}
-    for(const id of stripeProducts) try { await stripe.products.update(id,{active:false}); } catch {}
-  }
   if(eventIds.length) await pool.query('DELETE FROM religious_events WHERE id=ANY($1)',[eventIds]);
   for(const id of mediaIds) {
     const row=(await pool.query('SELECT object_path FROM event_media WHERE id=$1',[id])).rows[0];

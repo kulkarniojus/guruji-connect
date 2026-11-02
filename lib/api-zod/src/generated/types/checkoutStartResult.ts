@@ -8,11 +8,9 @@
 import type { CheckoutStartResultProviderMode } from './checkoutStartResultProviderMode';
 
 export interface CheckoutStartResult {
-  checkoutUrl?: string;
   paymentSessionId?: string;
   providerMode?: CheckoutStartResultProviderMode;
   orderId?: string;
-  sessionId?: string;
   bookingId?: number;
   advanceAmount?: number;
 }

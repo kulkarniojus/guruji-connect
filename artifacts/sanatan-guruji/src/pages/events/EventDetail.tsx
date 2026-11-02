@@ -17,15 +17,6 @@ import {
 import { EventsNav, Price, StatusBadge, DAYS, errMsg, fmtDate, fmtDateTime, newRequestId } from "@/components/events/eventUtils";
 import { openCashfreeCheckout } from "@/components/payments/cashfreeCheckout";
 
-function safeStripeUrl(raw: string): string | null {
-  try {
-    const u = new URL(raw);
-    if (u.protocol !== "https:") return null;
-    if (u.hostname === "checkout.stripe.com") return u.toString();
-  } catch { /* invalid */ }
-  return null;
-}
-
 export default function EventDetail() {
   const params = useParams<{ eventId: string }>();
   const eventId = Number(params.eventId);
@@ -62,10 +53,6 @@ export default function EventDetail() {
       onSuccess: async res => {
         try {
           if (res.paymentSessionId) { await openCashfreeCheckout(res.paymentSessionId,res.mode); return; }
-          if (res.url) {
-            const url = safeStripeUrl(res.url);
-            if (url) { window.location.assign(url); return; }
-          }
           if (res.orderId) { window.location.assign(`/events/registrations?registrationId=${encodeURIComponent(registrationId)}&payment=return`); return; }
           throw new Error("The payment provider did not return a checkout session.");
         } catch(e) { setError(errMsg(e)); }

@@ -15,8 +15,6 @@ process.on('uncaughtException', (err: any) => {
 const app = express();
 // The shared gateway terminates HTTPS; production session cookies remain secure.
 app.set("trust proxy", 1);
-// Stripe signatures must be checked against the original bytes.
-app.use('/api/stripe/webhook', express.raw({type:'application/json',limit:'2mb'}));
 // Cashfree signs the exact raw JSON bytes using its webhook timestamp header.
 app.use('/api/cashfree/webhook', express.raw({type:'application/json',limit:'2mb'}));
 app.use(express.json());
@@ -54,7 +52,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       // Completion responses can contain a customer's private OTP or audit details.
-      if (capturedJsonResponse && !/\/(?:completion|communications|notifications|bookings|booking-requests|addresses|payments|stripe|mobile|samagri|events|event-registrations|event-media|customer\/refunds)(?:\/|$)/.test(path)) {
+      if (capturedJsonResponse && !/\/(?:completion|communications|notifications|bookings|booking-requests|addresses|payments|mobile|samagri|events|event-registrations|event-media|customer\/refunds)(?:\/|$)/.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
       if (logLine.length > 80) {

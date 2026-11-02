@@ -7,7 +7,7 @@ type RefundStatusView = {
 };
 
 function refundStatusView(refund: CustomerRefundProgress): RefundStatusView {
-  const gateway=Number(refund.cashfreeAmount)>0?"Cashfree":"Stripe";
+  const gateway=Number(refund.cashfreeAmount)>0?"Cashfree":"the payment provider";
   if (refund.status === "pending") {
     return {
       title: "Awaiting support-team review",
@@ -17,6 +17,13 @@ function refundStatusView(refund: CustomerRefundProgress): RefundStatusView {
   }
 
   if (refund.status === "processing") {
+    if (Number(refund.stripeAmount)>0) {
+      return {
+        title: "Legacy refund needs support-team review",
+        detail: "This older payment cannot be checked by the portal. Contact the Vaidik Dhara support team.",
+        color: "border-amber-300 bg-amber-50 text-amber-950",
+      };
+    }
     return {
       title: `${gateway} refund processing`,
       detail: "The refund is being returned to the original payment method.",

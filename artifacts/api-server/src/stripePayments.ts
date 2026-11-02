@@ -36,6 +36,7 @@ export function checkoutReturnOrigin(requestOrigin?: string) {
 export async function initializePaymentStorage() {
   // Copy the existing payment switch once, then use its provider-neutral name.
   await pool.query(`ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS payments_enabled boolean;
+    ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS stripe_payments_enabled boolean NOT NULL DEFAULT false;
     UPDATE app_settings SET payments_enabled=COALESCE(payments_enabled,stripe_payments_enabled,false)
       WHERE payments_enabled IS NULL;
     ALTER TABLE app_settings ALTER COLUMN payments_enabled SET DEFAULT false;
@@ -402,7 +403,7 @@ export async function checkoutResult(customerId: number, sessionId: string, elig
   if (!order) {
     const retired=(await pool.query('SELECT id FROM portal_checkout_orders WHERE customer_id=$2 AND stripe_session_id=$1',
       [sessionId,customerId])).rows[0];
-    if (retired) throw fail(410,'This Stripe payment attempt is retired. Contact the Vaidik Dhara support team for help.');
+    if (retired) throw fail(410,'This archived payment attempt is no longer supported. Contact the Vaidik Dhara support team for help.');
     throw fail(404,'Payment attempt not found.');
   }
   if (order.payment_provider !== 'cashfree')

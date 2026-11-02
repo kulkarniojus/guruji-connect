@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { ZodError, z } from 'zod';
 import { pool } from '../db';
 import { isAuthenticated, checkRole } from '../middlewares/auth';
-import { approveRefundRequest, getAdminRefundRequests, getCustomerRefundRequests, reconcileStripeRefund, settleManualRefund } from '../customerRefunds';
+import { approveRefundRequest, getAdminRefundRequests, getCustomerRefundRequests, reconcileRefundRequest, settleManualRefund } from '../customerRefunds';
 import { logger } from '../lib/logger';
 
 export const refundsRouter = Router();
@@ -54,7 +54,7 @@ refundsRouter.post('/api/admin/refunds/:id/approve',endpoint(async(req,res,admin
 }));
 
 refundsRouter.post('/api/admin/refunds/:id/reconcile',endpoint(async(req,res)=>{
-  const result=await reconcileStripeRefund(positiveId.parse(req.params.id));
+  const result=await reconcileRefundRequest(positiveId.parse(req.params.id));
   res.json(result);
 }));
 

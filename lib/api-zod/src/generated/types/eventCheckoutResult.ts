@@ -8,7 +8,6 @@
 import type { EventCheckoutResultMode } from './eventCheckoutResultMode';
 
 export interface EventCheckoutResult {
-  url?: string;
   paymentSessionId?: string;
   orderId?: string;
   mode: EventCheckoutResultMode;

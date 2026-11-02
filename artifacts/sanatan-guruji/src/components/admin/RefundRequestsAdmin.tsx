@@ -118,8 +118,10 @@ export default function RefundRequestsAdmin() {
               : `${item.pujaName || 'Puja'} · Booking #${item.bookingId}`;
             const busy = approve.isPending || reconcile.isPending || settle.isPending;
             const pendingApproval = item.status === 'pending' || item.status === 'failed';
-            const onlineAmount=Number(item.stripeAmount||0)+Number(item.cashfreeAmount||0);
-            const gateway=Number(item.cashfreeAmount)>0?'Cashfree':'Stripe';
+            const legacyAmount=Number(item.stripeAmount||0);
+            const onlineAmount=Number(item.cashfreeAmount||0);
+            const manualAmount=Number(item.manualAmount||0)+legacyAmount;
+            const gateway='Cashfree';
             const transferReference = references[item.id] || '';
             return (
               <li key={item.id} className="space-y-3 rounded-lg border bg-background p-4" data-testid={`refund-request-${item.id}`}>
@@ -137,14 +139,14 @@ export default function RefundRequestsAdmin() {
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                   <p><span className="text-muted-foreground">Total due</span><br /><strong>{rupees(item.amount)}</strong></p>
-                  {item.stripeAmount > 0 && <p><span className="text-muted-foreground">Stripe to original method</span><br /><strong>{rupees(item.stripeAmount)}</strong></p>}
+                  {legacyAmount > 0 && <p><span className="text-muted-foreground">Archived gateway · manual payout</span><br /><strong>{rupees(legacyAmount)}</strong></p>}
                   {item.cashfreeAmount > 0 && <p><span className="text-muted-foreground">Cashfree to original method</span><br /><strong>{rupees(item.cashfreeAmount)}</strong></p>}
                   {item.manualAmount > 0 && <p><span className="text-muted-foreground">Manual payout</span><br /><strong>{rupees(item.manualAmount)}</strong></p>}
                   <p><span className="text-muted-foreground">Payment source</span><br /><strong className="capitalize">{item.sourceKind}</strong></p>
                 </div>
                 <p className="text-sm"><span className="font-medium">Cancellation reason:</span> {item.reason}</p>
-                {item.stripeRefundId && <p className="text-xs text-muted-foreground">Stripe refund reference: {item.stripeRefundId}</p>}
-                {item.stripeFailure && <p role="alert" className="text-sm text-red-700">Stripe status needs review: {item.stripeFailure}</p>}
+                {item.stripeRefundId && <p className="text-xs text-muted-foreground">Archived external refund reference: {item.stripeRefundId}</p>}
+                {legacyAmount>0 && <p role="status" className="text-sm text-amber-900">This archived gateway refund is not processed or checked by the portal. A pending approval will move it into manual-payout tracking for the support team to settle.</p>}
                 {item.cashfreeRefundId && <p className="text-xs text-muted-foreground">Cashfree refund reference: {item.cashfreeRefundId}</p>}
                 {item.cashfreeFailure && <p role="alert" className="text-sm text-red-700">Cashfree status needs review: {item.cashfreeFailure}</p>}
 
@@ -156,14 +158,14 @@ export default function RefundRequestsAdmin() {
                     onClick={() => {
                       const prompt = onlineAmount > 0
                         ? `Issue a ${gateway} refund of ${rupees(onlineAmount)} to the original payment method for ${title}?`
-                        : `Approve the manual refund of ${rupees(item.manualAmount)} for ${title}?`;
+                        : `Approve the manual refund of ${rupees(manualAmount)} for ${title}?`;
                       if (window.confirm(prompt)) approve.mutate(item.id);
                     }}>
                     {approve.isPending && approve.variables === item.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {item.status === 'failed' ? 'Retry refund safely' : onlineAmount > 0 ? `Approve & issue ${gateway} refund` : 'Approve manual payout'}
+                    {item.status === 'failed' ? onlineAmount > 0 ? 'Retry Cashfree refund' : 'Approve manual payout' : onlineAmount > 0 ? `Approve & issue ${gateway} refund` : 'Approve manual payout'}
                   </Button>
                 </div>}
-                {item.status === 'processing' && <Button size="sm" variant="outline" disabled={busy}
+                {item.status === 'processing' && onlineAmount>0 && <Button size="sm" variant="outline" disabled={busy}
                   onClick={() => reconcile.mutate(item.id)}>
                   {reconcile.isPending && reconcile.variables === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
                   Check refund status

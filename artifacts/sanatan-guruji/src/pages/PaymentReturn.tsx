@@ -11,12 +11,12 @@ import { queryClient } from '@/lib/queryClient';
 
 export default function PaymentReturn() {
   const params=new URLSearchParams(window.location.search);
-  const sessionId=params.get('session_id'),orderId=params.get('order_id');
+  const orderId=params.get('order_id'),archivedAttemptId=params.get('session_id');
   const result=useQuery<PaymentCheckoutResult>({
     queryKey:['payment-return',sessionId,orderId],
     queryFn:async()=>{
-      let id=sessionId;
-      if (!id && orderId) {
+      let id:string|null=archivedAttemptId;
+      if (orderId) {
         const response=await fetch(`/api/payments/orders/${encodeURIComponent(orderId)}`,{credentials:'include'});
         if (!response.ok) throw new Error('Your checkout could not be loaded. Please retry verification.');
         const order=await response.json() as PaymentOrderSummary;

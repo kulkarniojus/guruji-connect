@@ -109,7 +109,7 @@ export default function PaymentSettingsTab() {
                 onChange={e=>setForm(previous=>previous?{...previous,advancePercentage:Number(e.target.value)}:previous)} />
               <p className="text-xs text-muted-foreground">Example: ₹3,000 at {form.advancePercentage}% collects ₹{(Math.round(300000*form.advancePercentage/100)/100).toFixed(2)} online; the rest is paid directly to Guruji. This is separate from your commission configuration. Existing booking totals and paid advances never change when settings change.</p>
             </div>
-            <p className="text-sm text-muted-foreground">Payment does not mean a Guruji has accepted. Failed/cancelled checkout sends no request. Cancellation deductions use the configured policy and actual collections. Refunds require admin approval and return through the original gateway; existing Stripe transactions remain supported. Manual payouts are paid and recorded by the support team.</p>
+            <p className="text-sm text-muted-foreground">Payment does not mean a Guruji has accepted. Failed/cancelled checkout sends no request. Cancellation deductions use the configured policy and actual collections. Cashfree refunds require admin approval and return through Cashfree. Older gateway records remain archived; any legacy refund is handled manually by the support team.</p>
           </div>
 
           {/* UPI Settings */}

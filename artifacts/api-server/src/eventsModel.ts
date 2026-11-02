@@ -95,17 +95,18 @@ export async function initializeEvents() {
       payment_method text NOT NULL, fee_paise integer NOT NULL,
       paid_paise integer NOT NULL DEFAULT 0, refunded_paise integer NOT NULL DEFAULT 0,
       is_test boolean NOT NULL DEFAULT false, hold_until timestamptz,
-      payment_provider text NOT NULL DEFAULT 'stripe',
+      payment_provider text NOT NULL DEFAULT 'cashfree',
       stripe_session_id text UNIQUE, stripe_price_id text, checkout_expires_at timestamptz,
       cashfree_order_id text UNIQUE, cashfree_payment_session_id text, cashfree_payment_id text,
       cancellation_reason text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE(guardian_id,request_id)
     );
     ALTER TABLE event_registrations
-      ADD COLUMN IF NOT EXISTS payment_provider text NOT NULL DEFAULT 'stripe',
+      ADD COLUMN IF NOT EXISTS payment_provider text NOT NULL DEFAULT 'cashfree',
       ADD COLUMN IF NOT EXISTS cashfree_order_id text,
       ADD COLUMN IF NOT EXISTS cashfree_payment_session_id text,
       ADD COLUMN IF NOT EXISTS cashfree_payment_id text;
+    ALTER TABLE event_registrations ALTER COLUMN payment_provider SET DEFAULT 'cashfree';
     CREATE UNIQUE INDEX IF NOT EXISTS event_registrations_cashfree_order_id
       ON event_registrations(cashfree_order_id) WHERE cashfree_order_id IS NOT NULL;
     CREATE INDEX IF NOT EXISTS event_registrations_event ON event_registrations(event_id,status);

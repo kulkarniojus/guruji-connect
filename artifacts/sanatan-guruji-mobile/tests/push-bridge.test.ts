@@ -19,7 +19,7 @@ const flush=()=>new Promise(resolve=>setImmediate(resolve));
 test('only first-party portal messages and integer-owned notification targets are allowed',()=>{
   assert.equal(isPortalMessageOrigin(portal,portal),true);
   assert.equal(isPortalMessageOrigin('https://portal.example.test.evil.test/',portal),false);
-  assert.equal(isPortalMessageOrigin('https://checkout.stripe.com/',portal),false);
+  assert.equal(isPortalMessageOrigin('https://payments.example.test/',portal),false);
   assert.equal(pushRequestTarget({type:'guruji_puja_request',requestId:12,userId:27},27),'/dashboard?tab=requests&requestId=12');
   for(const data of [{type:'guruji_puja_request',requestId:'12',userId:27},
     {type:'guruji_puja_request',requestId:-1,userId:27},{type:'guruji_puja_request',requestId:12,userId:28},
@@ -33,7 +33,7 @@ test('auth bridge reports actual session role without exporting cookies or passw
   assert.equal(s.calls[0].options.credentials,'include');
 });
 test('external checkout and nested frames cannot register a push device',async()=>{
-  const s=sandbox('guruji',27,'https://checkout.stripe.com');
+  const s=sandbox('guruji',27,'https://payments.example.test');
   vm.runInContext(pushAuthScript(portal),s.context);
   vm.runInContext(pushRequestScript(portal,'one','PUT',{},27),s.context);await flush();
   assert.equal(s.calls.length,0);assert.equal(s.messages.length,0);
