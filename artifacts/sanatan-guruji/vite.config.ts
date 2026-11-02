@@ -58,7 +58,9 @@ export default defineConfig({
         'attached_assets',
       ),
     },
-    dedupe: ['react', 'react-dom'],
+    // Shared API hooks and the app must use the same query context, even when
+    // pnpm resolves the library under different React peer-dependency versions.
+    dedupe: ['react', 'react-dom', '@tanstack/react-query'],
   },
   root: path.resolve(import.meta.dirname),
   build: {

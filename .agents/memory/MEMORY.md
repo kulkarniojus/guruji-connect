@@ -29,3 +29,4 @@
 - [Events management](events-management-policy.md) — per-event online/manual/both payment choice stays independent of puja finances; children’s registration data remains private.
 - [Brand identity](brand-tagline.md) — the user renamed the company to Vaidik Dhara; use the updated public-facing brand consistently.
 - [Cashfree-only payments](cashfree-migration.md) — Cashfree is the only active online provider; archive old Stripe records, track legacy refunds manually, and keep sandbox out of production.
+- [Production browser verification](production-browser-verification.md) — working dev previews and successful builds can miss peer-resolved context duplication; check the actual built frontend in a browser.
