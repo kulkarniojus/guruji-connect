@@ -23,6 +23,7 @@
       }
     },
     "android": {
+      "package": "com.vaidikdhara.app",
       "permissions": ["CAMERA", "RECORD_AUDIO", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/portal-icon.png",
