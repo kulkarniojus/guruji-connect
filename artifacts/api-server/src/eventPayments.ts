@@ -95,6 +95,8 @@ export async function completeCashfreeEventPayment(id: string) {
     [id,'cashfree'])).rows[0];
   if (!initial?.cashfree_order_id) throw eventFail(409,'Cashfree order is not linked to this registration');
   const liveMode=initial.is_test!==true;
+  if (liveMode && process.env.NODE_ENV!=='production')
+    throw eventFail(409,'Live Cashfree payments can only be confirmed on the published production server.');
   if (!liveMode && process.env.NODE_ENV==='production')
     throw eventFail(409,'Sandbox payments cannot confirm registrations on the published site.');
   const order=await getCashfreeOrder(initial.cashfree_order_id,liveMode);

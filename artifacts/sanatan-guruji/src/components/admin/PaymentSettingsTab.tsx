@@ -17,6 +17,7 @@ type PaymentSettings=PaymentConfiguration;
 export default function PaymentSettingsTab() {
   const { toast } = useToast();
   const [form, setForm] = useState<PaymentSettings | null>(null);
+  const webhookUrl = `${window.location.origin}/api/cashfree/webhook`;
 
   const { data, isLoading, isError, refetch } = useQuery<PaymentSettings>({
     queryKey: ['/api/settings/payment'],
@@ -112,6 +113,18 @@ export default function PaymentSettingsTab() {
             <p className="text-sm text-muted-foreground">Payment does not mean a Guruji has accepted. Failed/cancelled checkout sends no request. Cancellation deductions use the configured policy and actual collections. Cashfree refunds require admin approval and return through Cashfree. Older gateway records remain archived; any legacy refund is handled manually by the support team.</p>
           </div>
 
+          <div className="rounded-lg border p-4 space-y-2">
+            <h3 className="font-medium">Cashfree webhook setup</h3>
+            <p className="text-sm text-muted-foreground">Register this endpoint in the Cashfree Developer Dashboard for payment success, payment failure, and refund status events. Use the published website URL for live mode, not a preview URL. The server verifies Cashfree signatures before updating bookings, registrations, or refunds.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="break-all rounded bg-muted px-2 py-1 text-sm">{webhookUrl}</code>
+              <Button type="button" size="sm" variant="outline" onClick={async()=>{
+                try { await navigator.clipboard.writeText(webhookUrl); toast({title:'Webhook URL copied'}); }
+                catch { toast({title:'Copy failed',description:'Select and copy the URL manually.',variant:'destructive'}); }
+              }}>Copy webhook URL</Button>
+            </div>
+          </div>
+
           {/* UPI Settings */}
           <div className="space-y-4">
             <h3 className="font-medium flex items-center gap-2">
@@ -119,7 +132,7 @@ export default function PaymentSettingsTab() {
               UPI Payment Details
             </h3>
             <p className="text-sm text-muted-foreground">
-              Your existing manual UPI reference details are retained. They do not enable checkout or prove payment; online booking advances are verified through Cashfree, not a checkbox or QR screenshot.
+              Cashfree hosted checkout shows the payment methods enabled for your merchant account, such as UPI and cards. If a method is missing, enable it in Cashfree and complete any required account activation. The UPI ID and QR below are only for manual payment records; they do not enable online checkout or prove payment.
             </p>
 
             <div className="space-y-2">

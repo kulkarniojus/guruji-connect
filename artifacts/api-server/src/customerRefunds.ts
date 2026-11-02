@@ -280,7 +280,10 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
         throw fail(409,'The outstanding event refund changed. Review event payment records before issuing this refund.');
     }
     const cashfreeRefundId=Number(request.cashfree_amount_paise)>0
-      ?request.cashfree_refund_id||`vdref-${randomUUID().replaceAll('-','')}`:null;
+      ?request.status==='failed'
+        ?`vdref-${randomUUID().replaceAll('-','')}`
+        :request.cashfree_refund_id||`vdref-${randomUUID().replaceAll('-','')}`
+      :null;
     await client.query(`UPDATE customer_refund_requests SET status='processing',approved_by=$2,
       approved_at=now(),cashfree_refund_id=COALESCE($3,cashfree_refund_id),updated_at=now() WHERE id=$1`,
       [requestId,adminId,cashfreeRefundId]);

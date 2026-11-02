@@ -13,7 +13,7 @@ Cashfree sandbox must stay development-only; published payments require separate
 
 **Why:** The supplied credentials were sandbox credentials, and the portal shares data with real customers and mobile apps. Test transactions must not be mistaken for collected money.
 
-**How to apply:** Keep sandbox finance entries out of actual collections and block sandbox fulfillment in production. Obtain production credentials through the secure secrets flow before switching on live checkout.
+**How to apply:** Keep sandbox finance entries out of actual collections and block sandbox fulfillment in production. Production credentials and `CASHFREE_MODE=production` belong only in the production environment; development servers must never call live Cashfree APIs. Obtain production credentials through the secure secrets flow, then get explicit approval before enabling real charges.
 
 Cashfree may return a fresh payment-session token when retrieving an existing order. Use the order id—not token equality—as the retry/idempotency identity.
 

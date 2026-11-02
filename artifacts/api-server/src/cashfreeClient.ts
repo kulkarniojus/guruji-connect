@@ -18,11 +18,13 @@ function configuredCredentials(environment: CashfreeEnvironment): CashfreeCreden
 }
 
 export function cashfreeLiveModeEnabled() {
-  return process.env.CASHFREE_MODE?.trim().toLowerCase() === 'production';
+  return process.env.NODE_ENV === 'production' &&
+    process.env.CASHFREE_MODE?.trim().toLowerCase() === 'production';
 }
 
 export function cashfreeGatewayStatus(): { available: boolean; mode: CashfreeMode } {
-  if (cashfreeLiveModeEnabled()) {
+  if (process.env.CASHFREE_MODE?.trim().toLowerCase() === 'production') {
+    if (!cashfreeLiveModeEnabled()) return { available: false, mode: 'unavailable' };
     const liveCredentials = configuredCredentials('production');
     return liveCredentials ? { available: true, mode: 'live' } : { available: false, mode: 'unavailable' };
   }
@@ -34,6 +36,8 @@ export function cashfreeGatewayStatus(): { available: boolean; mode: CashfreeMod
 }
 
 function credentialsFor(liveMode: boolean): CashfreeCredentials {
+  if (liveMode && process.env.NODE_ENV !== 'production')
+    throw new Error('Live Cashfree credentials are available only to the published production server.');
   const credentials = configuredCredentials(liveMode ? 'production' : 'sandbox');
   if (!credentials) throw new Error(`Cashfree ${liveMode ? 'production' : 'sandbox'} credentials are not configured.`);
   return credentials;
@@ -80,6 +84,7 @@ export function verifyCashfreeWebhookSignature(
   signature: string,
   liveMode: boolean,
 ): boolean {
+  if (liveMode && process.env.NODE_ENV !== 'production') return false;
   const credentials = configuredCredentials(liveMode ? 'production' : 'sandbox');
   if (!credentials || !Buffer.isBuffer(rawBody) || !timestamp || !signature) return false;
   try {

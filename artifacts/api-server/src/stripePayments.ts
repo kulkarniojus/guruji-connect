@@ -272,6 +272,8 @@ export async function completeCashfreeCheckout(
     [cashfreeOrder.order_id],
   )).rows[0];
   if (!order) return null;
+  if (order.livemode && process.env.NODE_ENV !== 'production')
+    throw fail(409,'Live Cashfree payments can only be fulfilled on the published production server.');
   if (!order.livemode && process.env.NODE_ENV==='production')
     throw fail(409,'Sandbox payments cannot create bookings on the published site.');
   if (order.payment_provider !== 'cashfree' ||
@@ -369,6 +371,8 @@ export async function verifyCashfreeCheckout(orderId: string, eligible: Eligible
   const order = (await pool.query('SELECT * FROM portal_checkout_orders WHERE id=$1 AND payment_provider=$2',
     [orderId,'cashfree'])).rows[0];
   if (!order) throw fail(404,'Payment attempt not found.');
+  if (order.livemode && process.env.NODE_ENV !== 'production')
+    throw fail(409,'Live Cashfree payments can only be checked on the published production server.');
   if (!order.livemode && process.env.NODE_ENV==='production')
     throw fail(409,'Sandbox payments cannot be used on the published site.');
   if (order.booking_id) {
@@ -444,6 +448,18 @@ export async function processCashfreeWebhook(
   if (!verifyCashfreeWebhookSignature(payload,timestamp,signature,liveMode))
     throw fail(400,'Cashfree webhook signature is invalid.');
 
+  const refund=event?.data?.refund;
+  if (refund && typeof refund.refund_id==='string') {
+    const request=(await pool.query(`SELECT id FROM customer_refund_requests
+      WHERE cashfree_order_id=$1 AND cashfree_refund_id=$2 AND cashfree_amount_paise>0`,
+      [orderId,refund.refund_id])).rows[0];
+    if (request) {
+      const {reconcileRefundRequest}=await import('./customerRefunds');
+      await reconcileRefundRequest(request.id);
+    }
+    return;
+  }
+
   const status = event?.data?.payment?.payment_status || event?.data?.order?.order_status;
   if (status === 'SUCCESS' || status === 'PAID') {
     if (bookingOrder) await verifyCashfreeCheckout(bookingOrder.id,eligible,broadcast);
@@ -452,5 +468,7 @@ export async function processCashfreeWebhook(
     await pool.query(`UPDATE portal_checkout_orders SET state=$2
       WHERE id=$1 AND booking_id IS NULL AND state='pending'`,
       [bookingOrder.id,String(status).toUpperCase()==='FAILED'?'failed':'expired']);
+  } else if (eventRegistration && ['EXPIRED','TERMINATED'].includes(String(status).toUpperCase())) {
+    await (await import('./eventPayments')).reconcileCashfreeEventPayment(eventRegistration.id);
   }
 }

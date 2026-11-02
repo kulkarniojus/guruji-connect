@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { test } from 'node:test';
 import {
-  cashfreeGatewayStatus, createCashfreeOrder, createCashfreeRefund,
+  cashfreeGatewayStatus, cashfreeRequest, createCashfreeOrder, createCashfreeRefund,
   isVerifiedCashfreePayment, verifyCashfreeWebhookSignature,
 } from './cashfreeClient';
 
@@ -19,8 +19,20 @@ test('published deployments cannot accept sandbox payments',()=>{
   process.env.NODE_ENV='production';
   assert.deepEqual(cashfreeGatewayStatus(),{available:false,mode:'unavailable'});
   process.env.CASHFREE_MODE='production';
+  process.env.NODE_ENV='development';
+  assert.deepEqual(cashfreeGatewayStatus(),{available:false,mode:'unavailable'});
+  process.env.NODE_ENV='production';
   assert.deepEqual(cashfreeGatewayStatus(),{available:true,mode:'live'});
   process.env.NODE_ENV='development';
+  process.env.CASHFREE_MODE='sandbox';
+});
+
+test('development servers cannot call Cashfree production credentials',async()=>{
+  process.env.NODE_ENV='development';
+  process.env.CASHFREE_MODE='production';
+  assert.deepEqual(cashfreeGatewayStatus(),{available:false,mode:'unavailable'});
+  await assert.rejects(cashfreeRequest('GET','/orders/fixture-order',true),
+    /only to the published production server/);
   process.env.CASHFREE_MODE='sandbox';
 });
 
