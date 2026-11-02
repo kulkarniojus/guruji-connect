@@ -1,5 +1,5 @@
 type CashfreeCheckoutInstance = {
-  checkout(options: { paymentSessionId: string; redirectTarget: "_self" }): Promise<unknown>;
+  checkout(options: { paymentSessionId: string; redirectTarget: "_self" }): Promise<{error?:{message?:string}}|undefined>;
 };
 
 declare global {
@@ -16,8 +16,15 @@ async function loadCashfreeSdk() {
     sdkLoad = new Promise<void>((resolve, reject) => {
       const existing = document.querySelector<HTMLScriptElement>('script[data-cashfree-sdk="true"]');
       const script = existing ?? document.createElement("script");
-      const fail = () => { sdkLoad = null; reject(new Error("Cashfree checkout could not be loaded. Please retry.")); };
-      script.addEventListener("load", () => window.Cashfree ? resolve() : fail(), { once: true });
+      const timeout = window.setTimeout(() => fail(),15000);
+      const fail = () => {
+        window.clearTimeout(timeout); script.remove(); sdkLoad = null;
+        reject(new Error("Cashfree checkout could not be loaded. Please retry."));
+      };
+      script.addEventListener("load", () => {
+        window.clearTimeout(timeout);
+        if (window.Cashfree) resolve(); else fail();
+      }, { once: true });
       script.addEventListener("error", fail, { once: true });
       if (!existing) {
         script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
@@ -36,5 +43,6 @@ export async function openCashfreeCheckout(paymentSessionId: string, mode: "test
   await loadCashfreeSdk();
   const cashfree = window.Cashfree?.({ mode: mode === "live" ? "production" : "sandbox" });
   if (!cashfree) throw new Error("Cashfree checkout could not be initialized. Please retry.");
-  await cashfree.checkout({ paymentSessionId, redirectTarget: "_self" });
+  const result=await cashfree.checkout({ paymentSessionId, redirectTarget: "_self" });
+  if (result?.error) throw new Error(result.error.message||"Cashfree could not open checkout. Please retry from your booking.");
 }

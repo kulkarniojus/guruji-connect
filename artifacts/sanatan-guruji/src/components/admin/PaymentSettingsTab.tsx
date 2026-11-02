@@ -71,7 +71,7 @@ export default function PaymentSettingsTab() {
         <CardContent className="space-y-6">
           {!data?.checkoutAvailable && (
             <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-              Stripe checkout or signed webhooks are not ready. Payments cannot be enabled yet. When the switch is off, the existing no-payment booking flow continues.
+              Cashfree is not ready for this environment. Production credentials are required on the published site; sandbox credentials only work in development. When the switch is off, the existing no-payment booking flow continues.
             </div>
           )}
 
@@ -81,7 +81,7 @@ export default function PaymentSettingsTab() {
               <p className="font-medium">Require payment before booking</p>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {form.paymentRequired
-                  ? 'Customers complete verified Stripe checkout before the request is sent to the Guruji.'
+                  ? 'Customers complete verified Cashfree checkout before the request is sent to the Guruji.'
                   : 'Bookings are sent to Guruji without any advance payment.'}
               </p>
             </div>
@@ -95,13 +95,13 @@ export default function PaymentSettingsTab() {
           {/* Status indicator */}
           <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${form.paymentRequired ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
             {form.paymentRequired
-              ? <><CheckCircle2 className="h-4 w-4 flex-shrink-0" /> Payment required — Stripe must verify the advance before sending the booking request</>
+              ? <><CheckCircle2 className="h-4 w-4 flex-shrink-0" /> Payment required — Cashfree must verify the advance before sending the booking request</>
               : <><AlertCircle className="h-4 w-4 flex-shrink-0" /> Payment not required — bookings proceed without advance payment</>}
           </div>
 
           <div className="rounded-lg border p-4 space-y-3">
-            <h3 className="font-medium">Stripe connection: {data?.checkoutAvailable?'Ready':'Not ready'} · {data?.providerMode?.toUpperCase()}</h3>
-            {data?.providerMode==='test' && <p className="text-sm text-amber-800">TEST mode only. Use test cards; no real money is collected and test checkouts do not become actual finance receipts. Configure your live Stripe server key before accepting real payments.</p>}
+            <h3 className="font-medium">Cashfree connection: {data?.checkoutAvailable?'Ready':'Not ready'} · {data?.providerMode?.toUpperCase()}</h3>
+            {data?.providerMode==='test' && <p className="text-sm text-amber-800">SANDBOX mode only. No real money is collected and test checkouts do not become actual finance receipts. Production credentials, Cashfree account activation, domain approval and webhook setup are required before accepting real payments.</p>}
             {data?.providerMode==='live' && <p className="text-sm text-green-800">LIVE mode: enabling and saving the switch will require real customer advance payments for new bookings.</p>}
             <div className="space-y-2">
               <Label htmlFor="paymentAdvance">Customer advance (% of final booking total)</Label>
@@ -109,7 +109,7 @@ export default function PaymentSettingsTab() {
                 onChange={e=>setForm(previous=>previous?{...previous,advancePercentage:Number(e.target.value)}:previous)} />
               <p className="text-xs text-muted-foreground">Example: ₹3,000 at {form.advancePercentage}% collects ₹{(Math.round(300000*form.advancePercentage/100)/100).toFixed(2)} online; the rest is paid directly to Guruji. This is separate from your commission configuration. Existing booking totals and paid advances never change when settings change.</p>
             </div>
-            <p className="text-sm text-muted-foreground">Payment does not mean a Guruji has accepted. Failed/cancelled checkout sends no request. Cancellation deductions use the configured policy and actual collections. Refunds require admin approval; live Stripe payments return to the original payment method, while manual payouts are paid and recorded by the support team.</p>
+            <p className="text-sm text-muted-foreground">Payment does not mean a Guruji has accepted. Failed/cancelled checkout sends no request. Cancellation deductions use the configured policy and actual collections. Refunds require admin approval and return through the original gateway; existing Stripe transactions remain supported. Manual payouts are paid and recorded by the support team.</p>
           </div>
 
           {/* UPI Settings */}
@@ -119,7 +119,7 @@ export default function PaymentSettingsTab() {
               UPI Payment Details
             </h3>
             <p className="text-sm text-muted-foreground">
-              Your existing manual UPI reference details are retained. They do not enable checkout or prove payment; online booking advances are verified through Stripe, not a checkbox or QR screenshot.
+              Your existing manual UPI reference details are retained. They do not enable checkout or prove payment; online booking advances are verified through Cashfree, not a checkbox or QR screenshot.
             </p>
 
             <div className="space-y-2">

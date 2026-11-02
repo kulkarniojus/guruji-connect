@@ -39,7 +39,7 @@ export default function PaymentPage({ amount, pujaName, onBack, onSuccess }: Pay
     <Card className="mx-auto max-w-4xl">
       <CardHeader>
         <CardTitle>{required?'Pay your booking advance':'Send your booking request'}</CardTitle>
-        <CardDescription>{required?'Continue to secure Stripe checkout. Guruji acceptance is still required.':'No payment is collected now. Guruji acceptance is still required.'}</CardDescription>
+        <CardDescription>{required?'Continue to secure Cashfree checkout. Guruji acceptance is still required.':'No payment is collected now. Guruji acceptance is still required.'}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="rounded-lg border p-4">
@@ -51,9 +51,9 @@ export default function PaymentPage({ amount, pujaName, onBack, onSuccess }: Pay
           </div>}
         </div>
         {settings.isError && <p role="alert" className="text-sm text-red-700">Payment settings could not be confirmed. Please reload before continuing.</p>}
-        {required && settings.data?.providerMode==='test' && <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">Stripe TEST mode: no real money is collected. Test transactions are not recorded as actual finance receipts.</p>}
+        {required && settings.data?.providerMode==='test' && <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">Cashfree SANDBOX mode: no real money is collected. Test transactions are not recorded as actual finance receipts.</p>}
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          {required?'Your advance must be verified by Stripe before the request is sent. Failed or cancelled checkout does not send a request. Refunds owed under your cancellation policy are handled and recorded by the support team.':
+          {required?'Your advance must be verified by Cashfree before the request is sent. Failed or cancelled checkout does not send a request. Refunds owed under your cancellation policy are handled and recorded by the support team.':
             'No payment will be collected or marked as paid.'} Your request remains awaiting Guruji acceptance; selecting or paying does not confirm the puja.
         </div>
         <div className="flex flex-wrap justify-between gap-3">

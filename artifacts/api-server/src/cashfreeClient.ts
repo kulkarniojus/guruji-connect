@@ -68,7 +68,7 @@ export async function cashfreeRequest<T>(
   const result = await response.json().catch(() => null);
   if (!response.ok) {
     const error = new Error(`Cashfree request failed (${response.status}).`);
-    Object.assign(error, { status: response.status, cashfreeCode: result?.code });
+    Object.assign(error, { status: response.status, cashfreeCode: (result as {code?:string}|null)?.code });
     throw error;
   }
   return result as T;
@@ -110,7 +110,24 @@ export type CashfreePayment = {
   payment_amount: number;
   payment_currency: string;
   payment_status: string;
+  is_captured?: boolean;
 };
+
+export function isVerifiedCashfreePayment(
+  order:CashfreeOrder,
+  payment:CashfreePayment,
+  expectedOrderId:string,
+  expectedPaise:number,
+) {
+  return Number.isSafeInteger(expectedPaise) && expectedPaise>0 &&
+    order.order_id===expectedOrderId && order.order_status==='PAID' && order.order_currency==='INR' &&
+    Math.round(Number(order.order_amount)*100)===expectedPaise &&
+    payment.order_id===expectedOrderId && payment.payment_status==='SUCCESS' &&
+    payment.payment_currency==='INR' && payment.order_currency==='INR' &&
+    Math.round(Number(payment.order_amount)*100)===expectedPaise &&
+    Math.round(Number(payment.payment_amount)*100)===expectedPaise &&
+    payment.is_captured!==false && !!payment.cf_payment_id;
+}
 
 export type CashfreeRefund = {
   cf_refund_id?: string | number;
@@ -125,6 +142,17 @@ export async function getCashfreeOrder(orderId: string, liveMode: boolean) {
   return cashfreeRequest<CashfreeOrder>('GET', `/orders/${encodeURIComponent(orderId)}`, liveMode);
 }
 
+export async function createCashfreeOrder(body: Record<string,unknown> & {order_id:string},liveMode:boolean) {
+  try {
+    return await cashfreeRequest<CashfreeOrder>('POST','/orders',liveMode,body);
+  } catch(error) {
+    // The response may be lost after order creation. Reuse the deterministic
+    // order id rather than opening a second payment attempt.
+    try { return await getCashfreeOrder(body.order_id,liveMode); }
+    catch { throw error; }
+  }
+}
+
 export async function getCashfreePayments(orderId: string, liveMode: boolean) {
   return cashfreeRequest<CashfreePayment[]>('GET', `/orders/${encodeURIComponent(orderId)}/payments`, liveMode);
 }
@@ -135,7 +163,7 @@ export async function createCashfreeRefund(
   amountPaise: number,
   liveMode: boolean,
 ) {
-  return cashfreeRequest<CashfreeRefund>(
+  try { return await cashfreeRequest<CashfreeRefund>(
     'POST',
     `/orders/${encodeURIComponent(orderId)}/refunds`,
     liveMode,
@@ -146,7 +174,11 @@ export async function createCashfreeRefund(
       refund_speed: 'STANDARD',
     },
     refundId,
-  );
+  ); } catch(error) {
+    // A timed-out POST may already have created the refund. Never change its id.
+    try { return await getCashfreeRefund(orderId,refundId,liveMode); }
+    catch { throw error; }
+  }
 }
 
 export async function getCashfreeRefund(orderId: string, refundId: string, liveMode: boolean) {

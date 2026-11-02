@@ -202,8 +202,9 @@ export const ListCustomerRefundsResponseItem = zod.object({
   "bookingId": zod.number().int().nullable(),
   "eventRegistrationId": zod.string().nullable(),
   "status": zod.enum(['pending', 'processing', 'manual_pending', 'paid', 'failed']),
-  "sourceKind": zod.enum(['stripe', 'manual', 'mixed']),
+  "sourceKind": zod.enum(['stripe', 'cashfree', 'manual', 'mixed']),
   "stripeAmount": zod.number(),
+  "cashfreeAmount": zod.number(),
   "manualAmount": zod.number(),
   "manualReference": zod.string().nullable()
 })
@@ -215,8 +216,10 @@ export const StartEventCheckoutParams = zod.object({
 })
 
 export const StartEventCheckoutResponse = zod.object({
-  "url": zod.string(),
-  "mode": zod.string()
+  "url": zod.string().optional(),
+  "paymentSessionId": zod.string().optional(),
+  "orderId": zod.string().optional(),
+  "mode": zod.enum(['test', 'live', 'unavailable'])
 })
 
 
@@ -917,6 +920,8 @@ export const StartBookingCheckoutBody = zod.object({
 
 export const StartBookingCheckoutResponse = zod.object({
   "checkoutUrl": zod.string().optional(),
+  "paymentSessionId": zod.string().optional(),
+  "providerMode": zod.enum(['test', 'live', 'unavailable']).optional(),
   "orderId": zod.string().optional(),
   "sessionId": zod.string().optional(),
   "bookingId": zod.number().int().optional(),
@@ -949,6 +954,7 @@ export const GetBookingPaymentOrderResponse = zod.object({
 
 
 export const ListAdminBookingCheckoutsResponseItem = zod.object({
+  "provider": zod.string().optional(),
   "id": zod.string(),
   "customerId": zod.number().int(),
   "customerName": zod.string(),

@@ -7,9 +7,10 @@ type RefundStatusView = {
 };
 
 function refundStatusView(refund: CustomerRefundProgress): RefundStatusView {
+  const gateway=Number(refund.cashfreeAmount)>0?"Cashfree":"Stripe";
   if (refund.status === "pending") {
     return {
-      title: "Awaiting admin review",
+      title: "Awaiting support-team review",
       detail: "The Vaidik Dhara support team is reviewing your refund.",
       color: "border-amber-300 bg-amber-50 text-amber-950",
     };
@@ -17,7 +18,7 @@ function refundStatusView(refund: CustomerRefundProgress): RefundStatusView {
 
   if (refund.status === "processing") {
     return {
-      title: "Stripe refund processing",
+      title: `${gateway} refund processing`,
       detail: "The refund is being returned to the original payment method.",
       color: "border-blue-300 bg-blue-50 text-blue-950",
     };
@@ -26,7 +27,7 @@ function refundStatusView(refund: CustomerRefundProgress): RefundStatusView {
   if (refund.status === "manual_pending") {
     return {
       title: refund.sourceKind === "mixed"
-        ? "Stripe refund completed · manual payout pending"
+        ? `${gateway} refund completed · manual payout pending`
         : "Manual payout pending",
       detail: "The support team will pay the manual portion outside this app and record it after settlement.",
       color: "border-amber-300 bg-amber-50 text-amber-950",
@@ -37,8 +38,8 @@ function refundStatusView(refund: CustomerRefundProgress): RefundStatusView {
     const title = refund.sourceKind === "manual"
       ? "Manual payout paid"
       : refund.sourceKind === "mixed"
-        ? "Stripe refund completed · manual payout paid"
-        : "Stripe refund completed";
+        ? `${gateway} refund completed · manual payout paid`
+        : `${gateway} refund completed`;
     return {
       title,
       detail: refund.manualReference ? `Payout reference: ${refund.manualReference}` : "Your refund is complete.",

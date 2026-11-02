@@ -81,7 +81,7 @@ function PaymentRow({ r, eventId }: { r: EventRegistration; eventId: number }) {
       <p className="text-muted-foreground">Guardian: {r.guardianName} - {r.paymentMethod}{r.isTest ? " - TEST registration (test money, not real)" : ""}</p>
       <p>{r.isTest ? "Test amounts: " : ""}Fee {rupees(r.fee)} - Paid {rupees(r.paid)} - Refunded {rupees(r.refunded)} - Balance {rupees(r.balanceDue)} - Refund due {rupees(r.refundDue)}</p>
       <div className="mt-2"><p className="font-medium">Payment records</p>{r.payments.length > 0
-        ? <ul className="text-xs text-muted-foreground">{r.payments.map((p, i) => <li key={i}>{p.type === "refund" ? "Refund recorded manually" : online ? "Online payment (verified by Stripe)" : "Offline payment (recorded by support team)"} — {rupees(p.amount)} — ref {p.reference} — {fmtDateTime(p.createdAt)}</li>)}</ul>
+        ? <ul className="text-xs text-muted-foreground">{r.payments.map((p, i) => <li key={i}>{p.type === "refund" ? "Refund recorded" : online ? "Online payment (server verified)" : "Offline payment (recorded by support team)"} — {rupees(p.amount)} — ref {p.reference} — {fmtDateTime(p.createdAt)}</li>)}</ul>
         : <p className="text-xs text-muted-foreground">{r.paymentMethod === "free" ? "No payment required." : online ? "No online payment has been verified yet." : "No offline payment has been recorded yet."}</p>}
       </div>
       {pendingManualConfirmation && <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3">
@@ -97,7 +97,7 @@ function PaymentRow({ r, eventId }: { r: EventRegistration; eventId: number }) {
         <Input className="w-48" placeholder="Note" value={note} onChange={e => setNote(e.target.value)} aria-label="Note" />
         <Button size="sm" onClick={save} disabled={rec.isPending} data-testid={`button-record-${r.id}`}>Record payment</Button>
       </div>}
-      {online && <p className="mt-1 text-xs text-muted-foreground">Online payments are recorded after Stripe verification. Refunds are reviewed in Payment → Refund approvals.</p>}
+      {online && <p className="mt-1 text-xs text-muted-foreground">Online payments are recorded after verification with the original payment provider. Refunds are reviewed in Payment → Refund approvals.</p>}
       {cancelled && r.refundDue > 0 && <p className="mt-2 text-xs text-amber-800">Refund due: ₹{r.refundDue}. Review and approve it in Payment → Refund approvals.</p>}
       {err && <p role="alert" className="text-xs text-destructive">{err}</p>}
       <AdminCancel r={r} eventId={eventId} />

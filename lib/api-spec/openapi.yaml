@@ -630,13 +630,14 @@ components:
         payments: { type: array, items: { $ref: "#/components/schemas/EventPaymentRecord" } }
     CustomerRefundProgress:
       type: object
-      required: [bookingId, eventRegistrationId, status, sourceKind, stripeAmount, manualAmount, manualReference]
+      required: [bookingId, eventRegistrationId, status, sourceKind, stripeAmount, cashfreeAmount, manualAmount, manualReference]
       properties:
         bookingId: { type: [integer, "null"] }
         eventRegistrationId: { type: [string, "null"] }
         status: { type: string, enum: [pending, processing, manual_pending, paid, failed] }
-        sourceKind: { type: string, enum: [stripe, manual, mixed] }
+        sourceKind: { type: string, enum: [stripe, cashfree, manual, mixed] }
         stripeAmount: { type: number }
+        cashfreeAmount: { type: number }
         manualAmount: { type: number }
         manualReference: { type: [string, "null"] }
     EventPaymentRecord:
@@ -687,10 +688,12 @@ components:
         message: { type: string }
     EventCheckoutResult:
       type: object
-      required: [url, mode]
+      required: [mode]
       properties:
         url: { type: string }
-        mode: { type: string }
+        paymentSessionId: { type: string }
+        orderId: { type: string }
+        mode: { type: string, enum: [test, live, unavailable] }
     EventMediaUploadInput:
       type: object
       required: [name, size, contentType]
@@ -817,6 +820,8 @@ components:
       type: object
       properties:
         checkoutUrl: { type: string }
+        paymentSessionId: { type: string }
+        providerMode: { type: string, enum: [test, live, unavailable] }
         orderId: { type: string }
         sessionId: { type: string }
         bookingId: { type: integer }
@@ -841,6 +846,7 @@ components:
       type: object
       required: [id, customerId, customerName, state, advanceAmount, advancePercentage, totalAmount, createdAt, livemode]
       properties:
+        provider: { type: string }
         id: { type: string }
         customerId: { type: integer }
         customerName: { type: string }

@@ -1,9 +1,21 @@
 /// <reference types="node" />
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { classifyNavigation, resolvePortalConfig, shouldHandleAndroidBack } from '../lib/portal-policy';
+import { classifyNavigation, paymentAppTarget, resolvePortalConfig, shouldHandleAndroidBack } from '../lib/portal-policy';
 
 const origin = 'https://portal.example.test/';
+
+test('Cashfree checkout hosts and UPI intents are narrowly allowlisted',()=>{
+  for(const host of ['payments.cashfree.com','payments-test.cashfree.com'])
+    assert.equal(classifyNavigation(`https://${host}/checkout`,origin),'payment');
+  assert.equal(classifyNavigation('https://payments.cashfree.com.evil.test/checkout',origin),'external');
+  assert.equal(classifyNavigation('https://user@payments.cashfree.com/checkout',origin),'blocked');
+  assert.equal(classifyNavigation('upi://pay?pa=fixture%40upi&am=1',origin),'payment-app');
+  assert.equal(paymentAppTarget('intent://pay?pa=fixture%40upi#Intent;scheme=upi;package=com.fixture;end'),
+    'upi://pay?pa=fixture%40upi');
+  assert.equal(paymentAppTarget('intent://evil#Intent;scheme=javascript;end'),null);
+  assert.equal(paymentAppTarget('upi://evil?pa=fixture%40upi'),null);
+});
 
 test('hosted Stripe checkout stays in the portal WebView without trusting lookalikes',()=>{
   for(const host of ['checkout.stripe.com','hooks.stripe.com','payments.stripe.com'])

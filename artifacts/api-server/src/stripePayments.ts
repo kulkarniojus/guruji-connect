@@ -10,8 +10,8 @@ import { getBookingCommission } from './pujaCommission';
 import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingSchedule';
 import { notifyAdminsOfUnassignedBooking } from './unassignedBookingAlerts';
 import {
-  cashfreeGatewayStatus, cashfreeRequest, getCashfreeOrder, getCashfreePayments,
-  verifyCashfreeWebhookSignature, type CashfreeMode, type CashfreePayment,
+  cashfreeGatewayStatus, createCashfreeOrder, getCashfreeOrder, getCashfreePayments,
+  verifyCashfreeWebhookSignature, isVerifiedCashfreePayment, type CashfreeMode, type CashfreePayment,
 } from './cashfreeClient';
 
 const storage = new DBStorage();
@@ -209,7 +209,7 @@ export async function startCheckout(customerId: number, raw: unknown, origin: st
   return createCashfreeCheckoutOrder(customerId,raw,origin,settings);
 }
 
-async function createCashfreeCheckoutOrder(
+export async function createCashfreeCheckoutOrder(
   customerId: number,
   raw: unknown,
   origin: string,
@@ -258,21 +258,21 @@ async function createCashfreeCheckoutOrder(
     const liveMode = order.livemode === true;
     let paymentSessionId = order.cashfree_payment_session_id as string | null;
     const returnUrl = `${origin}/payment-return?order_id=${encodeURIComponent(order.id)}`;
-    const notifyUrl = cashfreeWebhookUrl();
+    const notifyUrl = cashfreeWebhookUrl(origin);
     if (order.cashfree_order_id) {
       const existing = await getCashfreeOrder(order.cashfree_order_id,liveMode);
       if (existing.order_status === 'PAID') {
         await db.query('COMMIT');
-        return { orderId: order.id, providerMode: settings.providerMode };
+        return { orderId: order.id, providerMode: liveMode?'live' as const:'test' as const };
       }
       if (existing.order_status !== 'ACTIVE' || !existing.payment_session_id)
         throw fail(409, 'This Cashfree order is no longer active. Check payment status before retrying.');
       paymentSessionId = existing.payment_session_id;
+      await db.query('UPDATE portal_checkout_orders SET cashfree_payment_session_id=$2 WHERE id=$1',
+        [order.id,paymentSessionId]);
     } else {
       const cfOrderId = `vdpuja-${String(order.id).replaceAll('-','')}`;
-      const created = await cashfreeRequest<{
-        order_id: string; payment_session_id: string; order_amount: number; order_currency: string;
-      }>('POST','/orders',liveMode,{
+      const created = await createCashfreeOrder({
         order_id: cfOrderId,
         order_amount: Number(order.advance_paise) / 100,
         order_currency: 'INR',
@@ -286,7 +286,7 @@ async function createCashfreeCheckoutOrder(
         order_expiry_time: new Date(order.expires_at).toISOString(),
         order_note: 'Vaidik Dhara puja booking advance',
         order_tags: { portal_kind: 'puja_booking', portal_order_id: String(order.id) },
-      });
+      },liveMode);
       if (created.order_id !== cfOrderId || created.order_currency !== 'INR' ||
           Math.round(Number(created.order_amount) * 100) !== Number(order.advance_paise) ||
           !created.payment_session_id) {
@@ -300,17 +300,15 @@ async function createCashfreeCheckoutOrder(
     return {
       orderId: order.id,
       paymentSessionId,
-      providerMode: settings.providerMode,
+      providerMode: liveMode?'live' as const:'test' as const,
       advanceAmount: Number(order.advance_paise) / 100,
     };
   } catch (error) { await db.query('ROLLBACK'); throw error; }
   finally { db.release(); }
 }
 
-export function cashfreeWebhookUrl() {
-  const domain = process.env.REPLIT_DOMAINS?.split(',')[0]?.trim();
-  if (!domain) throw new Error('A public runtime domain is required for payment verification.');
-  return `https://${domain}/api/cashfree/webhook`;
+export function cashfreeWebhookUrl(origin?:string) {
+  return `${checkoutReturnOrigin(origin)}/api/cashfree/webhook`;
 }
 
 // Business operation separated from the HTTP/admin-switch gate for isolated
@@ -397,23 +395,15 @@ export async function completeCashfreeCheckout(
     [cashfreeOrder.order_id],
   )).rows[0];
   if (!order) return null;
-  if (order.payment_provider !== 'cashfree' || cashfreeOrder.order_status !== 'PAID' ||
-      cashfreeOrder.order_currency !== 'INR' ||
-      Math.round(Number(cashfreeOrder.order_amount) * 100) !== Number(order.advance_paise) ||
-      payment.order_id !== cashfreeOrder.order_id || payment.payment_status !== 'SUCCESS' ||
-      payment.order_currency !== 'INR' || payment.payment_currency !== 'INR' ||
-      Math.round(Number(payment.order_amount) * 100) !== Number(order.advance_paise) ||
-      Math.round(Number(payment.payment_amount) * 100) !== Number(order.advance_paise) ||
-      !String(payment.cf_payment_id) || order.livemode !== cashfreeLiveModeForOrder(order)) {
+  if (!order.livemode && process.env.NODE_ENV==='production')
+    throw fail(409,'Sandbox payments cannot create bookings on the published site.');
+  if (order.payment_provider !== 'cashfree' ||
+      !isVerifiedCashfreePayment(cashfreeOrder,payment,order.cashfree_order_id,Number(order.advance_paise))) {
     throw fail(409,'Cashfree payment verification did not match this booking. The support team must review it.');
   }
   return finalizeBookingCheckout(
     order.id,String(payment.cf_payment_id),order.livemode === true,'cashfree',eligible,broadcast,
   );
-}
-
-function cashfreeLiveModeForOrder(order: any) {
-  return order.livemode === true;
 }
 
 async function finalizeBookingCheckout(
@@ -505,6 +495,8 @@ export async function verifyCashfreeCheckout(orderId: string, eligible: Eligible
   const order = (await pool.query('SELECT * FROM portal_checkout_orders WHERE id=$1 AND payment_provider=$2',
     [orderId,'cashfree'])).rows[0];
   if (!order) throw fail(404,'Payment attempt not found.');
+  if (!order.livemode && process.env.NODE_ENV==='production')
+    throw fail(409,'Sandbox payments cannot be used on the published site.');
   if (order.booking_id) {
     const booking=await storage.getBooking(order.booking_id);
     return {state:'paid',bookingId:order.booking_id,advanceAmount:Number(order.advance_paise)/100,
@@ -516,7 +508,11 @@ export async function verifyCashfreeCheckout(orderId: string, eligible: Eligible
     const expired=['EXPIRED','TERMINATED'].includes(remoteOrder.order_status);
     if (expired) await pool.query(`UPDATE portal_checkout_orders SET state='expired'
       WHERE id=$1 AND booking_id IS NULL`,[order.id]);
-    return {state:expired?'expired':remoteOrder.order_status==='ACTIVE'?'unpaid':'processing'};
+    if (remoteOrder.order_status==='ACTIVE') {
+      const attempts=await getCashfreePayments(order.cashfree_order_id,order.livemode === true);
+      return {state:attempts.some(p=>p.payment_status==='PENDING')?'processing':'unpaid'};
+    }
+    return {state:expired?'expired':'processing'};
   }
   const payments=await getCashfreePayments(order.cashfree_order_id,order.livemode === true);
   const payment=payments.find(p=>p.payment_status==='SUCCESS');
@@ -585,16 +581,22 @@ export async function processCashfreeWebhook(
   let event: any;
   try { event = JSON.parse(payload.toString('utf8')); }
   catch { throw fail(400,'Invalid Cashfree webhook payload.'); }
-  const orderId = event?.data?.order?.order_id || event?.data?.order_id;
-  if (typeof orderId !== 'string' || !orderId) throw fail(400,'Cashfree webhook has no order reference.');
-  const bookingOrder = (await pool.query(
+  const orderId = event?.data?.order?.order_id || event?.data?.order_id || event?.data?.refund?.order_id;
+  const bookingOrder = typeof orderId==='string' ? (await pool.query(
     'SELECT id,livemode FROM portal_checkout_orders WHERE cashfree_order_id=$1',[orderId],
-  )).rows[0];
-  const eventRegistration = (await pool.query(
+  )).rows[0] : null;
+  const eventRegistration = typeof orderId==='string' ? (await pool.query(
     'SELECT id,is_test FROM event_registrations WHERE cashfree_order_id=$1',[orderId],
-  )).rows[0];
+  )).rows[0] : null;
   const row = bookingOrder || eventRegistration;
-  if (!row) throw fail(404,'Cashfree order is not linked to a portal registration.');
+  if (!row) {
+    // Cashfree dashboard test events and unrelated signed events are acknowledged
+    // without creating any booking, registration or financial record.
+    if (!verifyCashfreeWebhookSignature(payload,timestamp,signature,false) &&
+        !verifyCashfreeWebhookSignature(payload,timestamp,signature,true))
+      throw fail(400,'Cashfree webhook signature is invalid.');
+    return;
+  }
   const liveMode = bookingOrder ? row.livemode === true : row.is_test !== true;
   if (!verifyCashfreeWebhookSignature(payload,timestamp,signature,liveMode))
     throw fail(400,'Cashfree webhook signature is invalid.');

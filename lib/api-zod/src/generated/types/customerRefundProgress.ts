@@ -16,6 +16,7 @@ export interface CustomerRefundProgress {
   status: CustomerRefundProgressStatus;
   sourceKind: CustomerRefundProgressSourceKind;
   stripeAmount: number;
+  cashfreeAmount: number;
   manualAmount: number;
   /** @nullable */
   manualReference: string | null;

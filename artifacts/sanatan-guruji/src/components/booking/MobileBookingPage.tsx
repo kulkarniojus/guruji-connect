@@ -649,11 +649,11 @@ export function MobileBookingPage() {
               <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-3">
                 <p className="font-semibold text-violet-900 flex items-center gap-2">
                   <QrCode className="h-4 w-4" />
-                  Secure Stripe checkout
+                  Secure Cashfree checkout
                 </p>
                 <p className="text-sm text-violet-700">
                   Pay an advance of <strong>{paymentSettings.advancePercentage}%</strong> of the final booking total.
-                  The remaining balance is paid directly to your Guruji. Stripe must verify payment before your request is sent.
+                  The remaining balance is paid directly to your Guruji. Cashfree must verify payment before your request is sent.
                 </p>
                 {paymentSettings.providerMode==='test' && <p className="text-sm font-semibold">TEST MODE — no real money is collected or posted as an actual receipt.</p>}
               </div>

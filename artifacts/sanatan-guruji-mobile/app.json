@@ -15,6 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
+        "LSApplicationQueriesSchemes": ["upi", "tez", "gpay", "paytmmp", "phonepe", "bhim", "credpay", "amazonpay"],
         "NSCameraUsageDescription": "Use the camera when you choose to upload profile or verification photos or join a portal video call.",
         "NSMicrophoneUsageDescription": "Use the microphone when you choose to join a portal video call.",
         "NSPhotoLibraryUsageDescription": "Select photos for profile and verification uploads on the portal.",

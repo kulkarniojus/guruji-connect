@@ -3,7 +3,7 @@ import { Alert, BackHandler, Linking, Platform, Pressable, StyleSheet, Text, Vie
 import WebView, { type WebViewNavigation } from 'react-native-webview';
 import { useColors } from '@/hooks/useColors';
 import { PortalState } from './PortalState';
-import { classifyNavigation, shouldHandleAndroidBack } from '@/lib/portal-policy';
+import { classifyNavigation, paymentAppTarget, shouldHandleAndroidBack } from '@/lib/portal-policy';
 import { usePortalPush } from '@/hooks/usePortalPush';
 
 type Failure = { title: string; detail: string; rendererLost?: boolean };
@@ -13,6 +13,7 @@ export default function PortalView({ url }: { url: string }) {
   const webview = useRef<WebView>(null);
   const currentUrl = useRef(url);
   const documentUrl = useRef(url);
+  const paymentJourney = useRef(false);
   const [source, setSource] = useState({ uri: url });
   const [generation, setGeneration] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -47,7 +48,16 @@ export default function PortalView({ url }: { url: string }) {
 
   function allowNavigation(target: string) {
     const decision = classifyNavigation(target, url);
-    if (decision === 'internal' || decision === 'payment') return true;
+    if (decision === 'internal') { paymentJourney.current=false; return true; }
+    if (decision === 'payment') { paymentJourney.current=true; return true; }
+    // Bank authentication redirects stay in the same payment journey/session.
+    if (decision === 'external' && paymentJourney.current) return true;
+    if (decision === 'payment-app') {
+      const appTarget=paymentAppTarget(target);
+      if (paymentJourney.current && appTarget) void openOutside(appTarget);
+      else Alert.alert('Payment link unavailable','Open UPI from the secure checkout page.');
+      return false;
+    }
     if (decision === 'external' || decision === 'device') {
       void openOutside(target);
     } else {

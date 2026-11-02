@@ -15,6 +15,7 @@ import {
   getListEventsQueryKey, getListMyEventRegistrationsQueryKey,
 } from "@workspace/api-client-react";
 import { EventsNav, Price, StatusBadge, DAYS, errMsg, fmtDate, fmtDateTime, newRequestId } from "@/components/events/eventUtils";
+import { openCashfreeCheckout } from "@/components/payments/cashfreeCheckout";
 
 function safeStripeUrl(raw: string): string | null {
   try {
@@ -58,10 +59,16 @@ export default function EventDetail() {
 
   const startCheckout = (registrationId: string) => {
     checkout.mutate({ registrationId }, {
-      onSuccess: res => {
-        const url = safeStripeUrl(res.url);
-        if (!url) { setError("The checkout link was not recognised as a secure Stripe page. Open My event registrations to retry."); return; }
-        window.location.assign(url);
+      onSuccess: async res => {
+        try {
+          if (res.paymentSessionId) { await openCashfreeCheckout(res.paymentSessionId,res.mode); return; }
+          if (res.url) {
+            const url = safeStripeUrl(res.url);
+            if (url) { window.location.assign(url); return; }
+          }
+          if (res.orderId) { window.location.assign(`/events/registrations?registrationId=${encodeURIComponent(registrationId)}&payment=return`); return; }
+          throw new Error("The payment provider did not return a checkout session.");
+        } catch(e) { setError(errMsg(e)); }
       },
       onError: e => { setError(errMsg(e) + " Your seat is held for a short time; resume payment from My event registrations."); invalidate(); },
     });

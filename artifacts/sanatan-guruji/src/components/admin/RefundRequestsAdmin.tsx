@@ -14,12 +14,15 @@ type RefundRequest = {
   customerName: string;
   amount: number;
   stripeAmount: number;
+  cashfreeAmount: number;
   manualAmount: number;
-  sourceKind: 'stripe' | 'manual' | 'mixed';
+  sourceKind: 'stripe' | 'cashfree' | 'manual' | 'mixed';
   status: 'pending' | 'processing' | 'manual_pending' | 'paid' | 'failed';
   reason: string;
   stripeRefundId: string | null;
   stripeFailure: string | null;
+  cashfreeRefundId: string | null;
+  cashfreeFailure: string | null;
   manualReference: string | null;
   createdAt: string;
   pujaName: string | null;
@@ -38,7 +41,7 @@ const stamp = (value: string) => {
 };
 const statusText: Record<RefundRequest['status'], string> = {
   pending: 'Awaiting approval',
-  processing: 'Stripe processing',
+  processing: 'Gateway processing',
   manual_pending: 'Manual payout needed',
   paid: 'Paid',
   failed: 'Needs review',
@@ -67,7 +70,7 @@ export default function RefundRequestsAdmin() {
   const reconcile = useMutation({
     mutationFn: async (id: number) => (await apiRequest('POST', `/api/admin/refunds/${id}/reconcile`, {})).json(),
     onSuccess: (result: any) => { toast({ title: 'Refund status updated', description: `Status: ${statusText[result.status as RefundRequest['status']] || result.status}` }); refreshData(); },
-    onError: (error: Error) => toast({ title: 'Could not refresh Stripe status', description: error.message, variant: 'destructive' }),
+    onError: (error: Error) => toast({ title: 'Could not refresh refund status', description: error.message, variant: 'destructive' }),
   });
   const settle = useMutation({
     mutationFn: async (item: RefundRequest) => (await apiRequest('POST', `/api/admin/refunds/${item.id}/settle`, {
@@ -95,7 +98,7 @@ export default function RefundRequestsAdmin() {
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold"><ShieldCheck className="h-5 w-5 text-amber-700" />Refund approvals</h2>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Cancellations remain unchanged. Approving a live Stripe refund sends it to the original payment method.
+            Cancellations remain unchanged. Approving a live online refund sends it through its original gateway to the original payment method.
             Manual refunds must be paid outside the app, then marked paid here with the payout reference.
           </p>
         </div>
@@ -115,6 +118,8 @@ export default function RefundRequestsAdmin() {
               : `${item.pujaName || 'Puja'} · Booking #${item.bookingId}`;
             const busy = approve.isPending || reconcile.isPending || settle.isPending;
             const pendingApproval = item.status === 'pending' || item.status === 'failed';
+            const onlineAmount=Number(item.stripeAmount||0)+Number(item.cashfreeAmount||0);
+            const gateway=Number(item.cashfreeAmount)>0?'Cashfree':'Stripe';
             const transferReference = references[item.id] || '';
             return (
               <li key={item.id} className="space-y-3 rounded-lg border bg-background p-4" data-testid={`refund-request-${item.id}`}>
@@ -133,32 +138,35 @@ export default function RefundRequestsAdmin() {
                 <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                   <p><span className="text-muted-foreground">Total due</span><br /><strong>{rupees(item.amount)}</strong></p>
                   {item.stripeAmount > 0 && <p><span className="text-muted-foreground">Stripe to original method</span><br /><strong>{rupees(item.stripeAmount)}</strong></p>}
+                  {item.cashfreeAmount > 0 && <p><span className="text-muted-foreground">Cashfree to original method</span><br /><strong>{rupees(item.cashfreeAmount)}</strong></p>}
                   {item.manualAmount > 0 && <p><span className="text-muted-foreground">Manual payout</span><br /><strong>{rupees(item.manualAmount)}</strong></p>}
                   <p><span className="text-muted-foreground">Payment source</span><br /><strong className="capitalize">{item.sourceKind}</strong></p>
                 </div>
                 <p className="text-sm"><span className="font-medium">Cancellation reason:</span> {item.reason}</p>
                 {item.stripeRefundId && <p className="text-xs text-muted-foreground">Stripe refund reference: {item.stripeRefundId}</p>}
                 {item.stripeFailure && <p role="alert" className="text-sm text-red-700">Stripe status needs review: {item.stripeFailure}</p>}
+                {item.cashfreeRefundId && <p className="text-xs text-muted-foreground">Cashfree refund reference: {item.cashfreeRefundId}</p>}
+                {item.cashfreeFailure && <p role="alert" className="text-sm text-red-700">Cashfree status needs review: {item.cashfreeFailure}</p>}
 
                 {pendingApproval && <div className="space-y-2">
-                  {item.stripeAmount > 0 && <p className="text-xs text-amber-900">
-                    Approval sends {rupees(item.stripeAmount)} through Stripe to the original payment method. Check this amount before approving.
+                  {onlineAmount > 0 && <p className="text-xs text-amber-900">
+                    Approval sends {rupees(onlineAmount)} through {gateway} to the original payment method. Check this amount before approving.
                   </p>}
-                  <Button size="sm" variant={item.stripeAmount > 0 ? 'destructive' : 'default'} disabled={busy}
+                  <Button size="sm" variant={onlineAmount > 0 ? 'destructive' : 'default'} disabled={busy}
                     onClick={() => {
-                      const prompt = item.stripeAmount > 0
-                        ? `Issue a Stripe refund of ${rupees(item.stripeAmount)} to the original payment method for ${title}?`
+                      const prompt = onlineAmount > 0
+                        ? `Issue a ${gateway} refund of ${rupees(onlineAmount)} to the original payment method for ${title}?`
                         : `Approve the manual refund of ${rupees(item.manualAmount)} for ${title}?`;
                       if (window.confirm(prompt)) approve.mutate(item.id);
                     }}>
                     {approve.isPending && approve.variables === item.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {item.status === 'failed' ? 'Retry Stripe refund safely' : item.stripeAmount > 0 ? 'Approve & issue Stripe refund' : 'Approve manual payout'}
+                    {item.status === 'failed' ? 'Retry refund safely' : onlineAmount > 0 ? `Approve & issue ${gateway} refund` : 'Approve manual payout'}
                   </Button>
                 </div>}
                 {item.status === 'processing' && <Button size="sm" variant="outline" disabled={busy}
                   onClick={() => reconcile.mutate(item.id)}>
                   {reconcile.isPending && reconcile.variables === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-                  Check Stripe status
+                  Check refund status
                 </Button>}
                 {item.status === 'manual_pending' && <div className="grid gap-2 sm:grid-cols-[1fr_1.5fr_auto]">
                   <Input value={transferReference} onChange={event => setReferences(current => ({ ...current, [item.id]: event.target.value }))}

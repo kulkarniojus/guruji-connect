@@ -1479,7 +1479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bookings", isAuthenticated, checkRole(['customer']), async (req: Request, res: Response) => {
     try {
       if ((await paymentSettings()).paymentRequired) {
-        return res.status(402).json({ message: 'Complete verified Stripe checkout before sending this booking request.' });
+        return res.status(402).json({ message: 'Complete verified Cashfree checkout before sending this booking request.' });
       }
 
       const userId = req.session.userId as number;

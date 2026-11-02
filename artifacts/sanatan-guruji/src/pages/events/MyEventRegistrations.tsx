@@ -14,6 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import { EventsNav, StatusBadge, errMsg, fmtDateTime, rupees } from "@/components/events/eventUtils";
 import RefundProgress from "@/components/payments/RefundProgress";
+import { openCashfreeCheckout } from "@/components/payments/cashfreeCheckout";
 
 function EventLinks({ eventId }: { eventId: number }) {
   const { data } = useGetEvent(eventId, { query: { queryKey: getGetEventQueryKey(eventId) } });
@@ -79,12 +80,16 @@ export default function MyEventRegistrations() {
 
   const resume = (id: string) => {
     checkout.mutate({ registrationId: id }, {
-      onSuccess: res => {
+      onSuccess: async res => {
         try {
-          const u = new URL(res.url);
-          if (u.protocol === "https:" && u.hostname === "checkout.stripe.com") { window.location.assign(u.toString()); return; }
-        } catch { /* fallthrough */ }
-        setMsg(m => ({ ...m, [id]: "Checkout link was not a recognised secure Stripe page." }));
+          if (res.paymentSessionId) { await openCashfreeCheckout(res.paymentSessionId,res.mode); return; }
+          if (res.url) {
+            const u = new URL(res.url);
+            if (u.protocol === "https:" && u.hostname === "checkout.stripe.com") { window.location.assign(u.toString()); return; }
+          }
+          if (res.orderId) { doReconcile(id,true); return; }
+          throw new Error("The payment provider did not return a checkout session.");
+        } catch(e) { setMsg(m => ({ ...m, [id]: errMsg(e) })); }
       },
       onError: e => setMsg(m => ({ ...m, [id]: errMsg(e) })),
     });

@@ -191,6 +191,7 @@ export type CustomerRefundProgressSourceKind = typeof CustomerRefundProgressSour
 
 export const CustomerRefundProgressSourceKind = {
   stripe: 'stripe',
+  cashfree: 'cashfree',
   manual: 'manual',
   mixed: 'mixed',
 } as const;
@@ -203,6 +204,7 @@ export interface CustomerRefundProgress {
   status: CustomerRefundProgressStatus;
   sourceKind: CustomerRefundProgressSourceKind;
   stripeAmount: number;
+  cashfreeAmount: number;
   manualAmount: number;
   /** @nullable */
   manualReference: string | null;
@@ -264,9 +266,20 @@ export interface EventMessageInput {
   message: string;
 }
 
+export type EventCheckoutResultMode = typeof EventCheckoutResultMode[keyof typeof EventCheckoutResultMode];
+
+
+export const EventCheckoutResultMode = {
+  test: 'test',
+  live: 'live',
+  unavailable: 'unavailable',
+} as const;
+
 export interface EventCheckoutResult {
-  url: string;
-  mode: string;
+  url?: string;
+  paymentSessionId?: string;
+  orderId?: string;
+  mode: EventCheckoutResultMode;
 }
 
 export type EventMediaUploadInputContentType = typeof EventMediaUploadInputContentType[keyof typeof EventMediaUploadInputContentType];
@@ -448,8 +461,19 @@ export interface PaymentCheckoutInput {
   requestId: string;
 }
 
+export type CheckoutStartResultProviderMode = typeof CheckoutStartResultProviderMode[keyof typeof CheckoutStartResultProviderMode];
+
+
+export const CheckoutStartResultProviderMode = {
+  test: 'test',
+  live: 'live',
+  unavailable: 'unavailable',
+} as const;
+
 export interface CheckoutStartResult {
   checkoutUrl?: string;
+  paymentSessionId?: string;
+  providerMode?: CheckoutStartResultProviderMode;
   orderId?: string;
   sessionId?: string;
   bookingId?: number;
@@ -484,6 +508,7 @@ export interface PaymentOrderSummary {
 }
 
 export interface AdminCheckoutRecord {
+  provider?: string;
   id: string;
   customerId: number;
   customerName: string;

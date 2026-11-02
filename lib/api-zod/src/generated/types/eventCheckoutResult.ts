@@ -5,8 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EventCheckoutResultMode } from './eventCheckoutResultMode';
 
 export interface EventCheckoutResult {
-  url: string;
-  mode: string;
+  url?: string;
+  paymentSessionId?: string;
+  orderId?: string;
+  mode: EventCheckoutResultMode;
 }

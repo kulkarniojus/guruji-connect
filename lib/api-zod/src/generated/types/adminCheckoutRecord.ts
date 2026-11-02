@@ -7,6 +7,7 @@
  */
 
 export interface AdminCheckoutRecord {
+  provider?: string;
   id: string;
   customerId: number;
   customerName: string;

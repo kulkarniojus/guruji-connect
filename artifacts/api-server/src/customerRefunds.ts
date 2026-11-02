@@ -233,13 +233,16 @@ async function recordSuccessfulCashfreeRefund(requestId: number, refund: any, re
     if (!request) throw fail(404,'Refund request not found');
     const amount=asPaise(refund.refund_amount);
     const succeeded=String(refund.refund_status).toUpperCase()==='SUCCESS';
+    if (refund.order_id!==request.cashfree_order_id || refund.refund_id!==reference ||
+        amount!==Number(request.cashfree_amount_paise))
+      throw fail(409,'Cashfree refund did not match the approved order, reference and amount.');
     const alreadyRecorded=request.booking_id
       ?((await client.query(`SELECT id FROM customer_finance_entries WHERE booking_id=$1 AND type='refund' AND reference=$2`,
         [request.booking_id,reference])).rowCount??0)>0
       :((await client.query(`SELECT id FROM event_payment_records WHERE registration_id=$1 AND type='refund' AND reference=$2`,
         [request.event_registration_id,reference])).rowCount??0)>0;
     if (succeeded && !alreadyRecorded) {
-      if (amount<=0 || amount>Number(request.cashfree_amount_paise))
+      if (amount<=0)
         throw fail(409,'Cashfree refund amount did not match the approved request.');
       if (request.booking_id) {
         const booking=(await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE',[request.booking_id])).rows[0];
@@ -284,6 +287,7 @@ export async function reconcileStripeRefund(requestId: number) {
       ?(await pool.query('SELECT livemode FROM portal_checkout_orders WHERE booking_id=$1',[request.booking_id])).rows[0]
       :(await pool.query('SELECT is_test FROM event_registrations WHERE id=$1',[request.event_registration_id])).rows[0];
     const liveMode=request.booking_id?source?.livemode===true:source?.is_test===false;
+    if (!liveMode) throw fail(409,'A live original Cashfree transaction is required to reconcile this refund.');
     const refund=await getCashfreeRefund(request.cashfree_order_id,request.cashfree_refund_id,liveMode);
     const status=await recordSuccessfulCashfreeRefund(requestId,refund,request.cashfree_refund_id);
     return {status,cashfreeRefundId:request.cashfree_refund_id};
@@ -325,7 +329,7 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
         throw fail(409,'The outstanding event refund changed. Review event payment records before issuing this refund.');
     }
     const cashfreeRefundId=Number(request.cashfree_amount_paise)>0
-      ?`vdref-${randomUUID().replaceAll('-','')}`:null;
+      ?request.cashfree_refund_id||`vdref-${randomUUID().replaceAll('-','')}`:null;
     await client.query(`UPDATE customer_refund_requests SET status='processing',approved_by=$2,
       approved_at=now(),cashfree_refund_id=COALESCE($3,cashfree_refund_id),updated_at=now() WHERE id=$1`,
       [requestId,adminId,cashfreeRefundId]);
@@ -390,7 +394,7 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
     const attempts=priorRefunds.data
       .filter(item=>item.metadata?.customer_refund_request_id===String(requestId))
       .sort((a,b)=>b.created-a.created);
-    const activeAttempt=attempts.find(item=>['pending','succeeded'].includes(item.status));
+    const activeAttempt=attempts.find(item=>item.status!==null&&['pending','succeeded'].includes(item.status));
     if (activeAttempt && activeAttempt.amount!==Number(request.stripe_amount_paise))
       throw fail(409,'A prior Stripe refund for this request has a different amount. Review it in Stripe before continuing.');
     const refund = activeAttempt || await stripe.refunds.create({
@@ -405,10 +409,11 @@ export async function approveRefundRequest(requestId: number, adminId: number) {
       'Refund submitted to Stripe and is still processing.',stripeRefundId:refund.id };
   } catch (error: any) {
     const isCashfree=Number(request.cashfree_amount_paise)>0;
-    await pool.query(`UPDATE customer_refund_requests SET status='failed',
+    const safeFailure=typeof error?.status==='number' && error.status>=400 && error.status<500;
+    await pool.query(`UPDATE customer_refund_requests SET status=CASE WHEN $3 AND NOT $4 THEN 'processing' ELSE 'failed' END,
       stripe_failure=CASE WHEN $3 THEN stripe_failure ELSE $2 END,
       cashfree_failure=CASE WHEN $3 THEN $2 ELSE cashfree_failure END,updated_at=now()
-      WHERE id=$1 AND status='processing'`,[requestId,String(error?.message || 'Payment provider refund failed').slice(0,1000),isCashfree]);
+      WHERE id=$1 AND status='processing'`,[requestId,String(error?.message || 'Payment provider refund failed').slice(0,1000),isCashfree,safeFailure]);
     throw error;
   }
 }

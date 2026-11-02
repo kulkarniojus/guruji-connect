@@ -11,6 +11,7 @@ export type CustomerRefundProgressSourceKind = typeof CustomerRefundProgressSour
 
 export const CustomerRefundProgressSourceKind = {
   stripe: 'stripe',
+  cashfree: 'cashfree',
   manual: 'manual',
   mixed: 'mixed',
 } as const;

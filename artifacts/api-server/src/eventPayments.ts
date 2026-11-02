@@ -4,7 +4,7 @@ import { getUncachableStripeClient } from './stripeClient';
 import { paymentSettings, checkoutReturnOrigin, cashfreeWebhookUrl } from './stripePayments';
 import { eventFail, registrationView } from './eventsModel';
 import { createEventRefundRequest } from './customerRefunds';
-import { cashfreeRequest, getCashfreeOrder, getCashfreePayments } from './cashfreeClient';
+import { createCashfreeOrder, getCashfreeOrder, getCashfreePayments, isVerifiedCashfreePayment } from './cashfreeClient';
 
 export async function startEventPayment(id: string, guardianId: number, requestOrigin?: string) {
   const settings = await paymentSettings();
@@ -37,7 +37,7 @@ export async function startEventPayment(id: string, guardianId: number, requestO
     // Persist the attempt before external calls so retries use identical
     // Cashfree parameters even if a response is lost.
     await client.query('COMMIT');
-    if (new Date(row.checkout_expires_at).getTime()<Date.now()+30*60000)
+    if (!row.cashfree_order_id && new Date(row.checkout_expires_at).getTime()<Date.now()+30*60000)
       throw eventFail(409,'Checkout setup timed out. Check payment status, then cancel the unpaid reservation and register again.');
     const guardian = (await pool.query(
       'SELECT id,"firstName","lastName",email,mobile FROM users WHERE id=$1',[guardianId],
@@ -45,7 +45,10 @@ export async function startEventPayment(id: string, guardianId: number, requestO
     const phone=String(guardian?.mobile||'').replace(/\D/g,'');
     if (!guardian || phone.length<10 || phone.length>15)
       throw eventFail(400,'Add a valid mobile number to your profile before paying.');
-    const liveMode=settings.providerMode==='live';
+    const liveMode=row.cashfree_order_id?row.is_test!==true:settings.providerMode==='live';
+    const mode=liveMode?'live' as const:'test' as const;
+    if (!liveMode && process.env.NODE_ENV==='production')
+      throw eventFail(409,'Sandbox payments cannot be used on the published site.');
     let cfOrderId=row.cashfree_order_id as string|null;
     let paymentSessionId=row.cashfree_payment_session_id as string|null;
     if (cfOrderId) {
@@ -54,17 +57,17 @@ export async function startEventPayment(id: string, guardianId: number, requestO
         await client.query('UPDATE event_registrations SET is_test=$2 WHERE id=$1',[id,!liveMode]);
         await client.query('COMMIT');
         await reconcileCashfreeEventPayment(id);
-        return { orderId:id, mode:settings.providerMode };
+        return { orderId:id, mode };
       }
       if (existing.order_status!=='ACTIVE' || !existing.payment_session_id)
         throw eventFail(409,'Checkout is complete or expired. Refresh payment status; expired registrations must be registered again.');
       paymentSessionId=existing.payment_session_id;
+      await client.query('UPDATE event_registrations SET cashfree_payment_session_id=$2 WHERE id=$1',
+        [id,paymentSessionId]);
     } else {
       cfOrderId=`vdevent-${id.replaceAll('-','')}`;
       const returnUrl=`${origin}/events/registrations?registrationId=${encodeURIComponent(id)}&payment=return`;
-      const created=await cashfreeRequest<{
-        order_id:string; payment_session_id:string; order_amount:number; order_currency:string;
-      }>('POST','/orders',liveMode,{
+      const created=await createCashfreeOrder({
         order_id:cfOrderId,
         order_amount:Number(row.fee_paise)/100,
         order_currency:'INR',
@@ -74,11 +77,11 @@ export async function startEventPayment(id: string, guardianId: number, requestO
           customer_email:guardian.email||undefined,
           customer_phone:phone,
         },
-        order_meta:{return_url:returnUrl,notify_url:cashfreeWebhookUrl()},
+        order_meta:{return_url:returnUrl,notify_url:cashfreeWebhookUrl(origin)},
         order_expiry_time:new Date(row.checkout_expires_at).toISOString(),
         order_note:`Vaidik Dhara event registration`,
         order_tags:{portal_kind:'event_registration',registration_id:id,event_id:String(event.id)},
-      });
+      },liveMode);
       if (created.order_id!==cfOrderId || created.order_currency!=='INR' ||
           Math.round(Number(created.order_amount)*100)!==Number(row.fee_paise) || !created.payment_session_id)
         throw eventFail(502,'Cashfree returned an order that did not match this registration.');
@@ -91,7 +94,7 @@ export async function startEventPayment(id: string, guardianId: number, requestO
     if (current.status==='cancelled') {
       throw eventFail(409,'This reservation was cancelled while checkout was being prepared');
     }
-    return { orderId:id,paymentSessionId,mode:settings.providerMode };
+    return { orderId:id,paymentSessionId,mode };
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
 }
@@ -140,15 +143,15 @@ export async function completeCashfreeEventPayment(id: string) {
     [id,'cashfree'])).rows[0];
   if (!initial?.cashfree_order_id) throw eventFail(409,'Cashfree order is not linked to this registration');
   const liveMode=initial.is_test!==true;
+  if (!liveMode && process.env.NODE_ENV==='production')
+    throw eventFail(409,'Sandbox payments cannot confirm registrations on the published site.');
   const order=await getCashfreeOrder(initial.cashfree_order_id,liveMode);
   if (order.order_status!=='PAID' || order.order_currency!=='INR' ||
       Math.round(Number(order.order_amount)*100)!==Number(initial.fee_paise))
     throw eventFail(409,'Event payment verification failed');
   const payments=await getCashfreePayments(initial.cashfree_order_id,liveMode);
   const payment=payments.find(p=>p.payment_status==='SUCCESS' && p.order_id===order.order_id);
-  if (!payment || payment.payment_currency!=='INR' ||
-      Math.round(Number(payment.order_amount)*100)!==Number(initial.fee_paise) ||
-      Math.round(Number(payment.payment_amount)*100)!==Number(initial.fee_paise))
+  if (!payment || !isVerifiedCashfreePayment(order,payment,initial.cashfree_order_id,Number(initial.fee_paise)))
     throw eventFail(409,'Event payment verification failed');
 
   const client=await pool.connect();
