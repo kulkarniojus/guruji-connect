@@ -32,8 +32,8 @@ import { initializeGurujiFinance } from './gurujiFinanceStore';
 import { startGurujiFinanceScheduler } from './gurujiFinanceScheduler';
 import { gurujiFinanceRouter } from './routes/guruji-finance';
 import { cancellationsRouter } from './routes/cancellations';
-import { initializePaymentStorage, initializeStripeGateway, paymentSettings, savePaymentSettings,
-  startCheckout, checkoutResult, processPaymentWebhook, checkoutReturnOrigin } from './stripePayments';
+import { initializePaymentStorage, initializeStripeGateway, initializeCashfreeGateway, paymentSettings, savePaymentSettings,
+  startCheckout, checkoutResult, processPaymentWebhook, processCashfreeWebhook, checkoutReturnOrigin } from './stripePayments';
 
 // Use database storage in production, memory storage for quick testing
 const storageInstance = process.env.DATABASE_URL ? new DBStorage() : storage;
@@ -290,6 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeAppSettings();
   await initializePaymentStorage();
   await initializeStripeGateway();
+  await initializeCashfreeGateway();
   // No sample accounts are created or re-enabled on application startup.
 
   // Set up session middleware — use PostgreSQL store so sessions survive restarts
@@ -2415,7 +2416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch(error:any) {
       return res.status(error instanceof ZodError?400:error.status||503).json({message:
         error instanceof ZodError?'Complete the booking details before paying.':error.status?error.message:
-          'Stripe could not open checkout. No booking request was sent. Please retry or contact the Vaidik Dhara support team.'});
+          'Cashfree could not open checkout. No booking request was sent. Please retry or contact the Vaidik Dhara support team.'});
     }
   });
   app.get('/api/payments/checkout/:sessionId',isAuthenticated,checkRole(['customer']),async(req,res)=>{
@@ -2426,7 +2427,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/payments/orders/:id',isAuthenticated,checkRole(['customer']),async(req,res)=>{
     try {
     if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({message:'Invalid payment attempt'});
-    const order=(await pool.query(`SELECT stripe_session_id AS "sessionId",booking_id AS "bookingId",state
+    const order=(await pool.query(`SELECT COALESCE(cashfree_order_id,stripe_session_id) AS "sessionId",
+      booking_id AS "bookingId",state
       FROM portal_checkout_orders WHERE id=$1 AND customer_id=$2`,[req.params.id,req.session.userId])).rows[0];
     if (!order) return res.status(404).json({message:'Payment attempt not found'});
     return res.json(order);
@@ -2437,18 +2439,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json((await pool.query(`SELECT o.id,o.customer_id AS "customerId",u."firstName" AS "customerName",
       o.booking_id AS "bookingId",o.state,o.needs_support AS "needsSupport",(o.advance_paise/100.0)::float8 AS "advanceAmount",
       o.advance_percentage::float8 AS "advancePercentage",(o.pricing_snapshot->>'totalAmount')::float8 AS "totalAmount",
-      o.created_at AS "createdAt",o.livemode,o.stripe_payment_intent_id AS "paymentReference",
-      o.stripe_session_id AS "sessionId"
+      o.created_at AS "createdAt",o.livemode,o.payment_provider AS provider,
+      COALESCE(o.cashfree_payment_id,o.stripe_payment_intent_id) AS "paymentReference",
+      COALESCE(o.cashfree_order_id,o.stripe_session_id) AS "sessionId"
       FROM portal_checkout_orders o JOIN users u ON u.id=o.customer_id ORDER BY o.created_at DESC LIMIT 100`)).rows);
     } catch { res.status(503).json({message:'Checkout history could not be loaded'}); }
   });
   app.post('/api/admin/payments/checkouts/:id/reconcile',isAuthenticated,isAdmin,async(req,res)=>{
     try {
       if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({message:'Invalid payment attempt'});
-      const order=(await pool.query('SELECT customer_id,stripe_session_id FROM portal_checkout_orders WHERE id=$1',[req.params.id])).rows[0];
-      if (!order?.stripe_session_id) return res.status(404).json({message:'Checkout session not found'});
-      return res.json(await checkoutResult(order.customer_id,order.stripe_session_id,paidBookingEligible,paidBookingBroadcast));
-    } catch(error:any) { return res.status(error.status||503).json({message:error.status?error.message:'Stripe verification is unavailable. No new charge was made.'}); }
+       const order=(await pool.query(`SELECT customer_id,COALESCE(cashfree_order_id,stripe_session_id) AS ref
+         FROM portal_checkout_orders WHERE id=$1`,[req.params.id])).rows[0];
+       if (!order?.ref) return res.status(404).json({message:'Checkout session not found'});
+       return res.json(await checkoutResult(order.customer_id,order.ref,paidBookingEligible,paidBookingBroadcast));
+     } catch(error:any) { return res.status(error.status||503).json({message:error.status?error.message:'Payment verification is unavailable. No new charge was made.'}); }
   });
   app.post('/api/stripe/webhook',async(req,res)=>{
     const signature=req.headers['stripe-signature'];
@@ -2458,6 +2462,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({received:true});
     } catch(error:any) {
       return res.status(error.type==='StripeSignatureVerificationError'?400:500).json({message:'Payment webhook verification or processing failed'});
+    }
+  });
+  app.post('/api/cashfree/webhook',async(req,res)=>{
+    const signature=req.headers['x-webhook-signature'];
+    const timestamp=req.headers['x-webhook-timestamp'];
+    if (!signature || Array.isArray(signature) || !timestamp || Array.isArray(timestamp))
+      return res.status(400).json({message:'Cashfree signature headers are required'});
+    try {
+      await processCashfreeWebhook(req.body,signature,timestamp,paidBookingEligible,paidBookingBroadcast);
+      return res.json({received:true});
+    } catch(error:any) {
+      return res.status(error.status||500).json({message:'Cashfree webhook verification or processing failed'});
     }
   });
 

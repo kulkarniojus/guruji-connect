@@ -17,6 +17,8 @@ const app = express();
 app.set("trust proxy", 1);
 // Stripe signatures must be checked against the original bytes.
 app.use('/api/stripe/webhook', express.raw({type:'application/json',limit:'2mb'}));
+// Cashfree signs the exact raw JSON bytes using its webhook timestamp header.
+app.use('/api/cashfree/webhook', express.raw({type:'application/json',limit:'2mb'}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.get("/api/healthz", (_req, res) => res.json({ status: "ok" }));

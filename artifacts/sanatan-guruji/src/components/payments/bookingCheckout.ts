@@ -1,5 +1,6 @@
 import type { CheckoutBooking, CheckoutStartResult, PaymentConfiguration } from '@workspace/api-client-react';
 import { apiRequest } from '@/lib/queryClient';
+import { openCashfreeCheckout } from './cashfreeCheckout';
 
 const ATTEMPT_KEY='sg-booking-checkout-attempt';
 const RETURN_KEY='sg-booking-checkout-return';
@@ -9,7 +10,7 @@ export function checkoutReturnPath() {
 }
 export function clearCheckoutAttempt() { sessionStorage.removeItem(ATTEMPT_KEY); }
 
-/** Returns a saved booking, or null while leaving for secure Stripe checkout. */
+/** Returns a saved booking, or null while leaving for secure payment checkout. */
 export async function submitBooking(booking: CheckoutBooking): Promise<{id:number}|null> {
   const configResponse=await fetch('/api/settings/payment',{credentials:'include',cache:'no-store'});
   if (!configResponse.ok) throw new Error('Payment settings could not be confirmed. Please retry.');
@@ -31,7 +32,15 @@ export async function submitBooking(booking: CheckoutBooking): Promise<{id:numbe
     window.location.assign(`/payment-return?session_id=${encodeURIComponent(result.sessionId)}`);
     return null;
   }
-  if (!result.checkoutUrl) throw new Error('Stripe did not provide a checkout link.');
+  if (result.paymentSessionId) {
+    await openCashfreeCheckout(result.paymentSessionId,result.providerMode||config.providerMode);
+    return null;
+  }
+  if (result.orderId) {
+    window.location.assign(`/payment-return?order_id=${encodeURIComponent(result.orderId)}`);
+    return null;
+  }
+  if (!result.checkoutUrl) throw new Error('The payment provider did not return a checkout session.');
   const target=new URL(result.checkoutUrl);
   if (target.protocol!=='https:' || target.hostname!=='checkout.stripe.com')
     throw new Error('The checkout address could not be verified.');

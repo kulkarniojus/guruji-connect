@@ -42,17 +42,17 @@ export default function PaymentReturn() {
     <Card>
       <CardHeader><CardTitle>{paid?result.data?.testMode?'Test checkout completed':'Advance payment received':'Verify your booking payment'}</CardTitle></CardHeader>
       <CardContent className="space-y-5">
-        {result.isFetching && <p className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Checking directly with Stripe…</p>}
+         {result.isFetching && <p className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Checking directly with the payment provider…</p>}
         {result.error && <p role="alert" className="text-sm text-red-700">{result.error.message} If money was debited, do not pay again; contact the Vaidik Dhara support team.</p>}
         {paid && <div className="space-y-2 text-sm">
-          <p>{result.data?.testMode?'This was a Stripe test transaction. No real money was collected or recorded as a finance receipt.':
+           <p>{result.data?.testMode?'This was a payment sandbox transaction. No real money was collected or recorded as a finance receipt.':
             `Your ₹${result.data?.advanceAmount?.toLocaleString('en-IN')} advance has been verified and recorded.`}</p>
           <p>Booking #{result.data?.bookingId} still requires genuine Guruji acceptance.</p>
           {result.data?.needsSupport && <p>The selected time or Guruji became unavailable during checkout. Your booking and payment are saved; the support team has been alerted to assist with reassignment or your cancellation/refund request.</p>}
           <p>The remaining booking balance is paid directly to your Guruji. Refunds, when owed under the cancellation policy, are handled and recorded by the support team.</p>
         </div>}
-        {result.data && !paid && <p className="text-sm">{result.data.state==='processing'
-          ?'Stripe is still processing the payment. Do not pay again; this page will recheck.'
+         {result.data && !paid && <p className="text-sm">{result.data.state==='processing'
+           ?'Your payment is still processing. Do not pay again; this page will recheck.'
           :'Checkout is not completed. No booking request has been sent from this attempt. You can return to review your selection.'}</p>}
         <div className="flex flex-wrap gap-3">
           {paid ? <Link href={`/booking/${result.data?.bookingId}`}><Button>View booking request</Button></Link> :
