@@ -24,8 +24,6 @@ export function checkoutReturnOrigin(requestOrigin?: string) {
   allowed.push(
     'vaidikdhara.com',
     'www.vaidikdhara.com',
-    'sanatanguruji.com',
-    'www.sanatanguruji.com',
   );
   const candidate=new URL(requestOrigin||`https://${allowed[0]}`);
   if (candidate.protocol!=='https:' || candidate.port || candidate.username || candidate.password ||
