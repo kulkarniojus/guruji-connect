@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import type Stripe from 'stripe';
-import { runMigrations } from 'stripe-replit-sync';
 import { z } from 'zod';
 import { pool } from './db';
 import { DBStorage } from './dbStorage';
-import { getUncachableStripeClient, getStripeSync } from './stripeClient';
 import { getPricingQuote, pricingQuotePayload } from './pujaPricing';
 import { getBookingCommission } from './pujaCommission';
 import { getBusyGurujiIds, parseBookingTime, validBookingDate } from './bookingSchedule';
@@ -18,14 +15,7 @@ const storage = new DBStorage();
 const fail = (status: number, message: string) => Object.assign(new Error(message), { status });
 export const toPaise = (value: number) => Math.round(value * 100);
 export const advancePaise = (total: number, percentage: number) => Math.round(toPaise(total) * percentage / 100);
-let gateway = { available: false, mode: 'unavailable' as 'test' | 'live' | 'unavailable' };
 let cashfreeGateway = { available: false, mode: 'unavailable' as CashfreeMode };
-
-export function webhookUrl() {
-  const domain = process.env.REPLIT_DOMAINS?.split(',')[0]?.trim();
-  if (!domain) throw new Error('A public runtime domain is required for payment verification.');
-  return `https://${domain}/api/stripe/webhook`;
-}
 
 export function checkoutReturnOrigin(requestOrigin?: string) {
   const allowed=(process.env.REPLIT_DOMAINS||'').split(',').map(v=>v.trim()).filter(Boolean);
@@ -44,17 +34,19 @@ export function checkoutReturnOrigin(requestOrigin?: string) {
 }
 
 export async function initializePaymentStorage() {
-  // A new, default-off switch prevents an old, formerly ignored UPI setting
-  // from unexpectedly enabling real charges after this update.
-  await pool.query(`ALTER TABLE app_settings
-    ADD COLUMN IF NOT EXISTS stripe_payments_enabled boolean NOT NULL DEFAULT false,
-    ADD COLUMN IF NOT EXISTS advance_percentage numeric(5,2) NOT NULL DEFAULT 25;
+  // Copy the existing payment switch once, then use its provider-neutral name.
+  await pool.query(`ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS payments_enabled boolean;
+    UPDATE app_settings SET payments_enabled=COALESCE(payments_enabled,stripe_payments_enabled,false)
+      WHERE payments_enabled IS NULL;
+    ALTER TABLE app_settings ALTER COLUMN payments_enabled SET DEFAULT false;
+    ALTER TABLE app_settings ALTER COLUMN payments_enabled SET NOT NULL;
+    ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS advance_percentage numeric(5,2) NOT NULL DEFAULT 25;
     CREATE TABLE IF NOT EXISTS portal_checkout_orders (
       id uuid PRIMARY KEY, customer_id integer NOT NULL REFERENCES users(id),
       request_id uuid NOT NULL, booking_payload jsonb NOT NULL, pricing_snapshot jsonb NOT NULL,
       commission_snapshot jsonb NOT NULL, advance_percentage numeric(5,2) NOT NULL,
       advance_paise integer NOT NULL CHECK(advance_paise>0), livemode boolean NOT NULL,
-      payment_provider text NOT NULL DEFAULT 'stripe',
+      payment_provider text NOT NULL DEFAULT 'cashfree',
       stripe_session_id text UNIQUE, stripe_payment_intent_id text UNIQUE,
       cashfree_order_id text UNIQUE, cashfree_payment_session_id text, cashfree_payment_id text,
       booking_id integer UNIQUE REFERENCES bookings(id), needs_support boolean NOT NULL DEFAULT false,
@@ -62,35 +54,17 @@ export async function initializePaymentStorage() {
       expires_at timestamptz NOT NULL, UNIQUE(customer_id,request_id)
     );
     ALTER TABLE portal_checkout_orders
-      ADD COLUMN IF NOT EXISTS payment_provider text NOT NULL DEFAULT 'stripe',
+      ADD COLUMN IF NOT EXISTS payment_provider text NOT NULL DEFAULT 'cashfree',
       ADD COLUMN IF NOT EXISTS cashfree_order_id text,
       ADD COLUMN IF NOT EXISTS cashfree_payment_session_id text,
       ADD COLUMN IF NOT EXISTS cashfree_payment_id text;
+    ALTER TABLE portal_checkout_orders ALTER COLUMN payment_provider SET DEFAULT 'cashfree';
     CREATE UNIQUE INDEX IF NOT EXISTS portal_checkout_cashfree_order_id
       ON portal_checkout_orders(cashfree_order_id) WHERE cashfree_order_id IS NOT NULL;
     CREATE INDEX IF NOT EXISTS portal_checkout_pending ON portal_checkout_orders(state,created_at);`);
   // The legacy table stored whole rupees. Widen, without changing units or
   // existing values, so percentage advances retain their paise exactly.
   await pool.query('ALTER TABLE payments ALTER COLUMN amount TYPE numeric(14,2) USING amount::numeric');
-}
-
-export async function initializeStripeGateway() {
-  gateway = { available: false, mode: 'unavailable' };
-  try {
-    await runMigrations({ databaseUrl: process.env.DATABASE_URL! });
-    const stripe = await getUncachableStripeClient();
-    const balance = await stripe.balance.retrieve();
-    const sync = await getStripeSync();
-    try {
-      await sync.findOrCreateManagedWebhook(webhookUrl());
-      await sync.syncBackfill({ object: 'all' });
-      gateway = { available: true, mode: balance.livemode ? 'live' : 'test' };
-      console.log(`Stripe checkout ready (${gateway.mode} mode); the admin payment switch is unchanged.`);
-    } finally { await sync.postgresClient.pool.end(); }
-  } catch {
-    // Optional payments must not take the existing no-payment portal offline.
-    console.error('Stripe setup is unavailable. Online checkout is blocked; disabled-payment bookings remain available.');
-  }
 }
 
 export async function initializeCashfreeGateway() {
@@ -103,8 +77,8 @@ export async function paymentSettings() {
   if (!row) throw fail(503, 'Payment settings are unavailable.');
   return {
     checkoutAvailable: cashfreeGateway.available, provider: 'cashfree', providerMode: cashfreeGateway.mode,
-    paymentRequired: row.stripe_payments_enabled === true,
-    paymentSkipped: row.stripe_payments_enabled !== true,
+    paymentRequired: row.payments_enabled === true,
+    paymentSkipped: row.payments_enabled !== true,
     advancePercentage: Number(row.advance_percentage),
     upiId: row.upi_id, upiName: row.upi_name, upiQrImageUrl: row.upi_qr_image_url,
   };
@@ -119,7 +93,7 @@ export const paymentSettingsInput = z.object({
 export async function savePaymentSettings(raw: unknown) {
   const input = paymentSettingsInput.parse(raw);
   if (input.paymentRequired && !cashfreeGateway.available) throw fail(503, 'Cashfree checkout credentials are not ready for this environment. Payments cannot be enabled yet.');
-  await pool.query(`UPDATE app_settings SET stripe_payments_enabled=$1,payment_required=$1,
+  await pool.query(`UPDATE app_settings SET payments_enabled=$1,payment_required=$1,
     advance_percentage=$2,upi_id=$3,upi_name=$4,upi_qr_image_url=$5,updated_at=NOW()`,
     [input.paymentRequired, input.advancePercentage, input.upiId || null, input.upiName || null, input.upiQrImageUrl || null]);
   return paymentSettings();
@@ -167,34 +141,6 @@ async function prepareCheckout(raw: unknown) {
   return { booking: {...booking, calendarDate:dateKey,duration:puja.duration}, quote, puja };
 }
 
-async function checkoutPrice(stripe: Stripe, puja: any, amount: number) {
-  const lookupKey = `sg-advance-${puja.id}-${amount}`;
-  const prices = await stripe.prices.list({lookup_keys:[lookupKey],active:true,limit:1});
-  if (prices.data[0]) {
-    if (prices.data[0].currency!=='inr' || prices.data[0].unit_amount!==amount)
-      throw fail(503,'The configured Stripe price does not match the booking advance.');
-    return prices.data[0].id;
-  }
-  // Stripe Search is unavailable for some India accounts; ordinary pagination
-  // works there too.
-  let existing: Stripe.Product | undefined;
-  for await (const product of stripe.products.list({active:true,limit:100})) {
-    if (product.metadata.sg_puja_id===String(puja.id) && product.metadata.sg_kind==='advance') { existing=product; break; }
-  }
-  const product = existing || await stripe.products.create({
-    name:`${puja.name} — booking advance`,metadata:{sg_puja_id:String(puja.id),sg_kind:'advance'},
-  },{idempotencyKey:`sg-puja-advance-product-${puja.id}`});
-  try {
-    return (await stripe.prices.create({
-      product:product.id,currency:'inr',unit_amount:amount,lookup_key:lookupKey,
-    },{idempotencyKey:`sg-advance-price-${puja.id}-${amount}`})).id;
-  } catch (error) {
-    const retry = await stripe.prices.list({lookup_keys:[lookupKey],active:true,limit:1});
-    if (retry.data[0]) return retry.data[0].id;
-    throw error;
-  }
-}
-
 export async function startCheckout(customerId: number, raw: unknown, origin: string) {
   const settings = await paymentSettings();
   if (!settings.paymentRequired) throw fail(409, 'Online payment is disabled. Return to review and send your booking request without payment.');
@@ -204,8 +150,8 @@ export async function startCheckout(customerId: number, raw: unknown, origin: st
     'SELECT payment_provider FROM portal_checkout_orders WHERE customer_id=$1 AND request_id=$2',
     [customerId,input.requestId],
   )).rows[0];
-  // Complete or resume a pre-migration Stripe attempt on its original gateway.
-  if (existing?.payment_provider === 'stripe') return createCheckoutOrder(customerId,raw,origin,settings);
+  if (existing && existing.payment_provider !== 'cashfree')
+    throw fail(410,'This payment attempt uses a retired provider. Start a new booking to pay with Cashfree.');
   return createCashfreeCheckoutOrder(customerId,raw,origin,settings);
 }
 
@@ -311,78 +257,8 @@ export function cashfreeWebhookUrl(origin?:string) {
   return `${checkoutReturnOrigin(origin)}/api/cashfree/webhook`;
 }
 
-// Business operation separated from the HTTP/admin-switch gate for isolated
-// sandbox verification without enabling payments for other portal users.
-export async function createCheckoutOrder(customerId: number, raw: unknown, origin: string, settings: Awaited<ReturnType<typeof paymentSettings>>) {
-  const input = checkoutInput.parse(raw);
-  const prepared = await prepareCheckout(input.booking);
-  const amount = advancePaise(prepared.quote.totalAmount, settings.advancePercentage);
-  if (!Number.isSafeInteger(amount) || amount < 50 || amount > 99999999)
-    throw fail(400, 'The configured advance is outside the payment provider limits.');
-  const commission = await getBookingCommission(prepared.puja.id, prepared.quote.totalAmount);
-  const db = await pool.connect();
-  try {
-    await db.query('BEGIN');
-    await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`${customerId}:${input.requestId}`]);
-    let order = (await db.query('SELECT * FROM portal_checkout_orders WHERE customer_id=$1 AND request_id=$2 FOR UPDATE',
-      [customerId,input.requestId])).rows[0];
-    if (order) {
-      if (JSON.stringify(order.booking_payload) !== JSON.stringify(JSON.parse(JSON.stringify(prepared.booking)))) {
-        // JSONB key order is not stable; compare the canonical value in SQL.
-        const same = (await db.query('SELECT booking_payload=$2::jsonb AS same FROM portal_checkout_orders WHERE id=$1',
-          [order.id,JSON.stringify(prepared.booking)])).rows[0].same;
-        if (!same) throw fail(409, 'This checkout attempt belongs to a different booking. Start a new attempt.');
-      }
-      if (order.booking_id) { await db.query('COMMIT'); return {bookingId:order.booking_id}; }
-      if (new Date(order.expires_at).getTime() <= Date.now()) throw fail(409, 'This payment attempt expired. Start a new attempt.');
-    } else {
-      order = (await db.query(`INSERT INTO portal_checkout_orders(id,customer_id,request_id,booking_payload,
-        pricing_snapshot,commission_snapshot,advance_percentage,advance_paise,livemode,expires_at)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW()+INTERVAL '35 minutes') RETURNING *`,
-        [randomUUID(),customerId,input.requestId,prepared.booking,prepared.quote,commission,
-          settings.advancePercentage,amount,settings.providerMode==='live'])).rows[0];
-    }
-    const stripe = await getUncachableStripeClient();
-    let session: Stripe.Checkout.Session;
-    if (order.stripe_session_id) session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
-    else {
-      const price = await checkoutPrice(stripe,prepared.puja,Number(order.advance_paise));
-      session = await stripe.checkout.sessions.create({
-        mode:'payment',line_items:[{price,quantity:1}],client_reference_id:order.id,
-        metadata:{sg_order_id:order.id,sg_customer_id:String(customerId)},
-        payment_intent_data:{metadata:{sg_order_id:order.id}},
-        success_url:`${origin}/payment-return?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:`${origin}/payment-return?order_id=${order.id}&cancelled=1`,
-        expires_at:Math.floor(new Date(order.expires_at).getTime()/1000),
-      },{idempotencyKey:`sg-checkout-${order.id}`});
-      await db.query('UPDATE portal_checkout_orders SET stripe_session_id=$2 WHERE id=$1',[order.id,session.id]);
-    }
-    await db.query('COMMIT');
-    if (session.status === 'complete') return {sessionId:session.id};
-    if (!session.url || session.status !== 'open') throw fail(409, 'This checkout is no longer open. Start a new attempt.');
-    return {checkoutUrl:session.url,orderId:order.id,advanceAmount:Number(order.advance_paise)/100};
-  } catch (error) { await db.query('ROLLBACK'); throw error; }
-  finally { db.release(); }
-}
-
 export type EligibleGurujis = (booking: any) => Promise<any[]>;
 export type PaymentBroadcast = (booking: any, gurujis: any[]) => void;
-
-export function assertPaidSession(session: Stripe.Checkout.Session, order: any) {
-  if (session.id !== order.stripe_session_id || session.client_reference_id !== order.id ||
-      session.metadata?.sg_order_id !== order.id || session.metadata?.sg_customer_id !== String(order.customer_id) ||
-      session.currency !== 'inr' || session.amount_total !== Number(order.advance_paise) ||
-      session.livemode !== order.livemode || session.payment_status !== 'paid' || !session.payment_intent)
-    throw fail(409, 'Payment verification did not match this booking. The support team must review it.');
-}
-
-export async function completeCheckout(session: Stripe.Checkout.Session, eligible: EligibleGurujis, broadcast: PaymentBroadcast) {
-  const order = (await pool.query('SELECT * FROM portal_checkout_orders WHERE stripe_session_id=$1',[session.id])).rows[0];
-  if (!order) return null;
-  assertPaidSession(session,order);
-  const paymentIntent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent!.id;
-  return finalizeBookingCheckout(order.id,paymentIntent,session.livemode,'stripe',eligible,broadcast);
-}
 
 export async function completeCashfreeCheckout(
   cashfreeOrder: Awaited<ReturnType<typeof getCashfreeOrder>>,
@@ -402,7 +278,7 @@ export async function completeCashfreeCheckout(
     throw fail(409,'Cashfree payment verification did not match this booking. The support team must review it.');
   }
   return finalizeBookingCheckout(
-    order.id,String(payment.cf_payment_id),order.livemode === true,'cashfree',eligible,broadcast,
+    order.id,String(payment.cf_payment_id),order.livemode === true,eligible,broadcast,
   );
 }
 
@@ -410,7 +286,6 @@ async function finalizeBookingCheckout(
   orderId: string,
   paymentReference: string,
   liveMode: boolean,
-  provider: 'stripe' | 'cashfree',
   eligible: EligibleGurujis,
   broadcast: PaymentBroadcast,
 ) {
@@ -420,7 +295,7 @@ async function finalizeBookingCheckout(
   try {
     await db.query('BEGIN');
     const order = (await db.query('SELECT * FROM portal_checkout_orders WHERE id=$1 FOR UPDATE',[orderId])).rows[0];
-    if (!order || order.payment_provider !== provider || order.livemode !== liveMode) {
+    if (!order || order.payment_provider !== 'cashfree' || order.livemode !== liveMode) {
       await db.query('COMMIT');
       return null;
     }
@@ -453,11 +328,11 @@ async function finalizeBookingCheckout(
       if (liveMode) {
         await db.query(`INSERT INTO payments("bookingId",amount,status,"transactionId",method,"paidAt","createdAt","updatedAt")
           VALUES($1,$2,'paid',$3,$4,NOW(),NOW(),NOW())`,
-          [saved.id,Number(order.advance_paise)/100,paymentReference,provider]);
+          [saved.id,Number(order.advance_paise)/100,paymentReference,'cashfree']);
         await db.query(`INSERT INTO guruji_finance_receipts(booking_id,guruji_id,received_by,amount,received_on,reference,notes,created_by)
           VALUES($1,NULL,'portal',$2,(NOW() AT TIME ZONE 'Asia/Kolkata')::date,$3,$4,$5)`,
           [saved.id,Number(order.advance_paise)/100,paymentReference,
-            `${provider === 'cashfree' ? 'Cashfree' : 'Stripe'}-verified ${order.advance_percentage}% advance`,order.customer_id]);
+            `Cashfree-verified ${order.advance_percentage}% advance`,order.customer_id]);
       }
       for (const g of recipients) {
         await db.query(`INSERT INTO booking_requests("bookingId","gurujiId",status,"createdAt","updatedAt")
@@ -472,11 +347,9 @@ async function finalizeBookingCheckout(
           `${liveMode?`₹${Number(order.advance_paise)/100} received`:'TEST ONLY — no money collected'} for booking #${saved.id}. ${recipients.length
           ? 'Your request has been sent. Guruji acceptance is still required.'
           : 'The Vaidik Dhara support team has been alerted to help with your unassigned request.'}`]);
-      await db.query(`UPDATE portal_checkout_orders SET booking_id=$2,
-        stripe_payment_intent_id=CASE WHEN $3='stripe' THEN $4 ELSE stripe_payment_intent_id END,
-        cashfree_payment_id=CASE WHEN $3='cashfree' THEN $4 ELSE cashfree_payment_id END,
-        state=$5,needs_support=$6 WHERE id=$1`,
-        [order.id,saved.id,provider,paymentReference,support?'review':'fulfilled',support]);
+      await db.query(`UPDATE portal_checkout_orders SET booking_id=$2,cashfree_payment_id=$3,
+        state=$4,needs_support=$5 WHERE id=$1`,
+        [order.id,saved.id,paymentReference,support?'review':'fulfilled',support]);
       await db.query('COMMIT');
       result=await storage.getBooking(saved.id);
       broadcast(result,recipients);
@@ -525,49 +398,18 @@ export async function verifyCashfreeCheckout(orderId: string, eligible: Eligible
 
 export async function checkoutResult(customerId: number, sessionId: string, eligible: EligibleGurujis, broadcast: PaymentBroadcast) {
   const order=(await pool.query(`SELECT * FROM portal_checkout_orders WHERE customer_id=$2 AND
-    (stripe_session_id=$1 OR id::text=$1 OR cashfree_order_id=$1)`,
-    [sessionId,customerId])).rows[0];
-  if (!order) throw fail(404,'Payment attempt not found.');
-  if (order.payment_provider === 'cashfree') {
-    const result=await verifyCashfreeCheckout(order.id,eligible,broadcast);
-    return {state:result.state,bookingId:result.bookingId,advanceAmount:result.advanceAmount,
-      needsSupport:result.needsSupport,testMode:result.testMode};
+    (id::text=$1 OR cashfree_order_id=$1)`,[sessionId,customerId])).rows[0];
+  if (!order) {
+    const retired=(await pool.query('SELECT id FROM portal_checkout_orders WHERE customer_id=$2 AND stripe_session_id=$1',
+      [sessionId,customerId])).rows[0];
+    if (retired) throw fail(410,'This Stripe payment attempt is retired. Contact the Vaidik Dhara support team for help.');
+    throw fail(404,'Payment attempt not found.');
   }
-  const stripe=await getUncachableStripeClient();
-  const session=await stripe.checkout.sessions.retrieve(sessionId);
-  if (session.payment_status === 'paid') {
-    const booking=await completeCheckout(session,eligible,broadcast);
-    const updated=(await pool.query('SELECT needs_support FROM portal_checkout_orders WHERE id=$1',[order.id])).rows[0];
-    return {state:'paid',bookingId:booking!.id,advanceAmount:Number(order.advance_paise)/100,
-      needsSupport:updated.needs_support,testMode:!session.livemode};
-  }
-  return {state:order.state==='failed'?'failed':session.status==='expired'?'expired':session.status==='complete'?'processing':'unpaid'};
-}
-
-export async function processPaymentWebhook(payload: Buffer, signature: string, eligible: EligibleGurujis, broadcast: PaymentBroadcast) {
-  if (!Buffer.isBuffer(payload)) throw fail(500,'Payment webhook requires an unparsed body.');
-  // Read the signing secret for THIS environment's endpoint, not another
-  // development/production webhook on the same connected Stripe account.
-  const secret=(await pool.query('SELECT secret FROM stripe._managed_webhooks WHERE url=$1 LIMIT 1',[webhookUrl()])).rows[0]?.secret;
-  if (!secret) throw fail(503,'Payment webhook is not configured.');
-  const sync=await getStripeSync(secret);
-  try { await sync.processWebhook(payload,signature); }
-  finally { await sync.postgresClient.pool.end(); }
-  const event=JSON.parse(payload.toString()) as Stripe.Event; // Signature already verified above.
-  if (['checkout.session.completed','checkout.session.async_payment_succeeded'].includes(event.type)) {
-    const session=event.data.object as Stripe.Checkout.Session;
-    if (session.metadata?.portal_kind==='event_registration') {
-      await (await import('./eventPayments')).completeEventPayment(session);
-    } else if (session.payment_status==='paid') await completeCheckout(session,eligible,broadcast);
-  } else if (['checkout.session.expired','checkout.session.async_payment_failed'].includes(event.type)) {
-    const session=event.data.object as Stripe.Checkout.Session;
-    if (session.metadata?.portal_kind==='event_registration') {
-      await (await import('./eventPayments')).expireEventPayment(session);
-      return;
-    }
-    await pool.query(`UPDATE portal_checkout_orders SET state=$2 WHERE stripe_session_id=$1 AND booking_id IS NULL`,
-      [session.id,event.type==='checkout.session.expired'?'expired':'failed']);
-  }
+  if (order.payment_provider !== 'cashfree')
+    throw fail(410,'This payment attempt uses a retired provider. Start a new booking to pay with Cashfree.');
+  const result=await verifyCashfreeCheckout(order.id,eligible,broadcast);
+  return {state:result.state,bookingId:result.bookingId,advanceAmount:result.advanceAmount,
+    needsSupport:result.needsSupport,testMode:result.testMode};
 }
 
 export async function processCashfreeWebhook(

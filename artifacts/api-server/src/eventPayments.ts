@@ -1,6 +1,4 @@
-import type Stripe from 'stripe';
 import { pool } from './db';
-import { getUncachableStripeClient } from './stripeClient';
 import { paymentSettings, checkoutReturnOrigin, cashfreeWebhookUrl } from './stripePayments';
 import { eventFail, registrationView } from './eventsModel';
 import { createEventRefundRequest } from './customerRefunds';
@@ -17,19 +15,12 @@ export async function startEventPayment(id: string, guardianId: number, requestO
     if (!owned) throw eventFail(404,'Registration not found');
     const event = (await client.query('SELECT * FROM religious_events WHERE id=$1 FOR UPDATE', [owned.event_id])).rows[0];
     let row = (await client.query('SELECT * FROM event_registrations WHERE id=$1 FOR UPDATE', [id])).rows[0];
+    if (row.payment_provider !== 'cashfree')
+      throw eventFail(410,'This registration uses a retired payment provider. Contact the Vaidik Dhara support team.');
     if (row.payment_method !== 'online' || row.fee_paise<=0) throw eventFail(409,'This registration does not use online checkout');
     if (row.paid_paise>=row.fee_paise) throw eventFail(409,'This registration has already been paid');
     if (row.status!=='pending_payment' || new Date(row.hold_until).getTime()<=Date.now() || event.status!=='published')
       throw eventFail(409,'The registration reservation has expired or the event is unavailable');
-    if (row.payment_provider === 'stripe' && row.stripe_session_id) {
-      // Existing event checkout sessions remain resumable on their original gateway.
-      const stripe = await getUncachableStripeClient();
-      const existing = await stripe.checkout.sessions.retrieve(row.stripe_session_id);
-      if (existing.status==='open' && existing.url) {
-        await client.query('COMMIT'); return { url: existing.url, mode: existing.livemode?'live':'test' };
-      }
-      throw eventFail(409,'Checkout is complete or expired. Refresh payment status; expired registrations must be registered again.');
-    }
     if (!row.checkout_expires_at) {
       row = (await client.query(`UPDATE event_registrations SET checkout_expires_at=now()+interval '31 minutes',
         hold_until=now()+interval '35 minutes' WHERE id=$1 RETURNING *`,[id])).rows[0];
@@ -95,45 +86,6 @@ export async function startEventPayment(id: string, guardianId: number, requestO
       throw eventFail(409,'This reservation was cancelled while checkout was being prepared');
     }
     return { orderId:id,paymentSessionId,mode };
-  } catch (error) { await client.query('ROLLBACK'); throw error; }
-  finally { client.release(); }
-}
-
-// Called only after signature verification or a direct, authenticated Stripe retrieval.
-export async function completeEventPayment(session: Stripe.Checkout.Session) {
-  if (session.metadata?.portal_kind !== 'event_registration' || session.payment_status!=='paid') return;
-  const id = session.metadata.event_registration_id;
-  if (!id) throw eventFail(400,'Missing event registration reference');
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const lookup = (await client.query('SELECT event_id FROM event_registrations WHERE id=$1 AND stripe_session_id=$2', [id,session.id])).rows[0];
-    if (!lookup) throw eventFail(409,'Event payment is not linked to a registration');
-    const event = (await client.query('SELECT * FROM religious_events WHERE id=$1 FOR UPDATE', [lookup.event_id])).rows[0];
-    const row = (await client.query('SELECT * FROM event_registrations WHERE id=$1 FOR UPDATE', [id])).rows[0];
-    if (row.paid_paise>0) { await client.query('COMMIT'); return; }
-    if (session.currency!=='inr' || session.amount_total!==row.fee_paise || session.livemode===row.is_test ||
-        session.client_reference_id!==row.id) throw eventFail(409,'Event payment verification failed');
-    const occupied = (await client.query(`SELECT count(*)::int AS count FROM event_registrations WHERE event_id=$1 AND id<>$2
-      AND (status IN ('registered','pending_confirmation') OR (status='pending_payment' AND hold_until>now()))`, [row.event_id,id])).rows[0].count;
-    const cancelled = row.status==='cancelled' || event.status==='cancelled' || occupied>=event.details.capacity;
-    await client.query(`UPDATE event_registrations SET paid_paise=fee_paise,status=$2,hold_until=null,
-      cancellation_reason=CASE WHEN $2='cancelled' AND cancellation_reason='' THEN 'Paid after availability ended; refund owed' ELSE cancellation_reason END
-      WHERE id=$1`, [id,cancelled?'cancelled':'registered']);
-    await client.query(`INSERT INTO event_payment_records(registration_id,type,amount_paise,reference,note)
-      VALUES($1,'payment',$2,$3,$4) ON CONFLICT DO NOTHING`,
-      [id,row.fee_paise,session.id,session.livemode?'Server-verified Stripe payment':'TEST payment — no real money collected']);
-    if (cancelled) await createEventRefundRequest(client,{
-      ...row,status:'cancelled',paid_paise:row.fee_paise,
-      cancellation_reason:row.cancellation_reason || 'Payment completed after event availability ended',
-    },row.cancellation_reason || 'Payment completed after event availability ended');
-    await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
-      VALUES($1,$2,$3,'event',false,now())`, [row.guardian_id,
-      cancelled?'Event payment needs support':'Event registration confirmed',
-      `${session.livemode?'':'TEST MODE: '}${event.details.name}: ${cancelled
-        ? 'Payment was verified after availability ended. The recorded refund must be settled by the Vaidik Dhara support team.'
-        : 'Your registration is confirmed. View your event registrations for the schedule.'}`]);
-    await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
 }
@@ -205,20 +157,11 @@ export async function reconcileCashfreeEventPayment(id: string) {
   }
   return registrationView(id);
 }
-export async function expireEventPayment(session: Stripe.Checkout.Session) {
-  if (session.metadata?.portal_kind !== 'event_registration') return;
-  await pool.query(`UPDATE event_registrations SET status='expired',hold_until=null
-    WHERE stripe_session_id=$1 AND status='pending_payment' AND paid_paise=0`, [session.id]);
-}
 export async function reconcileEventPayment(id: string, guardianId: number) {
   const row = (await pool.query('SELECT * FROM event_registrations WHERE id=$1 AND guardian_id=$2', [id,guardianId])).rows[0];
   if (!row) throw eventFail(404,'Registration not found');
   if (row.payment_provider==='cashfree') return reconcileCashfreeEventPayment(id);
-  if (row.stripe_session_id) {
-    const stripe = await getUncachableStripeClient();
-    const session = await stripe.checkout.sessions.retrieve(row.stripe_session_id);
-    if (session.payment_status==='paid') await completeEventPayment(session);
-    else if (session.status==='expired') await expireEventPayment(session);
-  }
+  if (row.payment_method==='online' && Number(row.paid_paise)===0)
+    throw eventFail(410,'This registration uses a retired payment provider. Contact the Vaidik Dhara support team.');
   return registrationView(id);
 }

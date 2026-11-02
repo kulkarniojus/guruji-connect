@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { pool } from './db';
-import { getUncachableStripeClient } from './stripeClient';
 import { bookingCustomerFunds } from './customerFinance';
 import { createCashfreeRefund, getCashfreeRefund } from './cashfreeClient';
 
@@ -75,36 +74,28 @@ export async function createBookingRefundRequest(client: DbClient, booking: any,
   const amountPaise = asPaise(funds.refundOwed);
   if (amountPaise <= 0) return null;
 
-  const order = (await client.query(`SELECT o.stripe_payment_intent_id,o.cashfree_order_id,o.payment_provider,o.livemode,
-      COALESCE(SUM(CASE WHEN p.status IN ('paid','partial') AND p.method='stripe' THEN p.amount ELSE 0 END),0) AS stripe_paid,
+  const order = (await client.query(`SELECT o.cashfree_order_id,o.payment_provider,o.livemode,
       COALESCE(SUM(CASE WHEN p.status IN ('paid','partial') AND p.method='cashfree' THEN p.amount ELSE 0 END),0) AS cashfree_paid
     FROM portal_checkout_orders o LEFT JOIN payments p ON p."bookingId"=o.booking_id
     WHERE o.booking_id=$1 GROUP BY o.id`, [booking.id])).rows[0];
-  const stripeAmountPaise = order?.livemode && order.stripe_payment_intent_id
-    ? Math.min(amountPaise, asPaise(order.stripe_paid))
-    : 0;
   const cashfreeAmountPaise = order?.payment_provider==='cashfree' && order.livemode && order.cashfree_order_id
     ? Math.min(amountPaise,asPaise(order.cashfree_paid)) : 0;
-  const manualAmountPaise = amountPaise - stripeAmountPaise - cashfreeAmountPaise;
-  const onlineKind = stripeAmountPaise ? 'stripe' : cashfreeAmountPaise ? 'cashfree' : '';
-  const sourceKind = stripeAmountPaise && manualAmountPaise || cashfreeAmountPaise && manualAmountPaise
-    ? 'mixed' : onlineKind || 'manual';
+  const manualAmountPaise = amountPaise - cashfreeAmountPaise;
+  const sourceKind = cashfreeAmountPaise && manualAmountPaise ? 'mixed' : cashfreeAmountPaise ? 'cashfree' : 'manual';
   const customerId = booking.customerId ?? booking.customer_id;
   const inserted = (await client.query(`INSERT INTO customer_refund_requests
     (booking_id,customer_id,amount_paise,source_kind,stripe_amount_paise,cashfree_amount_paise,manual_amount_paise,
-     stripe_payment_intent_id,cashfree_order_id,reason)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING RETURNING id`,
-    [booking.id,customerId,amountPaise,sourceKind,stripeAmountPaise,cashfreeAmountPaise,manualAmountPaise,
-      stripeAmountPaise ? order.stripe_payment_intent_id : null,
+      cashfree_order_id,reason)
+    VALUES($1,$2,$3,$4,0,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING id`,
+    [booking.id,customerId,amountPaise,sourceKind,cashfreeAmountPaise,manualAmountPaise,
       cashfreeAmountPaise ? order.cashfree_order_id : null,reason])).rows[0];
   if (!inserted) return null;
 
   const message = `Booking #${booking.id}: ₹${(amountPaise/100).toFixed(2)} refund is awaiting admin approval. ` +
-    (stripeAmountPaise ? `₹${(stripeAmountPaise/100).toFixed(2)} can be returned through Stripe to the original payment method. ` : '') +
     (cashfreeAmountPaise ? `₹${(cashfreeAmountPaise/100).toFixed(2)} can be returned through Cashfree to the original payment method. ` : '') +
     (manualAmountPaise ? `₹${(manualAmountPaise/100).toFixed(2)} requires an offline/manual payout and recorded reference. ` : '');
   await notifyAdmins(client, 'Refund approval required', message);
-  return { id: inserted.id, amount: amountPaise / 100, stripeAmount: stripeAmountPaise / 100,
+  return { id: inserted.id, amount: amountPaise / 100, stripeAmount: 0,
     cashfreeAmount:cashfreeAmountPaise/100,manualAmount: manualAmountPaise / 100 };
 }
 
@@ -113,22 +104,18 @@ export async function createEventRefundRequest(client: DbClient, registration: a
   if (amountPaise <= 0 || registration.is_test) return null;
   const online = registration.payment_method === 'online';
   const cashfreeOnline=online && registration.payment_provider==='cashfree' && registration.cashfree_order_id;
-  const stripeOnline=online && registration.payment_provider!=='cashfree' && registration.stripe_session_id;
   const cashfreeAmountPaise=cashfreeOnline?amountPaise:0;
-  const stripeAmountPaise=stripeOnline?amountPaise:0;
-  const manualAmountPaise=online?amountPaise-stripeAmountPaise-cashfreeAmountPaise:amountPaise;
-  const sourceKind = stripeAmountPaise ? 'stripe' : cashfreeAmountPaise ? 'cashfree' : 'manual';
+  const manualAmountPaise=amountPaise-cashfreeAmountPaise;
+  const sourceKind = cashfreeAmountPaise ? (manualAmountPaise ? 'mixed' : 'cashfree') : 'manual';
   const inserted = (await client.query(`INSERT INTO customer_refund_requests
     (event_registration_id,customer_id,amount_paise,source_kind,stripe_amount_paise,cashfree_amount_paise,manual_amount_paise,
-     stripe_session_id,cashfree_order_id,reason)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING RETURNING id`,
-    [registration.id,registration.guardian_id,amountPaise,sourceKind,stripeAmountPaise,cashfreeAmountPaise,manualAmountPaise,
-      stripeAmountPaise ? registration.stripe_session_id : null,
+      cashfree_order_id,reason)
+    VALUES($1,$2,$3,$4,0,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING id`,
+    [registration.id,registration.guardian_id,amountPaise,sourceKind,cashfreeAmountPaise,manualAmountPaise,
       cashfreeAmountPaise ? registration.cashfree_order_id : null,reason])).rows[0];
   if (!inserted) return null;
   const message = `Event registration ${registration.id}: ₹${(amountPaise/100).toFixed(2)} refund is awaiting admin approval. ` +
-    (stripeAmountPaise ? 'It can be returned through Stripe to the original payment method.' :
-     cashfreeAmountPaise ? 'It can be returned through Cashfree to the original payment method.' :
+    (cashfreeAmountPaise ? 'It can be returned through Cashfree to the original payment method.' :
      'It requires an offline/manual payout and recorded reference.');
   await notifyAdmins(client, 'Event refund approval required', message);
   return { id: inserted.id, amount: amountPaise / 100 };
@@ -174,55 +161,6 @@ export async function getCustomerRefundRequests(customerId: number) {
 async function notifyCustomer(client: DbClient, customerId: number, title: string, message: string) {
   await client.query(`INSERT INTO notifications("userId",title,message,type,"isRead","createdAt")
     VALUES($1,$2,$3,'payment',false,now())`, [customerId,title,message]);
-}
-
-async function recordSuccessfulRefund(requestId: number, refund: any) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const request = (await client.query('SELECT * FROM customer_refund_requests WHERE id=$1 FOR UPDATE',[requestId])).rows[0];
-    if (!request) throw fail(404,'Refund request not found');
-    const alreadyRecorded = request.booking_id
-      ? ((await client.query(`SELECT id FROM customer_finance_entries WHERE booking_id=$1 AND type='refund' AND reference=$2`,
-          [request.booking_id,refund.id])).rowCount ?? 0) > 0
-      : ((await client.query(`SELECT id FROM event_payment_records WHERE registration_id=$1 AND type='refund' AND reference=$2`,
-          [request.event_registration_id,refund.id])).rowCount ?? 0) > 0;
-    if (refund.status === 'succeeded' && !alreadyRecorded) {
-      const amount = Number(refund.amount);
-      if (request.booking_id) {
-        const current = await bookingCustomerFunds(client, (await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE',[request.booking_id])).rows[0]);
-        if (asPaise(current.refundOwed) < amount) throw fail(409,'The outstanding booking refund changed. Reconcile the customer finance record before applying this Stripe refund.');
-        await client.query(`INSERT INTO customer_finance_entries
-          (booking_id,type,amount,reference,reason,paid_by,created_by)
-          VALUES($1,'refund',$2,$3,$4,'portal',$5) ON CONFLICT DO NOTHING`,
-          [request.booking_id,amount/100,refund.id,`Stripe refund to original payment method for booking #${request.booking_id}`,request.approved_by]);
-      } else if (request.event_registration_id) {
-        const registration = (await client.query('SELECT * FROM event_registrations WHERE id=$1 FOR UPDATE',[request.event_registration_id])).rows[0];
-        if (!registration || registration.paid_paise-registration.refunded_paise < amount)
-          throw fail(409,'The outstanding event refund changed. Review event payment records before applying this Stripe refund.');
-        const record = await client.query(`INSERT INTO event_payment_records(registration_id,type,amount_paise,reference,note,actor_id)
-          VALUES($1,'refund',$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING id`,
-          [request.event_registration_id,amount,refund.id,'Stripe refund to original payment method',request.approved_by]);
-        if (record.rowCount) await client.query('UPDATE event_registrations SET refunded_paise=refunded_paise+$2 WHERE id=$1',
-          [request.event_registration_id,amount]);
-      }
-    }
-    const status = refund.status === 'succeeded'
-      ? Number(request.manual_amount_paise)>0 ? 'manual_pending' : 'paid'
-      : refund.status === 'pending' ? 'processing' : 'failed';
-    await client.query(`UPDATE customer_refund_requests SET status=$2,stripe_refund_id=$3,stripe_failure=$4,
-      updated_at=now(),settled_at=CASE WHEN $2='paid' THEN now() ELSE settled_at END
-      WHERE id=$1`, [requestId,status,refund.id,refund.failure_reason || null]);
-    if (refund.status === 'succeeded' && !alreadyRecorded) {
-      const amount = Number(refund.amount);
-      await notifyCustomer(client,request.customer_id,'Online refund issued',
-        `₹${(amount/100).toFixed(2)} was refunded through Stripe to the original payment method. ` +
-        (Number(request.manual_amount_paise)>0 ? `A remaining manual refund of ₹${(Number(request.manual_amount_paise)/100).toFixed(2)} is awaiting payout.` : 'The refund is complete.'));
-    }
-    await client.query('COMMIT');
-    return status;
-  } catch (error) { await client.query('ROLLBACK'); throw error; }
-  finally { client.release(); }
 }
 
 async function recordSuccessfulCashfreeRefund(requestId: number, refund: any, reference: string) {
@@ -278,7 +216,7 @@ async function recordSuccessfulCashfreeRefund(requestId: number, refund: any, re
   finally { client.release(); }
 }
 
-export async function reconcileStripeRefund(requestId: number) {
+export async function reconcileRefundRequest(requestId: number) {
   const request = (await pool.query('SELECT * FROM customer_refund_requests WHERE id=$1',[requestId])).rows[0];
   if (!request) throw fail(404,'Refund request not found');
   if (Number(request.cashfree_amount_paise)>0) {
@@ -292,11 +230,9 @@ export async function reconcileStripeRefund(requestId: number) {
     const status=await recordSuccessfulCashfreeRefund(requestId,refund,request.cashfree_refund_id);
     return {status,cashfreeRefundId:request.cashfree_refund_id};
   }
-  if (request.status !== 'processing' || !request.stripe_refund_id) return { status: request.status };
-  const stripe = await getUncachableStripeClient();
-  const refund = await stripe.refunds.retrieve(request.stripe_refund_id);
-  const status = await recordSuccessfulRefund(requestId,refund);
-  return { status, stripeRefundId: refund.id };
+  if (Number(request.stripe_amount_paise)>0)
+    throw fail(410,'This legacy refund was not reconciled after Stripe support was removed. Verify it manually and record the payout with the Vaidik Dhara support team.');
+  return { status: request.status };
 }
 
 export async function approveRefundRequest(requestId: number, adminId: number) {
