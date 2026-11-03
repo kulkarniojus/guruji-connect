@@ -1672,8 +1672,9 @@ export class DBStorage implements IStorage {
         paramIndex++;
       }
 
-      // Profiles may store pujas in either the join table or the legacy
-      // specialities array (names or numeric IDs).
+      // Regular providers may store pujas in either the join table or the
+      // legacy specialities array. Other-category providers are matched by
+      // their approved category application instead.
       if (filters.pujaId) {
         query += ` AND (
           EXISTS (
@@ -1686,6 +1687,14 @@ export class DBStorage implements IStorage {
               ON LOWER(TRIM(s)) = LOWER(p.name)
               OR TRIM(s) = p.id::text
             WHERE p.id = $${paramIndex}
+          )
+          OR EXISTS (
+            SELECT 1 FROM other_category_applications oca
+            JOIN other_registration_categories oc
+              ON oc.id = oca.category_id AND oc.is_active = true
+            WHERE oca.profile_id = gp.id
+              AND oca.status = 'approved'
+              AND oc.puja_id = $${paramIndex}
           )
         )`;
         values.push(filters.pujaId);
