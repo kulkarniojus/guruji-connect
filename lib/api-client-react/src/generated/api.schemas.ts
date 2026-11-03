@@ -864,6 +864,53 @@ export interface CustomerFinanceEntryInput {
   paidBy?: CustomerFinanceEntryInputPaidBy;
 }
 
+export type PujaCatalogSyncPlanItemAction = typeof PujaCatalogSyncPlanItemAction[keyof typeof PujaCatalogSyncPlanItemAction];
+
+
+export const PujaCatalogSyncPlanItemAction = {
+  update: 'update',
+  insert: 'insert',
+  unmark_popular: 'unmark_popular',
+  skip_inactive: 'skip_inactive',
+} as const;
+
+export interface PujaCatalogSyncPlanItem {
+  name: string;
+  action: PujaCatalogSyncPlanItemAction;
+  /** @nullable */
+  currentImageUrl: string | null;
+  /** @nullable */
+  targetImageUrl: string | null;
+  /** @nullable */
+  currentIsPopular: boolean | null;
+  targetIsPopular: boolean;
+  /** @nullable */
+  currentBasePrice: number | null;
+  /** @nullable */
+  currentPrice: number | null;
+  /** @nullable */
+  targetBasePrice: number | null;
+  /** @nullable */
+  targetPrice: number | null;
+}
+
+export interface PujaCatalogSyncPreview {
+  alreadyApplied: boolean;
+  updateCount: number;
+  insertCount: number;
+  unmarkPopularCount: number;
+  skippedInactiveCount: number;
+  items: PujaCatalogSyncPlanItem[];
+}
+
+export interface PujaCatalogSyncApplyResult {
+  applied: boolean;
+  updated: number;
+  inserted: number;
+  unmarkedPopular: number;
+  skippedInactive: number;
+}
+
 export interface HealthStatus {
   status: string;
 }

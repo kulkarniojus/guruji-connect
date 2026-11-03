@@ -63,6 +63,8 @@ import type {
   ProviderRewardOffer,
   ProviderRewardOfferInput,
   ProviderRewardsResponse,
+  PujaCatalogSyncApplyResult,
+  PujaCatalogSyncPreview,
   PujaCommissionBulkInput,
   PushDeviceResult,
   RecordCustomerFinance201,
@@ -919,6 +921,157 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateEventMutationOptions(options));
+    }
+
+export const getPreviewPopularPujaCatalogSyncUrl = () => {
+
+
+
+
+  return `/api/admin/puja-catalog-sync/preview`
+}
+
+/**
+ * @summary Preview a one-time selective popular puja catalog sync
+ */
+export const previewPopularPujaCatalogSync = async ( options?: Parameters<typeof customFetch>[1]): Promise<PujaCatalogSyncPreview> => {
+
+  return customFetch<PujaCatalogSyncPreview>(getPreviewPopularPujaCatalogSyncUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewPopularPujaCatalogSyncQueryKey = () => {
+    return [
+    `/api/admin/puja-catalog-sync/preview`
+    ] as const;
+    }
+
+
+export const getPreviewPopularPujaCatalogSyncQueryOptions = <TData = Awaited<ReturnType<typeof previewPopularPujaCatalogSync>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewPopularPujaCatalogSync>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewPopularPujaCatalogSyncQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewPopularPujaCatalogSync>>> = ({ signal }) => previewPopularPujaCatalogSync({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewPopularPujaCatalogSync>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PreviewPopularPujaCatalogSyncQueryResult = NonNullable<Awaited<ReturnType<typeof previewPopularPujaCatalogSync>>>
+export type PreviewPopularPujaCatalogSyncQueryError = ErrorType<void>
+
+
+/**
+ * @summary Preview a one-time selective popular puja catalog sync
+ */
+
+export function usePreviewPopularPujaCatalogSync<TData = Awaited<ReturnType<typeof previewPopularPujaCatalogSync>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewPopularPujaCatalogSync>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPreviewPopularPujaCatalogSyncQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApplyPopularPujaCatalogSyncUrl = () => {
+
+
+
+
+  return `/api/admin/puja-catalog-sync/apply`
+}
+
+/**
+ * @summary Apply the one-time selective popular puja catalog sync
+ */
+export const applyPopularPujaCatalogSync = async ( options?: Parameters<typeof customFetch>[1]): Promise<PujaCatalogSyncApplyResult> => {
+
+  return customFetch<PujaCatalogSyncApplyResult>(getApplyPopularPujaCatalogSyncUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApplyPopularPujaCatalogSyncMutationKey = () => ['applyPopularPujaCatalogSync'] as const;
+
+export const getApplyPopularPujaCatalogSyncMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyPopularPujaCatalogSync>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyPopularPujaCatalogSync>>, TError,void, TContext> => {
+
+const mutationKey = getApplyPopularPujaCatalogSyncMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyPopularPujaCatalogSync>>, void> = () => {
+
+
+          return  applyPopularPujaCatalogSync(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyPopularPujaCatalogSyncMutationResult = NonNullable<Awaited<ReturnType<typeof applyPopularPujaCatalogSync>>>
+
+    export type ApplyPopularPujaCatalogSyncMutationError = ErrorType<void>
+
+
+    /**
+ * @summary Apply the one-time selective popular puja catalog sync
+ */
+export const useApplyPopularPujaCatalogSync = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyPopularPujaCatalogSync>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyPopularPujaCatalogSync>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getApplyPopularPujaCatalogSyncMutationOptions(options));
     }
 
 export const getUpdateEventUrl = (eventId: number,) => {

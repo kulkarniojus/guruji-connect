@@ -18,6 +18,7 @@ import { bookingCommunicationsRouter } from './routes/booking-communications';
 import { initializePujaPricing, getPricingQuote, pricingQuotePayload, validatePujaPriceRules } from './pujaPricing';
 import { initializePujaCommissions } from './pujaCommission';
 import { commissionsRouter } from './routes/commissions';
+import pujaCatalogSyncRouter from './routes/puja-catalog-sync';
 import { publicPricingRouter, adminPricingRouter, adminPujaPriceRouter } from './routes/puja-pricing';
 import { initializeOurServices, servicesRouter, adminServicesRouter } from './ourServices';
 import { gurujiFirstName } from '@workspace/portal-shared/gurujiDisplayName';
@@ -1370,6 +1371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/pricing', publicPricingRouter);
   app.use('/api/admin/pricing', adminPricingRouter);
   app.use('/api/admin/pujas', adminPujaPriceRouter);
+  app.use('/api/admin/puja-catalog-sync', isAuthenticated, isAdmin, pujaCatalogSyncRouter);
   app.get("/api/pujas", async (req: Request, res: Response) => {
     try {
       const pujas = await storageInstance.getAllPujas();

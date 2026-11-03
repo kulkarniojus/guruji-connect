@@ -139,6 +139,31 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EventRecord" }
+  /admin/puja-catalog-sync/preview:
+    get:
+      operationId: previewPopularPujaCatalogSync
+      summary: Preview a one-time selective popular puja catalog sync
+      responses:
+        "200":
+          description: Planned changes; no data is modified
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PujaCatalogSyncPreview" }
+        "401": { description: Sign-in required }
+        "403": { description: Admin access required }
+  /admin/puja-catalog-sync/apply:
+    post:
+      operationId: applyPopularPujaCatalogSync
+      summary: Apply the one-time selective popular puja catalog sync
+      responses:
+        "200":
+          description: Applied catalog changes and wrote an audit record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PujaCatalogSyncApplyResult" }
+        "401": { description: Sign-in required }
+        "403": { description: Admin access required }
+        "409": { description: This one-time sync was already applied }
   /admin/events/{eventId}:
     put:
       operationId: updateEvent
@@ -1229,6 +1254,41 @@ components:
         reason: { type: string, minLength: 5, maxLength: 2000 }
         reference: { type: string, maxLength: 200 }
         paidBy: { type: string, enum: [portal, guruji], default: portal }
+    PujaCatalogSyncPlanItem:
+      type: object
+      required: [name, action, currentImageUrl, targetImageUrl, currentIsPopular, targetIsPopular, currentBasePrice, currentPrice, targetBasePrice, targetPrice]
+      properties:
+        name: { type: string }
+        action: { type: string, enum: [update, insert, unmark_popular, skip_inactive] }
+        currentImageUrl: { type: ["string", "null"] }
+        targetImageUrl: { type: ["string", "null"] }
+        currentIsPopular: { type: ["boolean", "null"] }
+        targetIsPopular: { type: boolean }
+        currentBasePrice: { type: ["number", "null"] }
+        currentPrice: { type: ["number", "null"] }
+        targetBasePrice: { type: ["number", "null"] }
+        targetPrice: { type: ["number", "null"] }
+    PujaCatalogSyncPreview:
+      type: object
+      required: [alreadyApplied, updateCount, insertCount, unmarkPopularCount, skippedInactiveCount, items]
+      properties:
+        alreadyApplied: { type: boolean }
+        updateCount: { type: integer }
+        insertCount: { type: integer }
+        unmarkPopularCount: { type: integer }
+        skippedInactiveCount: { type: integer }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PujaCatalogSyncPlanItem" }
+    PujaCatalogSyncApplyResult:
+      type: object
+      required: [applied, updated, inserted, unmarkedPopular, skippedInactive]
+      properties:
+        applied: { type: boolean }
+        updated: { type: integer }
+        inserted: { type: integer }
+        unmarkedPopular: { type: integer }
+        skippedInactive: { type: integer }
     HealthStatus:
       type: object
       properties:

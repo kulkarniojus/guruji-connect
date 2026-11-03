@@ -2,6 +2,7 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PujaManagement from './PujaManagement';
+import PujaCatalogSyncCard from './PujaCatalogSyncCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Coins, Package2, Presentation, Settings, SlidersHorizontal } from 'lucide-react';
 import PricingManagement from './PricingManagement';
@@ -46,6 +47,7 @@ export default function PujaManagementTab() {
               <TabsContent value="pujas">
                 <ScrollArea className="h-[65vh]">
                   <div className="space-y-6 pr-4">
+                    <PujaCatalogSyncCard />
                     <PujaManagement />
                   </div>
                 </ScrollArea>

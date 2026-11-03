@@ -416,6 +416,42 @@ export const CreateEventResponse = zod.object({
 }))
 
 
+/**
+ * @summary Preview a one-time selective popular puja catalog sync
+ */
+export const PreviewPopularPujaCatalogSyncResponse = zod.object({
+  "alreadyApplied": zod.boolean(),
+  "updateCount": zod.number().int(),
+  "insertCount": zod.number().int(),
+  "unmarkPopularCount": zod.number().int(),
+  "skippedInactiveCount": zod.number().int(),
+  "items": zod.array(zod.object({
+  "name": zod.string(),
+  "action": zod.enum(['update', 'insert', 'unmark_popular', 'skip_inactive']),
+  "currentImageUrl": zod.string().nullable(),
+  "targetImageUrl": zod.string().nullable(),
+  "currentIsPopular": zod.boolean().nullable(),
+  "targetIsPopular": zod.boolean(),
+  "currentBasePrice": zod.number().nullable(),
+  "currentPrice": zod.number().nullable(),
+  "targetBasePrice": zod.number().nullable(),
+  "targetPrice": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Apply the one-time selective popular puja catalog sync
+ */
+export const ApplyPopularPujaCatalogSyncResponse = zod.object({
+  "applied": zod.boolean(),
+  "updated": zod.number().int(),
+  "inserted": zod.number().int(),
+  "unmarkedPopular": zod.number().int(),
+  "skippedInactive": zod.number().int()
+})
+
+
 export const UpdateEventParams = zod.object({
   "eventId": zod.coerce.number().int()
 })
