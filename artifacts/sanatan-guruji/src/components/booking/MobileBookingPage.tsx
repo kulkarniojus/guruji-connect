@@ -93,7 +93,7 @@ export function MobileBookingPage() {
   }, []);
 
   // Fetch pujas, cities, auth
-  const { data: pujas = [], isLoading: pujasLoading } = useQuery({ queryKey: ['/api/pujas'] });
+  const { data: pujas = [], isLoading: pujasLoading } = useQuery({ queryKey: ['/api/pujas?includeOtherCategories=true'] });
   const { data: cities = [] } = useQuery({ queryKey: ['/api/cities'] });
   const { data: currentUser } = useQuery<any>({
     queryKey: ['/api/auth/me'],

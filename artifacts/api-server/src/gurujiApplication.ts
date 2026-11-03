@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { pool } from './db';
 import { DBStorage } from './dbStorage';
 import { ageFromDateOfBirth, staffRegistrationPayload } from './registrationValidation';
+import { addOtherCategoryApplications } from './otherCategories';
 
 export async function submitGurujiApplication(req: Request, res: Response) {
   if (!['customer', 'guruji'].includes(req.session.userRole || '')) {
@@ -96,6 +97,14 @@ export async function submitGurujiApplication(req: Request, res: Response) {
     }
     await client.query(`UPDATE guruji_profiles SET "isOnline"=$1,"isOffline"=$2,"isConsultation"=$3 WHERE id=$4`,
       [profileData.isOnline,profileData.isOffline,profileData.isConsultation,profile.id]);
+    if (Array.isArray(req.body.otherCategoryIds) && req.body.otherCategoryIds.length) {
+      await addOtherCategoryApplications(
+        client,
+        user.id,
+        req.body.otherCategoryIds,
+        req.body.otherCategoryCities || cities,
+      );
+    }
     await client.query('COMMIT');
     req.session.userRole = 'guruji';
     await new Promise<void>((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));

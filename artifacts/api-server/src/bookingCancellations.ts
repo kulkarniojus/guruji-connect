@@ -4,6 +4,7 @@ import { getBusyGurujiIds } from './bookingSchedule';
 import { cancellationQuote } from './cancellationPolicy';
 import { bookingCustomerFunds } from './customerFinance';
 import { createBookingRefundRequest } from './customerRefunds';
+import { hasApprovedOtherCategoryForPuja } from './otherCategories';
 
 const storage = new DBStorage();
 const fail = (status: number, message: string) => Object.assign(new Error(message), { status });
@@ -14,9 +15,15 @@ export async function cancellationActor(client: Client, userId: number, booking:
   if (!user || user.isBlocked) throw fail(403, 'Not authorized');
   if (user.role === 'admin') return 'admin';
   if (user.role === 'customer' && booking.customerId === userId) return 'customer';
-  if (user.role === 'guruji') {
-    const guruji = (await client.query('SELECT id FROM guruji_profiles WHERE "userId"=$1', [userId])).rows[0];
-    if (guruji && guruji.id === booking.gurujiId) return 'guruji';
+  if (user.role === 'guruji' || user.role === 'customer') {
+    const guruji = (await client.query('SELECT id,status,"isVerified" FROM guruji_profiles WHERE "userId"=$1', [userId])).rows[0];
+    if (guruji && guruji.id === booking.gurujiId) {
+      if (user.role === 'guruji') return 'guruji';
+      if (guruji.status === 'approved' && guruji.isVerified &&
+          await hasApprovedOtherCategoryForPuja(client, guruji.id, Number(booking.pujaId))) {
+        return 'guruji';
+      }
+    }
   }
   throw fail(403, 'Not authorized for this booking');
 }

@@ -21,6 +21,7 @@
 - [Browser test isolation](browser-test-isolation.md) — separate debugging endpoints prevent concurrent signed-in suites from sharing pages and cookies.
 - [Puja commission policy](puja-commission-policy.md) — split the final booking total; individual overrides win, uniform resets are explicit, and existing allocations remain unchanged.
 - [Guruji finance policy](guruji-finance-policy.md) — portal collects an advance, Guruji collects the balance; monthly records post automatically without moving money or changing booking flows.
+- [Admin role hierarchy](admin-role-hierarchy.md) — keep Super Admin as an elevated flag on the existing admin role and enforce finance/refund restrictions server-side.
 - [Mobile and web parity](mobile-web-parity.md) — separate Android/iOS apps must share the portal/database and reflect web updates without changing existing web behavior.
 - [Workspace API schema runtime](workspace-api-schema-runtime.md) — generate client contracts from OpenAPI, but validate server responses locally; the API server cannot currently load the source Zod workspace barrel at runtime.
 - [Stripe connector compatibility](stripe-connector-compatibility.md) — healthy proxy access does not supply the raw key required by managed Stripe sync; do not reconnect a healthy account.
@@ -30,3 +31,4 @@
 - [Brand identity](brand-tagline.md) — the user renamed the company to Vaidik Dhara; use the updated public-facing brand consistently.
 - [Cashfree-only payments](cashfree-migration.md) — Cashfree is the only active online provider; archive old Stripe records, track legacy refunds manually, and keep sandbox out of production.
 - [Production browser verification](production-browser-verification.md) — working dev previews and successful builds can miss peer-resolved context duplication; check the actual built frontend in a browser.
+- [Other-category providers](other-category-providers.md) — category-provider access must layer onto the existing account role, gated by an approved active category application.

@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { MapPin, Upload, FileText, UserCheck, AlertCircle, Loader2, Video } from 'lucide-react';
 import { LanguagesField, PujaSpecializationsField, ServiceAreasField } from '@/components/GurujiSelectionFields';
 import { ageFromBirthDate, isPastBirthDate, parseBirthDate } from '@/lib/birthDate';
+import OtherCategorySelector from '@/components/shared/OtherCategorySelector';
 
 const gurujiRegistrationSchema = z.object({
   firstName: z.string().min(2, 'First name required'),
@@ -47,6 +48,8 @@ const gurujiRegistrationSchema = z.object({
   profilePicture: z.string().optional(),
   videoUrl: z.string().optional(),
   certificates: z.array(z.string()).optional(),
+  otherCategoryIds: z.array(z.number().int().positive()).optional(),
+  otherCategoryCities: z.array(z.string()).optional(),
 });
 
 type GurujiRegistrationFormData = z.infer<typeof gurujiRegistrationSchema>;
@@ -61,6 +64,7 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
   const [selectedPujas, setSelectedPujas] = useState<string[]>([]);
   const [selectedServiceAreas, setSelectedServiceAreas] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [selectedOtherCategoryIds, setSelectedOtherCategoryIds] = useState<number[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -125,6 +129,8 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
         pujas: selectedPujas,
         cities: selectedServiceAreas,
         languages: selectedLanguages,
+        otherCategoryIds: selectedOtherCategoryIds,
+        otherCategoryCities: selectedServiceAreas,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['/api/auth/me']});
@@ -139,6 +145,7 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
       setSelectedPujas([]);
       setSelectedServiceAreas([]);
       setSelectedLanguages([]);
+      setSelectedOtherCategoryIds([]);
       onSuccess?.();
     },
     onError: (err: any) => {
@@ -182,6 +189,8 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
       pujas: selectedPujas,
       serviceAreas: selectedServiceAreas,
       languages: selectedLanguages,
+      otherCategoryIds: selectedOtherCategoryIds,
+      otherCategoryCities: selectedServiceAreas,
     });
   };
 
@@ -557,6 +566,11 @@ export default function GurujiRegistrationForm({ onSuccess }: GurujiRegistration
             />
 
             <Separator />
+
+            <OtherCategorySelector
+              selectedIds={selectedOtherCategoryIds}
+              onChange={setSelectedOtherCategoryIds}
+            />
 
             {/* Service Types */}
             <div className="space-y-4">

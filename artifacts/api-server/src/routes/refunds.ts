@@ -11,8 +11,8 @@ const fail = (status: number, message: string) => Object.assign(new Error(messag
 
 async function requireAdmin(req: Request) {
   if (!req.session.userId) throw fail(401,'Please sign in');
-  const user = (await pool.query('SELECT role,"isBlocked" FROM users WHERE id=$1',[req.session.userId])).rows[0];
-  if (!user || user.role!=='admin' || user.isBlocked) throw fail(403,'Admin access required');
+  const user = (await pool.query('SELECT role,"isBlocked",is_super_admin FROM users WHERE id=$1',[req.session.userId])).rows[0];
+  if (!user || user.role!=='admin' || user.isBlocked || user.is_super_admin !== true) throw fail(403,'Super admin access required');
   return req.session.userId;
 }
 

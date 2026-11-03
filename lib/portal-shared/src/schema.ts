@@ -37,6 +37,7 @@ export const users = pgTable("users", {
   age: integer("age").notNull(),
   gender: text("gender").notNull(),
   role: userRoleEnum("role").notNull(),
+  isSuperAdmin: boolean("is_super_admin").notNull().default(false),
   // Address details
   address: text("address"),
   city: text("city"),

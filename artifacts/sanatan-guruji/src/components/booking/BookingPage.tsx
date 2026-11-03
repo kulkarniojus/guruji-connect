@@ -95,7 +95,7 @@ export default function BookingPage() {
 
   // Fetch available pujas
   const { data: pujas = [], isLoading: isPujasLoading } = useQuery({
-    queryKey: ['/api/pujas'],
+    queryKey: ['/api/pujas?includeOtherCategories=true'],
     staleTime: 0, // Always refetch to ensure fresh data
     gcTime: 0, // Don't cache to avoid stale data (renamed from cacheTime in v5)
   });

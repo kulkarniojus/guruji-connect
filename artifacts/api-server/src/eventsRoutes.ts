@@ -232,9 +232,20 @@ eventsRouter.get('/event-registrations', safe(async (req,res) => {
 }));
 eventsRouter.get('/admin/events/:eventId/participants', safe(async (req,res) => {
   const rows = (await pool.query('SELECT id FROM event_registrations WHERE event_id=$1 ORDER BY created_at DESC',[idOf(req.params.eventId)])).rows;
-  res.json(await Promise.all(rows.map(row => registrationView(row.id))));
+  const views = await Promise.all(rows.map(async row => {
+    const view = await registrationView(row.id);
+    if (req.session.isSuperAdmin === true) return view;
+    const {
+      paymentMethod: _paymentMethod, fee: _fee, paid: _paid, refunded: _refunded,
+      balanceDue: _balanceDue, refundDue: _refundDue, isTest: _isTest, holdUntil: _holdUntil,
+      payments: _payments, ...registration
+    } = view;
+    return registration;
+  }));
+  res.json(views);
 }));
 eventsRouter.post('/admin/event-registrations/:registrationId/confirm', safe(async (req,res) => {
+  if (req.session.isSuperAdmin !== true) throw eventFail(403,'Super admin access required to confirm payment');
   const id = uuidOf(req.params.registrationId);
   const client = await pool.connect();
   try {
@@ -289,6 +300,7 @@ eventsRouter.post('/event-registrations/:registrationId/cancel', safe(async (req
   res.json(await registrationView(id));
 }));
 eventsRouter.post('/admin/event-registrations/:registrationId/payments', safe(async (req,res) => {
+  if (req.session.isSuperAdmin !== true) throw eventFail(403,'Super admin access required to manage payment records');
   const id = uuidOf(req.params.registrationId);
   const input = z.object({ type:z.enum(['payment','refund']), amount:z.number().positive().max(1000000).multipleOf(0.01),
     reference:z.string().trim().min(2).max(200), note:z.string().trim().max(1500) }).parse(req.body);

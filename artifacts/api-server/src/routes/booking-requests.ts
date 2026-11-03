@@ -9,6 +9,7 @@ import { declineBookingRequest } from '../bookingDeclines';
 import { hoursBeforeBooking } from '../cancellationPolicy';
 import { cancellationEndpoint } from './cancellations';
 import { resolveUnassignedBookingAlerts } from '../unassignedBookingAlerts';
+import { getApprovedOtherCategoryPujaIds, hasApprovedOtherCategoryForPuja } from '../otherCategories';
 
 const db = new DBStorage();
 
@@ -121,6 +122,12 @@ export async function respondToBookingRequest(req: Request, res: Response) {
     
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
+    }
+
+    if (req.session.userRole === 'customer' &&
+        (guruji.status !== 'approved' || !guruji.aadharVerified || !guruji.documentsVerified ||
+         !(await hasApprovedOtherCategoryForPuja(pool, guruji.id, Number(booking.pujaId))))) {
+      return res.status(403).json({ message: 'An approved matching Other-category application is required' });
     }
     
     if (booking.status !== 'pending_approval') {
@@ -238,7 +245,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
         }
       }
       
-      res.status(200).json({ message: "Booking request accepted" });
+      return res.status(200).json({ message: "Booking request accepted" });
     } else {
       const allDeclined = await declineBookingRequest(booking.id,requestId,guruji.id,message);
       
@@ -254,7 +261,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
         }
       }
       
-      res.status(200).json({ message: "Booking request declined" });
+      return res.status(200).json({ message: "Booking request declined" });
     }
   } catch (error) {
     console.error("Error responding to booking request:", error);
@@ -262,7 +269,7 @@ export async function respondToBookingRequest(req: Request, res: Response) {
     if (error instanceof ZodError) {
       return res.status(400).json({ message: "Validation error", errors: fromZodError(error) });
     }
-    res.status(500).json({ message: "Failed to process booking request response" });
+    return res.status(500).json({ message: "Failed to process booking request response" });
   }
 }
 
@@ -278,12 +285,22 @@ export async function getGurujiBookingRequests(req: Request, res: Response) {
     if (!guruji) {
       return res.status(404).json({ message: "Guruji profile not found" });
     }
+
+    const categoryProvider = req.session.userRole === 'customer';
+    const approvedCategoryPujaIds = categoryProvider
+      ? await getApprovedOtherCategoryPujaIds(pool, guruji.id)
+      : null;
+    if (categoryProvider && (guruji.status !== 'approved' || !guruji.aadharVerified ||
+        !guruji.documentsVerified || !approvedCategoryPujaIds?.size)) {
+      return res.status(403).json({ message: 'An approved Other-category application is required' });
+    }
     
     const requests = await db.getBookingRequestsByGurujiId(guruji.id);
     
     const requestsWithDetails = await Promise.all(
       requests.map(async (request) => {
         const booking = await db.getBooking(request.bookingId);
+        if (categoryProvider && (!booking || !approvedCategoryPujaIds?.has(Number(booking.pujaId)))) return null;
         let puja = null;
         let customer = null;
         
@@ -309,9 +326,9 @@ export async function getGurujiBookingRequests(req: Request, res: Response) {
       })
     );
     
-    res.json(requestsWithDetails);
+    return res.json(requestsWithDetails.filter(Boolean));
   } catch (error) {
     console.error("Error fetching guruji booking requests:", error);
-    res.status(500).json({ message: "Failed to fetch booking requests" });
+    return res.status(500).json({ message: "Failed to fetch booking requests" });
   }
 }

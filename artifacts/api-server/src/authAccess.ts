@@ -21,9 +21,10 @@ export async function disableSampleAccounts() {
   );
 }
 
-export async function startUserSession(req: Request, user: {id: number; role: string}) {
+export async function startUserSession(req: Request, user: {id: number; role: string; isSuperAdmin?: boolean}) {
   await new Promise<void>((resolve, reject) => req.session.regenerate(error => error ? reject(error) : resolve()));
   req.session.userId = user.id;
   req.session.userRole = user.role;
+  req.session.isSuperAdmin = user.isSuperAdmin === true;
   await new Promise<void>((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
 }

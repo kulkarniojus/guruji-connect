@@ -56,6 +56,13 @@ import { isSampleAccount, startUserSession, disableSampleAccounts } from './auth
 import { reconcileDeclinedBookings } from './bookingDeclines';
 import { ageFromDateOfBirth, validateStaffRegistration } from './registrationValidation';
 import { submitGurujiApplication } from './gurujiApplication';
+import {
+  initializeOtherCategories,
+  otherCategoriesRouter,
+  adminOtherCategoriesRouter,
+  addOtherCategoryApplications,
+  getApprovedOtherCategoryPujaIds,
+} from './otherCategories';
 import { 
   sendBookingRequests, 
   respondToBookingRequest, 
@@ -68,6 +75,7 @@ declare module 'express-session' {
   interface SessionData {
     userId?: number;
     userRole?: string;
+    isSuperAdmin?: boolean;
   }
 }
 
@@ -95,6 +103,22 @@ async function initializeAppSettings() {
   } catch (err) {
     console.error("Warning: could not initialize app_settings:", err);
   }
+}
+
+async function initializeSuperAdminAccess() {
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS super_admin_audit_log (
+      id BIGSERIAL PRIMARY KEY,
+      actor_id INTEGER NOT NULL,
+      target_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
 }
 
 // Seed sample gurujis into DB if they don't exist (for demo/testing)
@@ -264,6 +288,7 @@ async function resolvePujaNames(pujas: any[]): Promise<string[]> {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  await initializeSuperAdminAccess();
   await initializeBookingCompletion();
   await initializeBookingCommunications();
   await initializeBookingSamagri();
@@ -275,6 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeCustomerFinance();
   await initializeCustomerRefunds();
   await initializeOurServices();
+  await initializeOtherCategories();
   await disableSampleAccounts();
   await initializeGurujiAvailability();
   await reconcileDeclinedBookings();
@@ -355,11 +381,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   const isAdmin = checkRole(['admin']);
+  const requireSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
+    if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+    if (req.session.isSuperAdmin !== true) return res.status(403).json({ message: 'Super admin access required' });
+    return next();
+  };
   app.use('/api', bookingSamagriRouter);
+  app.use('/api', otherCategoriesRouter);
+  app.use('/api/admin', adminOtherCategoriesRouter);
   app.use('/api', eventsRouter);
   app.use('/api', eventMediaRouter);
   app.use('/api/guruji/availability', isAuthenticated, gurujiAvailabilityRouter);
-  app.get('/api/availability', isAuthenticated, checkRole(['guruji']), (_req, res) => {
+  app.get('/api/availability', isAuthenticated, (_req, res) => {
     res.redirect(307, '/api/guruji/availability');
   });
 
@@ -445,6 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: user.lastName || '',
           email: user.email,
           role: user.role,
+          isSuperAdmin: user.isSuperAdmin === true,
           isVerified: true,
         }
       });
@@ -623,12 +657,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gurujis = await storageInstance.getAllGurujiProfiles(status);
       const enriched = await Promise.all(gurujis.map(async (g: any) => {
         const user = await storageInstance.getUser(g.userId);
+        if (user?.role !== 'guruji') return null;
         return {
           ...g,
           user: user || { firstName: '', lastName: '', email: '', mobile: '' },
         };
       }));
-      res.json(enriched);
+      res.json(enriched.filter(Boolean));
     } catch (error) {
       console.error('Error fetching guruji profiles:', error);
       res.status(500).json({ message: 'Failed to fetch guruji profiles' });
@@ -957,8 +992,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const svcCities = Array.isArray(req.body.serviceCities) ? req.body.serviceCities : [];
         setClauses.push(`cities = $${idx++}`); values.push(svcCities);
       }
-      // Reset status to pending so admin reviews the updated profile
-      setClauses.push(`status = $${idx++}`); values.push('pending');
+      // Preserve category-provider approval when a customer edits their own profile.
+      // Existing Guruji self-edits continue to resubmit their profile for review.
+      if (req.session.userRole === 'guruji') {
+        setClauses.push(`status = $${idx++}`); values.push('pending');
+      }
       setClauses.push(`"updatedAt" = $${idx++}`); values.push(new Date());
 
       if (setClauses.length === 2) {
@@ -1025,6 +1063,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         location,
         languages,
         qualification,
+        otherCategoryIds,
+        otherCategoryCities,
       } = z.object({
         firstName: z.string().trim().min(1, "First name is required"),
         lastName: z.string().trim().min(1, "Last name is required"),
@@ -1049,6 +1089,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         location: z.string().optional(),
         languages: z.string().optional(),
         qualification: z.string().optional(),
+        otherCategoryIds: z.array(z.coerce.number().int().positive()).optional().default([]),
+        otherCategoryCities: z.array(z.string()).optional(),
       }).parse(req.body);
       const calculatedAge = ageFromDateOfBirth(dob);
       if (calculatedAge === null || calculatedAge < 18) {
@@ -1173,6 +1215,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
           }
         }
+      }
+      if (otherCategoryIds.length) {
+        await addOtherCategoryApplications(
+          registrationClient,
+          user.id,
+          otherCategoryIds,
+          otherCategoryCities?.length ? otherCategoryCities : role === 'guruji' ? location?.split(',') : undefined,
+        );
       }
 
       await registrationClient.query('COMMIT');
@@ -1320,13 +1370,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/pujas", async (req: Request, res: Response) => {
     try {
       const pujas = await storageInstance.getAllPujas();
+      const categoryPujaIds = new Set<number>((await pool.query(
+        `SELECT puja_id FROM other_registration_categories`,
+      )).rows.map(row => Number(row.puja_id)));
+      const regularPujas = pujas.filter(p => !categoryPujaIds.has(p.id));
       if (req.query.includeInactive === 'true') {
         const user = req.session.userId
           ? (await pool.query('SELECT role,"isBlocked" FROM users WHERE id=$1', [req.session.userId])).rows[0] : null;
         if (!user || user.role !== 'admin' || user.isBlocked) return res.status(403).json({ message: 'Admin access required' });
-        return res.json(pujas);
+        return res.json(regularPujas);
       }
-      res.json(pujas.filter(p => p.isActive !== false));
+      if (req.query.includeOtherCategories === 'true') {
+        const categoryPujas = pujas.filter(p => categoryPujaIds.has(p.id) && p.isActive !== false);
+        return res.json([...regularPujas.filter(p => p.isActive !== false), ...categoryPujas]);
+      }
+      res.json(regularPujas.filter(p => p.isActive !== false));
     } catch (error) {
       console.error("Error fetching pujas:", error);
       res.status(500).json({ message: "Failed to fetch pujas" });
@@ -1406,7 +1464,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).parse(req.query);
 
       const pujas = await storageInstance.searchPujas(query as string);
-      res.json(pujas);
+      const categoryPujaIds = new Set<number>((await pool.query(
+        `SELECT puja_id FROM other_registration_categories`,
+      )).rows.map(row => Number(row.puja_id)));
+      res.json(pujas.filter(p => !categoryPujaIds.has(p.id)));
     } catch (error) {
       console.error("Error searching pujas:", error);
       if (error instanceof ZodError) {
@@ -1653,6 +1714,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/guruji/bookings', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const role = req.session.userRole;
+      if (!['guruji', 'customer'].includes(role || '')) return res.status(403).json({ message: 'Provider access required' });
+      const profile = await storageInstance.getGurujiProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ message: 'Provider profile not found' });
+      let categoryPujaIds: Set<number> | null = null;
+      if (role === 'customer') {
+        categoryPujaIds = await getApprovedOtherCategoryPujaIds(pool, profile.id);
+      if (!categoryPujaIds.size || profile.status !== 'approved' ||
+          !profile.aadharVerified || !profile.documentsVerified) {
+          return res.status(403).json({ message: 'An approved Other-category application is required' });
+        }
+      }
+      const allBookings = await storageInstance.getBookingsByGurujiId(profile.id);
+      const bookings = categoryPujaIds
+        ? allBookings.filter(booking => categoryPujaIds!.has(Number(booking.pujaId)))
+        : allBookings;
+      res.json(await enrichBookings(bookings, false));
+    } catch (error) {
+      console.error('Error fetching provider bookings:', error);
+      res.status(500).json({ message: 'Failed to fetch provider bookings' });
+    }
+  });
+
   app.get("/api/bookings/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { id } = z.object({
@@ -1886,6 +1973,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  const staffAccountInput = z.object({
+    firstName: z.string().trim().min(1).max(80),
+    lastName: z.string().trim().min(1).max(80),
+    email: z.string().trim().toLowerCase().email().max(254),
+    mobile: z.string().trim().min(8).max(20),
+    password: z.string().min(10).max(128),
+  });
+  const createStaffAccount = async (body: unknown, role: 'admin' | 'sales_rep') => {
+    const input = staffAccountInput.parse(body);
+    if (await storageInstance.getUserByEmail(input.email)) {
+      throw Object.assign(new Error('This email is already registered'), { status: 409 });
+    }
+    if (await storageInstance.getUserByMobile(input.mobile)) {
+      throw Object.assign(new Error('This mobile number is already registered'), { status: 409 });
+    }
+    return storageInstance.createUser({
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email: input.email,
+      mobile: input.mobile,
+      password: input.password,
+      age: 0,
+      gender: 'other',
+      role,
+    } as any);
+  };
+
+  app.get('/api/admin/super-admin-bootstrap-status', isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const result = await pool.query(`SELECT NOT EXISTS(
+        SELECT 1 FROM users WHERE is_super_admin=TRUE AND NOT "isBlocked"
+      ) AS available`);
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ available: result.rows[0]?.available === true });
+    } catch {
+      res.status(503).json({ message: 'Super admin setup status is unavailable' });
+    }
+  });
+
+  // One-time bootstrap: an existing admin can promote an already registered account.
+  // Once any super admin exists, only a super admin can add another.
+  app.post('/api/admin/bootstrap-super-admin', isAuthenticated, isAdmin, async (req, res) => {
+    const parsed = z.object({ email: z.string().trim().toLowerCase().email().max(254) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Enter a valid registered email address' });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext('vaidik-dhara-super-admin-bootstrap'))`);
+      const existing = (await client.query(
+        `SELECT id FROM users WHERE is_super_admin=TRUE AND NOT "isBlocked" LIMIT 1`
+      )).rows[0];
+      if (existing) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: 'Super admin setup is already complete' });
+      }
+      const target = (await client.query(
+        `SELECT id FROM users WHERE lower(trim(email))=$1 AND NOT "isBlocked" FOR UPDATE`,
+        [parsed.data.email]
+      )).rows[0];
+      if (!target) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Account not found. Register this email through the normal sign-up flow first.' });
+      }
+      await client.query(
+        `UPDATE users SET role='admin',is_super_admin=TRUE,"updatedAt"=NOW() WHERE id=$1`,
+        [target.id]
+      );
+      await client.query(
+        `INSERT INTO super_admin_audit_log(actor_id,target_id,action) VALUES($1,$2,'bootstrap')`,
+        [req.session.userId, target.id]
+      );
+      await client.query('COMMIT');
+      if (target.id === req.session.userId) {
+        req.session.userRole = 'admin';
+        req.session.isSuperAdmin = true;
+        await new Promise<void>((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
+      }
+      return res.json({ success: true, message: 'Super admin access enabled for the registered account.' });
+    } catch (error: any) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('Unable to bootstrap super admin:', error?.code || error?.message);
+      return res.status(503).json({ message: 'Could not complete super admin setup' });
+    } finally {
+      client.release();
+    }
+  });
+
+  app.get('/api/super-admin/users', isAuthenticated, requireSuperAdmin, async (_req, res) => {
+    try {
+      const users = await storageInstance.getAllUsers();
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(users.map(({ password: _password, ...user }) => ({
+        ...user,
+        isSuperAdmin: user.isSuperAdmin === true,
+      })));
+    } catch {
+      res.status(503).json({ message: 'User list is unavailable' });
+    }
+  });
+
+  app.post('/api/super-admin/admin-users', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    try {
+      const user = await createStaffAccount(req.body, 'admin');
+      await pool.query(
+        `INSERT INTO super_admin_audit_log(actor_id,target_id,action) VALUES($1,$2,'create_admin')`,
+        [req.session.userId, user.id]
+      );
+      const { password: _password, ...safeUser } = user;
+      res.status(201).json(safeUser);
+    } catch (error: any) {
+      const status = error?.status || (error instanceof ZodError ? 400 : error?.code === '23505' ? 409 : 500);
+      res.status(status).json({ message: status === 500 ? 'Could not create admin account' : error.message });
+    }
+  });
+
+  app.post('/api/super-admin/promote-super-admin', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    const parsed = z.object({ email: z.string().trim().toLowerCase().email().max(254) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Enter a valid registered email address' });
+    try {
+      const result = await pool.query(
+        `UPDATE users SET role='admin',is_super_admin=TRUE,"updatedAt"=NOW()
+         WHERE lower(trim(email))=$1 AND NOT "isBlocked" RETURNING id`,
+        [parsed.data.email]
+      );
+      if (!result.rowCount) return res.status(404).json({ message: 'Active account not found for that email' });
+      await pool.query(
+        `INSERT INTO super_admin_audit_log(actor_id,target_id,action) VALUES($1,$2,'promote_super_admin')`,
+        [req.session.userId, result.rows[0].id]
+      );
+      return res.json({ success: true, message: 'Super admin access granted.' });
+    } catch {
+      res.status(503).json({ message: 'Could not update super admin access' });
+    }
+  });
+
+  app.post('/api/admin/register-sales-rep', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = await createStaffAccount(req.body, 'sales_rep');
+      const { password: _password, ...safeUser } = user;
+      res.status(201).json(safeUser);
+    } catch (error: any) {
+      const status = error?.status || (error instanceof ZodError ? 400 : error?.code === '23505' ? 409 : 500);
+      res.status(status).json({ message: status === 500 ? 'Could not create sales account' : error.message });
+    }
+  });
+
   app.get("/api/admin/customers", isAuthenticated, checkRole(["admin"]), async (_req: Request, res: Response) => {
     try {
       const [allUsers, allBookings] = await Promise.all([
@@ -2034,7 +2267,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const success = await storageInstance.blockUser(parseInt(id));
+      const targetId = parseInt(id);
+      if (targetId === req.session.userId) {
+        return res.status(409).json({ message: "You cannot block your own account" });
+      }
+      const target = await storageInstance.getUser(targetId);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.isSuperAdmin && req.session.isSuperAdmin !== true) {
+        return res.status(403).json({ message: "Only a super admin can change another super admin's status" });
+      }
+      const success = await storageInstance.blockUser(targetId);
       
       if (!success) {
         return res.status(404).json({ message: "User not found" });
@@ -2061,7 +2303,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
       }).parse(req.params);
 
-      const success = await storageInstance.unblockUser(parseInt(id));
+      const targetId = parseInt(id);
+      const target = await storageInstance.getUser(targetId);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (targetId === req.session.userId) {
+        return res.status(409).json({ message: "Your own account is already active" });
+      }
+      if (target.isSuperAdmin && req.session.isSuperAdmin !== true) {
+        return res.status(403).json({ message: "Only a super admin can change another super admin's status" });
+      }
+      const success = await storageInstance.unblockUser(targetId);
       
       if (!success) {
         return res.status(404).json({ message: "User not found" });
@@ -2391,7 +2642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/settings/payment', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+  app.put('/api/admin/settings/payment', isAuthenticated, requireSuperAdmin, async (req: Request, res: Response) => {
     try {
       res.json(await savePaymentSettings(req.body));
     } catch (err) {
@@ -2433,7 +2684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(order);
     } catch { return res.status(503).json({message:'Payment attempt could not be loaded'}); }
   });
-  app.get('/api/admin/payments/checkouts',isAuthenticated,isAdmin,async(_req,res)=>{
+  app.get('/api/admin/payments/checkouts',isAuthenticated,requireSuperAdmin,async(_req,res)=>{
     try {
     res.json((await pool.query(`SELECT o.id,o.customer_id AS "customerId",u."firstName" AS "customerName",
       o.booking_id AS "bookingId",o.state,o.needs_support AS "needsSupport",(o.advance_paise/100.0)::float8 AS "advanceAmount",
@@ -2444,7 +2695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       FROM portal_checkout_orders o JOIN users u ON u.id=o.customer_id ORDER BY o.created_at DESC LIMIT 100`)).rows);
     } catch { res.status(503).json({message:'Checkout history could not be loaded'}); }
   });
-  app.post('/api/admin/payments/checkouts/:id/reconcile',isAuthenticated,isAdmin,async(req,res)=>{
+  app.post('/api/admin/payments/checkouts/:id/reconcile',isAuthenticated,requireSuperAdmin,async(req,res)=>{
     try {
       if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({message:'Invalid payment attempt'});
        const order=(await pool.query(`SELECT customer_id,cashfree_order_id,payment_provider
@@ -2470,8 +2721,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register booking request routes
   app.post('/api/bookings/:id/send-requests', isAuthenticated, checkRole(['customer']), sendBookingRequests);
-  app.post('/api/booking-requests/:id/respond', isAuthenticated, checkRole(['guruji']), respondToBookingRequest);
-  app.get('/api/guruji/booking-requests', isAuthenticated, checkRole(['guruji']), getGurujiBookingRequests);
+  app.post('/api/booking-requests/:id/respond', isAuthenticated, checkRole(['guruji', 'customer']), respondToBookingRequest);
+  app.get('/api/guruji/booking-requests', isAuthenticated, checkRole(['guruji', 'customer']), getGurujiBookingRequests);
 
   // Shared policy for customer requests, Guruji withdrawal, and admin decisions.
   app.use(cancellationsRouter);
@@ -2901,7 +3152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // API endpoint for gurujis to accept/reject booking requests  
-  app.post("/api/bookings/:bookingId/respond", isAuthenticated, checkRole(['guruji']), async (req: Request, res: Response) => {
+  app.post("/api/bookings/:bookingId/respond", isAuthenticated, checkRole(['guruji', 'customer']), async (req: Request, res: Response) => {
     try {
       const bookingId = parseInt(req.params.bookingId);
       const { action } = req.body; // 'accept' or 'reject'
@@ -3302,6 +3553,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         registeredBy: salesRepId,
       } as any);
 
+      if (Array.isArray(req.body.otherCategoryIds) && req.body.otherCategoryIds.length) {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await addOtherCategoryApplications(client, user.id, req.body.otherCategoryIds, [selectedCity.name]);
+          await client.query('COMMIT');
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
+      }
+
       const { password: _, ...safeUser } = user;
       res.status(201).json(safeUser);
     } catch (error) {
@@ -3313,7 +3578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // POST /api/sales-rep/register-guruji – sales rep registers a new guruji with KYC + profile
   app.post(['/api/sales-rep/register-guruji', '/api/admin/register-guruji'], isAuthenticated, registrationStaffAccess, validateStaffRegistration, async (req: Request, res: Response) => {
-    let registrationClient: Awaited<ReturnType<typeof pool.connect>> | undefined;
+    let registrationClient: any;
     try {
       const salesRepId = req.session.userId!;
       const {
@@ -3335,9 +3600,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (typeof password !== 'string' || password.length < 6) {
         return res.status(400).json({message: 'A password of at least six characters is required'});
       }
-      registrationClient = await pool.connect();
+      registrationClient = await (pool as any).connect();
       await registrationClient.query('BEGIN');
-      const registrationStorage = new DBStorage(registrationClient);
+      const registrationStorage = new DBStorage(registrationClient as any);
       // Use the password entered by staff, never the publicly known phone number.
       const user = await registrationStorage.createUser({
         firstName, lastName, email, mobile, password,
@@ -3387,6 +3652,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await registrationClient.query(
           `INSERT INTO guruji_pujas ("gurujiId","pujaId","isAvailable","createdAt","updatedAt")
            VALUES ($1,$2,true,NOW(),NOW()) ON CONFLICT DO NOTHING`, [gurujiProfile.id, pujaId],
+        );
+      }
+      if (Array.isArray(req.body.otherCategoryIds) && req.body.otherCategoryIds.length) {
+        await addOtherCategoryApplications(
+          registrationClient,
+          user.id,
+          req.body.otherCategoryIds,
+          Array.isArray(cities) && cities.length ? cities.map(String) : [city || location].filter(Boolean),
         );
       }
       await registrationClient.query('COMMIT');

@@ -28,6 +28,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { postAuthPath, currentBookingReturnPath } from '@/lib/authRedirect';
 import { ageFromBirthDate, isPastBirthDate, parseBirthDate } from '@/lib/birthDate';
+import OtherCategorySelector from '@/components/shared/OtherCategorySelector';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -254,6 +255,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedPujas, setSelectedPujas] = useState<string[]>([]);
+  const [selectedOtherCategoryIds, setSelectedOtherCategoryIds] = useState<number[]>([]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { register } = useAuth();
@@ -306,7 +308,12 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
     }
     setIsLoading(true);
     try {
-      const result = await register({ ...data, age: calculatedAge });
+      const result = await register({
+        ...data,
+        age: calculatedAge,
+        otherCategoryIds: selectedOtherCategoryIds,
+        otherCategoryCities: selectedCities,
+      });
       
       if (result.success && result.user) {
         toast({
@@ -316,6 +323,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
         form.reset();
         setSelectedCities([]);
         setSelectedPujas([]);
+        setSelectedOtherCategoryIds([]);
 
         if (onRegistrationSuccess) {
           onRegistrationSuccess(result.user);
@@ -724,6 +732,13 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
                   />
                 </>
               )}
+
+              <div className="col-span-1 md:col-span-2">
+                <OtherCategorySelector
+                  selectedIds={selectedOtherCategoryIds}
+                  onChange={setSelectedOtherCategoryIds}
+                />
+              </div>
               
               <FormField
                 control={form.control}

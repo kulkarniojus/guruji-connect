@@ -71,14 +71,27 @@ const rulePayload = z.object({
 export const gurujiAvailabilityRouter = Router();
 gurujiAvailabilityRouter.use(async (req, res, next) => {
   if (!req.session?.userId) return res.status(401).json({message: 'Please log in'});
-  if (req.session.userRole !== 'guruji') return res.status(403).json({message: 'Only Gurujis can manage their availability'});
+  if (!['guruji', 'customer'].includes(req.session.userRole || '')) {
+    return res.status(403).json({message: 'Only approved providers can manage availability'});
+  }
   try {
     const result = await pool.query(
-      `SELECT gp.id, gp."isAvailable", u."isBlocked" FROM guruji_profiles gp
+      `SELECT gp.id, gp."isAvailable", gp.status, gp."isVerified", u."isBlocked",u.role FROM guruji_profiles gp
        JOIN users u ON u.id=gp."userId" WHERE gp."userId"=$1`, [req.session.userId],
     );
     if (!result.rows[0]) return res.status(404).json({message: 'Guruji profile not found'});
     if (result.rows[0].isBlocked) return res.status(403).json({message: 'Account blocked'});
+    if (result.rows[0].role === 'customer') {
+      const approved = await pool.query(
+        `SELECT 1 FROM other_category_applications a JOIN other_registration_categories c
+          ON c.id=a.category_id AND c.is_active=true
+         WHERE a.profile_id=$1 AND a.status='approved' LIMIT 1`,
+        [result.rows[0].id],
+      );
+      if (!approved.rowCount || result.rows[0].status !== 'approved' || !result.rows[0].isVerified) {
+        return res.status(403).json({message: 'An approved Other-category application is required'});
+      }
+    }
     res.locals.guruji = result.rows[0];
     next();
   } catch {

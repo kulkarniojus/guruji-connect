@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { ageFromBirthDate, parseBirthDate, isPastBirthDate } from '@/lib/birthDate';
+import OtherCategorySelector from '@/components/shared/OtherCategorySelector';
 import { Loader2, UserPlus, Users, LogOut, User, Phone, Mail, MapPin, CreditCard, Calendar, Star, TrendingUp, CheckCircle, BarChart2, Building2 } from 'lucide-react';
 
 const birthDateSchema = z.string().min(1, 'Date of birth required')
@@ -209,6 +210,7 @@ function OverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
 export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-customer'}: {endpoint?: string} = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [otherCategoryIds, setOtherCategoryIds] = useState<number[]>([]);
   const { data: cities = [], isLoading: citiesLoading } = useQuery<{ id: number; name: string; state: string }[]>({
     queryKey: ['/api/cities'],
   });
@@ -226,11 +228,13 @@ export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-custome
     mutationFn: (data: CustomerForm) => apiRequest('POST', endpoint, {
       ...data,
       age: ageFromBirthDate(data.dob) ?? data.age,
+      otherCategoryIds,
     }),
     onSuccess: async (res) => {
       const user = await res.json();
       toast({ title: 'Customer Registered!', description: `${user.firstName} ${user.lastName} has been registered.` });
       form.reset();
+      setOtherCategoryIds([]);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-rep/registrations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/customers'] });
     },
@@ -326,6 +330,9 @@ export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-custome
               <FormItem><FormLabel>Pincode *</FormLabel><FormControl><Input placeholder="400001" maxLength={6} {...field} /></FormControl><FormMessage /></FormItem>
             )} />
 
+            <div className="col-span-2">
+              <OtherCategorySelector selectedIds={otherCategoryIds} onChange={setOtherCategoryIds} />
+            </div>
             <div className="col-span-2 mt-2">
               <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={mutation.isPending}>
                 {mutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
@@ -343,6 +350,7 @@ export function RegisterCustomerTab({endpoint = '/api/sales-rep/register-custome
 export function RegisterGurujiTab({endpoint = '/api/sales-rep/register-guruji'}: {endpoint?: string} = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [otherCategoryIds, setOtherCategoryIds] = useState<number[]>([]);
   const { data: cities = [], isLoading: citiesLoading, isError: citiesError } = useQuery<{ id: number; name: string; state: string }[]>({
     queryKey: ['/api/cities'],
   });
@@ -370,6 +378,8 @@ export function RegisterGurujiTab({endpoint = '/api/sales-rep/register-guruji'}:
         cities: data.servesCity,
         pujas: data.pujaSpecialization,
         languages: data.languages,
+        otherCategoryIds,
+        otherCategoryCities: data.servesCity,
       };
       return apiRequest('POST', endpoint, payload);
     },
@@ -377,6 +387,7 @@ export function RegisterGurujiTab({endpoint = '/api/sales-rep/register-guruji'}:
       const result = await res.json();
       toast({ title: 'Guruji Registered!', description: `${result.user.firstName} ${result.user.lastName} registered, pending approval.` });
       form.reset();
+      setOtherCategoryIds([]);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-rep/registrations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/guruji-profiles'] });
     },
@@ -520,6 +531,9 @@ export function RegisterGurujiTab({endpoint = '/api/sales-rep/register-guruji'}:
                 onChange={field.onChange} error={form.formState.errors.pujaSpecialization?.message} /></FormItem>
             )} />
 
+            <div className="col-span-2">
+              <OtherCategorySelector selectedIds={otherCategoryIds} onChange={setOtherCategoryIds} />
+            </div>
             <div className="col-span-2 flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.watch('isOnline')} onChange={e => form.setValue('isOnline', e.target.checked)} className="h-4 w-4" />

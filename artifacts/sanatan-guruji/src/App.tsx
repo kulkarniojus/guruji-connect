@@ -38,6 +38,7 @@ const Notifications = lazy(() => import('@/pages/Notifications'));
 const VideoCall = lazy(() => import('@/pages/VideoCall'));
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const SpiritualJourney = lazy(() => import('@/pages/SpiritualJourney'));
+const ServiceProviderDashboard = lazy(() => import('@/pages/ServiceProviderDashboard'));
 
 // Protected Route Component
 function ProtectedRoute({ component: Component, roles }: { component: React.ComponentType, roles?: string[] }) {
@@ -78,6 +79,9 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
       </Route>
+      <Route path="/service-provider-dashboard">
+        <ProtectedRoute component={ServiceProviderDashboard} roles={['customer', 'guruji']} />
+      </Route>
       <Route path="/booking">
         <Booking />
       </Route>
@@ -99,7 +103,7 @@ function Router() {
         <AdminRoute component={AdminDashboard} />
       </Route>
       <Route path="/availability">
-        <ProtectedRoute component={AvailabilityPage} roles={['guruji']} />
+        <ProtectedRoute component={AvailabilityPage} roles={['customer', 'guruji']} />
       </Route>
       <Route path="/chat">
         <ProtectedRoute component={Chat} />

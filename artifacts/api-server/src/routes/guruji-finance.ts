@@ -9,8 +9,8 @@ export const gurujiFinanceRouter=Router();
 const root='/api/admin/guruji-finance';
 async function admin(req:Request) {
   if(!req.session.userId)throw financeError(401,'Please sign in');
-  const user=(await pool.query('SELECT id,role,"isBlocked" FROM users WHERE id=$1',[req.session.userId])).rows[0];
-  if(!user||user.role!=='admin'||user.isBlocked)throw financeError(403,'Admin access required');
+  const user=(await pool.query('SELECT id,role,"isBlocked",is_super_admin FROM users WHERE id=$1',[req.session.userId])).rows[0];
+  if(!user||user.role!=='admin'||user.isBlocked||user.is_super_admin!==true)throw financeError(403,'Super admin access required');
   return user.id as number;
 }
 const endpoint=(fn:(req:Request,res:Response,actor:number)=>Promise<any>)=>async(req:Request,res:Response)=>{

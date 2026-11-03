@@ -48,7 +48,7 @@ const emptyForm = {
   isActive: true,
 };
 
-export default function CancellationRulesTab() {
+export default function CancellationRulesTab({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const { toast } = useToast();
   const [showDialog, setShowDialog] = useState(false);
   const [editRule, setEditRule] = useState<any>(null);
@@ -227,7 +227,7 @@ export default function CancellationRulesTab() {
         </div>
       )}
       {isError && <p role="alert">Unable to load rules. <Button variant="outline" onClick={()=>void refetch()}>Retry</Button></p>}
-      <CancellationRequests />
+      {isSuperAdmin && <CancellationRequests />}
 
       {/* Add / Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

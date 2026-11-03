@@ -7,6 +7,7 @@ interface User {
   id: number;
   email: string;
   role: 'customer' | 'guruji' | 'admin';
+  isSuperAdmin?: boolean;
   firstName?: string;
   lastName?: string;
   mobile?: string;

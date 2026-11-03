@@ -23,13 +23,28 @@ import { useLocation } from 'wouter';
 import { isUnassignedBooking } from '@shared/isUnassignedBooking';
 import { RatingsTab } from '@/components/dashboard/AdminDashboard';
 import GurujiFinanceTab from '@/components/admin/guruji-finance/GurujiFinanceTab';
+import OtherCategoryManagementTab from '@/components/admin/OtherCategoryManagementTab';
+import SuperAdminUsersTab from '@/components/admin/SuperAdminUsersTab';
+import RegisterSalesRepTab from '@/components/admin/RegisterSalesRepTab';
 import { WalletCards } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
+  const isSuperAdmin = user?.isSuperAdmin === true;
   const [activeTab, setActiveTab] = useState('analytics');
   const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
   const [, setLocation] = useLocation();
+
+  const { data: superAdminBootstrap } = useQuery<{ available: boolean }>({
+    queryKey: ['/api/admin/super-admin-bootstrap-status'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/super-admin-bootstrap-status', { credentials: 'include' });
+      if (!response.ok) return { available: false };
+      return response.json();
+    },
+    enabled: !!user && user.role === 'admin' && !isSuperAdmin,
+  });
+  const canBootstrapSuperAdmin = superAdminBootstrap?.available === true;
 
   const { data: gurujiProfiles } = useQuery<any[]>({
     queryKey: ['/api/admin/gurujis'],
@@ -107,7 +122,7 @@ export default function AdminDashboard() {
   return (
     <div className="container mx-auto py-8">
       <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold">{isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}</h1>
         {unreadNotifCount > 0 && (
           <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
             <Bell className="h-5 w-5 text-orange-500 shrink-0" />
@@ -229,10 +244,12 @@ export default function AdminDashboard() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="guruji-finance" className="flex items-center gap-1.5">
-            <WalletCards className="h-4 w-4" />
-            Guruji Finance
-          </TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="guruji-finance" className="flex items-center gap-1.5">
+              <WalletCards className="h-4 w-4" />
+              Guruji Finance
+            </TabsTrigger>
+          )}
           <TabsTrigger value="pujas" className="flex items-center gap-1.5">
             <Package2 className="h-4 w-4" />
             Pujas
@@ -245,11 +262,19 @@ export default function AdminDashboard() {
             <Package2 className="h-4 w-4" />
             Services
           </TabsTrigger>
+          <TabsTrigger value="other-categories">Other categories</TabsTrigger>
           <TabsTrigger value="register-accounts">Register accounts</TabsTrigger>
-          <TabsTrigger value="payment-settings" className="flex items-center gap-1.5">
-            <CreditCard className="h-4 w-4" />
-            Payment
-          </TabsTrigger>
+          {(isSuperAdmin || canBootstrapSuperAdmin) && (
+            <TabsTrigger value="super-admin-users">
+              {isSuperAdmin ? 'Admin users' : 'Super admin setup'}
+            </TabsTrigger>
+          )}
+          {isSuperAdmin && (
+            <TabsTrigger value="payment-settings" className="flex items-center gap-1.5">
+              <CreditCard className="h-4 w-4" />
+              Payment
+            </TabsTrigger>
+          )}
           <TabsTrigger value="cancellation-rules" className="flex items-center gap-1.5">
             <XCircle className="h-4 w-4" />
             Cancellation
@@ -280,11 +305,18 @@ export default function AdminDashboard() {
             <TabsList>
               <TabsTrigger value="customer">Register customer</TabsTrigger>
               <TabsTrigger value="guruji">Register Guruji</TabsTrigger>
+              <TabsTrigger value="sales">Register sales user</TabsTrigger>
             </TabsList>
             <TabsContent value="customer"><RegisterCustomerTab endpoint="/api/admin/register-customer" /></TabsContent>
             <TabsContent value="guruji"><RegisterGurujiTab endpoint="/api/admin/register-guruji" /></TabsContent>
+            <TabsContent value="sales"><RegisterSalesRepTab /></TabsContent>
           </Tabs>
         </TabsContent>
+        {(isSuperAdmin || canBootstrapSuperAdmin) && (
+          <TabsContent value="super-admin-users">
+            <SuperAdminUsersTab isSuperAdmin={isSuperAdmin} />
+          </TabsContent>
+        )}
 
         <TabsContent value="chatbot">
           <ChatbotManagementTab />
@@ -309,9 +341,11 @@ export default function AdminDashboard() {
           <GurujiRegistrationTab />
         </TabsContent>
 
-        <TabsContent value="guruji-finance">
-          <GurujiFinanceTab />
-        </TabsContent>
+        {isSuperAdmin && (
+          <TabsContent value="guruji-finance">
+            <GurujiFinanceTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="cities">
           <CitiesManagementTab />
@@ -321,16 +355,22 @@ export default function AdminDashboard() {
           <ServicesAdminSection />
         </TabsContent>
 
+        <TabsContent value="other-categories">
+          <OtherCategoryManagementTab />
+        </TabsContent>
+
         <TabsContent value="faq">
           <FAQManagementTab />
         </TabsContent>
 
-        <TabsContent value="payment-settings">
-          <PaymentSettingsTab />
-        </TabsContent>
+        {isSuperAdmin && (
+          <TabsContent value="payment-settings">
+            <PaymentSettingsTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="cancellation-rules">
-          <CancellationRulesTab />
+          <CancellationRulesTab isSuperAdmin={isSuperAdmin} />
         </TabsContent>
       </Tabs>
     </div>

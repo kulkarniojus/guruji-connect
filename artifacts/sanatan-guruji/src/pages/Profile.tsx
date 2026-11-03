@@ -16,6 +16,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, User, Calendar, Shield, BookOpen, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
+import OtherCategoryProfileSection from '@/components/profile/OtherCategoryProfileSection';
 
 export default function Profile() {
   const { toast } = useToast();
@@ -240,7 +241,7 @@ export default function Profile() {
         </div>
 
         <Tabs defaultValue="basic">
-          <TabsList className={`grid w-full ${isGuruji ? 'grid-cols-4' : 'grid-cols-3'} mb-6 h-auto`}>
+          <TabsList className={`grid w-full ${isGuruji ? 'grid-cols-5' : 'grid-cols-4'} mb-6 h-auto`}>
             <TabsTrigger value="basic" className="flex items-center gap-1 text-xs sm:text-sm">
               <User className="h-4 w-4 hidden sm:block" /> Personal Info
             </TabsTrigger>
@@ -254,6 +255,9 @@ export default function Profile() {
             </TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-1 text-xs sm:text-sm">
               <Shield className="h-4 w-4 hidden sm:block" /> Security
+            </TabsTrigger>
+            <TabsTrigger value="other-services" className="flex items-center gap-1 text-xs sm:text-sm">
+              Other services
             </TabsTrigger>
           </TabsList>
 
@@ -582,6 +586,10 @@ export default function Profile() {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="other-services">
+            <OtherCategoryProfileSection city={user.city} />
           </TabsContent>
         </Tabs>
       </main>

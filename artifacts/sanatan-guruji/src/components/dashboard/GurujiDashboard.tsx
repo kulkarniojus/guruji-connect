@@ -203,9 +203,9 @@ export default function GurujiDashboard() {
 
   // Fetch this guruji's confirmed / completed bookings
   const { data: myBookings = [], isLoading: bookingsLoading, refetch: refetchMyBookings } = useQuery<any[]>({
-    queryKey: ['/api/bookings'],
+    queryKey: ['/api/guruji/bookings'],
     queryFn: async () => {
-      const res = await fetch('/api/bookings', { credentials: 'include' });
+      const res = await fetch('/api/guruji/bookings', { credentials: 'include' });
       if (!res.ok) return [];
       return res.json();
     },
@@ -244,7 +244,7 @@ export default function GurujiDashboard() {
       setAcceptingRequest(null);
       setCommissionAcknowledged(false);
       queryClient.invalidateQueries({ queryKey: ['/api/guruji/booking-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji/bookings'] });
     },
     onError: (err: any) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -310,7 +310,7 @@ export default function GurujiDashboard() {
       toast({ title: 'Rating Submitted!', description: 'Your rating for the customer has been saved.' });
       queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', selectedBookingForRating?.id, 'guruji-side'] });
       queryClient.invalidateQueries({ queryKey: ['/api/reviews/booking', selectedBookingForRating?.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/guruji/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/ratings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/gurujis'] });

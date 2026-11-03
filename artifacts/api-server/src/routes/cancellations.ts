@@ -17,12 +17,13 @@ const actionInput = z.object({
 });
 const fail = (status: number, message: string) => Object.assign(new Error(message), { status });
 
-async function authenticated(req: Request, admin = false) {
+async function authenticated(req: Request, admin = false, superAdmin = false) {
   const id = req.session.userId;
   if (!id) throw fail(401, 'Please sign in');
-  const user = (await pool.query('SELECT id,role,"isBlocked" FROM users WHERE id=$1', [id])).rows[0];
+  const user = (await pool.query('SELECT id,role,"isBlocked",is_super_admin FROM users WHERE id=$1', [id])).rows[0];
   if (!user || user.isBlocked) throw fail(403, 'Not authorized');
   if (admin && user.role !== 'admin') throw fail(403, 'Admin access required');
+  if (superAdmin && user.is_super_admin !== true) throw fail(403, 'Super admin access required');
   return user;
 }
 const endpoint = (fn: (req: Request, res: Response) => Promise<any>) => async (req: Request, res: Response) => {
@@ -105,7 +106,6 @@ cancellationsRouter.get('/api/bookings/:id/cancellation-preview', endpoint(async
 export const cancellationEndpoint = endpoint(async (req,res) => {
   const user=await authenticated(req);
   // Legacy Guruji route is an alias, not a route around policy enforcement.
-  if ((req.path.includes('/guruji/') || req.path.endsWith('/cancel-by-guruji')) && user.role!=='guruji') throw fail(403,'Guruji access required');
   const input=actionInput.parse(req.body);
   if (user.role!=='admin' && (input.action || input.chargeOverride!==undefined || input.chargeParty || input.searchOthers!==undefined))
     throw fail(403,'Only the support team can override charges, cancellation or reassignment decisions');
@@ -120,7 +120,7 @@ cancellationsRouter.post('/api/admin/bookings/:id/cancellation-action', endpoint
 }));
 
 cancellationsRouter.get('/api/admin/cancellation-requests', endpoint(async (req,res) => {
-  await authenticated(req,true);
+  await authenticated(req,true,true);
   res.json((await pool.query(`SELECT e.*,b.status AS booking_status,b."customerId",
     p.name AS puja_name,u."firstName" AS customer_name
     FROM booking_cancellation_events e JOIN bookings b ON b.id=e.booking_id
@@ -143,7 +143,14 @@ cancellationsRouter.get('/api/bookings/:id/cancellation-history', endpoint(async
 }));
 cancellationsRouter.get('/api/guruji/cancellation-history',endpoint(async(req,res)=>{
   const user=await authenticated(req);
-  if(user.role!=='guruji') throw fail(403,'Guruji access required');
+  if(!['guruji','customer'].includes(user.role)) throw fail(403,'Provider access required');
+  if(user.role==='customer'){
+    const profile=(await pool.query(`SELECT id,status,"isVerified" FROM guruji_profiles WHERE "userId"=$1`,[user.id])).rows[0];
+    const approved=profile && (await pool.query(`SELECT 1 FROM other_category_applications a
+      JOIN other_registration_categories c ON c.id=a.category_id AND c.is_active=true
+      WHERE a.profile_id=$1 AND a.status='approved' LIMIT 1`,[profile.id])).rowCount;
+    if(!approved || profile.status!=='approved' || !profile.isVerified) throw fail(403,'An approved Other-category application is required');
+  }
   res.json((await pool.query(`SELECT e.id,e.booking_id,e.user_type,e.kind,e.status,
     CASE WHEN e.requested_by=$1 THEN e.reason ELSE 'Managed by the Vaidik Dhara support team.' END AS reason,e.charge,
     e.review_reason,e.created_at,e.reviewed_at FROM booking_cancellation_events e

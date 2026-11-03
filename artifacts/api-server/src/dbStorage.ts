@@ -649,6 +649,11 @@ export class DBStorage implements IStorage {
             ON LOWER(TRIM(s)) = LOWER(p.name) OR TRIM(s) = p.id::text
           WHERE p.id = $${params.length}
         )
+        OR EXISTS (
+          SELECT 1 FROM other_category_applications oca
+          JOIN other_registration_categories oc ON oc.id = oca.category_id AND oc.is_active = true
+          WHERE oca.profile_id = gp.id AND oca.status = 'approved' AND oc.puja_id = $${params.length}
+        )
       )`;
     }
 
@@ -1110,6 +1115,7 @@ export class DBStorage implements IStorage {
       age: row.age || 0,
       gender: row.gender || null,
       role: row.role,
+      isSuperAdmin: row.is_super_admin === true,
       aadhar: row.aadhar || null,
       dob: row.dob instanceof Date
         ? `${row.dob.getFullYear()}-${String(row.dob.getMonth() + 1).padStart(2, '0')}-${String(row.dob.getDate()).padStart(2, '0')}`
@@ -1699,6 +1705,11 @@ export class DBStorage implements IStorage {
             SELECT 1 FROM guruji_pujas gpu
             JOIN pujas p ON gpu."pujaId" = p.id
             WHERE gpu."gurujiId" = gp.id AND LOWER(p.name) = LOWER($${paramIndex})
+          )
+          OR EXISTS (
+            SELECT 1 FROM other_category_applications oca
+            JOIN other_registration_categories oc ON oc.id = oca.category_id AND oc.is_active = true
+            WHERE oca.profile_id = gp.id AND oca.status = 'approved' AND LOWER(oc.name) = LOWER($${paramIndex})
           )
         )`;
         values.push(filters.specialization.trim());

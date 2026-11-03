@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db';
-import { isAuthenticated, checkRole } from '../middlewares/auth';
+import { isAuthenticated, checkSuperAdmin } from '../middlewares/auth';
 import { bookingCustomerFunds, customerActivity } from '../customerFinance';
 import { moneyCents } from '../customerBalance';
 import { indiaToday } from '../gurujiFinanceStore';
 
 export const customerFinanceRouter = Router();
-customerFinanceRouter.use('/api/admin/customers/:customerId/activity', isAuthenticated, checkRole(['admin']));
-customerFinanceRouter.use('/api/admin/customers/:customerId/finance', isAuthenticated, checkRole(['admin']));
+customerFinanceRouter.use('/api/admin/customers/:customerId/activity', isAuthenticated, checkSuperAdmin);
+customerFinanceRouter.use('/api/admin/customers/:customerId/finance', isAuthenticated, checkSuperAdmin);
 const idInput = z.coerce.number().int().positive();
 const entryInput = z.object({
   bookingId: idInput, type: z.enum(['payment','refund','additional_charge','credit']),
