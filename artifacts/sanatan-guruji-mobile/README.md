@@ -25,7 +25,7 @@ Production builds do not fall back to development. With an absent or development
 Before a release:
 
 1. Confirm the live portal URL, ownership, availability, HTTPS and intended database environment.
-2. Confirm your organization-owned iOS bundle identifier and Android package name, then configure them in static `app.json`. They are intentionally unset rather than inventing an organization's identity.
+2. The owner-selected iOS bundle identifier and Android package name are both `com.vaidikdhara.app` in static `app.json`. Confirm the identifier is available in your Apple Developer account before the first publish; Apple treats it as permanent for this listing.
 3. Run `node scripts/verify-release.mjs` from this directory. It is a configuration check, not an automatic build/submission or proof of domain ownership.
 4. Verify device scenarios below and prepare accurate privacy disclosures, support/privacy-policy URLs and requested permissions. A portal wrapper can require additional native value to meet app-store review requirements; approval is not guaranteed.
 5. Use Replit's publishing interface / Expo Launch for iOS release preparation and submission. Credentials and signing belong in the supported publishing flow, never source code or chat. This repository does not contain signed binaries. Android source/bundles are included, but Google Play submission needs a separately supported release process; do not mistake an Expo Go preview for an installable store release.
