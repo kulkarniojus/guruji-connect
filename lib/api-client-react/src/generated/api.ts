@@ -21,8 +21,11 @@ import type {
 
 import type {
   AdminCheckoutRecord,
+  AdminProviderRewardsResponse,
   BookingSamagri,
   CheckoutStartResult,
+  CommissionDefaultInput,
+  CommissionSettingsResponse,
   CompleteSamagriUpload200,
   CustomerFinanceEntryInput,
   CustomerRefundProgress,
@@ -46,13 +49,21 @@ import type {
   GurujiPushDeviceInput,
   GurujiPushDisableInput,
   HealthStatus,
+  IssueProviderRewardInput,
   ListEventsParams,
+  MessageResponse,
   NotifyEventParticipants200,
+  OtherCategoryCommissionBulkInput,
   PaymentCheckoutInput,
   PaymentCheckoutResult,
   PaymentConfiguration,
   PaymentConfigurationInput,
   PaymentOrderSummary,
+  ProviderRewardAward,
+  ProviderRewardOffer,
+  ProviderRewardOfferInput,
+  ProviderRewardsResponse,
+  PujaCommissionBulkInput,
   PushDeviceResult,
   RecordCustomerFinance201,
   RequestSamagriUpload200,
@@ -2622,6 +2633,471 @@ export function useListAdminBookingCheckouts<TData = Awaited<ReturnType<typeof l
 
 
 
+export const getGetAdminCommissionSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/commissions`
+}
+
+/**
+ * @summary Read the default, puja, and Other-category commission settings
+ */
+export const getAdminCommissionSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<CommissionSettingsResponse> => {
+
+  return customFetch<CommissionSettingsResponse>(getGetAdminCommissionSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminCommissionSettingsQueryKey = () => {
+    return [
+    `/api/admin/commissions`
+    ] as const;
+    }
+
+
+export const getGetAdminCommissionSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminCommissionSettings>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminCommissionSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminCommissionSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminCommissionSettings>>> = ({ signal }) => getAdminCommissionSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminCommissionSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminCommissionSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminCommissionSettings>>>
+export type GetAdminCommissionSettingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read the default, puja, and Other-category commission settings
+ */
+
+export function useGetAdminCommissionSettings<TData = Awaited<ReturnType<typeof getAdminCommissionSettings>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminCommissionSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminCommissionSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAdminCommissionDefaultUrl = () => {
+
+
+
+
+  return `/api/admin/commissions/default`
+}
+
+export const updateAdminCommissionDefault = async (commissionDefaultInput: CommissionDefaultInput, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResponse>(getUpdateAdminCommissionDefaultUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(commissionDefaultInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminCommissionDefaultMutationKey = () => ['updateAdminCommissionDefault'] as const;
+
+export const getUpdateAdminCommissionDefaultMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminCommissionDefault>>, TError,UpdateAdminCommissionDefaultMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminCommissionDefault>>, TError,UpdateAdminCommissionDefaultMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminCommissionDefaultMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminCommissionDefault>>, UpdateAdminCommissionDefaultMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAdminCommissionDefault(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminCommissionDefaultMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminCommissionDefault>>>
+    export type UpdateAdminCommissionDefaultMutationBody = BodyType<CommissionDefaultInput>
+    export type UpdateAdminCommissionDefaultMutationError = ErrorType<void>
+    export type UpdateAdminCommissionDefaultMutationVariables = {data: BodyType<CommissionDefaultInput>}
+
+    export const useUpdateAdminCommissionDefault = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminCommissionDefault>>, TError,UpdateAdminCommissionDefaultMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminCommissionDefault>>,
+        TError,
+        UpdateAdminCommissionDefaultMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminCommissionDefaultMutationOptions(options));
+    }
+
+export const getUpdatePujaCommissionRatesUrl = () => {
+
+
+
+
+  return `/api/admin/commissions/pujas`
+}
+
+export const updatePujaCommissionRates = async (pujaCommissionBulkInput: PujaCommissionBulkInput, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResponse>(getUpdatePujaCommissionRatesUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pujaCommissionBulkInput)
+  }
+);}
+
+
+
+
+
+export const getUpdatePujaCommissionRatesMutationKey = () => ['updatePujaCommissionRates'] as const;
+
+export const getUpdatePujaCommissionRatesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePujaCommissionRates>>, TError,UpdatePujaCommissionRatesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePujaCommissionRates>>, TError,UpdatePujaCommissionRatesMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePujaCommissionRatesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePujaCommissionRates>>, UpdatePujaCommissionRatesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updatePujaCommissionRates(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePujaCommissionRatesMutationResult = NonNullable<Awaited<ReturnType<typeof updatePujaCommissionRates>>>
+    export type UpdatePujaCommissionRatesMutationBody = BodyType<PujaCommissionBulkInput>
+    export type UpdatePujaCommissionRatesMutationError = ErrorType<void>
+    export type UpdatePujaCommissionRatesMutationVariables = {data: BodyType<PujaCommissionBulkInput>}
+
+    export const useUpdatePujaCommissionRates = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePujaCommissionRates>>, TError,UpdatePujaCommissionRatesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePujaCommissionRates>>,
+        TError,
+        UpdatePujaCommissionRatesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePujaCommissionRatesMutationOptions(options));
+    }
+
+export const getResetPujaCommissionRateUrl = (pujaId: number,) => {
+
+
+
+
+  return `/api/admin/commissions/pujas/${pujaId}`
+}
+
+export const resetPujaCommissionRate = async (pujaId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getResetPujaCommissionRateUrl(pujaId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetPujaCommissionRateMutationKey = () => ['resetPujaCommissionRate'] as const;
+
+export const getResetPujaCommissionRateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPujaCommissionRate>>, TError,ResetPujaCommissionRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetPujaCommissionRate>>, TError,ResetPujaCommissionRateMutationVariables, TContext> => {
+
+const mutationKey = getResetPujaCommissionRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetPujaCommissionRate>>, ResetPujaCommissionRateMutationVariables> = (props) => {
+          const {pujaId} = props ?? {};
+
+          return  resetPujaCommissionRate(pujaId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetPujaCommissionRateMutationResult = NonNullable<Awaited<ReturnType<typeof resetPujaCommissionRate>>>
+
+    export type ResetPujaCommissionRateMutationError = ErrorType<void>
+    export type ResetPujaCommissionRateMutationVariables = {pujaId: number}
+
+    export const useResetPujaCommissionRate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPujaCommissionRate>>, TError,ResetPujaCommissionRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetPujaCommissionRate>>,
+        TError,
+        ResetPujaCommissionRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetPujaCommissionRateMutationOptions(options));
+    }
+
+export const getUpdateOtherCategoryCommissionRatesUrl = () => {
+
+
+
+
+  return `/api/admin/commissions/other-categories`
+}
+
+/**
+ * @summary Set one commission rate for one or more Other categories
+ */
+export const updateOtherCategoryCommissionRates = async (otherCategoryCommissionBulkInput: OtherCategoryCommissionBulkInput, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResponse>(getUpdateOtherCategoryCommissionRatesUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(otherCategoryCommissionBulkInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateOtherCategoryCommissionRatesMutationKey = () => ['updateOtherCategoryCommissionRates'] as const;
+
+export const getUpdateOtherCategoryCommissionRatesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOtherCategoryCommissionRates>>, TError,UpdateOtherCategoryCommissionRatesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOtherCategoryCommissionRates>>, TError,UpdateOtherCategoryCommissionRatesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateOtherCategoryCommissionRatesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOtherCategoryCommissionRates>>, UpdateOtherCategoryCommissionRatesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateOtherCategoryCommissionRates(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOtherCategoryCommissionRatesMutationResult = NonNullable<Awaited<ReturnType<typeof updateOtherCategoryCommissionRates>>>
+    export type UpdateOtherCategoryCommissionRatesMutationBody = BodyType<OtherCategoryCommissionBulkInput>
+    export type UpdateOtherCategoryCommissionRatesMutationError = ErrorType<void>
+    export type UpdateOtherCategoryCommissionRatesMutationVariables = {data: BodyType<OtherCategoryCommissionBulkInput>}
+
+    /**
+ * @summary Set one commission rate for one or more Other categories
+ */
+export const useUpdateOtherCategoryCommissionRates = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOtherCategoryCommissionRates>>, TError,UpdateOtherCategoryCommissionRatesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOtherCategoryCommissionRates>>,
+        TError,
+        UpdateOtherCategoryCommissionRatesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateOtherCategoryCommissionRatesMutationOptions(options));
+    }
+
+export const getResetOtherCategoryCommissionRateUrl = (categoryId: number,) => {
+
+
+
+
+  return `/api/admin/commissions/other-categories/${categoryId}`
+}
+
+export const resetOtherCategoryCommissionRate = async (categoryId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getResetOtherCategoryCommissionRateUrl(categoryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetOtherCategoryCommissionRateMutationKey = () => ['resetOtherCategoryCommissionRate'] as const;
+
+export const getResetOtherCategoryCommissionRateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetOtherCategoryCommissionRate>>, TError,ResetOtherCategoryCommissionRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetOtherCategoryCommissionRate>>, TError,ResetOtherCategoryCommissionRateMutationVariables, TContext> => {
+
+const mutationKey = getResetOtherCategoryCommissionRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetOtherCategoryCommissionRate>>, ResetOtherCategoryCommissionRateMutationVariables> = (props) => {
+          const {categoryId} = props ?? {};
+
+          return  resetOtherCategoryCommissionRate(categoryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetOtherCategoryCommissionRateMutationResult = NonNullable<Awaited<ReturnType<typeof resetOtherCategoryCommissionRate>>>
+
+    export type ResetOtherCategoryCommissionRateMutationError = ErrorType<void>
+    export type ResetOtherCategoryCommissionRateMutationVariables = {categoryId: number}
+
+    export const useResetOtherCategoryCommissionRate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetOtherCategoryCommissionRate>>, TError,ResetOtherCategoryCommissionRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetOtherCategoryCommissionRate>>,
+        TError,
+        ResetOtherCategoryCommissionRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetOtherCategoryCommissionRateMutationOptions(options));
+    }
+
 export const getReconcileBookingCheckoutUrl = (orderId: string,) => {
 
 
@@ -2855,6 +3331,500 @@ export const useRecordCustomerFinance = <TError = ErrorType<void>,
       > => {
       return useMutation(getRecordCustomerFinanceMutationOptions(options));
     }
+
+export const getListAdminProviderRewardsUrl = () => {
+
+
+
+
+  return `/api/admin/provider-rewards`
+}
+
+/**
+ * @summary List provider reward offers, eligibility progress and issued rewards
+ */
+export const listAdminProviderRewards = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminProviderRewardsResponse> => {
+
+  return customFetch<AdminProviderRewardsResponse>(getListAdminProviderRewardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminProviderRewardsQueryKey = () => {
+    return [
+    `/api/admin/provider-rewards`
+    ] as const;
+    }
+
+
+export const getListAdminProviderRewardsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminProviderRewards>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminProviderRewardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminProviderRewards>>> = ({ signal }) => listAdminProviderRewards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderRewards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminProviderRewardsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminProviderRewards>>>
+export type ListAdminProviderRewardsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List provider reward offers, eligibility progress and issued rewards
+ */
+
+export function useListAdminProviderRewards<TData = Awaited<ReturnType<typeof listAdminProviderRewards>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminProviderRewardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProviderRewardOfferUrl = () => {
+
+
+
+
+  return `/api/admin/provider-rewards`
+}
+
+/**
+ * @summary Create a reward offer for Gurujis and/or Other-category providers
+ */
+export const createProviderRewardOffer = async (providerRewardOfferInput: ProviderRewardOfferInput, options?: Parameters<typeof customFetch>[1]): Promise<ProviderRewardOffer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProviderRewardOffer>(getCreateProviderRewardOfferUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(providerRewardOfferInput)
+  }
+);}
+
+
+
+
+
+export const getCreateProviderRewardOfferMutationKey = () => ['createProviderRewardOffer'] as const;
+
+export const getCreateProviderRewardOfferMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProviderRewardOffer>>, TError,CreateProviderRewardOfferMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProviderRewardOffer>>, TError,CreateProviderRewardOfferMutationVariables, TContext> => {
+
+const mutationKey = getCreateProviderRewardOfferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProviderRewardOffer>>, CreateProviderRewardOfferMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createProviderRewardOffer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProviderRewardOfferMutationResult = NonNullable<Awaited<ReturnType<typeof createProviderRewardOffer>>>
+    export type CreateProviderRewardOfferMutationBody = BodyType<ProviderRewardOfferInput>
+    export type CreateProviderRewardOfferMutationError = ErrorType<void>
+    export type CreateProviderRewardOfferMutationVariables = {data: BodyType<ProviderRewardOfferInput>}
+
+    /**
+ * @summary Create a reward offer for Gurujis and/or Other-category providers
+ */
+export const useCreateProviderRewardOffer = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProviderRewardOffer>>, TError,CreateProviderRewardOfferMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProviderRewardOffer>>,
+        TError,
+        CreateProviderRewardOfferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateProviderRewardOfferMutationOptions(options));
+    }
+
+export const getUpdateProviderRewardOfferUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/admin/provider-rewards/${offerId}`
+}
+
+/**
+ * @summary Update a provider reward offer
+ */
+export const updateProviderRewardOffer = async (offerId: number,
+    providerRewardOfferInput: ProviderRewardOfferInput, options?: Parameters<typeof customFetch>[1]): Promise<ProviderRewardOffer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProviderRewardOffer>(getUpdateProviderRewardOfferUrl(offerId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(providerRewardOfferInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProviderRewardOfferMutationKey = () => ['updateProviderRewardOffer'] as const;
+
+export const getUpdateProviderRewardOfferMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProviderRewardOffer>>, TError,UpdateProviderRewardOfferMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProviderRewardOffer>>, TError,UpdateProviderRewardOfferMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProviderRewardOfferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProviderRewardOffer>>, UpdateProviderRewardOfferMutationVariables> = (props) => {
+          const {offerId,data} = props ?? {};
+
+          return  updateProviderRewardOffer(offerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProviderRewardOfferMutationResult = NonNullable<Awaited<ReturnType<typeof updateProviderRewardOffer>>>
+    export type UpdateProviderRewardOfferMutationBody = BodyType<ProviderRewardOfferInput>
+    export type UpdateProviderRewardOfferMutationError = ErrorType<void>
+    export type UpdateProviderRewardOfferMutationVariables = {offerId: number;data: BodyType<ProviderRewardOfferInput>}
+
+    /**
+ * @summary Update a provider reward offer
+ */
+export const useUpdateProviderRewardOffer = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProviderRewardOffer>>, TError,UpdateProviderRewardOfferMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProviderRewardOffer>>,
+        TError,
+        UpdateProviderRewardOfferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProviderRewardOfferMutationOptions(options));
+    }
+
+export const getDeactivateProviderRewardOfferUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/admin/provider-rewards/${offerId}`
+}
+
+/**
+ * @summary Deactivate an offer while preserving earned and issued rewards
+ */
+export const deactivateProviderRewardOffer = async (offerId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeactivateProviderRewardOfferUrl(offerId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeactivateProviderRewardOfferMutationKey = () => ['deactivateProviderRewardOffer'] as const;
+
+export const getDeactivateProviderRewardOfferMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateProviderRewardOffer>>, TError,DeactivateProviderRewardOfferMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deactivateProviderRewardOffer>>, TError,DeactivateProviderRewardOfferMutationVariables, TContext> => {
+
+const mutationKey = getDeactivateProviderRewardOfferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deactivateProviderRewardOffer>>, DeactivateProviderRewardOfferMutationVariables> = (props) => {
+          const {offerId} = props ?? {};
+
+          return  deactivateProviderRewardOffer(offerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeactivateProviderRewardOfferMutationResult = NonNullable<Awaited<ReturnType<typeof deactivateProviderRewardOffer>>>
+
+    export type DeactivateProviderRewardOfferMutationError = ErrorType<void>
+    export type DeactivateProviderRewardOfferMutationVariables = {offerId: number}
+
+    /**
+ * @summary Deactivate an offer while preserving earned and issued rewards
+ */
+export const useDeactivateProviderRewardOffer = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateProviderRewardOffer>>, TError,DeactivateProviderRewardOfferMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deactivateProviderRewardOffer>>,
+        TError,
+        DeactivateProviderRewardOfferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeactivateProviderRewardOfferMutationOptions(options));
+    }
+
+export const getIssueProviderRewardUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/admin/provider-rewards/${offerId}/issue`
+}
+
+/**
+ * @summary Record a Super Admin-verified bonus, voucher or gift delivery
+ */
+export const issueProviderReward = async (offerId: number,
+    issueProviderRewardInput: IssueProviderRewardInput, options?: Parameters<typeof customFetch>[1]): Promise<ProviderRewardAward> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProviderRewardAward>(getIssueProviderRewardUrl(offerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(issueProviderRewardInput)
+  }
+);}
+
+
+
+
+
+export const getIssueProviderRewardMutationKey = () => ['issueProviderReward'] as const;
+
+export const getIssueProviderRewardMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueProviderReward>>, TError,IssueProviderRewardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issueProviderReward>>, TError,IssueProviderRewardMutationVariables, TContext> => {
+
+const mutationKey = getIssueProviderRewardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issueProviderReward>>, IssueProviderRewardMutationVariables> = (props) => {
+          const {offerId,data} = props ?? {};
+
+          return  issueProviderReward(offerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssueProviderRewardMutationResult = NonNullable<Awaited<ReturnType<typeof issueProviderReward>>>
+    export type IssueProviderRewardMutationBody = BodyType<IssueProviderRewardInput>
+    export type IssueProviderRewardMutationError = ErrorType<void>
+    export type IssueProviderRewardMutationVariables = {offerId: number;data: BodyType<IssueProviderRewardInput>}
+
+    /**
+ * @summary Record a Super Admin-verified bonus, voucher or gift delivery
+ */
+export const useIssueProviderReward = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueProviderReward>>, TError,IssueProviderRewardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof issueProviderReward>>,
+        TError,
+        IssueProviderRewardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getIssueProviderRewardMutationOptions(options));
+    }
+
+export const getGetProviderRewardsUrl = () => {
+
+
+
+
+  return `/api/provider/rewards`
+}
+
+/**
+ * @summary Get active reward offers and personal eligibility progress for an approved provider
+ */
+export const getProviderRewards = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderRewardsResponse> => {
+
+  return customFetch<ProviderRewardsResponse>(getGetProviderRewardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderRewardsQueryKey = () => {
+    return [
+    `/api/provider/rewards`
+    ] as const;
+    }
+
+
+export const getGetProviderRewardsQueryOptions = <TData = Awaited<ReturnType<typeof getProviderRewards>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderRewardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderRewards>>> = ({ signal }) => getProviderRewards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderRewards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderRewardsQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderRewards>>>
+export type GetProviderRewardsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get active reward offers and personal eligibility progress for an approved provider
+ */
+
+export function useGetProviderRewards<TData = Awaited<ReturnType<typeof getProviderRewards>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderRewardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 

@@ -31,6 +31,7 @@ import { refundsRouter } from './routes/refunds';
 import { initializeGurujiFinance } from './gurujiFinanceStore';
 import { startGurujiFinanceScheduler } from './gurujiFinanceScheduler';
 import { gurujiFinanceRouter } from './routes/guruji-finance';
+import { initializeProviderRewards, providerRewardsRouter, startProviderRewardsScheduler } from './routes/provider-rewards';
 import { cancellationsRouter } from './routes/cancellations';
 import { initializePaymentStorage, initializeCashfreeGateway, paymentSettings, savePaymentSettings,
   startCheckout, checkoutResult, processCashfreeWebhook, checkoutReturnOrigin } from './stripePayments';
@@ -295,12 +296,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeEvents();
   await initializeCancellations();
   await initializePujaPricing();
-  await initializePujaCommissions();
   await initializeGurujiFinance();
   await initializeCustomerFinance();
   await initializeCustomerRefunds();
   await initializeOurServices();
   await initializeOtherCategories();
+  await initializeProviderRewards();
+  await initializePujaCommissions();
   await disableSampleAccounts();
   await initializeGurujiAvailability();
   await reconcileDeclinedBookings();
@@ -388,6 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
   app.use('/api', bookingSamagriRouter);
   app.use('/api', otherCategoriesRouter);
+  app.use(providerRewardsRouter);
   app.use('/api/admin', adminOtherCategoriesRouter);
   app.use('/api', eventsRouter);
   app.use('/api', eventMediaRouter);
@@ -2731,6 +2734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(commissionsRouter);
   app.use(gurujiFinanceRouter);
   startGurujiFinanceScheduler();
+  startProviderRewardsScheduler();
 
   // ── Booking Queries (customer ↔ admin messages per booking) ─────────────
 

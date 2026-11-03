@@ -84,8 +84,11 @@ export async function initializeGurujiFinance() {
   `);
 }
 export async function requireGuruji(client:{query:any},id:number) {
-  if(!(await client.query(`SELECT g.id FROM guruji_profiles g JOIN users u ON u.id=g."userId" WHERE g.id=$1 AND u.role='guruji'`,[id])).rows.length)
-    throw financeError(404,'Guruji profile not found');
+  if(!(await client.query(`SELECT g.id FROM guruji_profiles g JOIN users u ON u.id=g."userId"
+    WHERE g.id=$1 AND (u.role='guruji' OR EXISTS(
+      SELECT 1 FROM other_category_applications a WHERE a.profile_id=g.id AND a.status='approved'
+    ))`,[id])).rows.length)
+    throw financeError(404,'Approved service provider profile not found');
 }
 export async function requireBooking(client:{query:any},id:number,gurujiId?:number) {
   const booking=(await client.query('SELECT * FROM bookings WHERE id=$1',[id])).rows[0];

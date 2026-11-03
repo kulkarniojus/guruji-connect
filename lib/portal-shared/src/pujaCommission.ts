@@ -3,13 +3,34 @@ export type CommissionSnapshot = {
   bookingAmount: number;
   portalAmount: number;
   gurujiAmount: number;
-  source: 'default' | 'puja' | 'unconfigured';
+  source: 'default' | 'puja' | 'other_category' | 'unconfigured';
   configured: boolean;
   pujaId: number | null;
+  categoryId?: number | null;
+  categoryName?: string | null;
   currency: 'INR';
   policyUpdatedAt: string | null;
   recordedAt: string;
 };
+
+export function resolveCommissionPolicy(input: {
+  defaultPercentage: number;
+  defaultConfigured: boolean;
+  pujaOverride: number | null;
+  otherCategoryOverride: number | null;
+}): Pick<CommissionSnapshot, 'percentage' | 'configured' | 'source'> {
+  if (input.otherCategoryOverride !== null) {
+    return { percentage: input.otherCategoryOverride, configured: true, source: 'other_category' };
+  }
+  if (input.pujaOverride !== null) {
+    return { percentage: input.pujaOverride, configured: true, source: 'puja' };
+  }
+  return {
+    percentage: input.defaultPercentage,
+    configured: input.defaultConfigured,
+    source: input.defaultConfigured ? 'default' : 'unconfigured',
+  };
+}
 
 export function commissionSplit(amount: number, percentage: number) {
   const cents=Math.round(amount*100);

@@ -449,6 +449,93 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/AdminCheckoutRecord" }
+  /admin/commissions:
+    get:
+      operationId: getAdminCommissionSettings
+      summary: Read the default, puja, and Other-category commission settings
+      responses:
+        "200":
+          description: Current commission settings and effective rates
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommissionSettingsResponse" }
+        "403": { description: Admin access required }
+  /admin/commissions/default:
+    put:
+      operationId: updateAdminCommissionDefault
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommissionDefaultInput" }
+      responses:
+        "200":
+          description: Default commission saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { description: Invalid percentage }
+  /admin/commissions/pujas:
+    put:
+      operationId: updatePujaCommissionRates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PujaCommissionBulkInput" }
+      responses:
+        "200":
+          description: Puja commission rates saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { description: Invalid percentage or puja IDs }
+  /admin/commissions/pujas/{pujaId}:
+    delete:
+      operationId: resetPujaCommissionRate
+      parameters:
+        - in: path
+          name: pujaId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Puja now inherits the default commission
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "404": { description: Puja not found }
+  /admin/commissions/other-categories:
+    put:
+      operationId: updateOtherCategoryCommissionRates
+      summary: Set one commission rate for one or more Other categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OtherCategoryCommissionBulkInput" }
+      responses:
+        "200":
+          description: Other-category commission rates saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { description: Invalid percentage or category IDs }
+  /admin/commissions/other-categories/{categoryId}:
+    delete:
+      operationId: resetOtherCategoryCommissionRate
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Category now inherits its linked puja rate or default
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "404": { description: Other category not found }
   /admin/payments/checkouts/{orderId}/reconcile:
     post:
       operationId: reconcileBookingCheckout
@@ -513,6 +600,102 @@ paths:
                 properties:
                   message: { type: string }
         "409": { description: "Duplicate record, over-refund, stale balance or closed booking" }
+  /admin/provider-rewards:
+    get:
+      operationId: listAdminProviderRewards
+      summary: List provider reward offers, eligibility progress and issued rewards
+      responses:
+        "200":
+          description: Admin reward program and provider progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminProviderRewardsResponse" }
+        "403": { description: Admin access required }
+    post:
+      operationId: createProviderRewardOffer
+      summary: Create a reward offer for Gurujis and/or Other-category providers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderRewardOfferInput" }
+      responses:
+        "201":
+          description: Reward offer created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderRewardOffer" }
+        "400": { description: Invalid reward offer }
+        "403": { description: Admin access required }
+  /admin/provider-rewards/{offerId}:
+    put:
+      operationId: updateProviderRewardOffer
+      summary: Update a provider reward offer
+      parameters:
+        - in: path
+          name: offerId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderRewardOfferInput" }
+      responses:
+        "200":
+          description: Reward offer updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderRewardOffer" }
+        "404": { description: Reward offer not found }
+    delete:
+      operationId: deactivateProviderRewardOffer
+      summary: Deactivate an offer while preserving earned and issued rewards
+      parameters:
+        - in: path
+          name: offerId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Offer deactivated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "404": { description: Reward offer not found }
+  /admin/provider-rewards/{offerId}/issue:
+    post:
+      operationId: issueProviderReward
+      summary: Record a Super Admin-verified bonus, voucher or gift delivery
+      parameters:
+        - in: path
+          name: offerId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IssueProviderRewardInput" }
+      responses:
+        "201":
+          description: Reward fulfillment recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderRewardAward" }
+        "403": { description: Super Admin access required }
+        "409": { description: Provider is not eligible or reward is already issued }
+  /provider/rewards:
+    get:
+      operationId: getProviderRewards
+      summary: Get active reward offers and personal eligibility progress for an approved provider
+      responses:
+        "200":
+          description: Offers visible only to the authenticated service provider
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderRewardsResponse" }
+        "403": { description: Approved service provider access required }
   /healthz:
     get:
       operationId: healthCheck
@@ -528,6 +711,185 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    CommissionDefaultInput:
+      type: object
+      required: [percentage]
+      properties:
+        percentage: { type: number, minimum: 0, maximum: 100 }
+        replaceOverrides: { type: boolean, default: false }
+    PujaCommissionBulkInput:
+      type: object
+      required: [pujaIds, percentage]
+      properties:
+        pujaIds:
+          type: array
+          minItems: 1
+          maxItems: 5000
+          items: { type: integer, minimum: 1 }
+        percentage: { type: number, minimum: 0, maximum: 100 }
+    OtherCategoryCommissionBulkInput:
+      type: object
+      required: [categoryIds, percentage]
+      properties:
+        categoryIds:
+          type: array
+          minItems: 1
+          maxItems: 5000
+          items: { type: integer, minimum: 1 }
+        percentage: { type: number, minimum: 0, maximum: 100 }
+    CommissionPujaRate:
+      type: object
+      required: [id, name, basePrice, salePrice, overridePercentage, effectivePercentage]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        basePrice: { type: number }
+        salePrice: { type: ["number", "null"] }
+        overridePercentage: { type: ["number", "null"] }
+        effectivePercentage: { type: number }
+    CommissionOtherCategoryRate:
+      type: object
+      required: [id, name, isActive, pujaId, basePrice, overridePercentage, pujaOverridePercentage, effectivePercentage, effectiveSource]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        isActive: { type: boolean }
+        pujaId: { type: integer }
+        basePrice: { type: number }
+        overridePercentage: { type: ["number", "null"] }
+        pujaOverridePercentage: { type: ["number", "null"] }
+        effectivePercentage: { type: number }
+        effectiveSource: { type: string, enum: [other_category, puja, default, unconfigured] }
+    CommissionSettingsResponse:
+      type: object
+      required: [defaultPercentage, configured, updatedAt, pujas, otherCategories]
+      properties:
+        defaultPercentage: { type: number }
+        configured: { type: boolean }
+        updatedAt: { type: ["string", "null"], format: date-time }
+        pujas:
+          type: array
+          items: { $ref: "#/components/schemas/CommissionPujaRate" }
+        otherCategories:
+          type: array
+          items: { $ref: "#/components/schemas/CommissionOtherCategoryRate" }
+    ProviderRewardOfferInput:
+      type: object
+      required: [title, description, rewardType, rewardLabel, rewardAmount, audience, windowDays, minCompletedBookings, minAverageRating, minRatingCount, startsAt, endsAt, isActive]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 1200 }
+        rewardType: { type: string, enum: [cash_bonus, voucher, gift] }
+        rewardLabel: { type: string, minLength: 1, maxLength: 120 }
+        rewardAmount: { type: ["number", "null"], minimum: 0 }
+        audience: { type: string, enum: [all, guruji, other_category] }
+        windowDays: { type: integer, minimum: 1, maximum: 365 }
+        minCompletedBookings: { type: integer, minimum: 0, maximum: 10000 }
+        minAverageRating: { type: ["number", "null"], minimum: 1, maximum: 5 }
+        minRatingCount: { type: ["integer", "null"], minimum: 1, maximum: 10000 }
+        startsAt: { type: string, format: date }
+        endsAt: { type: string, format: date }
+        isActive: { type: boolean }
+    ProviderRewardOffer:
+      type: object
+      required: [id, title, description, rewardType, rewardLabel, rewardAmount, audience, windowDays, minCompletedBookings, minAverageRating, minRatingCount, startsAt, endsAt, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        rewardType: { type: string, enum: [cash_bonus, voucher, gift] }
+        rewardLabel: { type: string }
+        rewardAmount: { type: ["number", "null"] }
+        audience: { type: string, enum: [all, guruji, other_category] }
+        windowDays: { type: integer }
+        minCompletedBookings: { type: integer }
+        minAverageRating: { type: ["number", "null"] }
+        minRatingCount: { type: ["integer", "null"] }
+        startsAt: { type: string, format: date }
+        endsAt: { type: string, format: date }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AdminProviderRewardProvider:
+      type: object
+      required: [profileId, userId, firstName, lastName, email, accountType, categories, completedBookings, averageRating, ratingCount, isEligible, awardStatus, awardId, eligibleAt, issuedAt, fulfillmentReference]
+      properties:
+        profileId: { type: integer }
+        userId: { type: integer }
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        accountType: { type: string, enum: [guruji, other_category] }
+        categories: { type: array, items: { type: string } }
+        completedBookings: { type: integer }
+        averageRating: { type: number }
+        ratingCount: { type: integer }
+        isEligible: { type: boolean }
+        awardStatus: { type: string, enum: [none, eligible, issued] }
+        awardId: { type: ["integer", "null"] }
+        eligibleAt: { type: ["string", "null"], format: date-time }
+        issuedAt: { type: ["string", "null"], format: date-time }
+        fulfillmentReference: { type: ["string", "null"] }
+    AdminProviderRewardOffer:
+      type: object
+      required: [offer, providers]
+      properties:
+        offer: { $ref: "#/components/schemas/ProviderRewardOffer" }
+        providers:
+          type: array
+          items: { $ref: "#/components/schemas/AdminProviderRewardProvider" }
+    AdminProviderRewardsResponse:
+      type: object
+      required: [offers]
+      properties:
+        offers:
+          type: array
+          items: { $ref: "#/components/schemas/AdminProviderRewardOffer" }
+    IssueProviderRewardInput:
+      type: object
+      required: [profileId, fulfillmentReference]
+      properties:
+        profileId: { type: integer, minimum: 1 }
+        fulfillmentReference: { type: string, minLength: 1, maxLength: 240 }
+        note: { type: string, maxLength: 1000 }
+    ProviderRewardAward:
+      type: object
+      required: [id, offerId, profileId, status, eligibleAt, issuedAt, issuedBy, fulfillmentReference, note]
+      properties:
+        id: { type: integer }
+        offerId: { type: integer }
+        profileId: { type: integer }
+        status: { type: string, enum: [eligible, issued] }
+        eligibleAt: { type: string, format: date-time }
+        issuedAt: { type: ["string", "null"], format: date-time }
+        issuedBy: { type: ["integer", "null"] }
+        fulfillmentReference: { type: ["string", "null"] }
+        note: { type: ["string", "null"] }
+    ProviderRewardProgress:
+      type: object
+      required: [offer, completedBookings, averageRating, ratingCount, isEligible, awardStatus, eligibleAt, issuedAt, fulfillmentReference]
+      properties:
+        offer: { $ref: "#/components/schemas/ProviderRewardOffer" }
+        completedBookings: { type: integer }
+        averageRating: { type: number }
+        ratingCount: { type: integer }
+        isEligible: { type: boolean }
+        awardStatus: { type: string, enum: [none, eligible, issued] }
+        eligibleAt: { type: ["string", "null"], format: date-time }
+        issuedAt: { type: ["string", "null"], format: date-time }
+        fulfillmentReference: { type: ["string", "null"] }
+    ProviderRewardsResponse:
+      type: object
+      required: [offers]
+      properties:
+        offers:
+          type: array
+          items: { $ref: "#/components/schemas/ProviderRewardProgress" }
     FeaturedCustomerReview:
       type: object
       required: [id, rating, review, createdAt]

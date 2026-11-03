@@ -20,3 +20,9 @@ Guruji must see the saved commission payable to Vaidik Dhara and their remaining
 **Why:** The user said Guruji was unaware of commission and asked for the commission obligation and expected share to be explained when accepting a puja.
 
 **How to apply:** Disclose the booking's saved percentage rather than hardcoding 20%; record the acknowledgement together with genuine acceptance. Unknown historical allocations must stay unknown, not be silently priced using current rules.
+
+Other-category commission rates are configured per category and take precedence over the linked puja override, then the default. Copy any existing linked-puja override into its category when introducing category rates.
+
+**Why:** A linked service is shared by category providers, so a separate category rate must not change Guruji commission or silently erase a rate already in use.
+
+**How to apply:** Resolve and snapshot the winning rate when a new booking is created. Later configuration edits must not alter saved booking allocations; commission remains a split of the booking total, not an extra customer charge.

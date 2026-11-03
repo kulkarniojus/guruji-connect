@@ -20,3 +20,9 @@ Keep finance management admin-only and separate from the existing customer/Guruj
 **Why:** The user explicitly restricted the bug fixes to their affected areas and asked not to change existing functionality or flow.
 
 **How to apply:** Financial records must not mark bookings paid, change acceptance, alter saved commission shares, or initiate transfers. Proposed withdrawal charges stay separate from reviewed liabilities. Repeated withdrawals are a signal for admin review, never automatic proof of fraud; actual collection involving a replaced Guruji needs manual reconciliation.
+
+Approved Other-category providers may appear in finance reports and be selected individually for scheduled accounting entries. The existing all-Guruji schedule scope must remain Guruji-only.
+
+**Why:** Other-category providers keep the customer account role, and automatically expanding an existing blanket deduction schedule could create unintended charges.
+
+**How to apply:** Recognize approved category applications when reporting or validating explicit provider targets; do not broaden an “all Gurujis” recurring schedule to Other-category providers.

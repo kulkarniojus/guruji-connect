@@ -28,6 +28,7 @@ import BookingProgressActions from '@/components/booking/BookingProgressActions'
 import BookingAddressVisibility from '@/components/booking/BookingAddressVisibility';
 import GurujiCommissionNotice from '@/components/booking/GurujiCommissionNotice';
 import GurujiAvailability from '@/components/dashboard/GurujiAvailability';
+import { ProviderRewards } from '@/components/rewards/ProviderRewards';
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -667,6 +668,10 @@ export default function GurujiDashboard() {
             <User className="h-4 w-4" />
             My Profile
           </TabsTrigger>
+          <TabsTrigger value="rewards" className="flex items-center gap-1.5" data-testid="tab-provider-rewards">
+            <Star className="h-4 w-4" />
+            Rewards
+          </TabsTrigger>
         </TabsList>
 
         {/* ── PENDING BOOKING REQUESTS ── */}
@@ -976,6 +981,9 @@ export default function GurujiDashboard() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        <TabsContent value="rewards">
+          <ProviderRewards />
         </TabsContent>
       </Tabs>
 

@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  getGetAdminCommissionSettingsQueryKey,
+  resetOtherCategoryCommissionRate,
+  updateOtherCategoryCommissionRates,
+  useGetAdminCommissionSettings,
+} from '@workspace/api-client-react';
+import type { CommissionSettingsResponse } from '@workspace/api-client-react';
 import { apiRequest } from '@/lib/queryClient';
 import { commissionSplit } from '@shared/pujaCommission';
 import { useToast } from '@/hooks/use-toast';
@@ -11,23 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-type CommissionPuja = {
-  id: number;
-  name: string;
-  basePrice: number;
-  salePrice: number | null;
-  overridePercentage: number | null;
-  effectivePercentage: number;
-};
-
-type CommissionSettingsResponse = {
-  defaultPercentage: number;
-  configured: boolean;
-  updatedAt: string | null;
-  pujas: CommissionPuja[];
-};
-
-const COMMISSIONS_KEY = ['/api/admin/commissions'];
+const COMMISSIONS_KEY = getGetAdminCommissionSettingsQueryKey();
 const percentText = (value: number) => `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}%`;
 const money = (value: number) => `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
 const validPercentage = (value: string) => {
@@ -45,22 +36,31 @@ export default function CommissionSettings() {
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkDraft, setBulkDraft] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+  const [categoryBulkDraft, setCategoryBulkDraft] = useState('');
   const [bookingAmount, setBookingAmount] = useState('2000');
 
-  const commissionsQuery = useQuery<CommissionSettingsResponse>({
-    queryKey: COMMISSIONS_KEY,
-    queryFn: async () => (await apiRequest('GET', '/api/admin/commissions')).json(),
+  const commissionsQuery = useGetAdminCommissionSettings({
+    query: { queryKey: COMMISSIONS_KEY },
   });
   const settings = commissionsQuery.data;
   const pujas = settings?.pujas ?? [];
+  const categories = settings?.otherCategories ?? [];
   const normalizedSearch = search.trim().toLocaleLowerCase();
+  const normalizedCategorySearch = categorySearch.trim().toLocaleLowerCase();
   const filteredPujas = useMemo(
     () => pujas.filter(puja => puja.name.toLocaleLowerCase().includes(normalizedSearch)),
     [pujas, normalizedSearch],
   );
+  const filteredCategories = useMemo(
+    () => categories.filter(category => category.name.toLocaleLowerCase().includes(normalizedCategorySearch)),
+    [categories, normalizedCategorySearch],
+  );
   const chosenDefault = defaultDraft ?? String(settings?.defaultPercentage ?? 0);
   const defaultError = validPercentage(chosenDefault) ? '' : 'Enter a percentage from 0 to 100, with no more than 2 decimal places.';
   const bulkError = validPercentage(bulkDraft) ? '' : 'Enter a percentage from 0 to 100, with no more than 2 decimal places.';
+  const categoryBulkError = validPercentage(categoryBulkDraft) ? '' : 'Enter a percentage from 0 to 100, with no more than 2 decimal places.';
   const parsedAmount = Number(bookingAmount);
   const previewValid = bookingAmount.trim() !== '' && Number.isFinite(parsedAmount) && parsedAmount >= 0 && Number.isSafeInteger(Math.round(parsedAmount*100));
   const previewRate = validPercentage(chosenDefault) ? Number(chosenDefault) : 0;
@@ -68,7 +68,9 @@ export default function CommissionSettings() {
   const portalAmount = split?.portalAmount ?? 0;
   const gurujiAmount = split?.gurujiAmount ?? 0;
   const selectedCount = selectedIds.filter(id => pujas.some(puja => puja.id === id)).length;
+  const selectedCategoryCount = selectedCategoryIds.filter(id => categories.some(category => category.id === id)).length;
   const overridableCount = pujas.filter(puja => puja.overridePercentage !== null).length;
+  const categoryOverrideCount = categories.filter(category => category.overridePercentage !== null).length;
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: COMMISSIONS_KEY });
   const defaultMutation = useMutation({
@@ -105,6 +107,31 @@ export default function CommissionSettings() {
     },
     onError: (error: Error) => toast({ title: 'Could not reset puja rate', description: error.message, variant: 'destructive' }),
   });
+  const categoryBulkMutation = useMutation({
+    mutationFn: async () => {
+      if (!validPercentage(categoryBulkDraft)) throw new Error('Enter a valid percentage from 0 to 100, with up to 2 decimal places.');
+      if (!selectedCategoryIds.length) throw new Error('Select at least one category.');
+      return updateOtherCategoryCommissionRates({
+        categoryIds: selectedCategoryIds,
+        percentage: Number(categoryBulkDraft),
+      });
+    },
+    onSuccess: async () => {
+      await refresh();
+      setSelectedCategoryIds([]);
+      setCategoryBulkDraft('');
+      toast({ title: 'Other-category commission rates saved' });
+    },
+    onError: (error: Error) => toast({ title: 'Could not save category rates', description: error.message, variant: 'destructive' }),
+  });
+  const resetCategoryMutation = useMutation({
+    mutationFn: async (id: number) => resetOtherCategoryCommissionRate(id),
+    onSuccess: async () => {
+      await refresh();
+      toast({ title: 'Category now uses its inherited commission rate' });
+    },
+    onError: (error: Error) => toast({ title: 'Could not reset category rate', description: error.message, variant: 'destructive' }),
+  });
 
   const submitDefault = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -124,6 +151,20 @@ export default function CommissionSettings() {
     return Array.from(next);
   });
   const selectAllVisible = filteredPujas.length > 0 && filteredPujas.every(puja => selectedIds.includes(puja.id));
+  const selectVisibleCategories = () => setSelectedCategoryIds(current => {
+    const next = new Set(current);
+    const allVisibleSelected = filteredCategories.length > 0 && filteredCategories.every(category => next.has(category.id));
+    filteredCategories.forEach(category => allVisibleSelected ? next.delete(category.id) : next.add(category.id));
+    return Array.from(next);
+  });
+  const selectAllVisibleCategories = filteredCategories.length > 0 &&
+    filteredCategories.every(category => selectedCategoryIds.includes(category.id));
+  const categoryRateSourceLabel = (source: CommissionSettingsResponse['otherCategories'][number]['effectiveSource']) => ({
+    other_category: 'Category override',
+    puja: 'Linked puja rate',
+    default: 'Default rate',
+    unconfigured: 'Unconfigured',
+  }[source]);
 
   return (
     <div className="space-y-5">
@@ -175,7 +216,7 @@ export default function CommissionSettings() {
             <Card className="border-border/80">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg"><ShieldCheck className="h-5 w-5 text-primary" /> Default rate</CardTitle>
-                <CardDescription>Used by all pujas without an individual override, including pujas added later.</CardDescription>
+                  <CardDescription>Used by pujas and Other categories without a narrower override, including ones added later.</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={submitDefault} className="space-y-4">
@@ -291,6 +332,133 @@ export default function CommissionSettings() {
                 </div>
               )}
               {settings?.updatedAt && <p className="text-xs text-muted-foreground">Last updated {new Date(settings.updatedAt).toLocaleString('en-IN')}</p>}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80">
+            <CardHeader className="gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <CardTitle className="text-lg">Other-category rates</CardTitle>
+                <CardDescription className="mt-1 max-w-2xl">
+                  Set one rate for selected categories or configure them individually. A category rate overrides its linked puja rate and the global default for new bookings; saved bookings never change.
+                </CardDescription>
+              </div>
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={categorySearch} onChange={event => setCategorySearch(event.target.value)} placeholder="Search categories" aria-label="Search Other categories" className="pl-9" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-end">
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="bulk-other-category-commission">Set rate for selected categories</Label>
+                  <div className="flex gap-2">
+                    <div className="relative max-w-[180px] flex-1">
+                      <Input
+                        id="bulk-other-category-commission"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={categoryBulkDraft}
+                        onChange={event => setCategoryBulkDraft(event.target.value)}
+                        placeholder="Rate"
+                        aria-invalid={Boolean(categoryBulkDraft && categoryBulkError)}
+                        className="pr-8 font-mono"
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                    </div>
+                    <Button
+                      onClick={() => categoryBulkMutation.mutate()}
+                      disabled={!selectedCategoryCount || !validPercentage(categoryBulkDraft) || categoryBulkMutation.isPending}
+                    >
+                      {categoryBulkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Apply to {selectedCategoryCount || 'selected'}
+                    </Button>
+                  </div>
+                  {categoryBulkDraft && categoryBulkError && <p className="text-xs text-destructive">{categoryBulkError}</p>}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedCategoryIds([])}
+                  disabled={!selectedCategoryIds.length}
+                >
+                  Clear selection
+                </Button>
+              </div>
+
+              {categories.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <p className="font-medium">No Other categories are configured</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Add categories from Admin Dashboard → Other categories to manage their commission rates here.</p>
+                </div>
+              ) : filteredCategories.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <p className="font-medium">No matches for “{categorySearch}”</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Try another category name.</p>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border">
+                  <div className="flex items-center gap-3 border-b bg-muted/35 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <input type="checkbox" checked={selectAllVisibleCategories} onChange={selectVisibleCategories} aria-label="Select all visible Other categories" className="h-4 w-4 accent-primary" />
+                    <span className="flex-1">Category</span>
+                    <span className="hidden w-36 sm:block">Effective rate</span>
+                    <span className="w-20 text-right">Action</span>
+                  </div>
+                  <div className="divide-y">
+                    {filteredCategories.map(category => {
+                      const hasOverride = category.overridePercentage !== null;
+                      const resetting = resetCategoryMutation.isPending && resetCategoryMutation.variables === category.id;
+                      return (
+                        <div key={category.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/25">
+                          <input
+                            type="checkbox"
+                            checked={selectedCategoryIds.includes(category.id)}
+                            onChange={() => setSelectedCategoryIds(current => current.includes(category.id)
+                              ? current.filter(id => id !== category.id)
+                              : [...current, category.id])}
+                            aria-label={`Select ${category.name}`}
+                            className="h-4 w-4 shrink-0 accent-primary"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate text-sm font-medium">{category.name}</p>
+                              {!category.isActive && <Badge variant="outline">Inactive</Badge>}
+                            </div>
+                            <p className="mt-0.5 text-xs text-muted-foreground">Service price {money(category.basePrice)}</p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:hidden">
+                              <span className="font-mono text-sm font-semibold">{percentText(category.effectivePercentage)}</span>
+                              <Badge variant={hasOverride ? 'outline' : 'secondary'} className="text-[10px]">{categoryRateSourceLabel(category.effectiveSource)}</Badge>
+                            </div>
+                          </div>
+                          <div className="hidden w-36 sm:block">
+                            <p className="font-mono text-sm font-semibold">{percentText(category.effectivePercentage)}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">{categoryRateSourceLabel(category.effectiveSource)}</p>
+                          </div>
+                          <div className="flex w-20 justify-end">
+                            {hasOverride ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => resetCategoryMutation.mutate(category.id)}
+                                disabled={resetCategoryMutation.isPending}
+                                aria-label={`Reset ${category.name} to inherited rate`}
+                                title="Reset to inherited rate"
+                              >
+                                {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><RotateCcw className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Reset</span></>}
+                              </Button>
+                            ) : <span className="flex items-center text-xs text-muted-foreground">Inherited <ChevronRight className="ml-1 h-3 w-3" /></span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="border-t bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
+                    {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'} shown · {categoryOverrideCount} individual {categoryOverrideCount === 1 ? 'override' : 'overrides'}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

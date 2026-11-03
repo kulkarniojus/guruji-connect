@@ -8,6 +8,7 @@ export type BookingCommissionSnapshot = {
   portalAmount: number;
   gurujiAmount: number;
   source: string;
+  categoryName?: string | null;
 };
 
 type BookingCommissionBreakdownProps = {
@@ -17,7 +18,15 @@ type BookingCommissionBreakdownProps = {
 
 const money = (value: number) => `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
 const sourceLabel = (source: string) => {
-  const labels: Record<string, string> = { default: 'Default rate', puja: 'Puja override', unconfigured: 'Not configured at booking', override: 'Puja override', puja_override: 'Puja override', legacy: 'Recorded legacy rate' };
+  const labels: Record<string, string> = {
+    default: 'Default rate',
+    puja: 'Puja override',
+    other_category: 'Other-category rate',
+    unconfigured: 'Not configured at booking',
+    override: 'Puja override',
+    puja_override: 'Puja override',
+    legacy: 'Recorded legacy rate',
+  };
   return labels[source] ?? source.replace(/[_-]+/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
 };
 
@@ -43,7 +52,10 @@ export default function BookingCommissionBreakdown({ snapshot, className }: Book
           <CardTitle className="flex items-center gap-2 text-base"><Scale className="h-4 w-4 text-primary" /> Recorded commission split</CardTitle>
           <Badge variant="outline">{sourceLabel(snapshot.source)}</Badge>
         </div>
-        <CardDescription>Saved with this booking; later commission changes do not alter this record.</CardDescription>
+          <CardDescription>
+            {snapshot.categoryName ? `${snapshot.categoryName} · ` : ''}
+            Saved with this booking; later commission changes do not alter this record.
+          </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

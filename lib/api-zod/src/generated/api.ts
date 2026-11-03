@@ -969,6 +969,113 @@ export const ListAdminBookingCheckoutsResponseItem = zod.object({
 export const ListAdminBookingCheckoutsResponse = zod.array(ListAdminBookingCheckoutsResponseItem)
 
 
+/**
+ * @summary Read the default, puja, and Other-category commission settings
+ */
+export const GetAdminCommissionSettingsResponse = zod.object({
+  "defaultPercentage": zod.number(),
+  "configured": zod.boolean(),
+  "updatedAt": zod.coerce.date().nullable(),
+  "pujas": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "basePrice": zod.number(),
+  "salePrice": zod.number().nullable(),
+  "overridePercentage": zod.number().nullable(),
+  "effectivePercentage": zod.number()
+})),
+  "otherCategories": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "isActive": zod.boolean(),
+  "pujaId": zod.number().int(),
+  "basePrice": zod.number(),
+  "overridePercentage": zod.number().nullable(),
+  "pujaOverridePercentage": zod.number().nullable(),
+  "effectivePercentage": zod.number(),
+  "effectiveSource": zod.enum(['other_category', 'puja', 'default', 'unconfigured'])
+}))
+})
+
+
+export const updateAdminCommissionDefaultBodyPercentageMin = 0;
+export const updateAdminCommissionDefaultBodyPercentageMax = 100;
+
+export const updateAdminCommissionDefaultBodyReplaceOverridesDefault = false;
+
+export const UpdateAdminCommissionDefaultBody = zod.object({
+  "percentage": zod.number().min(updateAdminCommissionDefaultBodyPercentageMin).max(updateAdminCommissionDefaultBodyPercentageMax),
+  "replaceOverrides": zod.boolean().default(updateAdminCommissionDefaultBodyReplaceOverridesDefault)
+})
+
+export const UpdateAdminCommissionDefaultResponse = zod.object({
+  "message": zod.string()
+})
+
+
+
+export const updatePujaCommissionRatesBodyPujaIdsMax = 5000;
+
+export const updatePujaCommissionRatesBodyPercentageMin = 0;
+export const updatePujaCommissionRatesBodyPercentageMax = 100;
+
+
+
+export const UpdatePujaCommissionRatesBody = zod.object({
+  "pujaIds": zod.array(zod.number().int().min(1)).min(1).max(updatePujaCommissionRatesBodyPujaIdsMax),
+  "percentage": zod.number().min(updatePujaCommissionRatesBodyPercentageMin).max(updatePujaCommissionRatesBodyPercentageMax)
+})
+
+export const UpdatePujaCommissionRatesResponse = zod.object({
+  "message": zod.string()
+})
+
+
+
+
+
+export const ResetPujaCommissionRateParams = zod.object({
+  "pujaId": zod.coerce.number().int().min(1)
+})
+
+export const ResetPujaCommissionRateResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Set one commission rate for one or more Other categories
+ */
+
+export const updateOtherCategoryCommissionRatesBodyCategoryIdsMax = 5000;
+
+export const updateOtherCategoryCommissionRatesBodyPercentageMin = 0;
+export const updateOtherCategoryCommissionRatesBodyPercentageMax = 100;
+
+
+
+export const UpdateOtherCategoryCommissionRatesBody = zod.object({
+  "categoryIds": zod.array(zod.number().int().min(1)).min(1).max(updateOtherCategoryCommissionRatesBodyCategoryIdsMax),
+  "percentage": zod.number().min(updateOtherCategoryCommissionRatesBodyPercentageMin).max(updateOtherCategoryCommissionRatesBodyPercentageMax)
+})
+
+export const UpdateOtherCategoryCommissionRatesResponse = zod.object({
+  "message": zod.string()
+})
+
+
+
+
+
+export const ResetOtherCategoryCommissionRateParams = zod.object({
+  "categoryId": zod.coerce.number().int().min(1)
+})
+
+export const ResetOtherCategoryCommissionRateResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const ReconcileBookingCheckoutParams = zod.object({
   "orderId": zod.coerce.string().uuid()
 })
@@ -1034,6 +1141,260 @@ export const RecordCustomerFinanceBody = zod.object({
 
 export const RecordCustomerFinanceResponse = zod.object({
   "message": zod.string()
+})
+
+
+/**
+ * @summary List provider reward offers, eligibility progress and issued rewards
+ */
+export const ListAdminProviderRewardsResponse = zod.object({
+  "offers": zod.array(zod.object({
+  "offer": zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "rewardType": zod.enum(['cash_bonus', 'voucher', 'gift']),
+  "rewardLabel": zod.string(),
+  "rewardAmount": zod.number().nullable(),
+  "audience": zod.enum(['all', 'guruji', 'other_category']),
+  "windowDays": zod.number().int(),
+  "minCompletedBookings": zod.number().int(),
+  "minAverageRating": zod.number().nullable(),
+  "minRatingCount": zod.number().int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "providers": zod.array(zod.object({
+  "profileId": zod.number().int(),
+  "userId": zod.number().int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "email": zod.string(),
+  "accountType": zod.enum(['guruji', 'other_category']),
+  "categories": zod.array(zod.string()),
+  "completedBookings": zod.number().int(),
+  "averageRating": zod.number(),
+  "ratingCount": zod.number().int(),
+  "isEligible": zod.boolean(),
+  "awardStatus": zod.enum(['none', 'eligible', 'issued']),
+  "awardId": zod.number().int().nullable(),
+  "eligibleAt": zod.coerce.date().nullable(),
+  "issuedAt": zod.coerce.date().nullable(),
+  "fulfillmentReference": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * @summary Create a reward offer for Gurujis and/or Other-category providers
+ */
+export const createProviderRewardOfferBodyTitleMax = 120;
+
+export const createProviderRewardOfferBodyDescriptionMax = 1200;
+
+export const createProviderRewardOfferBodyRewardLabelMax = 120;
+
+export const createProviderRewardOfferBodyRewardAmountMin = 0;
+
+export const createProviderRewardOfferBodyWindowDaysMax = 365;
+
+export const createProviderRewardOfferBodyMinCompletedBookingsMin = 0;
+export const createProviderRewardOfferBodyMinCompletedBookingsMax = 10000;
+
+export const createProviderRewardOfferBodyMinAverageRatingMax = 5;
+
+export const createProviderRewardOfferBodyMinRatingCountMax = 10000;
+
+
+
+export const CreateProviderRewardOfferBody = zod.object({
+  "title": zod.string().min(1).max(createProviderRewardOfferBodyTitleMax),
+  "description": zod.string().max(createProviderRewardOfferBodyDescriptionMax),
+  "rewardType": zod.enum(['cash_bonus', 'voucher', 'gift']),
+  "rewardLabel": zod.string().min(1).max(createProviderRewardOfferBodyRewardLabelMax),
+  "rewardAmount": zod.number().min(createProviderRewardOfferBodyRewardAmountMin).nullable(),
+  "audience": zod.enum(['all', 'guruji', 'other_category']),
+  "windowDays": zod.number().int().min(1).max(createProviderRewardOfferBodyWindowDaysMax),
+  "minCompletedBookings": zod.number().int().min(createProviderRewardOfferBodyMinCompletedBookingsMin).max(createProviderRewardOfferBodyMinCompletedBookingsMax),
+  "minAverageRating": zod.number().min(1).max(createProviderRewardOfferBodyMinAverageRatingMax).nullable(),
+  "minRatingCount": zod.number().int().min(1).max(createProviderRewardOfferBodyMinRatingCountMax).nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean()
+})
+
+export const CreateProviderRewardOfferResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "rewardType": zod.enum(['cash_bonus', 'voucher', 'gift']),
+  "rewardLabel": zod.string(),
+  "rewardAmount": zod.number().nullable(),
+  "audience": zod.enum(['all', 'guruji', 'other_category']),
+  "windowDays": zod.number().int(),
+  "minCompletedBookings": zod.number().int(),
+  "minAverageRating": zod.number().nullable(),
+  "minRatingCount": zod.number().int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a provider reward offer
+ */
+
+
+
+export const UpdateProviderRewardOfferParams = zod.object({
+  "offerId": zod.coerce.number().int().min(1)
+})
+
+export const updateProviderRewardOfferBodyTitleMax = 120;
+
+export const updateProviderRewardOfferBodyDescriptionMax = 1200;
+
+export const updateProviderRewardOfferBodyRewardLabelMax = 120;
+
+export const updateProviderRewardOfferBodyRewardAmountMin = 0;
+
+export const updateProviderRewardOfferBodyWindowDaysMax = 365;
+
+export const updateProviderRewardOfferBodyMinCompletedBookingsMin = 0;
+export const updateProviderRewardOfferBodyMinCompletedBookingsMax = 10000;
+
+export const updateProviderRewardOfferBodyMinAverageRatingMax = 5;
+
+export const updateProviderRewardOfferBodyMinRatingCountMax = 10000;
+
+
+
+export const UpdateProviderRewardOfferBody = zod.object({
+  "title": zod.string().min(1).max(updateProviderRewardOfferBodyTitleMax),
+  "description": zod.string().max(updateProviderRewardOfferBodyDescriptionMax),
+  "rewardType": zod.enum(['cash_bonus', 'voucher', 'gift']),
+  "rewardLabel": zod.string().min(1).max(updateProviderRewardOfferBodyRewardLabelMax),
+  "rewardAmount": zod.number().min(updateProviderRewardOfferBodyRewardAmountMin).nullable(),
+  "audience": zod.enum(['all', 'guruji', 'other_category']),
+  "windowDays": zod.number().int().min(1).max(updateProviderRewardOfferBodyWindowDaysMax),
+  "minCompletedBookings": zod.number().int().min(updateProviderRewardOfferBodyMinCompletedBookingsMin).max(updateProviderRewardOfferBodyMinCompletedBookingsMax),
+  "minAverageRating": zod.number().min(1).max(updateProviderRewardOfferBodyMinAverageRatingMax).nullable(),
+  "minRatingCount": zod.number().int().min(1).max(updateProviderRewardOfferBodyMinRatingCountMax).nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean()
+})
+
+export const UpdateProviderRewardOfferResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "rewardType": zod.enum(['cash_bonus', 'voucher', 'gift']),
+  "rewardLabel": zod.string(),
+  "rewardAmount": zod.number().nullable(),
+  "audience": zod.enum(['all', 'guruji', 'other_category']),
+  "windowDays": zod.number().int(),
+  "minCompletedBookings": zod.number().int(),
+  "minAverageRating": zod.number().nullable(),
+  "minRatingCount": zod.number().int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Deactivate an offer while preserving earned and issued rewards
+ */
+
+
+
+export const DeactivateProviderRewardOfferParams = zod.object({
+  "offerId": zod.coerce.number().int().min(1)
+})
+
+export const DeactivateProviderRewardOfferResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Record a Super Admin-verified bonus, voucher or gift delivery
+ */
+
+
+
+export const IssueProviderRewardParams = zod.object({
+  "offerId": zod.coerce.number().int().min(1)
+})
+
+
+export const issueProviderRewardBodyFulfillmentReferenceMax = 240;
+
+export const issueProviderRewardBodyNoteMax = 1000;
+
+
+
+export const IssueProviderRewardBody = zod.object({
+  "profileId": zod.number().int().min(1),
+  "fulfillmentReference": zod.string().min(1).max(issueProviderRewardBodyFulfillmentReferenceMax),
+  "note": zod.string().max(issueProviderRewardBodyNoteMax).optional()
+})
+
+export const IssueProviderRewardResponse = zod.object({
+  "id": zod.number().int(),
+  "offerId": zod.number().int(),
+  "profileId": zod.number().int(),
+  "status": zod.enum(['eligible', 'issued']),
+  "eligibleAt": zod.coerce.date(),
+  "issuedAt": zod.coerce.date().nullable(),
+  "issuedBy": zod.number().int().nullable(),
+  "fulfillmentReference": zod.string().nullable(),
+  "note": zod.string().nullable()
+})
+
+
+/**
+ * @summary Get active reward offers and personal eligibility progress for an approved provider
+ */
+export const GetProviderRewardsResponse = zod.object({
+  "offers": zod.array(zod.object({
+  "offer": zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "rewardType": zod.enum(['cash_bonus', 'voucher', 'gift']),
+  "rewardLabel": zod.string(),
+  "rewardAmount": zod.number().nullable(),
+  "audience": zod.enum(['all', 'guruji', 'other_category']),
+  "windowDays": zod.number().int(),
+  "minCompletedBookings": zod.number().int(),
+  "minAverageRating": zod.number().nullable(),
+  "minRatingCount": zod.number().int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "completedBookings": zod.number().int(),
+  "averageRating": zod.number(),
+  "ratingCount": zod.number().int(),
+  "isEligible": zod.boolean(),
+  "awardStatus": zod.enum(['none', 'eligible', 'issued']),
+  "eligibleAt": zod.coerce.date().nullable(),
+  "issuedAt": zod.coerce.date().nullable(),
+  "fulfillmentReference": zod.string().nullable()
+}))
 })
 
 

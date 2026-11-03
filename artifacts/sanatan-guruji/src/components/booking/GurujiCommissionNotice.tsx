@@ -7,6 +7,7 @@ export type GurujiCommissionSnapshot = {
   gurujiAmount: number;
   source: string;
   configured: boolean;
+  categoryName?: string | null;
 } | null;
 
 type GurujiCommissionNoticeProps = {
@@ -51,7 +52,9 @@ export default function GurujiCommissionNotice({ snapshot, className = '' }: Gur
     >
       <div className="mb-3 flex items-center gap-2">
         <Scale className="h-4 w-4 text-teal-800" aria-hidden="true" />
-        <h4 className="text-sm font-semibold text-teal-950">Saved booking breakdown</h4>
+        <h4 className="text-sm font-semibold text-teal-950">
+          {snapshot.categoryName ? `${snapshot.categoryName} · saved commission split` : 'Saved booking breakdown'}
+        </h4>
         <span className="ml-auto text-[11px] font-medium uppercase tracking-wide text-teal-800">Recorded</span>
       </div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">

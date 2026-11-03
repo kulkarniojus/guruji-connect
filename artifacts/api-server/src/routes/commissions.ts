@@ -9,7 +9,23 @@ const percentage=z.number().finite().min(0).max(100).refine(
 const bulkInput=z.object({
   percentage,pujaIds:z.array(z.number().int().positive()).min(1).max(5000).transform(ids=>Array.from(new Set(ids))),
 });
+const otherCategoryBulkInput=z.object({
+  percentage,categoryIds:z.array(z.number().int().positive()).min(1).max(5000)
+    .transform(ids=>Array.from(new Set(ids))),
+});
 const defaultInput=z.object({percentage,replaceOverrides:z.boolean().default(false)});
+const commissionSettingsResponseSchema=z.object({
+  defaultPercentage:percentage,configured:z.boolean(),updatedAt:z.string().datetime().nullable(),
+  pujas:z.array(z.object({
+    id:z.number().int(),name:z.string(),basePrice:z.number(),salePrice:z.number().nullable(),
+    overridePercentage:percentage.nullable(),effectivePercentage:percentage,
+  })),
+  otherCategories:z.array(z.object({
+    id:z.number().int(),name:z.string(),isActive:z.boolean(),pujaId:z.number().int(),basePrice:z.number(),
+    overridePercentage:percentage.nullable(),pujaOverridePercentage:percentage.nullable(),
+    effectivePercentage:percentage,effectiveSource:z.enum(['other_category','puja','default','unconfigured']),
+  })),
+});
 const fail=(status:number,message:string)=>Object.assign(new Error(message),{status});
 
 async function admin(req:Request) {
@@ -19,11 +35,11 @@ async function admin(req:Request) {
   return user.id as number;
 }
 const endpoint=(handler:(req:Request,res:Response)=>Promise<any>)=>async(req:Request,res:Response)=>{
-  try {await handler(req,res);}
+  try {return await handler(req,res);}
   catch(error:any) {
     if(error instanceof ZodError) return res.status(400).json({message:error.errors.map(e=>e.message).join('; ')});
     if(!error.status) console.error('Commission settings failed',error);
-    res.status(error.status||500).json({message:error.status?error.message:'Unable to update commission settings'});
+    return res.status(error.status||500).json({message:error.status?error.message:'Unable to update commission settings'});
   }
 };
 async function write(fn:(client:any)=>Promise<any>) {
@@ -47,10 +63,37 @@ commissionsRouter.get('/api/admin/commissions',endpoint(async(req,res)=>{
     WHERE s.id=1 GROUP BY s.id`)).rows[0];
   if(!settings) throw fail(503,'Commission settings are not initialized');
   const overrides=new Map<number,number>(settings.overrides.map((r:any)=>[r.puja_id,Number(r.percentage)]));
-  const pujas=await new DBStorage().getAllPujas();
-  res.json({defaultPercentage:Number(settings.percentage),configured:settings.configured,updatedAt:settings.updated_at,
-    pujas:pujas.map(p=>({id:p.id,name:p.name,basePrice:Number(p.basePrice??p.price),salePrice:p.price==null?null:Number(p.price),
-      overridePercentage:overrides.get(p.id)??null,effectivePercentage:overrides.get(p.id)??Number(settings.percentage)}))});
+  const [allPujas, categoryRows] = await Promise.all([
+    new DBStorage().getAllPujas(),
+    pool.query(`SELECT c.id,c.name,c.is_active AS "isActive",c.puja_id AS "pujaId",
+        p."basePrice" AS "basePrice",co.percentage AS category_override,po.percentage AS puja_override
+      FROM other_registration_categories c
+      JOIN pujas p ON p.id=c.puja_id
+      LEFT JOIN other_category_commission_overrides co ON co.category_id=c.id
+      LEFT JOIN puja_commission_overrides po ON po.puja_id=c.puja_id
+      ORDER BY c.name`),
+  ]);
+  const categoryPujaIds=new Set<number>(categoryRows.rows.map((row:any)=>Number(row.pujaId)));
+  const defaultPercentage=Number(settings.percentage);
+  const response={
+    defaultPercentage,configured:settings.configured,
+    updatedAt:settings.updated_at==null?null:new Date(settings.updated_at).toISOString(),
+    pujas:allPujas.filter(p=>!categoryPujaIds.has(p.id)).map(p=>({
+      id:p.id,name:p.name,basePrice:Number(p.basePrice??p.price),salePrice:p.price==null?null:Number(p.price),
+      overridePercentage:overrides.get(p.id)??null,effectivePercentage:overrides.get(p.id)??defaultPercentage,
+    })),
+    otherCategories:categoryRows.rows.map((row:any)=>{
+      const categoryOverride=row.category_override!==null?Number(row.category_override):null;
+      const pujaOverride=row.puja_override!==null?Number(row.puja_override):null;
+      const effectiveSource=categoryOverride!==null?'other_category':pujaOverride!==null?'puja':settings.configured?'default':'unconfigured';
+      return{
+        id:Number(row.id),name:row.name,isActive:row.isActive,pujaId:Number(row.pujaId),basePrice:Number(row.basePrice),
+        overridePercentage:categoryOverride,pujaOverridePercentage:pujaOverride,
+        effectivePercentage:categoryOverride??pujaOverride??defaultPercentage,effectiveSource,
+      };
+    }),
+  };
+  res.json(commissionSettingsResponseSchema.parse(response));
 }));
 commissionsRouter.put('/api/admin/commissions/default',endpoint(async(req,res)=>{
   const userId=await admin(req);
@@ -83,4 +126,30 @@ commissionsRouter.delete('/api/admin/commissions/pujas/:id',endpoint(async(req,r
     await client.query('DELETE FROM puja_commission_overrides WHERE puja_id=$1',[id]);
   });
   res.json({message:'Puja now uses the default commission'});
+}));
+commissionsRouter.put('/api/admin/commissions/other-categories',endpoint(async(req,res)=>{
+  const userId=await admin(req);
+  const input=otherCategoryBulkInput.parse(req.body);
+  await write(async(client)=>{
+    const existing=(await client.query(
+      'SELECT id FROM other_registration_categories WHERE id=ANY($1::int[]) FOR KEY SHARE',[input.categoryIds],
+    )).rows;
+    if(existing.length!==input.categoryIds.length) throw fail(400,'One or more selected categories no longer exist');
+    await client.query(`INSERT INTO other_category_commission_overrides(category_id,percentage,updated_by,updated_at)
+      SELECT id,$2,$3,NOW() FROM unnest($1::int[]) id
+      ON CONFLICT(category_id) DO UPDATE
+        SET percentage=EXCLUDED.percentage,updated_by=EXCLUDED.updated_by,updated_at=EXCLUDED.updated_at`,
+      [input.categoryIds,input.percentage,userId]);
+  });
+  res.json({message:`Commission saved for ${input.categoryIds.length} Other categor${input.categoryIds.length===1?'y':'ies'}`});
+}));
+commissionsRouter.delete('/api/admin/commissions/other-categories/:id',endpoint(async(req,res)=>{
+  await admin(req);
+  const id=z.coerce.number().int().positive().parse(req.params.id);
+  await write(async(client)=>{
+    if(!(await client.query('SELECT id FROM other_registration_categories WHERE id=$1 FOR KEY SHARE',[id])).rows.length)
+      throw fail(404,'Other category not found');
+    await client.query('DELETE FROM other_category_commission_overrides WHERE category_id=$1',[id]);
+  });
+  res.json({message:'Other category now inherits its linked puja rate or the default commission'});
 }));

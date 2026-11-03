@@ -42,7 +42,11 @@ export async function runGurujiFinanceMaintenance(now=new Date()) {
     const rules=(await client.query('SELECT * FROM guruji_finance_recurring WHERE is_active=true AND archived_at IS NULL ORDER BY id')).rows;
     for(const rule of rules) {
       const targets=(await client.query(`SELECT g.id,g."createdAt" FROM guruji_profiles g JOIN users u ON u.id=g."userId"
-        WHERE u.role='guruji' AND (CASE WHEN $1::integer[] IS NULL THEN g.status='approved' AND u."isBlocked"=false ELSE g.id=ANY($1::integer[]) END)`,
+        WHERE (u.role='guruji' OR EXISTS(
+          SELECT 1 FROM other_category_applications a WHERE a.profile_id=g.id AND a.status='approved'
+        )) AND (CASE WHEN $1::integer[] IS NULL THEN
+          u.role='guruji' AND g.status='approved' AND u."isBlocked"=false
+          ELSE g.id=ANY($1::integer[]) END)`,
         [rule.guruji_ids])).rows;
       for(const period of duePeriods(rule.start_month,rule.end_month,rule.day_of_month,today)) {
         for(const target of targets) {

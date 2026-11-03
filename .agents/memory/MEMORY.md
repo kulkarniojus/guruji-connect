@@ -32,3 +32,4 @@
 - [Cashfree-only payments](cashfree-migration.md) — Cashfree is the only active online provider; archive old Stripe records, track legacy refunds manually, and keep sandbox out of production.
 - [Production browser verification](production-browser-verification.md) — working dev previews and successful builds can miss peer-resolved context duplication; check the actual built frontend in a browser.
 - [Other-category providers](other-category-providers.md) — category-provider access must layer onto the existing account role, gated by an approved active category application.
+- [Provider rewards](provider-rewards.md) — offers can reward completed services and ratings for Gurujis and approved Other-category providers; fulfillment is tracked, never automated.

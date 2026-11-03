@@ -27,6 +27,7 @@ import OtherCategoryManagementTab from '@/components/admin/OtherCategoryManageme
 import SuperAdminUsersTab from '@/components/admin/SuperAdminUsersTab';
 import RegisterSalesRepTab from '@/components/admin/RegisterSalesRepTab';
 import { WalletCards } from 'lucide-react';
+import { AdminProviderRewards } from '@/components/rewards/ProviderRewards';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
@@ -231,6 +232,10 @@ export default function AdminDashboard() {
             <Star className="h-4 w-4" />
             Ratings
           </TabsTrigger>
+          <TabsTrigger value="rewards" className="flex items-center gap-1.5" data-testid="tab-rewards">
+            <Star className="h-4 w-4" />
+            Rewards &amp; Offers
+          </TabsTrigger>
           <TabsTrigger value="customers" className="flex items-center gap-1.5">
             <Users className="h-4 w-4" />
             Customers
@@ -331,6 +336,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="ratings">
           <RatingsTab />
+        </TabsContent>
+
+        <TabsContent value="rewards">
+          <AdminProviderRewards />
         </TabsContent>
 
         <TabsContent value="pujas">

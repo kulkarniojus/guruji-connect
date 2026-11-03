@@ -5,6 +5,309 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface MessageResponse {
+  message: string;
+}
+
+export interface CommissionDefaultInput {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  percentage: number;
+  replaceOverrides?: boolean;
+}
+
+export interface PujaCommissionBulkInput {
+  /**
+     * @minItems 1
+     * @maxItems 5000
+     * @items.minimum 1
+     */
+  pujaIds: number[];
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  percentage: number;
+}
+
+export interface OtherCategoryCommissionBulkInput {
+  /**
+     * @minItems 1
+     * @maxItems 5000
+     * @items.minimum 1
+     */
+  categoryIds: number[];
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  percentage: number;
+}
+
+export interface CommissionPujaRate {
+  id: number;
+  name: string;
+  basePrice: number;
+  /** @nullable */
+  salePrice: number | null;
+  /** @nullable */
+  overridePercentage: number | null;
+  effectivePercentage: number;
+}
+
+export type CommissionOtherCategoryRateEffectiveSource = typeof CommissionOtherCategoryRateEffectiveSource[keyof typeof CommissionOtherCategoryRateEffectiveSource];
+
+
+export const CommissionOtherCategoryRateEffectiveSource = {
+  other_category: 'other_category',
+  puja: 'puja',
+  default: 'default',
+  unconfigured: 'unconfigured',
+} as const;
+
+export interface CommissionOtherCategoryRate {
+  id: number;
+  name: string;
+  isActive: boolean;
+  pujaId: number;
+  basePrice: number;
+  /** @nullable */
+  overridePercentage: number | null;
+  /** @nullable */
+  pujaOverridePercentage: number | null;
+  effectivePercentage: number;
+  effectiveSource: CommissionOtherCategoryRateEffectiveSource;
+}
+
+export interface CommissionSettingsResponse {
+  defaultPercentage: number;
+  configured: boolean;
+  /** @nullable */
+  updatedAt: string | null;
+  pujas: CommissionPujaRate[];
+  otherCategories: CommissionOtherCategoryRate[];
+}
+
+export type ProviderRewardOfferInputRewardType = typeof ProviderRewardOfferInputRewardType[keyof typeof ProviderRewardOfferInputRewardType];
+
+
+export const ProviderRewardOfferInputRewardType = {
+  cash_bonus: 'cash_bonus',
+  voucher: 'voucher',
+  gift: 'gift',
+} as const;
+
+export type ProviderRewardOfferInputAudience = typeof ProviderRewardOfferInputAudience[keyof typeof ProviderRewardOfferInputAudience];
+
+
+export const ProviderRewardOfferInputAudience = {
+  all: 'all',
+  guruji: 'guruji',
+  other_category: 'other_category',
+} as const;
+
+export interface ProviderRewardOfferInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /** @maxLength 1200 */
+  description: string;
+  rewardType: ProviderRewardOfferInputRewardType;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  rewardLabel: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  rewardAmount: number | null;
+  audience: ProviderRewardOfferInputAudience;
+  /**
+     * @minimum 1
+     * @maximum 365
+     */
+  windowDays: number;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  minCompletedBookings: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     * @nullable
+     */
+  minAverageRating: number | null;
+  /**
+     * @minimum 1
+     * @maximum 10000
+     * @nullable
+     */
+  minRatingCount: number | null;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+}
+
+export type ProviderRewardOfferRewardType = typeof ProviderRewardOfferRewardType[keyof typeof ProviderRewardOfferRewardType];
+
+
+export const ProviderRewardOfferRewardType = {
+  cash_bonus: 'cash_bonus',
+  voucher: 'voucher',
+  gift: 'gift',
+} as const;
+
+export type ProviderRewardOfferAudience = typeof ProviderRewardOfferAudience[keyof typeof ProviderRewardOfferAudience];
+
+
+export const ProviderRewardOfferAudience = {
+  all: 'all',
+  guruji: 'guruji',
+  other_category: 'other_category',
+} as const;
+
+export interface ProviderRewardOffer {
+  id: number;
+  title: string;
+  description: string;
+  rewardType: ProviderRewardOfferRewardType;
+  rewardLabel: string;
+  /** @nullable */
+  rewardAmount: number | null;
+  audience: ProviderRewardOfferAudience;
+  windowDays: number;
+  minCompletedBookings: number;
+  /** @nullable */
+  minAverageRating: number | null;
+  /** @nullable */
+  minRatingCount: number | null;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminProviderRewardProviderAccountType = typeof AdminProviderRewardProviderAccountType[keyof typeof AdminProviderRewardProviderAccountType];
+
+
+export const AdminProviderRewardProviderAccountType = {
+  guruji: 'guruji',
+  other_category: 'other_category',
+} as const;
+
+export type AdminProviderRewardProviderAwardStatus = typeof AdminProviderRewardProviderAwardStatus[keyof typeof AdminProviderRewardProviderAwardStatus];
+
+
+export const AdminProviderRewardProviderAwardStatus = {
+  none: 'none',
+  eligible: 'eligible',
+  issued: 'issued',
+} as const;
+
+export interface AdminProviderRewardProvider {
+  profileId: number;
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  accountType: AdminProviderRewardProviderAccountType;
+  categories: string[];
+  completedBookings: number;
+  averageRating: number;
+  ratingCount: number;
+  isEligible: boolean;
+  awardStatus: AdminProviderRewardProviderAwardStatus;
+  /** @nullable */
+  awardId: number | null;
+  /** @nullable */
+  eligibleAt: string | null;
+  /** @nullable */
+  issuedAt: string | null;
+  /** @nullable */
+  fulfillmentReference: string | null;
+}
+
+export interface AdminProviderRewardOffer {
+  offer: ProviderRewardOffer;
+  providers: AdminProviderRewardProvider[];
+}
+
+export interface AdminProviderRewardsResponse {
+  offers: AdminProviderRewardOffer[];
+}
+
+export interface IssueProviderRewardInput {
+  /** @minimum 1 */
+  profileId: number;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  fulfillmentReference: string;
+  /** @maxLength 1000 */
+  note?: string;
+}
+
+export type ProviderRewardAwardStatus = typeof ProviderRewardAwardStatus[keyof typeof ProviderRewardAwardStatus];
+
+
+export const ProviderRewardAwardStatus = {
+  eligible: 'eligible',
+  issued: 'issued',
+} as const;
+
+export interface ProviderRewardAward {
+  id: number;
+  offerId: number;
+  profileId: number;
+  status: ProviderRewardAwardStatus;
+  eligibleAt: string;
+  /** @nullable */
+  issuedAt: string | null;
+  /** @nullable */
+  issuedBy: number | null;
+  /** @nullable */
+  fulfillmentReference: string | null;
+  /** @nullable */
+  note: string | null;
+}
+
+export type ProviderRewardProgressAwardStatus = typeof ProviderRewardProgressAwardStatus[keyof typeof ProviderRewardProgressAwardStatus];
+
+
+export const ProviderRewardProgressAwardStatus = {
+  none: 'none',
+  eligible: 'eligible',
+  issued: 'issued',
+} as const;
+
+export interface ProviderRewardProgress {
+  offer: ProviderRewardOffer;
+  completedBookings: number;
+  averageRating: number;
+  ratingCount: number;
+  isEligible: boolean;
+  awardStatus: ProviderRewardProgressAwardStatus;
+  /** @nullable */
+  eligibleAt: string | null;
+  /** @nullable */
+  issuedAt: string | null;
+  /** @nullable */
+  fulfillmentReference: string | null;
+}
+
+export interface ProviderRewardsResponse {
+  offers: ProviderRewardProgress[];
+}
+
 export interface FeaturedCustomerReview {
   id: number;
   /**
