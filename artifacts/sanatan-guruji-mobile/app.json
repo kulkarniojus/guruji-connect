@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Vaidik Dhara",
-    "slug": "sanatan-guruji-mobile",
+    "slug": "vaidik-dhara-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/portal-icon.png",
-    "scheme": "sanatan-guruji-mobile",
+    "scheme": "vaidikdhara",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/images/portal-icon.png",
