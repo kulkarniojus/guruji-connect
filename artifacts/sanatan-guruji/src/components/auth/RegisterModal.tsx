@@ -757,7 +757,7 @@ export default function RegisterModal({ isOpen, onClose, onLoginClick, standalon
                         By registering, you agree to our{" "}
                         <a href="/terms" className="text-primary hover:text-primary-500">Terms of Service</a>
                         {" "}and{" "}
-                        <a href="/privacy" className="text-primary hover:text-primary-500">Privacy Policy</a>.
+                        <a href="/privacy-policy" className="text-primary hover:text-primary-500">Privacy Policy</a>.
                       </p>
                     </div>
                     <FormMessage />

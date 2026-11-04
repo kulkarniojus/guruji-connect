@@ -39,34 +39,80 @@ export const siteInformation: Record<InformationKind, InformationContent> = {
   },
   privacy: {
     title: 'Privacy Policy',
-    intro: 'How information is used when you use Vaidik Dhara.',
+    intro: 'This policy explains what Vaidik Dhara collects through its website and mobile app, why it is used, and the choices available to you.',
     sections: [
       {
-        title: 'Information you provide',
+        title: 'Who this policy covers',
         paragraphs: [
-          'Account information can include your name, email address, phone number, and profile details. Booking information includes your selected puja, schedule, service location, and any instructions you provide.',
-          'Guruji applications can include experience, languages, service areas, identity details, and documents supplied for application review. Provide only information needed for the service or application.',
+          'This policy applies when you use the Vaidik Dhara website or mobile app, create an account, browse or book a service, register for an event, apply to provide services, or contact our support team. “Vaidik Dhara” is the service brand shown in the app and on the website.',
+          'For privacy questions or requests, contact the Vaidik Dhara support team at 8087138429 by phone or WhatsApp. Please do not send passwords, one-time passcodes, UPI PINs, or complete card details.',
         ],
       },
       {
-        title: 'Why we use it',
+        title: 'Information we collect',
         paragraphs: [
-          'We use information to manage accounts, process booking requests, match services to your city and requirements, communicate updates, review Guruji applications, and respond to support requests.',
-          'Booking details needed to arrange or deliver a service may be shared with the relevant Guruji and administration team. Service providers supporting hosting, communications, or payments may process information needed for those functions.',
+          'Account and profile information may include your name, email address, phone number, date of birth, age, gender, address, city, state, and postal code. Depending on the registration or service you choose, you may also provide category, caste or religious details, a profile photo, or other profile information.',
+          'Guruji and other service-provider applications may include experience, languages, service areas, selected services, identity details, photographs, certificates, and verification documents. We use information requested in an application to review and manage that application.',
+          'Booking and event information may include the selected puja or event, schedule, service address, preferences, instructions, booking status, attendance, cancellation, payment or refund records, and support messages. For a children’s event, a parent or legal guardian may provide the child’s name and age and confirm that they consent to registration.',
+          'If you use address search, the address text you enter and selected city are sent to Google Places to return address suggestions and details. If a Guruji opts in to mobile push alerts, we process the app’s push token, device platform, and account association so request alerts can be delivered.',
+          'The app uses an essential session cookie to keep you signed in. We may also process basic technical and security information, such as session identifiers and service logs, to operate the app, protect accounts, and investigate errors or misuse.',
         ],
       },
       {
-        title: 'Sessions and communications',
+        title: 'How we use information',
         paragraphs: [
-          'The website uses session cookies to keep you signed in. Your browser settings can control cookies, but blocking them can prevent account and booking features from working.',
-          'Calling or opening WhatsApp uses the phone or messaging service on your device. WhatsApp is a separate service with its own privacy terms. Do not send passwords, OTPs, or payment credentials in support messages.',
+          'We use information to create and maintain accounts; show relevant services and events; check city, availability, and booking details; route requests to Gurujis; manage applications; provide event registration and attendance records; send service and account notifications; handle cancellations, payment records, and refund requests; provide support; and protect the service.',
+          'We use child participant details only to manage the event registration, eligibility, attendance, and related communications submitted by the parent or legal guardian.',
         ],
       },
       {
-        title: 'Your information and requests',
+        title: 'When information is shared',
         paragraphs: [
-          'You can review and update available account details from your profile. For other access, correction, or deletion requests, contact 8087138429. We may need to verify account ownership before acting on a request.',
-          'Some records may need to be retained for outstanding bookings, disputes, or applicable legal obligations. Contact support if you have questions about a particular record.',
+          'The Guruji assigned to a booking receives the customer and service details reasonably needed to prepare for and deliver that booking. Our authorized support and administrative staff may access account, booking, application, event, and finance records to operate the service, assist users, review providers, and resolve issues.',
+          'We use service providers for infrastructure and specific app functions, including Replit for app hosting and file storage, Neon for the application database, Google for address search, and Expo for push-notification delivery when a Guruji has enabled alerts. These providers process information needed for their services under their own privacy terms.',
+          'When online payments are enabled for a booking or event, checkout is handled by Cashfree. We receive the transaction status and references needed to confirm and manage the payment. Payment credentials are entered with the payment provider; do not share a UPI PIN, bank password, one-time passcode, or full card details with Vaidik Dhara.',
+          'If you choose to call or message us through WhatsApp, your communication is handled by your phone or messaging provider. WhatsApp is operated by Meta and has separate privacy terms. We do not sell personal information as a business practice.',
+        ],
+      },
+      {
+        title: 'Location, cookies, and notifications',
+        paragraphs: [
+          'We use the city and address you provide to show service coverage and arrange bookings. When you use address autocomplete, the text you enter and selected city are sent to Google Places. You can choose manual address entry when address search is unavailable or does not return the correct result.',
+          'The session cookie is necessary for sign-in and account features. Blocking it may prevent those features from working. Guruji push alerts are optional; you can turn them off in the app or your device notification settings. In-app booking notifications may still appear in your account.',
+        ],
+      },
+      {
+        title: 'Payments and financial records',
+        paragraphs: [
+          'Payment options can be enabled or disabled by Vaidik Dhara. When a payment is collected online, Cashfree processes checkout and may process information under its own privacy policy. Vaidik Dhara stores transaction references and payment, cancellation, or refund status to administer bookings and financial records; payment availability may vary by service and current configuration.',
+        ],
+      },
+      {
+        title: 'Retention and security',
+        paragraphs: [
+          'We keep information while it is needed to provide the service, maintain your account, administer bookings and applications, handle support or disputes, and meet applicable record-keeping obligations. Retention periods depend on the type of record and its purpose. Some records may remain in protected backups for a limited period after they are removed from active systems.',
+          'We use access controls and other reasonable safeguards to protect information. No website, app, or storage system can be guaranteed to be completely secure.',
+        ],
+      },
+      {
+        title: 'Your choices and privacy requests',
+        paragraphs: [
+          'You can review and update profile information available in your account. You may ask us to access, correct, or delete personal information, or raise a privacy concern, by contacting 8087138429. We may ask for information to verify your identity before acting. We may retain records that are needed for an active booking, a dispute, security, or a legal obligation.',
+          'You can withdraw optional push-notification permission through your device settings. You can also choose not to use Google address search and enter your address manually where that option is available.',
+        ],
+      },
+      {
+        title: 'Children’s information',
+        paragraphs: [
+          'You must be at least 18 years old to create an account. A parent or legal guardian may register a child for an eligible event and provide the child’s name and age for that registration. The guardian is responsible for submitting the information and consent. Children should not create an account or submit registration information on their own.',
+          'If you believe a child’s information was submitted without a parent or legal guardian’s involvement, contact us at 8087138429 so we can review the request.',
+        ],
+      },
+      {
+        title: 'Third-party services and policy changes',
+        paragraphs: [
+          'Links to Google, Cashfree, Expo, WhatsApp, and other third-party services are governed by those providers’ own privacy terms. Their practices are not controlled by this policy.',
+          'We may update this policy when our services or data practices change. The updated version will be posted on this page with a revised “Last updated” date. Please review it periodically.',
         ],
       },
     ],

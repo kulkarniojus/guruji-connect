@@ -31,6 +31,17 @@ export default function SiteInformation({ kind }: { kind: InformationKind }) {
           <h1 className="font-poppins text-3xl font-bold text-neutral-900 md:text-4xl">{content.title}</h1>
           <p className="mt-4 text-lg leading-relaxed text-neutral-600">{content.intro}</p>
         </div>
+        {kind === 'privacy' && (
+          <aside className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+            <p>
+              This notice describes current app practices and is general information, not legal advice.
+              Please have it reviewed by a qualified professional before relying on it for legal compliance.
+            </p>
+            <p className="mt-2 font-medium">
+              Last updated: <time dateTime="2026-11-04">November 4, 2026</time>
+            </p>
+          </aside>
+        )}
         <div className="space-y-8 py-8">
           {content.sections.map(section => (
             <section key={section.title} className="rounded-xl border border-neutral-200 bg-white p-6 md:p-8">
@@ -45,6 +56,20 @@ export default function SiteInformation({ kind }: { kind: InformationKind }) {
             <Button asChild variant="outline"><Link href="/become-guruji">Become a Guruji</Link></Button>
             <Button asChild variant="outline"><Link href="/contact">Contact Us</Link></Button>
           </div>
+        ) : kind === 'privacy' ? (
+          <aside className="rounded-xl bg-orange-50 p-6">
+            <h2 className="mb-2 text-lg font-semibold">Privacy requests</h2>
+            <p className="mb-5 leading-7 text-neutral-600">
+              To ask about your information, request a correction or deletion, or raise a privacy concern,
+              call or message the Vaidik Dhara support team. We may verify your account before handling a request.
+            </p>
+            <SupportLinks />
+            <div className="mt-5 flex flex-wrap gap-4 text-sm text-orange-800">
+              <Link href="/terms" className="hover:underline">Terms &amp; Conditions</Link>
+              <Link href="/contact" className="hover:underline">Contact Us</Link>
+              <Link href="/" className="hover:underline">Home</Link>
+            </div>
+          </aside>
         ) : (
           <aside className="rounded-xl bg-orange-50 p-6">
             <h2 className="mb-2 text-lg font-semibold">Questions about your booking?</h2>
