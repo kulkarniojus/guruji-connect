@@ -43,6 +43,7 @@ import { bookingStatusLabel } from '@workspace/portal-shared/bookingLifecycle';
 import { z } from "zod";
 import { ZodError } from "zod";
 import { genSalt, hash, compare } from "bcrypt";
+import { timingSafeEqual } from "node:crypto";
 import { generateOTP, isValidOTP } from "./services/otp";
 import { sendSMS, sendEmail } from "./services/notification";
 import session from "express-session";
@@ -120,6 +121,19 @@ async function initializeSuperAdminAccess() {
       action TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_owner_recovery_state (
+      id SMALLINT PRIMARY KEY CHECK (id = 1),
+      failed_attempts INTEGER NOT NULL DEFAULT 0,
+      locked_until TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ
+    )
+  `);
+  await pool.query(`
+    INSERT INTO admin_owner_recovery_state (id)
+    VALUES (1)
+    ON CONFLICT (id) DO NOTHING
   `);
 }
 
