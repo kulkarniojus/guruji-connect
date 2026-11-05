@@ -279,6 +279,7 @@ export default function Header() {
                     {isSales && <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">Sales Rep</span>}
                   </div>
                   <Button variant="outline" className="w-full" onClick={() => { setLocation(getDashboardPath()); setMobileMenuOpen(false); }}>Dashboard</Button>
+                  <Button variant="outline" className="w-full" onClick={() => { setLocation('/profile'); setMobileMenuOpen(false); }}>Profile &amp; Account</Button>
                   <Button variant="outline" className="w-full text-red-600" onClick={handleLogout}>Logout</Button>
                 </div>
               ) : (

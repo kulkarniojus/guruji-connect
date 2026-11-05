@@ -1342,6 +1342,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/account/delete", isAuthenticated, async (req: Request, res: Response) => {
+    const parsed = z.object({
+      currentPassword: z.string().min(1).max(128),
+      confirmationText: z.literal('DELETE MY ACCOUNT'),
+    }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: 'Enter your password and type DELETE MY ACCOUNT to confirm.' });
+    }
+
+    const userId = Number(req.session.userId);
+    const client = await pool.connect();
+    let closedUser: { id: number; role: string } | null = null;
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext('vaidik-dhara-account-closure'))`);
+      const result = await client.query(
+        `SELECT id,role,is_super_admin,password,"isBlocked" FROM users WHERE id=$1 FOR UPDATE`,
+        [userId],
+      );
+      const user = result.rows[0];
+      if (!user || user.isBlocked) {
+        await client.query('ROLLBACK');
+        return res.status(401).json({ message: 'This account is not available.' });
+      }
+
+      if (user.is_super_admin === true) {
+        const otherActiveSuperAdmins = Number((await client.query(
+          `SELECT COUNT(*) AS count FROM users
+           WHERE is_super_admin=TRUE AND NOT "isBlocked" AND id<>$1`,
+          [userId],
+        )).rows[0]?.count || 0);
+        if (otherActiveSuperAdmins < 1) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'The last active Super Admin account cannot be closed.' });
+        }
+      }
+      if (user.role === 'admin') {
+        const otherActiveAdmins = Number((await client.query(
+          `SELECT COUNT(*) AS count FROM users
+           WHERE role='admin' AND NOT "isBlocked" AND id<>$1`,
+          [userId],
+        )).rows[0]?.count || 0);
+        if (otherActiveAdmins < 1) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'The last active admin account cannot be closed.' });
+        }
+      }
+
+      const bcrypt = await import('bcrypt');
+      if (!(await bcrypt.compare(parsed.data.currentPassword, user.password))) {
+        await client.query('ROLLBACK');
+        return res.status(401).json({ message: 'Password is incorrect.' });
+      }
+
+      await client.query(
+        `UPDATE users SET "isBlocked"=TRUE,"updatedAt"=NOW() WHERE id=$1`,
+        [userId],
+      );
+      await client.query(
+        `UPDATE guruji_profiles SET "isAvailable"=FALSE,"updatedAt"=NOW() WHERE "userId"=$1`,
+        [userId],
+      );
+      await client.query(`DELETE FROM user_sessions WHERE sess->>'userId'=$1::text`, [userId]);
+      if (user.role === 'admin') {
+        await client.query(
+          `INSERT INTO super_admin_audit_log(actor_id,target_id,action) VALUES($1,$1,'self_account_closed')`,
+          [userId],
+        );
+      }
+      closedUser = { id: userId, role: user.role };
+      await client.query('COMMIT');
+    } catch (error: any) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('Account closure failed:', error?.code || 'unknown');
+      return res.status(500).json({ message: 'Account could not be closed. Please try again or contact Vaidik Dhara support.' });
+    } finally {
+      client.release();
+    }
+
+    const closedAccount = closedUser;
+    if (closedAccount) {
+      try {
+        await pool.query(
+          `INSERT INTO notifications ("userId",title,message,type,"isRead","createdAt")
+           SELECT id,'Account closed — review may be needed',
+             $1,'system',FALSE,NOW()
+           FROM users WHERE role='admin' AND NOT "isBlocked" AND id<>$2`,
+          [
+            `Account #${closedAccount.id} (${closedAccount.role}) was closed. Review any upcoming bookings, event registrations, provider assignments, or pending payments.`,
+            closedAccount.id,
+          ],
+        );
+      } catch (error: any) {
+        console.error('Unable to notify admins about account closure:', error?.code || 'unknown');
+      }
+    }
+
+    req.session.destroy((error) => {
+      if (error) console.error('Closed account session cleanup failed:', (error as any)?.code || 'unknown');
+      res.clearCookie('connect.sid', { path: '/' });
+      return res.json({
+        message: 'Your account has been disabled. Booking and financial records are retained.',
+      });
+    });
+  });
+
   app.get("/api/auth/check-user", async (req: Request, res: Response) => {
     try {
       const { email } = z.object({

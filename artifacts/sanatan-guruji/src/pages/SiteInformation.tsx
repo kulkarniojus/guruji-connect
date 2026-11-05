@@ -38,7 +38,7 @@ export default function SiteInformation({ kind }: { kind: InformationKind }) {
               Please have it reviewed by a qualified professional before relying on it for legal compliance.
             </p>
             <p className="mt-2 font-medium">
-              Last updated: <time dateTime="2026-11-04">November 4, 2026</time>
+              Last updated: <time dateTime="2026-11-05">November 5, 2026</time>
             </p>
           </aside>
         )}
@@ -60,8 +60,10 @@ export default function SiteInformation({ kind }: { kind: InformationKind }) {
           <aside className="rounded-xl bg-orange-50 p-6">
             <h2 className="mb-2 text-lg font-semibold">Privacy requests</h2>
             <p className="mb-5 leading-7 text-neutral-600">
-              To ask about your information, request a correction or deletion, or raise a privacy concern,
-              call or message the Vaidik Dhara support team. We may verify your account before handling a request.
+              You can disable your account immediately from Profile → Security → Delete account. To request
+              correction or erasure of other personal information, or raise a privacy concern, contact the
+              Vaidik Dhara support team. We may verify your account and retain records needed for bookings,
+              refunds, disputes, and accounting.
             </p>
             <SupportLinks />
             <div className="mt-5 flex flex-wrap gap-4 text-sm text-orange-800">

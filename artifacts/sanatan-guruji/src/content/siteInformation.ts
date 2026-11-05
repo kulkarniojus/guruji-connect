@@ -97,7 +97,8 @@ export const siteInformation: Record<InformationKind, InformationContent> = {
       {
         title: 'Your choices and privacy requests',
         paragraphs: [
-          'You can review and update profile information available in your account. You may ask us to access, correct, or delete personal information, or raise a privacy concern, by contacting 8087138429. We may ask for information to verify your identity before acting. We may retain records that are needed for an active booking, a dispute, security, or a legal obligation.',
+          'You can review and update profile information available in your account. To close an account, open Profile, choose Delete account, enter your current password, and confirm. Sign-in is disabled immediately and Guruji availability is turned off. Account profile and booking, event, payment, refund, and accounting information may remain where needed to provide services, resolve disputes, or meet record-keeping obligations; closing an account disables access but does not itself erase all personal information or historical records.',
+          'For requests to access, correct, or erase other personal information, or to raise a privacy concern, contact the Vaidik Dhara support team at 8087138429. We may verify your identity and may retain information required for an active booking, dispute, security, or legal obligation.',
           'You can withdraw optional push-notification permission through your device settings. You can also choose not to use Google address search and enter your address manually where that option is available.',
         ],
       },

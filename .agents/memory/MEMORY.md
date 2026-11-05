@@ -34,3 +34,4 @@
 - [Other-category providers](other-category-providers.md) — category-provider access must layer onto the existing account role, gated by an approved active category application.
 - [Provider rewards](provider-rewards.md) — offers can reward completed services and ratings for Gurujis and approved Other-category providers; fulfillment is tracked, never automated.
 - [Production catalog refresh](production-catalog-refresh.md) — selectively sync pujas and admin access; preserve live accounts, bookings, and financial history.
+- [Account closure](account-closure.md) — disable sign-in immediately, turn off Guruji availability, retain booking/finance records, and protect the last active admin.

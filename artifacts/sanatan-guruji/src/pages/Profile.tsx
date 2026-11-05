@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, User, Calendar, Shield, BookOpen, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Loader2, User, Calendar, Shield, BookOpen, CheckCircle, Clock, XCircle, Trash2 } from 'lucide-react';
 import { PujaMultiSelect, CityMultiSelect } from '@/components/shared/ProfileEditSelectors';
 import OtherCategoryProfileSection from '@/components/profile/OtherCategoryProfileSection';
 
@@ -77,6 +77,8 @@ export default function Profile() {
   // ── Password form ────────────────────────────────────────────────────
   const [pwdForm, setPwdForm] = useState({ current: '', newPwd: '', confirm: '' });
   const [pwdError, setPwdError] = useState('');
+  const [closurePassword, setClosurePassword] = useState('');
+  const [closureConfirmation, setClosureConfirmation] = useState('');
 
   const changePasswordMutation = useMutation({
     mutationFn: async () => {
@@ -108,6 +110,33 @@ export default function Profile() {
     }
     changePasswordMutation.mutate();
   };
+
+  const closeAccountMutation = useMutation({
+    mutationFn: async () => {
+      if (!closurePassword) throw new Error('Enter your current password');
+      if (closureConfirmation !== 'DELETE MY ACCOUNT') {
+        throw new Error('Type DELETE MY ACCOUNT exactly to confirm');
+      }
+      const res = await apiRequest('POST', '/api/account/delete', {
+        currentPassword: closurePassword,
+        confirmationText: closureConfirmation,
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Account could not be closed');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      window.location.replace('/');
+    },
+    onError: (error: any) => toast({
+      title: 'Account was not closed',
+      description: error.message,
+      variant: 'destructive',
+    }),
+  });
 
   // ── Guruji profile form ──────────────────────────────────────────────
   const [gurujiForm, setGurujiForm] = useState({
@@ -583,6 +612,51 @@ export default function Profile() {
                 >
                   {changePasswordMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Change Password
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="mt-6 border-red-200">
+              <CardHeader>
+                <CardTitle className="text-red-700">Delete account</CardTitle>
+                <CardDescription>
+                  This immediately disables sign-in and, for Guruji accounts, removes availability for new bookings.
+                  Profile and booking/payment history may remain for active services, refunds, audits, and legal records;
+                  this action disables the account but does not erase all historical personal data.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="max-w-xl space-y-4">
+                <div>
+                  <Label htmlFor="close-account-password">Current password</Label>
+                  <Input
+                    id="close-account-password"
+                    className="mt-1"
+                    type="password"
+                    autoComplete="current-password"
+                    value={closurePassword}
+                    onChange={event => setClosurePassword(event.target.value)}
+                    placeholder="Confirm your identity"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="close-account-confirm">Type DELETE MY ACCOUNT</Label>
+                  <Input
+                    id="close-account-confirm"
+                    className="mt-1"
+                    value={closureConfirmation}
+                    onChange={event => setClosureConfirmation(event.target.value)}
+                    autoComplete="off"
+                    placeholder="DELETE MY ACCOUNT"
+                  />
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={() => closeAccountMutation.mutate()}
+                  disabled={closeAccountMutation.isPending || !closurePassword || closureConfirmation !== 'DELETE MY ACCOUNT'}
+                >
+                  {closeAccountMutation.isPending
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <Trash2 className="mr-2 h-4 w-4" />}
+                  Permanently disable my account
                 </Button>
               </CardContent>
             </Card>
