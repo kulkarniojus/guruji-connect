@@ -10,6 +10,7 @@ import BookingDetail from "@/pages/BookingDetail";
 import MyBookings from "@/pages/MyBookings";
 import Profile from "@/pages/Profile";
 import AdminLogin from "@/pages/AdminLogin";
+import AdminRecovery from "@/pages/AdminRecovery";
 import PujaDetails from "@/pages/PujaDetails";
 import PujasList from "@/pages/PujasList";
 import BecomeGuruji from "@/pages/BecomeGuruji";
@@ -99,6 +100,7 @@ function Router() {
         <ProtectedRoute component={Profile} />
       </Route>
       <Route path="/admin" component={AdminLogin} />
+      <Route path="/admin-recover" component={AdminRecovery} />
       <Route path="/admin-dashboard">
         <AdminRoute component={AdminDashboard} />
       </Route>

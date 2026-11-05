@@ -122,19 +122,6 @@ async function initializeSuperAdminAccess() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS admin_owner_recovery_state (
-      id SMALLINT PRIMARY KEY CHECK (id = 1),
-      failed_attempts INTEGER NOT NULL DEFAULT 0,
-      locked_until TIMESTAMPTZ,
-      completed_at TIMESTAMPTZ
-    )
-  `);
-  await pool.query(`
-    INSERT INTO admin_owner_recovery_state (id)
-    VALUES (1)
-    ON CONFLICT (id) DO NOTHING
-  `);
 }
 
 // Seed sample gurujis into DB if they don't exist (for demo/testing)
@@ -2074,6 +2061,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await client.query('ROLLBACK').catch(() => {});
       console.error('Unable to bootstrap super admin:', error?.code || error?.message);
       return res.status(503).json({ message: 'Could not complete super admin setup' });
+    } finally {
+      client.release();
+    }
+  });
+
+  const ownerRecoveryInput = z.object({
+    ojus: z.object({
+      password: z.string().min(12).max(128),
+      mobile: z.string().trim().max(24).optional().default(''),
+    }),
+    vaidik: z.object({
+      password: z.string().min(12).max(128),
+      mobile: z.string().trim().max(24).optional().default(''),
+    }),
+  });
+  const ownerRecoveryAccounts = [
+    { key: 'ojus', email: 'kulkarni.ojus1991@gmail.com', firstName: 'Ojus', lastName: 'Kulkarni' },
+    { key: 'vaidik', email: 'vaidikdharasuperadmin@vaidikdhara.com', firstName: 'Vaidik Dhara', lastName: 'Super Admin' },
+  ] as const;
+  const ownerRecoveryAttempts = new Map<string, { count: number; lockedUntil: number }>();
+
+  app.post('/api/owner-recovery', async (req, res) => {
+    if (process.env.NODE_ENV !== 'production') {
+      return res.status(404).json({ message: 'Not found' });
+    }
+
+    const configuredToken = process.env.ADMIN_RECOVERY_TOKEN;
+    if (!configuredToken || Buffer.byteLength(configuredToken, 'utf8') < 32) {
+      return res.status(503).json({ message: 'Owner recovery is not configured' });
+    }
+
+    const parsed = ownerRecoveryInput.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: 'Enter both new passwords (at least 12 characters).' });
+    }
+    if (parsed.data.ojus.password === parsed.data.vaidik.password) {
+      return res.status(400).json({ message: 'Use a different password for each account.' });
+    }
+    if ([parsed.data.ojus.password, parsed.data.vaidik.password]
+      .some(password => Buffer.byteLength(password, 'utf8') > 72)) {
+      return res.status(400).json({ message: 'Passwords must be 72 UTF-8 bytes or fewer.' });
+    }
+
+    const suppliedToken = req.get('x-admin-recovery-token') || '';
+    const suppliedBytes = Buffer.from(suppliedToken, 'utf8');
+    const expectedBytes = Buffer.from(configuredToken, 'utf8');
+    const tokenMatches = suppliedBytes.length === expectedBytes.length &&
+      timingSafeEqual(suppliedBytes, expectedBytes);
+    const attemptKey = req.ip || req.socket.remoteAddress || 'unknown';
+    const attempt = ownerRecoveryAttempts.get(attemptKey);
+    if (attempt?.lockedUntil && attempt.lockedUntil > Date.now()) {
+      return res.status(429).json({ message: 'Too many attempts. Try again later.' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext('vaidik-dhara-owner-admin-recovery'))`);
+      const alreadyUsed = (await client.query(
+        `SELECT 1 FROM super_admin_audit_log WHERE action='owner_recovery' LIMIT 1`
+      )).rows.length > 0;
+      if (alreadyUsed) {
+        await client.query('ROLLBACK');
+        return res.status(410).json({ message: 'Owner recovery has already been used.' });
+      }
+      if (!tokenMatches) {
+        const nextCount = (attempt?.count || 0) + 1;
+        ownerRecoveryAttempts.set(attemptKey, {
+          count: nextCount,
+          lockedUntil: nextCount >= 5 ? Date.now() + 60 * 60 * 1000 : 0,
+        });
+        await client.query('COMMIT');
+        return res.status(401).json({ message: 'Recovery could not be verified.' });
+      }
+
+      const valuesByKey = parsed.data;
+      const prepared: Array<{ account: typeof ownerRecoveryAccounts[number]; passwordHash: string; mobile: string }> = [];
+      for (const account of ownerRecoveryAccounts) {
+        const input = valuesByKey[account.key];
+        const mobile = input.mobile.trim();
+        const digits = mobile.replace(/\D/g, '');
+        if (mobile && (digits.length < 8 || digits.length > 15)) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ message: 'Enter a valid mobile number, or leave it blank for an existing account.' });
+        }
+        prepared.push({
+          account,
+          passwordHash: await hash(input.password, 12),
+          mobile,
+        });
+      }
+
+      const recoveredIds: number[] = [];
+      for (const entry of prepared) {
+        const existing = (await client.query(
+          `SELECT id FROM users WHERE LOWER(TRIM(email))=$1 FOR UPDATE`,
+          [entry.account.email]
+        )).rows[0];
+        let userId: number;
+        if (existing) {
+          userId = Number(existing.id);
+          await client.query(
+            `UPDATE users SET password=$1,role='admin',is_super_admin=TRUE,
+             "isBlocked"=FALSE,"isVerified"=TRUE,"updatedAt"=NOW()
+             WHERE id=$2`,
+            [entry.passwordHash, userId]
+          );
+        } else {
+          if (!entry.mobile) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              message: 'An account does not exist yet. Enter its mobile number to create it, then retry recovery.',
+            });
+          }
+          const created = await client.query(
+            `INSERT INTO users (
+               "firstName","lastName",email,mobile,password,role,"isVerified","isBlocked",
+               "createdAt","updatedAt",gender,age,is_super_admin
+             ) VALUES ($1,$2,$3,$4,$5,'admin',TRUE,FALSE,NOW(),NOW(),'other',0,TRUE)
+             RETURNING id`,
+            [entry.account.firstName, entry.account.lastName, entry.account.email, entry.mobile, entry.passwordHash]
+          );
+          userId = Number(created.rows[0].id);
+        }
+        recoveredIds.push(userId);
+      }
+
+      for (const targetId of recoveredIds) {
+        await client.query(
+          `INSERT INTO super_admin_audit_log(actor_id,target_id,action)
+           VALUES($1,$2,'owner_recovery')`,
+          [recoveredIds[0], targetId]
+        );
+      }
+      await client.query('COMMIT');
+      ownerRecoveryAttempts.delete(attemptKey);
+      return res.json({
+        success: true,
+        message: 'Owner recovery completed. Remove ADMIN_RECOVERY_TOKEN from Replit Secrets now.',
+      });
+    } catch (error: any) {
+      await client.query('ROLLBACK').catch(() => {});
+      if (error?.code === '23505') {
+        return res.status(409).json({ message: 'A mobile number is already linked to another account. Use a different number.' });
+      }
+      console.error('Owner admin recovery failed:', error?.code || 'internal');
+      return res.status(503).json({ message: 'Owner recovery could not be completed. No accounts were changed.' });
     } finally {
       client.release();
     }
