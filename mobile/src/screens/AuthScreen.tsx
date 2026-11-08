@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   featuresList: {
-    space: 12,
+    gap: 12,
   },
   featureItem: {
     flexDirection: 'row',
