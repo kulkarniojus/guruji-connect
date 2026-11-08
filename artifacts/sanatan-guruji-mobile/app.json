@@ -4,11 +4,11 @@
     "slug": "vaidik-dhara-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/portal-icon.png",
+    "icon": "./assets/icon.png",
     "scheme": "vaidikdhara",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/images/portal-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -27,12 +27,12 @@
       "package": "com.vaidikdhara.app",
       "permissions": ["CAMERA", "RECORD_AUDIO", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/portal-icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4d80b3"
       }
     },
     "web": {
-      "favicon": "./assets/images/portal-icon.png"
+      "favicon": "./assets/icon.png"
     },
     "plugins": ["expo-router", ["expo-notifications", { "defaultChannel": "guruji-puja-requests" }]],
     "experiments": {
