@@ -55,7 +55,6 @@ Thumbs.db
 *.zip
 
 # Additional Expo Launch exclusions. These are retained in the workspace.
-/mobile/
 /screenshots/
 # The mobile artifact loads the live portal remotely; its web-only public assets
 # are not bundled by the native app. Keep the web application untouched.
