@@ -64,3 +64,57 @@ Thumbs.db
 **/*.tmp
 **/*.temp
 **/*.swp
+
+# Mobile app local files and signing credentials
+**/.env
+**/.env.*
+**/.env*.local
+**/*.jks
+**/*.keystore
+**/*.p8
+**/*.p12
+**/*.key
+**/*.mobileprovision
+**/*.pem
+**/expo-env.d.ts
+**/.metro-health-check*
+**/*.orig.*
+
+# Native folders and local build output
+**/ios/
+**/android/
+**/web-build/
+**/.vercel/
+
+# Replit agent and local browser data
+/.agents/
+/.config/
+/.local/
+/.replit/
+/.replit-artifact/
+/.migration-backup/
+
+# Old temporary mobile project
+/mobile/
+
+# Git metadata
+/.git/
+**/.replit-artifact/
+
+# Replit artifact metadata across workspace
+**/.replit-artifact/
+
+# Replit root configuration files not needed for Android builds
+/.replit
+/.replitignore
+/.upm/
+/replit.md
+
+# Explicitly exclude local Git metadata and empty Replit directories
+.git
+**/.git/**
+/.agents/
+/.config/
+/.local/
+/.upm/
+**/.replit-artifact/

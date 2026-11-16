@@ -16,7 +16,16 @@
       "bundleIdentifier": "com.vaidikdhara.app",
       "supportsTablet": true,
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["upi", "tez", "gpay", "paytmmp", "phonepe", "bhim", "credpay", "amazonpay"],
+        "LSApplicationQueriesSchemes": [
+          "upi",
+          "tez",
+          "gpay",
+          "paytmmp",
+          "phonepe",
+          "bhim",
+          "credpay",
+          "amazonpay"
+        ],
         "NSCameraUsageDescription": "Use the camera when you choose to upload profile or verification photos or join a portal video call.",
         "NSMicrophoneUsageDescription": "Use the microphone when you choose to join a portal video call.",
         "NSPhotoLibraryUsageDescription": "Select photos for profile and verification uploads on the portal.",
@@ -25,7 +34,12 @@
     },
     "android": {
       "package": "com.vaidikdhara.app",
-      "permissions": ["CAMERA", "RECORD_AUDIO", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4d80b3"
@@ -34,10 +48,24 @@
     "web": {
       "favicon": "./assets/icon.png"
     },
-    "plugins": ["expo-router", ["expo-notifications", { "defaultChannel": "guruji-puja-requests" }]],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "guruji-puja-requests"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6a2a258e-59b7-43e2-afc2-0bdca82548d5"
+      }
+    },
+    "owner": "ojuskulkarni"
   }
 }
